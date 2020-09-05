@@ -1,0 +1,299 @@
+From 997c60fdcc1fc3c2cce9f148724915b85eb069af Mon Sep 17 00:00:00 2001
+From: Benjamin Berg <benjamin.berg@open-mesh.com>
+Date: Mon, 7 Nov 2016 15:59:36 +0100
+Subject: [PATCH] util: Add generic frequency/channel command line handler
+
+The ability to parse channel definitions is required in a lot of places
+inside iw. However, right now each of these duplicates a lot of code to
+handle it.
+
+So add a new helper which can be used everywhere.
+
+Signed-off-by: Benjamin Berg <benjamin.berg@open-mesh.com>
+Signed-off-by: Johannes Berg <johannes.berg@intel.com>
+---
+ iw.h   |  10 +++
+ util.c | 239 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 249 insertions(+)
+
+diff --git a/iw.h b/iw.h
+index 2837bd3..7d56391 100644
+--- a/iw.h
++++ b/iw.h
+@@ -70,6 +70,14 @@ struct chanmode {
+ 	int chantype; /* for older kernel */
+ };
+ 
++struct chandef {
++	enum nl80211_chan_width width;
++
++	unsigned int control_freq;
++	unsigned int center_freq1;
++	unsigned int center_freq2;
++};
++
+ #define ARRAY_SIZE(ar) (sizeof(ar)/sizeof(ar[0]))
+ #define DIV_ROUND_UP(x, y) (((x) + (y - 1)) / (y))
+ 
+@@ -150,6 +158,8 @@ int parse_hex_mask(char *hexmask, unsigned char **result, size_t *result_len,
+ unsigned char *parse_hex(char *hex, size_t *outlen);
+ 
+ int parse_keys(struct nl_msg *msg, char **argv, int argc);
++int parse_freqchan(struct chandef *chandef, bool chan, int argc, char **argv, int *parsed);
++int put_chandef(struct nl_msg *msg, struct chandef *chandef);
+ 
+ void print_ht_mcs(const __u8 *mcs);
+ void print_ampdu_length(__u8 exponent);
+diff --git a/util.c b/util.c
+index a338464..833b1ce 100644
+--- a/util.c
++++ b/util.c
+@@ -469,6 +469,245 @@ int parse_keys(struct nl_msg *msg, char **argv, int argc)
+ 	return 2;
+ }
+ 
++static int parse_freqs(struct chandef *chandef, int argc, char **argv,
++		       int *parsed)
++{
++	static const struct {
++		const char *name;
++		unsigned int val;
++	} bwmap[] = {
++		{ .name = "5", .val = NL80211_CHAN_WIDTH_5, },
++		{ .name = "10", .val = NL80211_CHAN_WIDTH_10, },
++		{ .name = "20", .val = NL80211_CHAN_WIDTH_20, },
++		{ .name = "40", .val = NL80211_CHAN_WIDTH_40, },
++		{ .name = "80", .val = NL80211_CHAN_WIDTH_80, },
++		{ .name = "80+80", .val = NL80211_CHAN_WIDTH_80P80, },
++		{ .name = "160", .val = NL80211_CHAN_WIDTH_160, },
++	};
++	uint32_t freq;
++	unsigned int i, bwval = NL80211_CHAN_WIDTH_20_NOHT;
++	char *end;
++
++	if (argc < 1)
++		return 0;
++
++	for (i = 0; i < ARRAY_SIZE(bwmap); i++) {
++		if (strcasecmp(bwmap[i].name, argv[0]) == 0) {
++			bwval = bwmap[i].val;
++			*parsed += 1;
++			break;
++		}
++	}
++	chandef->width = bwval;
++
++	/* First argument was not understood, give up gracefully. */
++	if (bwval == NL80211_CHAN_WIDTH_20_NOHT)
++		return 0;
++
++	if (argc < 2)
++		return 0;
++
++	/* center freq 1 */
++	if (!*argv[1])
++		return 0;
++	freq = strtoul(argv[1], &end, 10);
++	if (*end)
++		return 0;
++	*parsed += 1;
++
++	chandef->center_freq1 = freq;
++
++	if (argc < 3)
++		return 0;
++
++	/* center freq 2 */
++	if (!*argv[2])
++		return 0;
++	freq = strtoul(argv[2], &end, 10);
++	if (*end)
++		return 0;
++	chandef->center_freq2 = freq;
++
++	*parsed += 1;
++
++	return 0;
++}
++
++
++/**
++ * parse_freqchan - Parse frequency or channel definition
++ *
++ * @chandef: chandef structure to be filled in
++ * @chan: Boolean whether to parse a channel or frequency based specifier
++ * @argc: Number of arguments
++ * @argv: Array of string arguments
++ * @parsed: Pointer to return the number of used arguments, or NULL to error
++ *          out if any argument is left unused.
++ *
++ * The given chandef structure will be filled in from the command line
++ * arguments. argc/argv will be updated so that further arguments from the
++ * command line can be parsed.
++ *
++ * Note that no integer argument may follow a frequency definition to allow the
++ * user to skip the center frequency definition(s).
++ *
++ * The working specifier if chan is set are:
++ *   <channel> [NOHT|HT20|HT40+|HT40-|5MHz|10MHz|80MHz]
++ *
++ * And if frequency is set:
++ *   <freq> [NOHT|HT20|HT40+|HT40-|5MHz|10MHz|80MHz]
++ *   <control freq> [5|10|20|40|80|80+80|160] [<center1_freq> [<center2_freq>]]
++ *
++ * If the mode/channel width is not given the NOHT is assumed.
++ *
++ * Return: Number of used arguments, zero or negative error number otherwise
++ */
++int parse_freqchan(struct chandef *chandef, bool chan, int argc, char **argv,
++		   int *parsed)
++{
++	char *end;
++	static const struct chanmode chanmode[] = {
++		{ .name = "HT20",
++		  .width = NL80211_CHAN_WIDTH_20,
++		  .freq1_diff = 0,
++		  .chantype = NL80211_CHAN_HT20 },
++		{ .name = "HT40+",
++		  .width = NL80211_CHAN_WIDTH_40,
++		  .freq1_diff = 10,
++		  .chantype = NL80211_CHAN_HT40PLUS },
++		{ .name = "HT40-",
++		  .width = NL80211_CHAN_WIDTH_40,
++		  .freq1_diff = -10,
++		  .chantype = NL80211_CHAN_HT40MINUS },
++		{ .name = "NOHT",
++		  .width = NL80211_CHAN_WIDTH_20_NOHT,
++		  .freq1_diff = 0,
++		  .chantype = NL80211_CHAN_NO_HT },
++		{ .name = "5MHz",
++		  .width = NL80211_CHAN_WIDTH_5,
++		  .freq1_diff = 0,
++		  .chantype = -1 },
++		{ .name = "10MHz",
++		  .width = NL80211_CHAN_WIDTH_10,
++		  .freq1_diff = 0,
++		  .chantype = -1 },
++		{ .name = "80MHz",
++		  .width = NL80211_CHAN_WIDTH_80,
++		  .freq1_diff = 0,
++		  .chantype = -1 },
++	};
++	const struct chanmode *chanmode_selected = NULL;
++	unsigned int freq;
++	unsigned int i;
++	int _parsed = 0;
++	int res = 0;
++
++	if (argc < 1)
++		return 1;
++
++	if (!argv[0])
++		goto out;
++	freq = strtoul(argv[0], &end, 10);
++	if (*end) {
++		res = 1;
++		goto out;
++	}
++
++	_parsed += 1;
++
++	memset(chandef, 0, sizeof(struct chandef));
++
++	if (chan) {
++		enum nl80211_band band;
++
++		band = freq <= 14 ? NL80211_BAND_2GHZ : NL80211_BAND_5GHZ;
++		freq = ieee80211_channel_to_frequency(freq, band);
++	}
++	chandef->control_freq = freq;
++	/* Assume 20MHz NOHT channel for now. */
++	chandef->center_freq1 = freq;
++
++	/* Try to parse HT mode definitions */
++	if (argc > 1) {
++		for (i = 0; i < ARRAY_SIZE(chanmode); i++) {
++			if (strcasecmp(chanmode[i].name, argv[1]) == 0) {
++				chanmode_selected = &chanmode[i];
++				_parsed += 1;
++				break;
++			}
++		}
++	}
++
++	/* channel mode given, use it and return. */
++	if (chanmode_selected) {
++		chandef->center_freq1 = get_cf1(chanmode_selected, freq);
++		chandef->width = chanmode_selected->width;
++		goto out;
++	}
++
++	/* This was a only a channel definition, nothing further may follow. */
++	if (chan)
++		goto out;
++
++	res = parse_freqs(chandef, argc - 1, argv + 1, &_parsed);
++
++ out:
++	/* Error out if parsed is NULL. */
++	if (!parsed && _parsed != argc)
++		return 1;
++
++	if (parsed)
++		*parsed = _parsed;
++
++	return res;
++}
++
++int put_chandef(struct nl_msg *msg, struct chandef *chandef)
++{
++	NLA_PUT_U32(msg, NL80211_ATTR_WIPHY_FREQ, chandef->control_freq);
++	NLA_PUT_U32(msg, NL80211_ATTR_CHANNEL_WIDTH, chandef->width);
++
++	switch (chandef->width) {
++	case NL80211_CHAN_WIDTH_20_NOHT:
++		NLA_PUT_U32(msg,
++			    NL80211_ATTR_WIPHY_CHANNEL_TYPE,
++			    NL80211_CHAN_NO_HT);
++		break;
++	case NL80211_CHAN_WIDTH_20:
++		NLA_PUT_U32(msg,
++			    NL80211_ATTR_WIPHY_CHANNEL_TYPE,
++			    NL80211_CHAN_HT20);
++		break;
++	case NL80211_CHAN_WIDTH_40:
++		if (chandef->control_freq > chandef->center_freq1)
++			NLA_PUT_U32(msg,
++				    NL80211_ATTR_WIPHY_CHANNEL_TYPE,
++				    NL80211_CHAN_HT40MINUS);
++		else
++			NLA_PUT_U32(msg,
++				    NL80211_ATTR_WIPHY_CHANNEL_TYPE,
++				    NL80211_CHAN_HT40PLUS);
++		break;
++	default:
++		break;
++	}
++
++	if (chandef->center_freq1)
++		NLA_PUT_U32(msg,
++			    NL80211_ATTR_CENTER_FREQ1,
++			    chandef->center_freq1);
++
++	if (chandef->center_freq2)
++		NLA_PUT_U32(msg,
++			    NL80211_ATTR_CENTER_FREQ2,
++			    chandef->center_freq2);
++
++	return 0;
++
++ nla_put_failure:
++	return -ENOBUFS;
++}
++
+ static void print_mcs_index(const __u8 *mcs)
+ {
+ 	int mcs_bit, prev_bit = -2, prev_cont = 0;
+-- 
+1.9.1
+

@@ -1,0 +1,10 @@
+#include "qcom-ipq8064-brt-ac828-base.dtsi"
+/ {
+	soc {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		pci@1b900000 {
+			status = "ok";
+		};
+	};
+};

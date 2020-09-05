@@ -1,0 +1,1 @@
+../../../src/router/qca-hostap.ipq40xx/qca_hostapd_event_handler.sh

@@ -1,0 +1,15 @@
+#include "qcom-ipq8064-brt-ac828-base.dtsi"
+
+/ {
+	soc {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		sata-phy@1b400000 {
+			status = "ok";
+		};
+
+		sata@29000000 {
+			status = "ok";
+		};
+	};
+};

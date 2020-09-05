@@ -1,0 +1,20 @@
+BRT-AC828
+=========
+
+1. Install toolchain and configure PATH environment variable in accordance with ../../../README.TXT
+2. Run "make brt-ac828_config"
+3. Run "make"
+4. Load u-boot_nand.img to BRT-AC828 via function 9 of boot loader menu, or
+   load u-boot_nand.trx to BRT-AC828 via Firmware Restoration utility.
+
+****************************************************************************************************
+RT-AD7200
+=========
+
+1. Install toolchain and configure PATH environment variable in accordance with ../../../README.TXT
+2. Run "make rt-ad7200"
+3. Run "make"
+4. Load u-boot_nand.img to RT-AD7200 via function 9 of boot loader menu, or
+   load u-boot_nand.trx to RT-AD7200 via Firmware Restoration utility.
+
+****************************************************************************************************

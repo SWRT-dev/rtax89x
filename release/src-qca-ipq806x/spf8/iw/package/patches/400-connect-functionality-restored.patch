@@ -1,0 +1,13 @@
+Index: iw-4.3/Makefile
+===================================================================
+--- iw-4.3.orig/Makefile	2016-07-12 15:02:57.944042515 +0300
++++ iw-4.3/Makefile	2016-07-12 15:04:36.694811087 +0300
+@@ -16,7 +16,7 @@
+ 	interface.o ibss.o station.o survey.o util.o ocb.o \
+ 	mesh.o mpath.o mpp.o scan.o reg.o version.o \
+ 	reason.o status.o link.o offch.o ps.o cqm.o \
+-	bitrate.o vendor.o
++	bitrate.o vendor.o connect.o
+ OBJS += sections.o
+ 
+ OBJS-$(HWSIM) += hwsim.o

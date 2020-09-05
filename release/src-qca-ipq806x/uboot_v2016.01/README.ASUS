@@ -1,0 +1,16 @@
+GT-AXY16000
+===========
+
+1. Install toolchain and configure PATH environment variable in accordance with ../../../README.TXT
+2. Run "make gt-axy16000_defconfig"
+3. Run "make"
+4. Load u-boot_nand.img to GT-AXY16000.
+
+
+RT-AX89X
+========
+
+1. Install toolchain and configure PATH environment variable in accordance with ../../../README.TXT
+2. Run "make rt-ax89u_defconfig"
+3. Run "make"
+4. Load u-boot_nand.img to RT-AX89X.

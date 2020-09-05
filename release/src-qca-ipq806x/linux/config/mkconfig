@@ -1,0 +1,93 @@
+#! /bin/sh
+#############################################################################
+#
+# Generate the vendor/product menu entries for the top level config
+#
+# davidm@snapgear.com
+#
+#############################################################################
+
+fix_name()
+{
+	echo $1 | tr '[\-\.\/\+a-z]' '[____A-Z]'
+}
+
+#############################################################################
+#
+# the header of the config
+#
+
+echo "mainmenu_name 'Ralink Embedded Linux Configuration'"
+
+#############################################################################
+#
+# Figure out the vendor/products dynamically, allows people to add there
+# own without messin with the config.in file
+#
+
+echo "mainmenu_option next_comment"
+echo "comment 'Select the Product you wish to target'"
+
+echo "choice 'Ralink Products' \"RT2880 CONFIG_DEFAULTS_RALINK_RT2880\\"
+echo "                           RT3052 CONFIG_DEFAULTS_RALINK_RT3052\\"
+echo "                           RT3883 CONFIG_DEFAULTS_RALINK_RT3883"
+echo "                         \""
+
+echo "if [ \$CONFIG_DEFAULTS_RALINK_RT2880 = \"y\" ]; then"
+echo "choice   'Flash/SDRAM Size'\\"
+echo "         \"2M/16M   CONFIG_DEFSETTING_2M16M\\"
+echo "           4M/16M   CONFIG_DEFSETTING_4M16M"
+echo "	  \"" 
+echo "elif [ \$CONFIG_DEFAULTS_RALINK_RT3883 = \"y\" ]; then"
+echo "choice   'Flash/SDRAM Size'\\"
+echo "         \"4M/16M(AP)       CONFIG_DEFSETTING_4M16M\\"
+echo "           4M/32M(AP+NAS)	  CONFIG_DEFSETTING_4M32M"
+echo "           8M/64M(AP+STA)	  CONFIG_DEFSETTING_8M64M"
+echo "	  \"" 
+echo "else" # RT3052
+echo "choice   'Flash/SDRAM Size'\\"
+echo "         \"2M/8M(AP)        CONFIG_DEFSETTING_2M8M\\"
+echo "           2M/16M(AP)	  CONFIG_DEFSETTING_2M16M\\"
+echo "           4M/16M(AP+STA)   CONFIG_DEFSETTING_4M16M\\"
+echo "           4M/32M(AP+NAS)   CONFIG_DEFSETTING_4M32M"
+echo "	  \"" 
+echo "fi"
+echo "endmenu"
+
+#############################################################################
+
+echo "mainmenu_option next_comment"
+echo "comment 'Kernel/Library/Defaults Selection'"
+
+echo "if [ \$CONFIG_DEFAULTS_RALINK_RT2880 = \"y\" ]; then"
+echo "define_bool CONFIG_DEFAULTS_KERNEL_2_4 y"
+echo "else"
+echo "define_bool CONFIG_DEFAULTS_KERNEL_2_6_21 y"
+echo "fi"
+
+#############################################################################
+#
+# the rest of the config
+#
+
+# echo "mainmenu_option next_comment"
+# echo "comment 'Configuration Overrides'"
+
+cat <<!EOF
+string 'Cross Compiler Path' 			CONFIG_CROSS_COMPILER_PATH /opt/buildroot-gcc342/bin
+comment ' '
+bool 'Default all settings (lose changes)'	CONFIG_DEFAULTS_OVERRIDE
+bool 'Customize Kernel Settings'		CONFIG_DEFAULTS_KERNEL
+!EOF
+[ -d modules ] &&
+	echo "bool 'Customize Module Settings'	CONFIG_DEFAULTS_MODULES"
+cat <<!EOF
+bool 'Customize Vendor/User Settings'		CONFIG_DEFAULTS_VENDOR
+bool 'Customize Busybox Settings'               CONFIG_DEFAULTS_BUSYBOX
+bool 'Customize uClibc Settings'                CONFIG_DEFAULTS_UCLIBC
+bool 'Customize uClibc++ Settings'              CONFIG_DEFAULTS_UCLIBC_PLUS_PLUS
+bool 'Update Default Vendor Settings'		CONFIG_DEFAULTS_VENDOR_UPDATE
+endmenu
+!EOF
+
+############################################################################
