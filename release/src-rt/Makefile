@@ -765,6 +765,15 @@ ifeq ($(ARM),y)
 	ln -sf $(LINUXDIR)/vmlinux image/vmlinux
 	ln -sf $(LINUXDIR)/vmlinux.o image/vmlinux.o
 endif
+ifeq ($(RAX120),y)
+ifneq ($(RTCONFIG_SOFTCENTER),y)
+#asus unsupport fit, we have to flash a new uboot to support asus firmware
+#	cd image && ../mkdniimg \
+#	-B RAX120 -v V1.0.1.128 -r "" -H "29765589+0+512+1024+4x4+8x8" \
+#	-i $(ONE_IMAGE_FINAL) \
+#	-o RAX120-V1.0.1.128.img
+endif
+endif
 	@echo ""
 
 export_config:
