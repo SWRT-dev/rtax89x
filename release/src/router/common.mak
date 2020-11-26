@@ -10,6 +10,12 @@ else
 	export TOP := $(SRCBASE)/router
 endif
 
+ifneq ($(wildcard $(TOP)-sysdep/),)
+export TOP_PLATFORM := $(TOP)-sysdep
+else
+export TOP_PLATFORM := $(TOP)
+endif
+
 -include $(TOP)/.config
 -include $(SRCBASE)/.config
 -include $(SRCBASE)/profile.mak

@@ -14,8 +14,9 @@ LDFLAGS += -L$(TOP)/json-c/.libs -ljson-c
 LDFLAGS += -lm
 
 ifeq ($(RTCONFIG_AMAS),y)
-CFLAGS += -I$(TOP)/amas-utils -I$(TOP)/shared/sysdeps/amas -DUPDATECOST
+CFLAGS += -I$(TOP)/amas-utils -I$(TOP)/shared/sysdeps/amas
 LDFLAGS += -L$(TOP)/amas-utils -lamas-utils
+LDFLAGS += -L$(TOP)/lldpd-0.9.8/src/lib/.libs -llldpctl -L$(STAGEDIR)/usr/lib/ -ljansson
 ifeq ($(RTCONFIG_AVBLCHAN),y)
 CFLAGS += -DAVBLCHAN
 endif
@@ -92,6 +93,7 @@ ifeq ($(RTCONFIG_AMAS),y)
 COMMON_OBJS += chmgmt.o
 endif
 COMMON_OBJS += encrypt.o cfg_crc.o cfg_udp.o cfg_dencrypt.o cfg_common.o cfg_ipc.o cfg_wevent.o cfg_upgrade.o cfg_clientlist.o cfg_sched.o cfg_slavelist.o
+COMMON_OBJS += cfg_capability.o
 ifeq ($(RTCONFIG_DWB),y)
 COMMON_OBJS += cfg_dwb.o
 endif
@@ -101,7 +103,7 @@ ifeq ($(RTCONFIG_AMAS),y)
 SERVER_OBJS += $(COMMON_OBJS) cfg_eventnotify.o
 endif
 SERVER_OBJS += $(COMMON_OBJS) cfg_mnt.o
-CLIENT_OBJS += $(COMMON_OBJS) cfg_capability.o cfg_client.o
+CLIENT_OBJS += $(COMMON_OBJS) cfg_client.o
 REPORTSTATUS_OBJS += cfg_common.o cfg_reportstatus.o
 
 ifeq ($(RTCONFIG_WIFI_SON),y)
@@ -143,6 +145,10 @@ endif
 
 ifeq ($(RTCONFIG_MASTER_DET),y)
 CFLAGS += -DMASTER_DET
+endif
+
+ifeq ($(RTCONFIG_PRELINK),y)
+CFLAGS += -DPRELINK
 endif
 
 ifeq ($(RTCONFIG_LANTIQ),y)

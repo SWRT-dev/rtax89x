@@ -8,6 +8,12 @@
 #define MAX_VALUE_CONNECTION_TIMEOUT	300	/* second */
 #define MAX_VALUE_TRAFFIC_TIMEOUT	300	/* second */
 
+#if (defined(RTCONFIG_JFFS2) || defined(RTCONFIG_BRCM_NAND_JFFS2) || defined(RTCONFIG_UBIFS))
+#define CFG_MNT_FOLDER		"/jffs/.sys/cfg_mnt/"
+#else
+#define CFG_MNT_FOLDER		"/tmp/cfg_mnt/"
+#endif
+
 struct time_mapping_s {
 	char *model_name;
 	int reboot_time;	/* unit: second, the range is > 0 and <= MAX_VALUE_REBOOT_TIME. */
@@ -35,6 +41,12 @@ static struct time_mapping_s time_mapping_list[] = {
 	{ "Lyra",	80,	60,	60},
 	{ "Lyra_Mini",	80,	60,	60},
 	{ "Lyra_Trio",	80,	120,	60},
+#ifdef RTAC59U
+	{ "RT-AC59U_V2",	80,	120,	60},
+	{ "RT-AC58U_V3",	80,	120,	60},
+	{ "RT-AC57U_V3",	80,	120,	60},
+	{ "RT-AC1300G_PLUS_V3",	80,	120,	60},
+#endif
 	{ "RT-AX88U",	50,     60,     60},
 	{ "RT-AX92U",	50,     60,     60},
 	{ "GT-AX11000",	50,     60,     60},

@@ -5,6 +5,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <netinet/if_ether.h>		//have to in front of <linux/ethtool.h> and <linux/mii.h> to avoid redefinition of 'struct ethhdr'
 #include <linux/mii.h>
 #include <bcmnvram.h>
 
@@ -183,10 +184,13 @@ static const struct led_btn_table_s {
 	{ "led_5g_green_gpio",	&led_gpio_table[LED_5G_GREEN] },
 	{ "led_5g_orange_gpio",	&led_gpio_table[LED_5G_ORANGE] },
 	{ "led_5g_red_gpio",	&led_gpio_table[LED_5G_RED] },
-#elif defined(MAPAC1750)
+#elif defined(RTCONFIG_FIXED_BRIGHTNESS_RGBLED)
 	{ "led_blue_gpio",	&led_gpio_table[LED_BLUE] },
 	{ "led_green_gpio",	&led_gpio_table[LED_GREEN] },
 	{ "led_red_gpio",	&led_gpio_table[LED_RED] },
+#if defined(RTAC59_CD6R) || defined(RTAC59_CD6N)
+	{ "led_white_gpio",	&led_gpio_table[LED_WHITE] },
+#endif
 #endif
 
 #ifdef RPAC53
@@ -346,8 +350,11 @@ int init_gpio(void)
 		, "led_pwr_red_gpio"
 		, "led_2g_green_gpio", "led_2g_orange_gpio", "led_2g_red_gpio"
 		, "led_5g_green_gpio", "led_5g_orange_gpio", "led_5g_red_gpio"
-#elif defined(MAPAC1750)
+#elif defined(RTCONFIG_FIXED_BRIGHTNESS_RGBLED)
 		, "led_blue_gpio", "led_green_gpio", "led_red_gpio"
+#if defined(RTAC59_CD6R) || defined(RTAC59_CD6N)
+		, "led_white_gpio"
+#endif
 #endif
 #ifdef RPAC53
 		, "led_pwr_red_gpio"
@@ -467,13 +474,18 @@ int init_gpio(void)
 	if((gpio_pin = (use_gpio = nvram_get_int("led_pwr_red_gpio")) & 0xff) != 0xff)
 #elif defined(MAPAC1750)
 	if((gpio_pin = (use_gpio = nvram_get_int("led_blue_gpio")) & 0xff) != 0xff)
+#elif defined(RTAC59_CD6R) || defined(RTAC59_CD6N)
+	if((gpio_pin = (use_gpio = nvram_get_int("led_green_gpio")) & 0xff) != 0xff)
 #else
 	if((gpio_pin = (use_gpio = nvram_get_int("led_pwr_gpio")) & 0xff) != 0xff)
 #endif
 	{
 		enable = (use_gpio&GPIO_ACTIVE_LOW)==0 ? 1 : 0;
 #if !defined(RTCONFIG_CONCURRENTREPEATER)
-		set_gpio(gpio_pin, enable);
+#ifdef RTCONFIG_SW_CTRL_ALLLED
+		if (nvram_match("AllLED", "1"))
+#endif
+			set_gpio(gpio_pin, enable);
 #endif
 #ifdef RT4GAC55U	// save setting value
 		{ int i; char led[16]; for(i=0; i<LED_ID_MAX; i++) if(gpio_pin == (led_gpio_table[i]&0xff)){snprintf(led, sizeof(led), "led%02d", i); nvram_set_int(led, LED_ON); break;}}

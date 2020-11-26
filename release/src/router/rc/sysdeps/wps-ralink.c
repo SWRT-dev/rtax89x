@@ -46,10 +46,8 @@ start_wps_method(void)
 	system("reg s 0xB0000000; reg w 0x64 0x30035555"); // Set WLED GPIO mode.
 #endif
 
-#if defined(RTCONFIG_CONCURRENTREPEATER) || defined(RTCONFIG_AMAS)
-	#define REWPSC_PID_FILE "/var/run/re_wpsc.pid"
-#endif
 #if defined(RTCONFIG_CONCURRENTREPEATER)
+	#define REWPSC_PID_FILE "/var/run/re_wpsc.pid"
 	if ((sw_mode() == SW_MODE_REPEATER)) {
 	if (check_if_file_exist(REWPSC_PID_FILE)) {
 		return 0;
@@ -58,16 +56,6 @@ start_wps_method(void)
 			start_re_wpsc();
 	}
 	else
-#endif
-#if defined(RTCONFIG_AMAS)
-    if (nvram_get_int("wps_enrollee") == 1) {
-        if (check_if_file_exist(REWPSC_PID_FILE)) {
-            return 0;
-        }
-		stop_wps_method();
-		start_re_wpsc();
-    }
-    else
 #endif
 	start_wsc();
 
@@ -89,7 +77,7 @@ stop_wps_method(void)
 	system("reg s 0xB0000000; reg w 0x64 0x30035554"); // Set WLED hardware mode.
 #endif
 
-#if defined(RTCONFIG_CONCURRENTREPEATER) || defined(RTCONFIG_AMAS)
+#if defined(RTCONFIG_CONCURRENTREPEATER)
 	#define REWPSC_PID_FILE "/var/run/re_wpsc.pid"
 	i = 0;
 	strcpy(ifnames, nvram_safe_get("wl_ifnames"));
@@ -97,19 +85,14 @@ stop_wps_method(void)
 	char wif[256]={0};
 	char tmp[100]={0};
 	char *aif = NULL;
-    int wlc_express = nvram_get_int("wlc_express");
 
-#ifdef RTCONFIG_AMAS
-    if (nvram_get_int("wps_enrollee") == 1)
-        wlc_express = 1; // Force use 2.4G only.
-#endif
 
 	foreach(wif, nvram_safe_get("wl_ifnames"), next) {
 		SKIP_ABSENT_BAND_AND_INC_UNIT(i);
 		sprintf(prefix, "wl%d_", i);
 		aif = nvram_safe_get(strcat_r(prefix, "vifs", tmp));
 			/* Make sure WPS on all band are turned off */
-			if (wlc_express == 0 || (wlc_express == 1  && i == 0) || (wlc_express == 2  && i == 1)){
+			if (nvram_get_int("wlc_express") == 0 || (nvram_get_int("wlc_express") == 1  && i == 0) || (nvram_get_int("wlc_express") == 2  && i == 1)){
 				doSystem("iwpriv %s set WscStop=%d", aif, 1);	// WPS disabled
 				doSystem("ifconfig %s up", aif);
 			}
@@ -166,16 +149,7 @@ int count[MAX_NR_WL_IF] = { 0, };
 
 int is_wps_stopped(void)
 {
-	int ret = 1;
-#ifdef RTCONFIG_AMAS
-    if (nvram_get_int("wps_enrollee") == 1) { // Trigger by obd daemon
-        if (nvram_get_int("wps_cli_state") == 1) {
-            ret = 0;
-        }
-        return ret;
-    }
-#endif    
-    int i, status;
+	int i, status, ret = 1;
 	char tmp[128], prefix[] = "wlXXXXXXXXXX_", word[256], *next, ifnames[128];
 	int wps_band = nvram_get_int("wps_band_x"), multiband = get_wps_multiband();
 
@@ -239,11 +213,5 @@ int is_wps_stopped(void)
 
 int is_wps_success(void)
 {
-#ifdef RTCONFIG_AMAS
-    if (nvram_get_int("wps_enrollee") == 1) { // Trigger by obd daemon
-        if (nvram_get_int("wps_e_success") == 1)
-            return 1;
-    }
-#endif
-	return 0;
+	return 0; // TODO need to finish this.
 }

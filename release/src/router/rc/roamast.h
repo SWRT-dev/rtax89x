@@ -191,12 +191,8 @@ typedef struct rast_sta_info {
 	unsigned long long last_txrx_bytes;
 #elif defined(RTCONFIG_LANTIQ)
 	unsigned long last_txrx_bytes;
-#else //BRCM
-#ifndef RTCONFIG_BCMARM
+#elif !defined(RTCONFIG_BCMARM) // BRCM MIPS
 	uint32 prepkts;
-#endif
-	uint32 rx_tot_bytes;
-	uint32 rx_bytes;
 #endif
 
 #ifdef RTCONFIG_ADV_RAST
@@ -209,14 +205,17 @@ typedef struct rast_sta_info {
 	uint8 rrm_bcn_passive_cap;	/* RRM Beacon Passive Measurement capability */
 #endif
 #endif
-	int32 tx_rate;
-	int32 rx_rate;
+	uint32 tx_rate;
+	uint32 rx_rate;
+#if defined(RTCONFIG_BCMARM) || defined(RTCONFIG_LANTIQ) || defined(RTCONFIG_QCA)
+	uint64 tx_byte;
+	uint64 rx_byte;
 #if defined(RTCONFIG_BCMARM)
-	int64 tx_byte;
-	int64 rx_byte;
+	uint64 rx_bytes;
 #if defined(RTCONFIG_HND_ROUTER_AX) || defined(RTCONFIG_HND_ROUTER_AX_675X)
 	char tx_nrate[64];
 	char rx_nrate[64];
+#endif
 #endif
 #endif
 } rast_sta_info_t;

@@ -51,7 +51,9 @@
 
 /* Linux specific headers */
 #ifdef linux
+#if (defined(__GLIBC__) || defined(__UCLIBC__))
 #include <error.h>
+#endif
 #include <termios.h>
 #include <sys/time.h>
 //#include <net/ethernet.h>
@@ -248,6 +250,7 @@ int _eval(char *const argv[], const char *path, int timeout, int *ppid)
 	int status = 0;
 	int fd, flags, sig, n;
 	char s[256], *p;
+	int debug_logeval = nvram_get_int("debug_logeval");
 #if 0
 	char *cpu = "0";
 	char *cpu_argv[32] = { "taskset", "-c", cpu, NULL};
@@ -345,7 +348,7 @@ EXIT:
 			if (fd > STDERR_FILENO)
 				close(fd);
 		}
-	} else if (nvram_get_int("debug_logeval")) {
+	} else if (debug_logeval) {
 		pid = getpid();
 
 		if ((fd = open("/dev/console", O_RDWR | O_NONBLOCK)) < 0) {
@@ -2007,7 +2010,7 @@ int generate_wireless_key(unsigned char *key)
 		}
 	}
 
-	printf("key:  %s (%d)\n", key, strlen((const char *) key));
+	printf("key:  %s (%d)\n", (char *)key, (int)strlen((const char *) key));
 
 	return 0;
 }

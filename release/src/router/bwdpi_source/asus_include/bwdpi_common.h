@@ -93,11 +93,20 @@
 #define QOS_TMP         "/tmp/bwdpi/qos_rul"
 
 // node
-#if defined(RTCONFIG_HND_ROUTER_AX) || defined(RTCONFIG_SOC_IPQ8074)
-#define DEVNODE         "/dev/idp"
+/*
+	Now, new module only uses /dev/idp. Old platforms / models use old node /dev/detector.
+	Add compile flag to make these platform use old node, others are considered as new models to make sure module could untar and load signature.
+*/
+#if defined(RTCONFIG_SOC_IPQ8064) || defined(RTCONFIG_SOC_IPQ40XX) || defined(RTCONFIG_QCA956X) || defined(RTCONFIG_RALINK) \
+	|| defined(RTCONFIG_LANTIQ) || defined(RTCONFIG_BCM7) || defined(RTCONFIG_BCM_7114) \
+	|| ((defined(RTCONFIG_BCMSMP) || defined(RTCONFIG_HND_ROUTER)) && !defined(RTCONFIG_HND_ROUTER_AX))
+#define DEVNODE         "/dev/detector" // old node
 #else
-#define DEVNODE         "/dev/detector"
+#define DEVNODE         "/dev/idp"      // new node
 #endif
+
+// OOM protection
+#define IS_IDPFW()      f_exists("/dev/idpfw")
 
 // database hidden path and function path
 #define BWDPI_DB_DIR    "/jffs/.sys"
@@ -142,6 +151,7 @@ extern int get_anomaly_main(char *cmd);
 extern int get_app_patrol_main();
 
 //dpi.c
+extern int check_tdts_module_exist();
 extern int check_daulwan_mode();
 extern int tdts_check_wan_changed();
 extern void stop_dpi_engine_service(int forced);

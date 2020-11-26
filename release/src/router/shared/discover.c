@@ -31,7 +31,11 @@
 #include <sys/ioctl.h>
 #include <net/if.h>
 #include <errno.h>
+#if (defined(__GLIBC__) || defined(__UCLIBC__))
 #include <netinet/udp.h>
+#else
+#include <linux/udp.h>		//instead of <netinet/udp.h> for musl
+#endif	/* ! (__GLIBC__ || __UCLIBC__) */
 #include <netinet/ip.h>
 //#include <netpacket/packet.h>
 #include <net/ethernet.h>
@@ -664,7 +668,7 @@ eprintf("--- get_raw_packet: couldn't read on raw listening socket! ---\n");
 
 	if (bytes < (int) (sizeof(struct iphdr) + sizeof(struct udphdr))) {
 		//DEBUG(LOG_INFO, "message too short, ignoring");
-eprintf("--- get_raw_packet: message too short! bytes(%d) header size(%d)---\n", bytes, (sizeof(struct iphdr) + sizeof(struct udphdr)));
+eprintf("--- get_raw_packet: message too short! bytes(%d) header size(%d)---\n", bytes, (int)(sizeof(struct iphdr) + sizeof(struct udphdr)));
 		return -2;
 	}
 

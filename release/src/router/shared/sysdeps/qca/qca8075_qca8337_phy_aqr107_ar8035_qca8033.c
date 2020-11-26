@@ -28,6 +28,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <netinet/if_ether.h>	//have in front of <linux/mii.h> to avoid redefinition of 'struct ethhdr'
 #include <linux/mii.h>
 #include <dirent.h>
 
@@ -799,10 +800,13 @@ static int get_qca8075_8337_8035_8033_aqr107_vport_info(unsigned int vport, unsi
  * 		bit0 = VP0, bit1 = VP1, etc.
  * @linkStatus:	link status of all ports that is defined by mask.
  * 		If one port of mask is linked-up, linkStatus is true.
+ * @return:	speed.
+ * 	0:	not connected.
+ *  non-zero:	linkrate.
  */
-static void get_qca8075_8337_8035_8033_aqr107_phy_linkStatus(unsigned int mask, unsigned int *linkStatus)
+static int get_qca8075_8337_8035_8033_aqr107_phy_linkStatus(unsigned int mask, unsigned int *linkStatus)
 {
-	int i;
+	int i,t,speed=0;
 	unsigned int value = 0, m;
 
 	m = mask & wanlanports_mask;
@@ -810,11 +814,37 @@ static void get_qca8075_8337_8035_8033_aqr107_phy_linkStatus(unsigned int mask, 
 		if (!(m & 1))
 			continue;
 
-		get_qca8075_8337_8035_8033_aqr107_vport_info(i, &value, NULL);
+		get_qca8075_8337_8035_8033_aqr107_vport_info(i, &value, (unsigned int*) &t);
 		value &= 0x1;
 	}
 	*linkStatus = value;
+
+	switch (t) {
+	case 0x0:
+		speed = 10;
+		break;
+	case 0x1:
+		speed = 100;
+		break;
+	case 0x2:
+		speed = 1000;
+		break;
+	case 0x3:
+		speed = 10000;
+		break;
+	case 0x4:
+		speed = 2500;
+		break;
+	case 0x5:
+		speed = 5000;
+		break;
+	default:
+		speed=0;
+		_dprintf("%s: invalid speed!\n", __func__);
+	}
+	return speed;
 }
+
 
 /**
  * Set wanports_mask, wanXports_mask, and lanports_mask based on
@@ -1140,6 +1170,16 @@ static void create_Vlan(int bitmask)
 	/* selecet upstream port for IPTV port. */
 	strlcpy(upstream_if, get_wan_base_if(), sizeof(upstream_if));
 	qca8075_8337_8035_8033_aqr107_vlan_set(vtype, upstream_if, vid, prio, mbr_qca, untag_qca);
+}
+
+unsigned int
+rtkswitch_Port_phyLinkRate(unsigned int port_mask)
+{
+        unsigned int speed = 0 ,status = 0;
+
+	speed=get_qca8075_8337_8035_8033_aqr107_phy_linkStatus(port_mask, &status);
+
+        return speed;
 }
 
 
@@ -1791,5 +1831,37 @@ void set_jumbo_frame(void)
 			continue;
 		strlcpy(ifname, p, sizeof(ifname));
 		_eval(ifconfig_argv, NULL, 0, NULL);
+	}
+}
+
+/* Platform-specific function of wgn_sysdep_swtich_unset()
+ * Unconfigure VLAN settings that is used to connect AiMesh guest network.
+ * @vid:	VLAN ID
+ */
+void __wgn_sysdep_swtich_unset(int vid)
+{
+	char vid_str[6];
+	char *delete_vlan[] = { "ssdk_sh", SWID_QCA8337, "vlan", "entry", "del", vid_str, NULL };
+
+	snprintf(vid_str, sizeof(vid_str), "%d", vid);
+	_eval(delete_vlan, DBGOUT, 0, NULL);
+}
+
+/* Platform-specific function of wgn_sysdep_swtich_set()
+ * Unconfigure VLAN settings that is used to connect AiMesh guest network.
+ * @vid:	VLAN ID
+ */
+void __wgn_sysdep_swtich_set(int vid)
+{
+	int i;
+	char port_str[4], vid_str[6];
+	char *create_vlan[] = { "ssdk_sh", SWID_QCA8337, "vlan", "entry", "create", vid_str, NULL };
+	char *vmbr_add[] = { "ssdk_sh", SWID_QCA8337, "vlan", "member", "add", vid_str, port_str, "unmodified", NULL };
+
+	snprintf(vid_str, sizeof(vid_str), "%d", vid);
+	_eval(create_vlan, DBGOUT, 0, NULL);
+	for (i = 0; i <= 6; ++i) {
+		snprintf(port_str, sizeof(port_str), "%d", i);
+		_eval(vmbr_add, DBGOUT, 0, NULL);
 	}
 }

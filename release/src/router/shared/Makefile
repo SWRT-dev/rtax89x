@@ -14,7 +14,7 @@ ifneq ($(HND_ROUTER),y)
 CFLAGS += -I$(LINUXDIR)/include
 else
 CFLAGS += -DHND_ROUTER -DLINUX26 -DCONFIG_BCMWL5
-CFLAGS += -I$(HND_SRC)/bcmdrivers/opensource/include/bcm963xx 
+CFLAGS += -I$(HND_SRC)/bcmdrivers/opensource/include/bcm963xx
 CFLAGS += -I$(HND_SRC)/shared/opensource/include/bcm963xx
 #CFLAGS += -I$(TOP)/ethctl -I$(TOP)/ethswctl
 #CFLAGS += -I$(TOP)/ethswctl
@@ -31,7 +31,7 @@ CFLAGS += -DSHP
 endif
 
 ifeq ($(RTCONFIG_RALINK),y)
-CFLAGS += -I./sysdeps/ralink -I$(TOP)/wireless_tools/ -DWE_NOLIBM 
+CFLAGS += -I./sysdeps/ralink -I$(TOP)/wireless_tools/ -DWE_NOLIBM
 endif
 
 ifeq ($(RTCONFIG_QCA),y)
@@ -114,7 +114,7 @@ endif
 
 OBJS = shutils.o linux_timer.o defaults.o model.o rtstate.o boardapi.o
 OBJS += network_utility.o
-OBJS += misc.o version.o files.o strings.o process.o 
+OBJS += misc.o version.o files.o strings.o process.o
 OBJS += bin_sem_asus.o semaphore.o pids.o $(if $(wildcard notify_rc.c),notify_rc.o,prebuild/notify_rc.o)
 OBJS += discover.o
 OBJS += base64.o
@@ -125,6 +125,9 @@ OBJS += mac_name_tbl.o
 OBJS += stun.o
 ifeq ($(RTCONFIG_AHS),y)
 OBJS += $(if $(wildcard notify_ahs.c),notify_ahs.o,prebuild/notify_ahs.o)
+endif
+ifeq ($(RTCONFIG_AMAS_WGN),y)
+OBJS += amas_wgn_shared.o
 endif
 ifeq ($(RTCONFIG_RGBLED),y)
 OBJS += $(if $(wildcard aura_rgb.c),aura_rgb.o,prebuild/aura_rgb.o)
@@ -154,7 +157,7 @@ OBJS += api-realtek.o realtek.o
 
 else ifeq ($(RTCONFIG_RALINK),y)
 OBJS += $(TOP)/wireless_tools/iwlib.o
-OBJS += flash_mtd.o api-ralink.o ralink.o
+OBJS += flash_mtd.o api-ralink.o
 ifeq ($(RTCONFIG_RALINK_RT3052),y)
 OBJS += ra3052.o
 endif
@@ -179,7 +182,7 @@ endif
 else ifeq ($(RTCONFIG_QCA),y)
 # Qualcomm Atheros
 OBJS += $(TOP)/wireless_tools/iwlib.o
-OBJS += flash_mtd.o api-qca.o 
+OBJS += flash_mtd.o api-qca.o
 ifeq ($(or $(RTCONFIG_SWITCH_RTL8370M_PHY_QCA8033_X2),$(RTCONFIG_SWITCH_RTL8370MB_PHY_QCA8033_X2)),y)
 OBJS += qca8033_rtl8370m.o mdio.o
 else ifeq ($(RTCONFIG_QCA8033),y)
@@ -190,6 +193,8 @@ else ifeq ($(RTCONFIG_SWITCH_QCA8075_PHY_AQR107),y)
 OBJS += qca8075_phy_aqr107.o
 else ifeq ($(RTCONFIG_SWITCH_QCA8075_QCA8337_PHY_AQR107_AR8035_QCA8033),y)
 OBJS += qca8075_qca8337_phy_aqr107_ar8035_qca8033.o mdio.o ethtool.o
+else ifeq ($(RTCONFIG_QCN550X)$(RTCONFIG_SWITCH_QCA8337N),yy)
+OBJS += qca8337_ssdk_sh.o
 else
 OBJS += qca8337.o
 endif
@@ -316,7 +321,7 @@ CFLAGS += -DSMART_CONNECT
 endif
 OBJS += $(if $(wildcard sysdeps/amas/amas_dwb.c),amas_dwb.o,prebuild/amas_dwb.o)
 endif
-OBJS += $(if $(wildcard amas_utils.c),amas_utils.o, prebuild/amas_utils.o)
+OBJS += $(if $(wildcard amas_utils.c),amas_utils.o,prebuild/amas_utils.o)
 ifeq ($(RTCONFIG_AMASDB),y)
 CFLAGS += -DAMASDB
 endif

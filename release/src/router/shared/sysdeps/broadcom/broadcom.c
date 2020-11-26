@@ -339,19 +339,41 @@ int string2hex(const char *a, unsigned char *e, int len)
 
 void add_beacon_vsie(char *hexdata)
 {
-	unsigned char value[256];
+	unsigned char value[512];
 	int pktflag = VNDR_IE_BEACON_FLAG | VNDR_IE_PRBRSP_FLAG;
 	int len = 0;
+#ifdef RTCONFIG_BHCOST_OPT
+	int unit = 0;
+	char word[100], *next;
+#endif
 
 	len = DOT11_OUI_LEN + strlen(hexdata)/2;
 
-	if (string2hex(hexdata, value, strlen(hexdata)))
+	if (string2hex(hexdata, value, strlen(hexdata))) {
+#ifdef RTCONFIG_BHCOST_OPT
+		foreach (word, nvram_safe_get("wl_ifnames"), next) {
+			wl_add_ie(unit, pktflag, len, (uchar *) OUI_ASUS, value);
+			unit++;
+		}
+#else
 		wl_add_ie(0, pktflag, len, (uchar *) OUI_ASUS, value);
+#endif
+	}
 }
 
 void del_beacon_vsie(char *hexdata)
 {
+#ifdef RTCONFIG_BHCOST_OPT
+	int unit = 0;
+	char word[100], *next;
+
+	foreach (word, nvram_safe_get("wl_ifnames"), next) {
+		wl_del_ie_with_oui(unit, (uchar *) OUI_ASUS);
+		unit++;
+	}
+#else
 	wl_del_ie_with_oui(0, (uchar *) OUI_ASUS);
+#endif
 }
 #endif
 

@@ -13,9 +13,7 @@
 #include <unistd.h>
 #include <string.h>
 #include <time.h>
-#ifdef HND_ROUTER
 #include <limits.h>
-#endif
 
 #ifdef RTCONFIG_RALINK
 #include <ralink.h>
@@ -23,6 +21,7 @@
 
 #ifdef RTCONFIG_QCA
 #include <qca.h>
+#include <sys/mman.h>
 #endif
 
 #if defined(RTCONFIG_LP5523)
@@ -32,6 +31,7 @@
 #if defined(RTCONFIG_SOC_IPQ8074)
 #include <sys/vfs.h>
 #include <inttypes.h>
+#include <sys/reboot.h>
 #endif
 
 #ifndef ARRAYSIZE
@@ -431,7 +431,7 @@ static int rctest_main(int argc, char *argv[])
 			else stop_wdg_monitor();
 		}
 #endif
-#ifdef RTCONFIG_FANCTRL
+#if defined(CONFIG_BCMWL5) && defined(RTCONFIG_FANCTRL)
 		else if (strcmp(argv[1], "phy_tempsense") == 0) {
 			if (on) start_phy_tempsense();
 			else stop_phy_tempsense();
@@ -443,7 +443,7 @@ static int rctest_main(int argc, char *argv[])
 			else stop_psta_monitor();
 		}
 #endif
-#if defined(RTCONFIG_AMAS) && (defined(RTCONFIG_BCMWL6) || defined(RTCONFIG_LANTIQ) || defined(RTCONFIG_QCA) || defined(RTCONFIG_REALTEK) || defined(RTCONFIG_RALINK))
+#if defined(RTCONFIG_AMAS) && (defined(RTCONFIG_BCMWL6) || defined(RTCONFIG_LANTIQ) || defined(RTCONFIG_QCA) || defined(RTCONFIG_REALTEK))
 		else if (strcmp(argv[1], "obd") == 0) {
 			if (on) start_obd();
 			else stop_obd();
@@ -779,6 +779,90 @@ static int del_q6mem(const char *basedir, const struct dirent *de, void *arg)
 	return 0;
 }
 
+/* Splite specified /PATH/TO/q6mem_xxx.gz as 10MB files, store them in @outdir, and then remove original one.
+ * @argv[1]:	path and filename to a Q6 crashdump, e.g., /tmp/q6mem_202008041020.gz
+ * @argv[2]:	output directory. q6mem_202008041020.gz is splited as q6mem_202008041020.gz.1, q6mem_202008041020.gz.2, etc.
+ * @return:
+ *  0:		successful
+ *  otherwise:	error
+ */
+int split_q6mem_main(int argc, char *argv[])
+{
+	int r = 0, c, ifd, ofd;
+	off_t tlen;
+	size_t map_size;
+	ssize_t len, l;
+	char *p, *q6mem_fn, *outdir;
+	char fn[sizeof("q6mem_YYYYMMDD_HHMMSS.gzXXX")];
+	char out_path[128];
+	unsigned char *ptr = NULL;
+
+	if (argc < 3)
+		return -1;
+
+	q6mem_fn = argv[1];
+	outdir = argv[2];
+	if (!q6mem_fn || *q6mem_fn == '\0' || !outdir || *outdir == '\0')
+		return -1;
+
+	if (!(p = strstr(q6mem_fn, "q6mem_")))
+		return - 2;
+
+	strlcpy(fn, p, sizeof(fn));
+	if (!(ifd = open(q6mem_fn, O_RDONLY)))
+		return -3;
+
+	if ((tlen = lseek(ifd, 0, SEEK_END)) < 0) {
+		r = -4;
+		goto exit_split_q6mem_main_1;
+	}
+
+	map_size = tlen;
+	ptr = (unsigned char *)mmap(0, map_size, PROT_READ, MAP_SHARED, ifd, 0);
+	if (ptr == (unsigned char *)MAP_FAILED) {
+		dbg("%s: Can't map %s. (%s)\n", __func__, q6mem_fn, strerror(errno));
+		r = -5;
+		goto exit_split_q6mem_main_1;
+	}
+
+	for (c = 1, len = 0; !r && tlen > 0; ++c) {
+		len = (tlen > (10L * 1048576))? 10L * 1048576 : tlen;
+		snprintf(out_path, sizeof(out_path), "%s/%s.%d", outdir, fn, c);
+		if ((ofd = creat(out_path, 0777)) == -1) {
+			dbg("%s: Can't create %s. (%s)\n", __func__, out_path, strerror(errno));
+			r = -6;
+			break;
+		}
+
+		while (len > 0) {
+			l = write(ofd, ptr, len);
+			if (l <= 0) {
+				dbg("%s: Can't write to %s, %ld remains. (%s)\n", __func__, out_path, len, strerror(errno));
+				r = -7;
+				break;
+			}
+
+			tlen -= l;
+			len -= l;
+			ptr += l;
+		}
+		close(ofd);
+		sync();
+	}
+
+	if (ptr != NULL)
+		munmap(ptr, map_size);
+
+ exit_split_q6mem_main_1:
+	close(ifd);
+
+	if (!r) {
+		unlink(q6mem_fn);
+	}
+
+	return r;
+}
+
 static int __hotplug_dump_q6mem(void)
 {
 	int ret = EINVAL;
@@ -790,7 +874,7 @@ static int __hotplug_dump_q6mem(void)
 	char path[128], ts[sizeof("YYYYMMDD_HHMMSSXXX")];
 	char gz_cmd[sizeof("gzip -c /dev/q6mem > /jffs/q6mem_XXXXXX.gz") + sizeof(ts)];
 	char dmesg_cmd[sizeof("dmesg > /jffs/dmesg_XXXXXX.txt") + sizeof(ts)];
-	char cp_cmd[sizeof("sleep 30 ; cp -f /tmp/dmesg_XXX.txt /tmp/q6mem_XXX.gz /jffs &") + 2 * sizeof(ts)];
+	char cp_cmd[sizeof("sleep 30 ; cp -f /tmp/dmesg_XXX.txt /jffs ; split_q6mem /tmp/q6mem_XXX.gz /jffs &") + 2 * sizeof(ts)];
 
 	action = getenv("ACTION");
 	devicename = getenv("DEVICENAME");
@@ -833,10 +917,24 @@ static int __hotplug_dump_q6mem(void)
 	snprintf(gz_cmd, sizeof(gz_cmd), "gzip -c /dev/%s > %s", devicename, path);
 	dbg("%s: gzip /dev/%s to %s ...\n", __func__, devicename, path);
 	system(gz_cmd);
-	system("restart_wireless &");
-	dbg("%s: gzip /dev/%s to %s done, copy it to /jffs and restart_wireless\n", __func__, devicename, path);
-	snprintf(cp_cmd, sizeof(cp_cmd), "sleep 30 ; cp -f /tmp/dmesg_%s.txt /tmp/q6mem_%s.gz /jffs &", ts, ts);
-	system(cp_cmd);
+
+	if (nvram_match("Ate_power_on_off_enable", "2")) {
+		/* move dmesg* to /jffs, splite /tmp/q6mem_*.gz as several 10MB files to /jffs then remove original one,
+		 * then, reboot DUT.
+		 */
+		snprintf(cp_cmd, sizeof(cp_cmd), "cp -f /tmp/dmesg_%s.txt /jffs ; split_q6mem /tmp/q6mem_%s.gz /jffs", ts, ts);
+		system(cp_cmd);
+		sync();
+		dbg("%s: Got Q6 crashdump in run-in mode, reboot instead!\n", __func__);
+		reboot(RB_AUTOBOOT);
+	} else {
+		system("restart_wireless &");
+		dbg("%s: gzip /dev/%s to %s done, copy it to /jffs and restart_wireless\n", __func__, devicename, path);
+
+		/* sleep 30 seconds, move dmesg* to /jffs, splite /tmp/q6mem_*.gz as several 10MB files to /jffs and then remove original one. */
+		snprintf(cp_cmd, sizeof(cp_cmd), "sleep 30 ; cp -f /tmp/dmesg_%s.txt /jffs ; split_q6mem /tmp/q6mem_%s.gz /jffs &", ts, ts);
+		system(cp_cmd);
+	}
 
 	return 0;
 }
@@ -1095,7 +1193,7 @@ static const applets_t applets[] = {
 #if defined(RTCONFIG_BCMWL6) && defined(RTCONFIG_PROXYSTA)
 	{ "psta_monitor",		psta_monitor_main		},
 #endif
-#if defined(RTCONFIG_AMAS) && (defined(RTCONFIG_BCMWL6) || defined(RTCONFIG_LANTIQ) || defined(RTCONFIG_QCA) || defined(RTCONFIG_REALTEK) || defined(RTCONFIG_RALINK)) && !defined(RTCONFIG_DISABLE_REPEATER_UI)
+#if defined(RTCONFIG_AMAS) && (defined(RTCONFIG_BCMWL6) || defined(RTCONFIG_LANTIQ) || defined(RTCONFIG_QCA) || defined(RTCONFIG_REALTEK)) && !defined(RTCONFIG_DISABLE_REPEATER_UI)
 	{ "obd",			obd_main			},
 #endif
 #if defined(RTCONFIG_AMAS) && defined(RTCONFIG_ETHOBD)
@@ -1122,16 +1220,12 @@ static const applets_t applets[] = {
 #ifdef RTCONFIG_IPV6
 	{ "dhcp6c",			dhcp6c_wan			},
 #endif
-#if defined(RTCONFIG_CONCURRENTREPEATER) || defined(RTCONFIG_AMAS)
-#if defined(RTCONFIG_RALINK)
-	{ "re_wpsc",			re_wpsc_main			},
-#endif
-#endif
 #if defined(RTCONFIG_CONCURRENTREPEATER)
 #if !defined(RPAC68U)
 	{ "led_monitor",		led_monitor_main		},
 #endif
 #if defined(RTCONFIG_RALINK)
+	{ "re_wpsc",			re_wpsc_main			},
 	{ "air_monitor",		air_monitor_main		},
 #endif
 #endif
@@ -1202,6 +1296,7 @@ static const applets_t applets[] = {
 #endif
 #if defined(RTCONFIG_SOC_IPQ8074)
 	{ "test_blu",			test_bl_updater_main		},
+	{ "split_q6mem",		split_q6mem_main		},
 #endif
 #ifdef RTCONFIG_HTTPS
 	{ "rsasign_check",		rsasign_check_main		},
@@ -1221,6 +1316,9 @@ static const applets_t applets[] = {
 #endif
 #ifdef RTCONFIG_AMAS
 	{ "amas_lib",		        amas_lib_main			},
+#ifdef RTCONFIG_BHCOST_OPT    
+	{ "amas_ipc",			amas_ipc_main			},
+#endif    
 #endif
 #ifdef RTCONFIG_USB_MODEM
 #ifdef RTCONFIG_INTERNAL_GOBI
@@ -1488,17 +1586,21 @@ int main(int argc, char **argv)
 			printf("Error. wifimon_check should run in RE.\n");
 		return 0;
 	}
+#endif /* RTCONFIG_WIFI_SON */
 #if defined(RTCONFIG_LP5523)
 /*
  * Manual setting LP5523 leds
  * usage: lp55xx_set_led [behavior_mode] [Blue_vol] [Green_vol] [Red_vol]
  *
  * Behavior:	300~xxx(xxx please refer to lp55xx_leds_mode in shared/lp5523led.h)
- * XXX_vol:	0~255
+ * B_vol:	0~255
+ * G_vol:	0~255
+ * R_vol:	0~255
+ * Brightness:	0~100
  *
  * */
 	if (!strcmp(base, "lp55xx_set_led")) {
-		if (argv[1] && argv[2] && argv[3] && argv[4])
+		if (argv[1] && argv[2] && argv[3] && argv[4] && argv[5])
 		{
 			char tmp[32];
 			int ptb_mode=0;
@@ -1507,17 +1609,15 @@ int main(int argc, char **argv)
 			memset(tmp, '\0', 32);
 			while (argv[i])
 			{
-				if (i>5)
-				{
+				if (i>5) {
 					printf("Error. Enter too many parameters.\n");
 					return 0;
 				}
 
 				switch (i) {
 				case 1:
-					if (safe_atoi(argv[i])>LP55XX_END_BLINK || safe_atoi(argv[i])<LP55XX_ACT_NONE)
-					{
-						printf("Error. Set LED behavior failed. [%d - %d]\n", LP55XX_ACT_NONE, LP55XX_END_BLINK);
+					if (safe_atoi(argv[i])>LP55XX_END_BLINK || safe_atoi(argv[i])<LP55XX_END_COLOR) {
+						printf("Error. Set LED behavior failed. [%d - %d]\n", LP55XX_END_COLOR, LP55XX_END_BLINK);
 						return 0;
 					}
 
@@ -1526,16 +1626,23 @@ int main(int argc, char **argv)
 				case 2:
 				case 3:
 				case 4:
-					if (safe_atoi(argv[i])>255 || safe_atoi(argv[i])<0)
-					{
+					if (safe_atoi(argv[i])>255 || safe_atoi(argv[i])<0) {
 						printf("Error. Set LED(%d) power failed. [%d - %d]\n", i-1, 0, 255);
 						return 0;
 					}
 
 					if (i==2)
-						sprintf(tmp, "%s%s%x", tmp, safe_atoi(argv[i])<16?"0":"", safe_atoi(argv[i]));
+						sprintf(tmp, "%s0x%s%x", tmp, safe_atoi(argv[i])<16?"0":"", safe_atoi(argv[i]));
 					else
-						sprintf(tmp, "%s_%s%x", tmp, safe_atoi(argv[i])<16?"0":"", safe_atoi(argv[i]));
+						sprintf(tmp, "%s_0x%s%x", tmp, safe_atoi(argv[i])<16?"0":"", safe_atoi(argv[i]));
+
+					break;
+				case 5:
+					if (safe_atoi(argv[i])>100 || safe_atoi(argv[i])<0) {
+						printf("Error. Set Brightness(%d) failed. [%d - %d]\n", i-1, 0, 100);
+						return 0;
+					}
+					nvram_set_int("lp55xx_lp5523_user_brightness", safe_atoi(argv[i]));
 
 					break;
 				}
@@ -1548,9 +1655,10 @@ int main(int argc, char **argv)
 		}
 		else
 			printf("Error. Enter parameter failed.\n\n"
-				"Usage: lp55xx_set_led [behavior_mode] [Blue_vol] [Green_vol] [Red_vol]\n\n"
+				"Usage: lp55xx_set_led [behavior_mode] [Blue_vol] [Green_vol] [Red_vol] [Brightness] \n\n"
 				"Behavior: 300~xxx(xxx please refer to lp55xx_leds_mode in shared/lp5523led.h)\n"
-				"XXX_vol:  0~255\n");
+				"XXX_vol:  0~255\n"
+				"Brightness: 1~100\n");
 
 		return 0;
 	}
@@ -1686,7 +1794,6 @@ int main(int argc, char **argv)
 		return 0;
 	}
 #endif
-#endif /* RTCONFIG_WIFI_SON */
 
 	if (!strcmp(base, "restart_wireless")) {
 		printf("restart wireless...\n");
@@ -2107,6 +2214,11 @@ int main(int argc, char **argv)
 #endif
 #ifdef RTCONFIG_AMAS
 #if !defined(RTCONFIG_DISABLE_REPEATER_UI)
+#ifdef RTCONFIG_BHCOST_OPT
+	else if (!strcmp(base, "amas_status")) {
+		return amas_status_main();
+	}
+#endif
 	else if (!strcmp(base, "amas_wlcconnect")) {
 		return amas_wlcconnect_main();
 	}
@@ -2117,6 +2229,14 @@ int main(int argc, char **argv)
 	else if (!strcmp(base, "amas_lanctrl")) {
 		return amas_lanctrl_main();
 	}
+#ifdef RTCONFIG_BHCOST_OPT
+	else if (!strcmp(base, "amas_ssd")) {
+		return amas_ssd_main();
+	}
+	else if (!strcmp(base, "amas_misc")) {
+		return amas_misc_main();
+	}
+#endif    
 #endif
 #ifdef CONFIG_BCMWL5
 	else if (!strcmp(base, "setup_dnsmq")) {
@@ -2127,7 +2247,10 @@ int main(int argc, char **argv)
 	}
 #endif
 	else if (!strcmp(base, "add_multi_routes")) {
-		return add_multi_routes(0);
+		if(argc == 2)
+			return add_multi_routes(atoi(argv[1]));
+		else
+			return add_multi_routes(0);
 	}
 	else if (!strcmp(base, "led_ctrl")) {
 		return do_led_ctrl(atoi(argv[1]), atoi(argv[2]));

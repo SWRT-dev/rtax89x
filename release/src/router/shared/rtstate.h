@@ -293,7 +293,7 @@ enum {
 #define MAX_USB_PART_NUM 16
 #define MAX_USB_PRINTER_NUM 2
 #define MAX_USB_TTY_NUM 10
-#endif
+#endif	// RTCONFIG_USB
 
 // the following definition is for wans_cap
 #define WANSCAP_DSL	0x01
@@ -369,8 +369,8 @@ extern char *get_usb_ehci_port(int port);
 extern char *get_usb_ohci_port(int port);
 extern int get_usb_port_number(const char *usb_port);
 extern int get_usb_port_host(const char *usb_port);
-extern void set_wanscap_support(char *feature);
 #ifdef RTCONFIG_DUALWAN
+extern void set_wanscap_support(char *feature);
 extern void add_wanscap_support(char *feature);
 extern int get_wans_dualwan(void);
 extern int get_dualwan_by_unit(int unit);
@@ -396,5 +396,7 @@ extern int get_modemunit_by_type(int wan_type);
 extern int get_wantype_by_modemunit(int modem_unit);
 
 extern char *get_userdns_r(const char *prefix, char *buf, size_t buflen);
+
+extern int asus_ctrl_en(int cid);
 
 #endif	/* !__RTSTATE_H__ */

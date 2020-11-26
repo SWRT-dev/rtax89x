@@ -45,7 +45,7 @@
 #include "memdbg.h"
 
 #if defined(TARGET_LINUX) || defined(TARGET_ANDROID)
-typedef  uint64_t __u64;
+//typedef  uint64_t __u64;
 #include <linux/rtnetlink.h>            /* RTM_GETROUTE etc. */
 #endif
 

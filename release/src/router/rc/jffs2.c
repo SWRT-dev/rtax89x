@@ -89,6 +89,8 @@ unsigned int get_root_type(void)
 		case MODEL_RTN19:
 		case MODEL_RTAC59U:
 		case MODEL_MAPAC1750:
+		case MODEL_RTAC59CD6R:
+		case MODEL_RTAC59CD6N:
 			return 0x73717368;      /* squashfs */
 		case MODEL_GTAC5300:
 		case MODEL_RTAC86U:
@@ -347,7 +349,7 @@ void start_jffs2(void)
 	notice_set("jffs", format ? "Formatted" : "Loaded");
 	jffs2_fail = 0;
 
-#if defined(HND_ROUTER) || defined(DSL_AC68U)
+#ifdef HND_ROUTER
 #ifdef RTCONFIG_JFFS_NVRAM
 	system("rm -rf /jffs/nvram_war");
 	jffs_nvram_init();

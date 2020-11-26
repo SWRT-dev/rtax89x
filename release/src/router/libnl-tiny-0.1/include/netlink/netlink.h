@@ -16,7 +16,11 @@
 #include <stdint.h>
 #include <string.h>
 #include <stdlib.h>
+#if defined(__GLIBC__) || defined(__UCLIBC__) /* not musl */
 #include <sys/poll.h>
+#else
+#include <poll.h>
+#endif
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <sys/time.h>

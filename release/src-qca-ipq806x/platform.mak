@@ -2,9 +2,18 @@ KERNEL_3_4_X_MODEL_LIST := $(addprefix _,$(addsuffix _,BRT-AC828 RT-AC88N RT-AC8
 
 # Select QSDK
 IPQ806X_MODEL_LIST := $(addprefix _,$(addsuffix _,BRT-AC828 RT-AC88N RT-AC88S RT-AD7200))
-SPF8_MODEL_LIST := $(addprefix _,$(addsuffix _,RT-AX89U GT-6000N))
-SPF11.0_MODEL_LIST := $(addprefix _,$(addsuffix _,))
+ifeq ($(MUSL64),y)
+SPF8_MODEL_LIST := $(addprefix _,$(addsuffix _,GT-6000N))
+IPQ807X_MODEL_LIST := $(addprefix _,$(addsuffix _,GT-AXY16000 RT-AX89U))
+else
+SPF8_MODEL_LIST := $(addprefix _,$(addsuffix _,GT-6000N))
+SPF11.0_MODEL_LIST := $(addprefix _,$(addsuffix _,RT-AX89U))
 IPQ807X_MODEL_LIST := $(addprefix _,$(addsuffix _,GT-AXY16000))	# SPF11.1
+endif
+
+# Select IPQ807X SoC
+export HE12_MODEL_LIST := $(addprefix _,$(addsuffix _,RT-AX89U GT-6000N))
+export HE20_MODEL_LIST := $(addprefix _,$(addsuffix _,GT-AXY16000))
 
 # Select toolchain for user-space program.
 # If model name is not list here, gcc 4.6.3 + uClibc 0.9.33 is selected.
@@ -18,6 +27,15 @@ KERNEL_GCC520_MUSLLIBC64_MODEL_LIST	:=
 
 BUILD_NAME ?= $(shell echo $(MAKECMDGOALS) | tr a-z A-Z)
 export _BUILD_NAME_ := $(addprefix _,$(addsuffix _,$(BUILD_NAME)))
+
+ifeq ($(MUSL32),y)
+GCC520_MUSLLIBC32_MODEL_LIST		+= $(_BUILD_NAME_)
+KERNEL_GCC520_MUSLLIBC32_MODEL_LIST	+= $(_BUILD_NAME_)
+else ifeq ($(MUSL64),y)
+GCC520_MUSLLIBC64_MODEL_LIST		+= $(_BUILD_NAME_)
+KERNEL_GCC520_MUSLLIBC64_MODEL_LIST	+= $(_BUILD_NAME_)
+endif
+
 
 ifneq ($(findstring $(_BUILD_NAME_),$(KERNEL_3_4_X_MODEL_LIST)),)
 SWITCH_CHIP_ID_POOL =					\
@@ -53,10 +71,6 @@ export LOADADDR := 42208000
 export LINUXDIR := $(SRCBASE)/linux/linux-4.4.x
 endif
 
-ifeq ($(EXTRACFLAGS),)
-export EXTRACFLAGS := -DBCMWPA2 -fno-delete-null-pointer-checks -marm -march=armv7-a -mfpu=vfpv3-d16 -mfloat-abi=softfp
-endif
-
 export BUILD := $(shell (gcc -dumpmachine))
 export KERNEL_BINARY=$(LINUXDIR)/vmlinux
 export PLATFORM := arm-uclibc
@@ -77,12 +91,35 @@ export TOOLS := /opt/openwrt-gcc463.arm
 export CROSS_COMPILE := $(TOOLS)/bin/arm-openwrt-linux-uclibcgnueabi-
 export READELF := $(TOOLS)/bin/arm-openwrt-linux-uclibcgnueabi-readelf
 endif
+
+ifneq ($(findstring $(_BUILD_NAME_),$(GCC520_MUSLLIBC64_MODEL_LIST)),)
+export RTVER := $(patsubst librt-%.so,%,$(shell basename $(wildcard $(TOOLS)/lib/librt-*.so)))
+export CROSS_COMPILER := $(CROSS_COMPILE)
+export CONFIGURE := ./configure --host=aarch64-linux-gnu --build=$(BUILD)
+export HOSTCONFIG := linux-aarch64
+# ARCH is used for linux kernel and some other else
+export ARCH := arm64
+export HOST := aarch64-linux
+
+export DTB := "qcom/$(DTB)"
+LOADADDR := 0x41080000
+
+ifeq ($(EXTRACFLAGS),)
+export EXTRACFLAGS := -DBCMWPA2 -fno-delete-null-pointer-checks -march=armv8-a --target=aarch64-arm-none-eabi -mcpu=cortex-a53
+endif
+
+else
 export RTVER := $(patsubst librt-%.so,%,$(shell basename $(wildcard $(TOOLS)/lib/librt-*.so)))
 export CROSS_COMPILER := $(CROSS_COMPILE)
 export CONFIGURE := ./configure --host=arm-linux --build=$(BUILD)
 export HOSTCONFIG := linux-armv4
 export ARCH := $(firstword $(subst -, ,$(shell $(CROSS_COMPILE)gcc -dumpmachine)))
 export HOST := arm-linux
+endif
+
+ifeq ($(EXTRACFLAGS),)
+export EXTRACFLAGS := -DBCMWPA2 -fno-delete-null-pointer-checks -marm -march=armv7-a -mfpu=vfpv3-d16 -mfloat-abi=softfp
+endif
 
 ifneq ($(findstring $(_BUILD_NAME_),$(KERNEL_GCC520_UCLIBC_MODEL_LIST)),)
 KERNELCC := /opt/openwrt-gcc520.arm/bin/arm-openwrt-linux-uclibcgnueabi-gcc
@@ -167,6 +204,8 @@ define platformRouterOptions
 			echo "RTCONFIG_SOC_IPQ8074=y" >>$(1); \
 			sed -i "/RTCONFIG_SINGLE_HOSTAPD\>/d" $(1); \
 			echo "RTCONFIG_SINGLE_HOSTAPD=y" >>$(1); \
+			sed -i "/RTCONFIG_MFP\>/d" $(1); \
+			echo "RTCONFIG_MFP=y" >>$(1); \
 		else \
 			sed -i "/RTCONFIG_SOC_IPQ8074/d" $(1); \
 			echo "# RTCONFIG_SOC_IPQ8074 is not set" >>$(1); \
@@ -225,7 +264,7 @@ define platformRouterOptions
 			sed -i "/RTCONFIG_SATA_LED/d" $(1); \
 			echo "RTCONFIG_SATA_LED=y" >>$(1); \
 		fi; \
-		if [ -n "$(shell $(wildcard $(TOOLS)/lib/ld-musl*))" ] ; then \
+		if [ -n "$(wildcard $(TOOLS)/lib/ld-musl*)" ] ; then \
 			sed -i "/RTCONFIG_MUSL_LIBC/d" $(1); \
 			echo "RTCONFIG_MUSL_LIBC=y" >>$(1); \
 		fi; \
@@ -485,6 +524,8 @@ define platformKernelConfig
 				echo "CONFIG_RMNET=y" >>$(1); \
 				sed -i "/CONFIG_NET_L3_MASTER_DEV\>/d" $(1); \
 				echo "CONFIG_NET_L3_MASTER_DEV=y" >>$(1); \
+				sed -i "/CONFIG_CNSS2_UCODE_DUMP\>/d" $(1); \
+				echo "CONFIG_CNSS2_UCODE_DUMP=y" >>$(1); \
 				if [ "$(WIGIG)" = "y" ] ; then \
 					sed -i "/CONFIG_ATH_CARDS\>/d" $(1); \
 					echo "CONFIG_ATH_CARDS=m" >>$(1); \

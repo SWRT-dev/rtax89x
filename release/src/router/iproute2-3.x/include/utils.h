@@ -4,6 +4,12 @@
 #include <asm/types.h>
 #include <resolv.h>
 #include <stdlib.h>
+#include <sys/types.h>
+#include <limits.h>
+#include <asm-generic/param.h>
+#include <stdio.h>
+#include <sys/select.h>
+#include <sys/param.h>
 
 #include "libnetlink.h"
 #include "ll_map.h"

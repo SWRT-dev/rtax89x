@@ -33,6 +33,7 @@
 #include <disk_io_tools.h>
 #include <disk_share.h>
 #include <disk_initial.h>
+#include <limits.h>		//PATH_MAX, LONG_MIN, LONG_MAX
 
 char *usb_dev_file = "/proc/bus/usb/devices";
 
@@ -2467,9 +2468,9 @@ void hotplug_usb(void)
 	device = path_to_name(devpath);
 	if (!device)
 		return;
-	if ((strncmp(device, "sd", 2) != 0 &&
+	if ((strncmp(device, "sd", 2) != 0
 #ifdef RTCONFIG_USB_CDROM
-	     strncmp(device, "sr", 2) != 0
+	    && strncmp(device, "sr", 2) != 0
 #endif
 	    ) || !isdigit(device[strlen(device) - 1])) { // partition must end on digit
 		//_dprintf("no device\n");
@@ -3937,12 +3938,14 @@ ifdef RTCONFIG_TUNNEL
 
 	/* WebDav SSL support */
 	//write_webdav_server_pem();
+#ifdef RTCONFIG_HTTPS
 	if(f_size(LIGHTTPD_CERTKEY) != f_size(HTTPD_KEY) + f_size(HTTPD_CERT))
 	{
 		char buf[256];
 		snprintf(buf, sizeof(buf), "cat %s %s > %s", HTTPD_KEY, HTTPD_CERT, LIGHTTPD_CERTKEY);
 		system(buf);
 	}
+#endif	/* RTCONFIG_HTTPS */
 
 	/* write WebDav configure file*/
 	system("/sbin/write_webdav_conf");
@@ -5444,6 +5447,7 @@ void webdav_account_default(void)
 	int right;
 	char new[256];
 	int i;
+	char *p;
 
 	nv = nvp = strdup(nvram_safe_get("acc_list"));
 	i = 0;
@@ -5451,13 +5455,14 @@ void webdav_account_default(void)
 
 	if(nv) {
 		i=0;
+		p = new;
 		while ((b = strsep(&nvp, "<")) != NULL) {
 			if((vstrsep(b, ">", &accname, &accpasswd) != 2)) continue;
 
 			right = find_webdav_right(accname);
 
-			if(i==0) sprintf(new, "%s>%d", accname, right);
-			else sprintf(new, "%s<%s>%d", new, accname, right);
+			if(i==0) p += sprintf(p, "%s>%d", accname, right);
+			else p += sprintf(p, "<%s>%d", accname, right);
 			i++;
 		}
 		free(nv);

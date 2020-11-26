@@ -1196,7 +1196,7 @@ function openHint(hint_array_id, hint_show_id, flag){
 		statusmenu = "<div>";
 		statusmenu += "<#WANAggregation_help_desc#>";
 		statusmenu += "<ol>";
-		statusmenu += "<li><#WANAggregation_help_step1#></li>".replace(/%@/g, wanAggr_p2_name(orig_wnaports_bond));
+		statusmenu += "<li><#WANAggregation_help_step1#></li>".replace(/LAN-*\D* 4/, wanAggr_p2_name(orig_wnaports_bond));
 		statusmenu += "<li><#WANAggregation_help_step2#></li>";
 		statusmenu += "<li><#WANAggregation_help_step3#></li>";
 		statusmenu += "<li><#WANAggregation_help_step4#></li>";

@@ -51,8 +51,8 @@ else ifeq ($(RTCONFIG_SOC_IPQ8074),y)
 CFLAGS += -DPGCONTROL3
 else ifeq ($(RTCONFIG_SOC_IPQ40XX),y)
 	# ipq40xx
-else ifeq ($(RTCONFIG_QCA956X),y)
-	# qca956x
+else ifeq ($(or $(RTCONFIG_QCA956X),$(RTCONFIG_QCN550X)),y)
+	# qca956x / qcn550x
 else ifeq ($(RTCONFIG_RALINK),y)
 	# mtk
 else ifeq ($(RTCONFIG_LANTIQ),y)
@@ -110,7 +110,7 @@ OBJS += wrs_wbl.o      # wrs - white and black list
 
 # TrendMicro
 OBJS += conf_app.o ioc_anomaly.o ioc_common.o ioc_qos.o ioc_vp.o ioc_wbl.o ioc_wrs.o ioc_mesh.o
-ifneq ($(RTCONFIG_QCA956X),y)
+ifneq ($(or $(RTCONFIG_QCA956X),$(RTCONFIG_QCN550X)),y)
 OBJS += ioc_patrol_tq.o
 endif
 

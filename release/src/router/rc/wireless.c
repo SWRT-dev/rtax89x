@@ -299,6 +299,10 @@ _dprintf("%s: Start to run...\n", __FUNCTION__);
 			nvram_set_int("wlc_state", WLC_STATE_STOPPED);
 			nvram_set_int("wlc_sbstate", WLC_STOPPED_REASON_NO_SIGNAL);
 		}
+		else if (ret == WLC_STATE_STOPPED) {
+			nvram_set_int("wlc_state", WLC_STATE_STOPPED);
+			nvram_set_int("wlc_sbstate", WLC_STOPPED_REASON_NO_SIGNAL);
+		}
 
 		// let ret be two value: connected, disconnected.
 		if (ret != WLC_STATE_CONNECTED ||

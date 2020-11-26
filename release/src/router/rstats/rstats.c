@@ -810,7 +810,7 @@ static enum if_id desc_to_id(char *desc)
 			if (v <= BS_LAN8_PORT_ID)
 				id = IFID_WAGGR0 + v;
 			else if (v >= BS_10GR_PORT_ID && v <= BS_10GS_PORT_ID)
-				id = IFID_WAGGR30 + v;
+				id = IFID_WAGGR30 + v - 30;
 		}
 	}
 

@@ -21,13 +21,15 @@ SRCFILE = qca_ipq807x.spf8
 else ifneq ($(findstring $(_BUILD_NAME_),$(SPF11.0_MODEL_LIST)),)
 SRCFILE = qca_ipq807x.spf11.0
 else ifneq ($(findstring $(_BUILD_NAME_),$(IPQ807X_MODEL_LIST)),)
-SRCFILE = qca_ipq807x
+SRCFILE = $(if $(RTCONFIG_MUSL_LIBC),qca_ipq807x.musl64,qca_ipq807x)
 endif
 else ifeq ($(RTCONFIG_SOC_IPQ40XX),y)
 SRCFILE = qca_ipq40xx
 else
 $(error Tuxera driver is not available)
 endif
+
+$(info @@@@@@ SRCFILE $(SRCFILE))
 
 else ifeq ($(RTCONFIG_REALTEK),y)
 # Realtek platform

@@ -15,6 +15,8 @@
 #define ONBOARDING_AVAILABLE_TIMEOUT		120	// 2 minutes
 #define ONBOARDING_AVAILABLE_SEL_TIMEOUT	30	//sec
 #define UNDEF_RE_MAC	"FF:FF:FF:FF:FF:FF"
+#define PRELINK_FILE_LOCK	"prelink"
+#define PRELINK_LIST_JSON_PATH	"/tmp/prelink.json"
 
 enum onboardingType {
 	OB_TYPE_OFF = 1,
@@ -63,8 +65,20 @@ enum vsieType {
 	VSIE_TYPE_TIMESTAMP,
 	VSIE_TYPE_REBOOT_TIME = 15,
 	VSIE_TYPE_CONN_TIMEOUT = 16,
-	VSIE_TYPE_TRAFFIC_TIMEOUT = 17
+	VSIE_TYPE_TRAFFIC_TIMEOUT = 17,
+    VSIE_TYPE_AP_LAST_BYTE = 18,
+    VSIE_TYPE_CAP_ROLE = 19,
+	VSIE_TYPE_BUNDLE_KEY = 20
 };
+
+enum prelinkStage {
+	PRELINK_INIT = 0,
+	PRELINK_GID_REQUEST,
+	PRELINK_GID_RESPONSE,
+	PRELINK_GID_ACK,
+	PRELINK_JOIN
+};
+
 
 extern int cm_isOnboardingAvailable();
 extern void cm_processOnboardingEvent(char *inData);
@@ -73,7 +87,7 @@ extern void cm_stopWps();
 extern void cm_stopOnboardingMonitor();
 extern void cm_stopOnboardingAvailable();
 extern void cm_updateOnboardingListStatus(char *reMac, char *newReMac, int obStatus);
-extern int cm_updateOnboardingSuccess(unsigned char *msg);
+extern int cm_updateOnboardingSuccess(int keyType, unsigned char *msg);
 extern int cm_checkOnboardingNewReValid(unsigned char *msg);
 extern void cm_initOnboardingStatus();
 extern void cm_updateOnboardingStatus(int obStatus, char *obVsie);
@@ -86,6 +100,10 @@ extern void cm_setOnboardingPath(int obPath);
 extern void cm_processEthOnboardingStatus(unsigned char *data);
 extern void cm_updateOnboardingFailResult(int result);
 extern void cm_updateOnboardingStage(int stage);
+#ifdef PRELINK
+extern void cm_updatePrelinkStatus(char *reMac, int status);
+#endif
+extern void update_vsie_info();
 
 #endif /* __CFG_ONBOARDING_H__ */
 /* End of cfg_onboarding.h */

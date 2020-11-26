@@ -106,9 +106,6 @@ window.onresize = function() {
 		cal_panel_block("erase_confirm", 0.25);
 	}
 }
-<% get_AiDisk_status(); %>
-var AM_to_cifs = get_share_management_status("cifs");  // Account Management for Network-Neighborhood
-var AM_to_ftp = get_share_management_status("ftp");  // Account Management for FTP
 
 var ctf_disable = '<% nvram_get("ctf_disable"); %>';
 var ctf_fa_mode = '<% nvram_get("ctf_fa_mode"); %>';
@@ -552,26 +549,26 @@ function addWhitelist(){
 	var _url = $("#newDomain").val();
 	$('#domainErrMessage').hide();
 	if(_url == ''){
-		$('#domainErrMessage').html('<#AiProtection_ErrMsg_blank#>');
+		$('#domainErrMessage').html('The domain name can not be blank');
 		$('#domainErrMessage').show();
 		return false;
 	}
 
 	if(!validator.domainName_flag(_url) && !validator.ipv4_addr(_url)){
-		$('#domainErrMessage').html('<#AiProtection_ErrMsg_wrong_format#>');
+		$('#domainErrMessage').html('wrong domain name / IPv4 address format');
 		$('#domainErrMessage').show();
 		return false;
 	}
 
 	if(whitelist.data.length >= 64){
-		$('#domainErrMessage').html('<#AiProtection_ErrMsg_full#>');
+		$('#domainErrMessage').html('The whitelist is reaching maximum, the maximum size is 64');
 		$('#domainErrMessage').show();
 		return false;
 	}
 
 	for(i=0;i<whitelist.data.length;i++){
 		if(_url == whitelist.data[i]){
-			$('#domainErrMessage').html('<#AiProtection_ErrMsg_duplicate#>');
+			$('#domainErrMessage').html('The domain name is already in the whitelist');
 			$('#domainErrMessage').show();
 			return false;
 		}
@@ -711,11 +708,11 @@ function quickAdd(value){
 <div id="TopBanner"></div>
 <div id="Loading" class="popup_bg"></div>
 <div id="erase_confirm" class="confirm">
-	<div style="margin: 16px 24px;font-size:24px;"><span id="model_name"></span> : </div>
-	<div style="margin: 16px 24px;font-size:16px;"><#AiProtection_event_del_confirm#></div>
+	<div style="margin: 16px 24px;font-size:24px;"><span id="model_name"></span> says</div>
+	<div style="margin: 16px 24px;font-size:16px;">Are you sure want to permanently delete events.</div>
 	<div style="display:flex;justify-content: flex-end;margin: 36px 24px;">
-		<div class="confirm-button" onclick="hideConfirm();"><#CTL_Cancel#></div>
-		<div class="confirm-button" onclick="eraseDatabase();"><#CTL_ok#></div>
+		<div class="confirm-button" onclick="hideConfirm();">Cancel</div>
+		<div class="confirm-button" onclick="eraseDatabase();">OK</div>
 	</div>
 </div>
 <div id="hiddenMask" class="popup_bg" style="z-index:999;">
@@ -847,9 +844,9 @@ function quickAdd(value){
 													<div style="font-size: 24px;"><#WhiteList#></div>
 													<div onclick="hideWhitelistField();"><img src="images/New_ui/icon_close.svg" alt="" style="width:32px;height:32px;cursor:pointer;"></div>
 												</div>
-												<div style="color: #CCCCCC;font-size: 16px;margin: 12px 0 24px 0;"><#AiProtection_sites_trust#></div>
+												<div style="color: #CCCCCC;font-size: 16px;margin: 12px 0 24px 0;">Add a domain you trust and unlock it with AiProtection</div>
 												<div>
-													<div style="font-size: 14px;padding: 0 0 2px 4px;"><#AiProtection_sites_trust_add#></div>
+													<div style="font-size: 14px;padding: 0 0 2px 4px;">Add domain to whitelist</div>
 													<div>
 														<input id="newDomain" style="font-size: 14px;" type="text" maxlength="32" size="22" class="input_32_table" autocomplete="off" autocorrect="off" autocapitalize="off">
 														<ul id="query_list" class="query_list"></ul>						
@@ -862,7 +859,7 @@ function quickAdd(value){
 												<div style="width:100%;" class="line_horizontal"></div>
 												<div style="margin-top:24px;">
 													<span style="font-size: 24px;padding-right:12px;"><#WhiteList#></span>
-													<span style="font-size: 14px;"><#NetworkTools_Count#>: <b id="list_count">0</b> (<#List_limit#>&nbsp;64)</span>
+													<span style="font-size: 14px;">Count: <b id="list_count">0</b> (<#List_limit#>&nbsp;64)</span>
 												</div>
 												<div id="whitelistTable" style="overflow: auto;height:420px;"></div>
 											</div>

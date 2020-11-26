@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <strings.h>
+#include <unistd.h>
 
 #define IF_LOOKUP 1
 #include <sys/ioctl.h>
@@ -9,10 +10,12 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
+#include <arpa/inet.h>
 #include <stdlib.h>
 
 #include "md5.h"
 #include "asus_ddns.h"
+#include "dprintf.h"	//show_message()
 #if 0
 #include <nvram_linux.h>
 #else //2007.03.14 Yau add for WL500gp2
@@ -20,6 +23,12 @@
 #endif
 #include <syslog.h>
 #include <shared.h>
+
+#include <shutils.h>
+extern void output(void *buf);
+extern int read_input(char *buf, int len);
+extern int get_if_addr(int sock, char *name, struct sockaddr_in *sin);
+extern void base64Encode(char *intext, char *output);
 
 #define MAX_DOMAIN_LEN	50	// hostname len (32) + "asuscomm.com" ~~ 45, reserve 5 char
 

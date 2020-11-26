@@ -369,6 +369,8 @@ extern int getFanSpeed(void);
 static inline void setFanOnOff(const int onoff) { }
 #endif
 #endif
+extern int cpu_temperature(int *t, long arg);
+extern int aqr_temperature(int *t, long arg);
 extern void ate_temperature_record(void);
 #if defined(RTCONFIG_WIFI_QCN5024_QCN5054)
 extern int stress_pktgen_main(int argc, char *argv[]);
@@ -394,6 +396,12 @@ extern int setAllLedOn(void);
 extern int setAllOrangeLedOn(void);
 #endif
 extern int setAllLedOff(void);
+#if defined(RTCONFIG_WPS_ALLLED_BTN) || defined(RTCONFIG_SW_CTRL_ALLLED)
+extern void setAllLedNormal(void);
+#endif
+#ifdef RTCONFIG_SW_CTRL_ALLLED
+extern void setAllLedBrightness(void);
+#endif
 extern int setATEModeLedOn(void);
 extern int start_wps_method(void);
 extern int stop_wps_method(void);
@@ -553,6 +561,7 @@ extern void hyfi_process(void);
 #endif
 #if defined(RTCONFIG_SOC_IPQ8074)
 extern void beacon_counter_monitor(void);
+extern void thermal_monitor(void);
 #endif
 extern void gen_qca_wifi_cfgs(void);
 extern void set_wlpara_qca(const char* wif, int band);
@@ -591,6 +600,16 @@ extern int start_thermald(void);
 #endif
 #if defined(RTCONFIG_WIFI_QCN5024_QCN5054)
 extern void Set_Ftm(const char *value);
+#endif
+#if defined(RTCONFIG_SOC_IPQ8074)
+extern void Get_VoltUp(void);
+extern void Set_VoltUp(const char *value);
+extern void Get_L2Ceiling(void);
+extern void Set_L2Ceiling(const char *value);
+extern void Get_PwrCycleCnt(void);
+extern void Set_PwrCycleCnt(const char *value);
+extern void Get_AvgUptime(void);
+extern void Set_AvgUptime(const char *value);
 #endif
 extern int country_to_code(char *ctry, int band, char *code_str, size_t len);
 extern void acs_ch_weight_param(void);
@@ -700,6 +719,7 @@ extern int is_ure(int unit);
 /* The below macros handle endian mis-matches between wl utility and wl driver. */
 extern bool g_swap;
 #define htod32(i) (g_swap?bcmswap32(i):(uint32)(i))
+#define dtoh64(i) (g_swap?bcmswap64(i):(uint64)(i))
 #define dtoh32(i) (g_swap?bcmswap32(i):(uint32)(i))
 #define dtoh16(i) (g_swap?bcmswap16(i):(uint16)(i))
 #define dtohchanspec(i) (g_swap?dtoh16(i):i)
@@ -752,7 +772,7 @@ extern int getRegrev_2G(void);
 extern int getRegrev_5G(void);
 extern int getSSID(int unit);
 extern void check_wl_country();
-extern void wl_dfs_support(int unit);
+extern int wl_dfs_support(int unit);
 #if defined(RTAC3200) || defined(RTAC68U) || defined(RTCONFIG_BCM_7114) || defined(HND_ROUTER)
 extern void wl_disband5grp();
 #endif
@@ -1141,13 +1161,6 @@ extern void stop_pppoe_relay(void);
 
 // roamst.c
 void rast_ipc_socket_thread(void);
-#if defined(RTCONFIG_BTM_11V)
-extern int rast_send_11v_req(int idx,int vidx,char *sta_mac, char *candidate_ap_mac);
-#if defined(RTCONFIG_BCN_RPT)
-extern int rssi_info_gather_method(void);
-extern void rast_bcn_rpt_init(void);
-#endif
-#endif
 
 // vpnc.c
 #ifdef RTCONFIG_VPNC
@@ -1171,7 +1184,6 @@ extern int is_vpnc_dns_active(void);
 #ifdef RTCONFIG_IPSEC
 extern void rc_ipsec_nvram_convert_check(void);
 extern void rc_ipsec_config_init(void);
-extern void rc_set_ipsec_stack_block_size(void);
 extern void run_ipsec_firewall_scripts(void);
 extern void rc_ipsec_nvram_convert_check(void);
 #endif
@@ -1326,12 +1338,17 @@ extern int send_arpreq(void);
 // psta_monitor.c
 extern int psta_monitor_main(int argc, char *argv[]);
 #endif
-#if defined(RTCONFIG_AMAS) && (defined(RTCONFIG_BCMWL6) || defined(RTCONFIG_LANTIQ) || defined(RTCONFIG_QCA) || defined(RTCONFIG_REALTEK) || defined(RTCONFIG_RALINK))
+#if defined(RTCONFIG_AMAS) && (defined(RTCONFIG_BCMWL6) || defined(RTCONFIG_LANTIQ) || defined(RTCONFIG_QCA) || defined(RTCONFIG_REALTEK))
 // obd.c
 extern int obd_main(int argc, char *argv[]);
 extern void amas_wait_wifi_ready(void);
 extern void obd_led_blink();
 extern void obd_led_off();
+#ifdef RTCONFIG_PRELINK
+extern void obd_switch_re(int wifi);
+extern int prelink_lock_acquire(int dbg_on);
+extern void prelink_unlock(int lock_fd);
+#endif
 #endif
 #if defined(RTCONFIG_AMAS) && defined(RTCONFIG_ETHOBD)
 //obd_eth.c
@@ -1650,11 +1667,11 @@ extern void restart_dnsmasq_ipv6();
 #endif
 #endif
 extern int wps_band_radio_off(int wps_band);
+#ifdef CONFIG_BCMWL5
 #ifdef RTCONFIG_FANCTRL
 extern int stop_phy_tempsense(void);
 extern int start_phy_tempsense(void);
 #endif
-#ifdef CONFIG_BCMWL5
 #ifdef RTCONFIG_WLCEVENTD
 extern int start_wlceventd(void);
 extern void stop_wlceventd(void);
@@ -1904,7 +1921,7 @@ extern int mkdir_if_none(const char *path);
 #endif
 extern void start_snooper(void);
 extern void stop_snooper(void);
-#ifdef RTCONFIG_DUALWAN
+#if defined(CONFIG_BCMWL5) && !defined(HND_ROUTER) && defined(RTCONFIG_DUALWAN)
 extern int restart_dualwan(void);
 #endif
 #ifdef __CONFIG_NORTON__
@@ -1955,8 +1972,21 @@ void set_pre_sysdep_config(int iftype);
 void set_post_sysdep_config(int iftype);
 int get_radar_status(int bssidx);
 int Pty_procedure_check(int unit, int wlif_count);
-#if defined(RTCONFIG_DWB)
+#ifdef RTCONFIG_BHCOST_OPT
+void apply_config_to_driver(int band);
+#else
 void apply_config_to_driver();
+#endif
+extern int amas_ssd_main(void);
+void start_amas_ssd(void);
+void stop_amas_ssd(void);
+#ifdef RTCONFIG_BHCOST_OPT
+void start_amas_status(void);
+void stop_amas_status(void);
+extern int amas_status_main(void);
+extern int amas_misc_main(void);
+void start_amas_misc(void);
+void stop_amas_misc(void);
 #endif
 #endif
 #endif	/* RTCONFIG_WIRELESSREPEATER */
@@ -2004,6 +2034,10 @@ extern void PMS_Init_Database();
 #if defined (RTCONFIG_BT_CONN)
 extern void start_bluetooth_service(void);
 extern void stop_bluetooth_service(void);
+#if defined(RTCONFIG_AMAS) && defined(RTCONFIG_PRELINK)
+extern void ble_rename_ssid(void);
+extern int check_bluetooth_device(const char *bt_dev);
+#endif
 #endif	/* RTCONFIG_BT_CONN */
 #if defined (RTCONFIG_DETWAN)
 extern int string_remove(char *string, const char *match);
@@ -2032,12 +2066,14 @@ extern int stop_notification_center(void);
 extern int start_ptcsrv(void);
 extern void stop_ptcsrv(void);
 #endif
+#ifdef RTCONFIG_NETOOL
+extern int start_netool(void);
+extern void stop_netool(void);
+#endif
 #ifdef LANTIQ_BSD
 extern int start_bsd(void);
 extern void stop_bsd(void);
 #endif
-void stop_hour_monitor_service(void);
-void start_hour_monitor_service(void);
 
 
 //wireless.c
@@ -2111,6 +2147,7 @@ extern void stop_amas_lib();
 extern void start_amas_lib();
 extern int amaslib_lease_main(int argc, char **argv);
 extern void amaslib_check();
+extern int amas_ipc_main(int argc, char *argv[]);
 #endif
 
 // tcode_rc.c
@@ -2159,6 +2196,28 @@ extern int find_brifname_by_wlifname(char *wl_ifname, char *brif_name, int size)
 extern void vlan_subnet_dnsmasq_conf(FILE *fp);
 #else
 static inline int find_brifname_by_wlifname(char __attribute__((__unused__)) *wl_ifname, char __attribute__((__unused__)) *brif_name, int __attribute__((__unused__)) size) { return 0; }
+#endif
+
+// amas_wgn.c
+#ifdef RTCONFIG_AMAS_WGN
+extern void wgn_init(void);
+extern void wgn_start(void);
+extern void wgn_stop(void);
+extern void wgn_filter_forward(FILE *fp);
+extern void wgn_filter_input(FILE *fp);
+extern void wgn_dnsmasq_conf(FILE *fp);
+extern void wgn_check_subnet_conflict(void);
+extern void wgn_check_avalible_brif(void);
+extern void wgn_hotplug_net(char *interface, int action /* 0:del, 1:add */);
+extern void wgn_sysdep_swtich_set(int vid);
+extern void wgn_sysdep_swtich_unset(int vid);
+extern int wgn_is_wds_guest_vlan(char *ifname);
+extern int wgn_if_check_used(char *ifname);
+extern int wgn_is_enabled(void);
+extern char* wgn_all_lan_ifnames(void);
+extern char* wgn_guest_lan_ifnames(char *ret_ifnames, size_t ret_ifnames_bsize);
+extern char* wgn_guest_lan_ipaddr(const char *guest_wlif, char *result, size_t result_bsize);
+extern char* wgn_guest_lan_netmask(const char *guest_wlif, char *result, size_t result_bsize);
 #endif
 
 // traffic_limiter.c
@@ -2232,34 +2291,11 @@ enum BTNSETUP_STATE
 #endif
 
 /* led_monitor.c */
-
-#if defined(RTCONFIG_CONCURRENTREPEATER) || defined(RTCONFIG_AMAS)
+#if defined(RTCONFIG_CONCURRENTREPEATER)
 extern int re_wpsc_main(void);
 extern int stop_re_wpsc();
 extern int start_re_wpsc();
-enum LED_STATUS
-{
-	LED_BOOTING = 0,
-	LED_BOOTED,
-	LED_BOOTED_APMODE,
-	LED_WIFI_2G_DOWN,
-	LED_WIFI_5G_DOWN,
-	LED_WPS_START,
-	LED_WPS_SCANNING,
-	LED_WPS_2G_SCANNING,
-	LED_WPS_5G_SCANNING,
-	LED_WPS_FAIL,
-	LED_WPS_PROCESSING,
-	LED_WPS_RESTART_WL,
-	LED_RESTART_WL,
-	LED_RESTART_WL_DONE,
-	LED_FIRMWARE_UPGRADE,
-	LED_FACTORY_RESET,
-	LED_AP_WPS_START
-};
-#endif
 
-#if defined(RTCONFIG_CONCURRENTREPEATER)
 typedef struct led_state_s {
 	int id;
 	int color;
@@ -2280,6 +2316,27 @@ extern void update_gpiomode(int gpio, int mode);
 #if defined(RTCONFIG_RALINK)
 extern int air_monitor_main(int argc, char *argv[]);
 #endif
+
+enum LED_STATUS
+{
+	LED_BOOTING = 0,
+	LED_BOOTED,
+	LED_BOOTED_APMODE,
+	LED_WIFI_2G_DOWN,
+	LED_WIFI_5G_DOWN,
+	LED_WPS_START,
+	LED_WPS_SCANNING,
+	LED_WPS_2G_SCANNING,
+	LED_WPS_5G_SCANNING,
+	LED_WPS_FAIL,
+	LED_WPS_PROCESSING,
+	LED_WPS_RESTART_WL,
+	LED_RESTART_WL,
+	LED_RESTART_WL_DONE,
+	LED_FIRMWARE_UPGRADE,
+	LED_FACTORY_RESET,
+	LED_AP_WPS_START
+};
 #endif
 
 #ifdef RTCONFIG_TUNNEL
@@ -2411,6 +2468,11 @@ void start_usb_idle(void);
 void stop_usb_idle(void);
 #endif
 
+#ifdef RTCONFIG_UPLOADER
+void start_uploader(void);
+void stop_uploader(void);
+#endif
+
 // adtbw.c
 #ifdef RTCONFIG_ADTBW
 extern int adtbw_main(int argc, char **argv);
@@ -2431,13 +2493,17 @@ extern void asm1042_upgrade(int);
 // private.c
 #if defined(RTCONFIG_NOTIFICATION_CENTER)
 extern void oauth_google_gen_token_email(void);
+extern void oauth_google_drive_gen_token(void);
 extern void oauth_google_update_token(void);
 extern int oauth_google_send_message(const char* receiver, const char* subject, const char* message, const char* attached_files[], int attached_files_count);
 extern void oauth_google_check_token_status(void);
+extern void oauth_google_drive_check_token_status(void);
+
 #endif
 
 #ifdef RTCONFIG_UUPLUGIN
-extern void exec_uu();
+extern void start_uu();
+extern void stop_uu();
 #endif
 
 #if defined(RTCONFIG_QCA_LBD)

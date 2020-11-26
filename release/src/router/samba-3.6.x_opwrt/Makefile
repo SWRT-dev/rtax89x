@@ -14,7 +14,10 @@ CONFIG_PACKAGE_SAMBA_MAX_DEBUG_LEVEL=-1
 TARGET_CFLAGS += -DMAX_DEBUG_LEVEL=$(CONFIG_PACKAGE_SAMBA_MAX_DEBUG_LEVEL)
 endif
 ifeq ($(RTCONFIG_QCA),y)
-TARGET_CFLAGS += -pipe -fhonour-copts -msoft-float -D__location__=\\\"\\\"
+ifneq ($(MUSL64),y)
+MSOFTFLOAT := -msoft-float
+endif
+TARGET_CFLAGS += -pipe -fhonour-copts $(MSOFTFLOAT) -D__location__=\\\"\\\"
 TARGET_CFLAGS += -Wl,-z,relro,-z,now -Wno-error=unused-but-set-variable
 TARGET_CFLAGS += $(if $(RTCONFIG_SOC_IPQ8064),-mfloat-abi=softfp)
 

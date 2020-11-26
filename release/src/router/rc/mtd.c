@@ -24,7 +24,9 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <errno.h>
+#ifdef __GLIBC__		//musl doesn't have error.h
 #include <error.h>
+#endif	/* __GLIBC__ */
 #include <sys/ioctl.h>
 #include <sys/sysinfo.h>
 #include <sys/mman.h>
@@ -375,7 +377,7 @@ int mtd_write_main(int argc, char *argv[])
 	char *dev = NULL;
 	char msg_buf[2048];
 	int alloc = 0, bounce = 0, fd;
-	int skip_bytes = 0;
+	int skip_bytes = 0, count_bytes = 0;
 #if defined(RTCONFIG_DUAL_TRX2)
 	int imtd_id = -1, omtd_id, mtd_size;
 #endif
@@ -384,7 +386,7 @@ int mtd_write_main(int argc, char *argv[])
 	FILE *of;
 #endif
 
-	while ((c = getopt(argc, argv, "i:d:s:")) != -1) {
+	while ((c = getopt(argc, argv, "i:d:s:c:")) != -1) {
 		switch (c) {
 		case 'i':
 			iname = optarg;
@@ -394,6 +396,9 @@ int mtd_write_main(int argc, char *argv[])
 			break;
 		case 's':
 			skip_bytes = atoi(optarg);
+			break;
+		case 'c':
+			count_bytes = atoi(optarg);
 			break;
 		}
 	}
@@ -510,7 +515,10 @@ int mtd_write_main(int argc, char *argv[])
 
 	fd = fileno(f);
 	fseek( f, 0, SEEK_END);
-	filelen = ftell(f) - skip_bytes;
+	if (count_bytes)
+		filelen = count_bytes;
+	else
+		filelen = ftell(f) - skip_bytes;
 	fseek( f, skip_bytes, SEEK_SET);
 	_dprintf("file len=0x%x\n", filelen);
 

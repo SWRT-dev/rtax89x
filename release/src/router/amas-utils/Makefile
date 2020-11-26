@@ -3,13 +3,13 @@ OPENSSL_DIR	= $(TOP)/openssl
 NVRAM_DIR	= $(TOP)/nvram$(BCMEX)$(EX7)
 JSON_C_DIR	= $(TOP)/json-c
 SHARED_DIR	= $(TOP)/shared
-CFLAGS		= -I$(OPENSSL_DIR)/include -I$(SHARED_DIR) -I$(NVRAM_DIR) -I$(JSON_C_DIR) -I$(SRCBASE)/include -DUSE_GET_TLV_SUPPORT_MAC
+LLDPD_DIR   = $(TOP)/lldpd-0.9.8
+CFLAGS		= -I$(OPENSSL_DIR)/include -I$(SHARED_DIR) -I$(NVRAM_DIR) -I$(JSON_C_DIR) -I$(SRCBASE)/include -DUSE_GET_TLV_SUPPORT_MAC -I$(LLDPD_DIR)/src/lib -DUSE_LLDP_CTRL -std=gnu99
 ifeq ($(RTCONFIG_BCMARM),y)
 CFLAGS		+= -I$(SRCBASE)/shared/bcmwifi/include -DTYPEDEF_FLOAT_T
 endif
-LDFLAGS		= -L$(OPENSSL_DIR) -L$(NVRAM_DIR) -L$(SHARED_DIR) -L$(JSON_C_DIR)/.libs
-LIBS		= -ljson-c -lcrypto -lnvram -lshared
-
+LDFLAGS		= -L$(OPENSSL_DIR) -L$(NVRAM_DIR) -L$(SHARED_DIR) -L$(JSON_C_DIR)/.libs -L$(LLDPD_DIR)/src/lib/.libs -L$(STAGEDIR)/usr/lib/ -ljansson
+LIBS		= -ljson-c -lcrypto -lnvram -lshared -llldpctl
 LIBS += -ldl -lm -pthread
 
 ifeq ($(HND_ROUTER),y)
@@ -35,7 +35,7 @@ all:
 	-cp -f prebuild/libamas-utils.so ./
 	-cp -f prebuild/amas-utils-cli ./
 else
-all:	lib cli	
+all:	lib cli
 endif
 
 lib:
@@ -45,7 +45,7 @@ lib:
 	$(LINK)
 	@ls -l $(OUTPUT_FILE).so
 
-cli:	
+cli:
 	@echo make $(SRC3)
 	$(SRC3_MAKE)
 	@ls -l $(SRC3)

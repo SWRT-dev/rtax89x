@@ -91,31 +91,6 @@ void init_devs(void)
 	}
 }
 
-int is_if_up(char *ifname)
-{
-    int s;
-    struct ifreq ifr;
-
-    /* Open a raw socket to the kernel */
-    if ((s = socket(AF_INET, SOCK_RAW, IPPROTO_RAW)) < 0) return -1;
-
-    /* Set interface name */
-    strlcpy(ifr.ifr_name, ifname, IFNAMSIZ);
-
-    /* Get interface flags */
-    if (ioctl(s, SIOCGIFFLAGS, &ifr) < 0) {
-        fprintf(stderr, "SIOCGIFFLAGS error\n");
-    } else {
-        if (ifr.ifr_flags & IFF_UP) {
-            fprintf(stderr, "%s is up\n", ifname);
-            close(s);
-            return 1;
-        }
-    }
-    close(s);
-    return 0;
-}
-
 //void init_gpio(void)
 //{
 //	ralink_gpio_init(0, GPIO_DIR_OUT); // Power
@@ -1021,10 +996,14 @@ void fini_wl(void)
 	if (module_loaded("MT7610_ap"))
 		modprobe_r("MT7610_ap");
 #endif
+
 #if defined (RTCONFIG_WLMODULE_MT7628_AP)
+#if !defined(RTAC1200V2)
 	if (module_loaded("mt_wifi_7628"))
 		modprobe_r("mt_wifi_7628");
 #endif
+#endif
+
 #if defined (RTCONFIG_WLMODULE_RLT_WIFI)
 	if (module_loaded("rlt_wifi"))
 	{   
@@ -1058,9 +1037,12 @@ void fini_wl(void)
 #endif
 
 #if defined (RTCONFIG_WLMODULE_MT7663E_AP)
+#if !defined(RTAC1200V2)
 	if (module_loaded("mt_wifi_7663"))
 		modprobe_r("mt_wifi_7663");
 #endif
+#endif
+
 
 	if (module_loaded("rt2860v2_ap"))
 		modprobe_r("rt2860v2_ap");
@@ -1447,6 +1429,8 @@ void init_syspara(void)
 			nvram_set("wl1_country_code", "CN");
 		else if (strcmp(dst, "5G_BAND124") == 0)
 			nvram_set("wl1_country_code", "IN");
+		else if (strcmp(dst, "5G_BAND12") == 0)
+			nvram_set("wl1_country_code", "IL");
 		else if (strcmp(dst, "5G_ALL") == 0)	{
 #if defined(RTAC85P)
 			nvram_set("wl1_country_code", "RU");
@@ -1689,7 +1673,7 @@ void generate_wl_para(int unit, int subunit)
 {
 }
 
-#if defined(RTAC52U) || defined(RTAC51U) || defined(RTN54U) || defined(RTAC1200HP) || defined(RTN56UB1) || defined(RTN56UB2)  || defined(RTAC54U) || defined(RTAC1200GA1)  || defined(RTAC1200GU) || defined(RTAC53) || defined(RTAC85U) || defined(RTN800HP) || defined(RTACRH26)
+#if defined(RTAC52U) || defined(RTAC51U) || defined(RTN54U) || defined(RTAC1200HP) || defined(RTN56UB1) || defined(RTN56UB2)  || defined(RTAC54U) || defined(RTAC1200GA1)  || defined(RTAC1200GU) || defined(RTAC53) || defined(RTAC85U) || defined(RTAC85P) || defined(RTN800HP) || defined(RTACRH26)
 #define HW_NAT_WIFI_OFFLOADING		(0xFF00)
 #define HW_NAT_DEVNAME			"hwnat0"
 static void adjust_hwnat_wifi_offloading(void)
@@ -1703,7 +1687,7 @@ static void adjust_hwnat_wifi_offloading(void)
 			enable_hwnat_wifi = 0;
 	}
 	
-#if defined (RTCONFIG_WLMODULE_MT7615E_AP) && !defined(RTCONFIG_MTK_8021XD3000)
+#if defined (RTCONFIG_WLMODULE_MT7615E_AP)
 		if (get_ipv6_service() == IPV6_PASSTHROUGH)
 				enable_hwnat_wifi = 0;
 		doSystem("iwpriv ra0 set wifi_hwnat=%d", enable_hwnat_wifi);	
@@ -1719,7 +1703,7 @@ static void adjust_hwnat_wifi_offloading(void)
 		_dprintf("ioctl error. errno %d (%s)\n", errno, strerror(errno));
 
 	close(fd);
-#endif
+#endif	
 }
 #else
 static inline void adjust_hwnat_wifi_offloading(void) { }
@@ -1753,7 +1737,7 @@ void reinit_hwnat(int unit)
 	if (nvram_get_int("qos_enable") == 1)
 		act = 0;
 
-#if defined(RTN14U) || defined(RTAC52U) || defined(RTAC51U) || defined(RTN11P) || defined(RTN300) || defined(RTN54U) || defined(RTAC1200HP) || defined(RTN56UB1) || defined(RTAC54U) || defined(RTN56UB2) || defined(RTAC1200GA1)  || defined(RTAC1200GU) || defined(RTAC53) || defined(RTAC85U) || defined(RTN800HP) || defined(RTACRH26)
+#if defined(RTN14U) || defined(RTAC52U) || defined(RTAC51U) || defined(RTN11P) || defined(RTN300) || defined(RTN54U) || defined(RTAC1200HP) || defined(RTN56UB1) || defined(RTAC54U) || defined(RTN56UB2) || defined(RTAC1200GA1)  || defined(RTAC1200GU) || defined(RTAC53) || defined(RTAC85U) || defined(RTAC85P) || defined(RTN800HP) || defined(RTACRH26)
 	if (act > 0 && !nvram_match("switch_wantag", "none") && !nvram_match("switch_wantag", ""))
 		act = 0;
 #endif

@@ -428,6 +428,7 @@ ifneq ($(RTCONFIG_PARENTALCTRL),y)
 endif
 	rm -rf $(INSTALLDIR)/www/getTraffic.asp
 	rm -rf $(INSTALLDIR)/www/getWebHistory.asp
+	rm -rf $(INSTALLDIR)/www/getDBList.asp
 	rm -rf $(INSTALLDIR)/www/getAppTraffic.asp
 	rm -rf $(INSTALLDIR)/www/getWanTraffic.asp
 	rm -rf $(INSTALLDIR)/www/getAiProtectionEvent.asp
@@ -560,7 +561,9 @@ ifneq ($(RTCONFIG_BWDPI)$(RTCONFIG_BWDPI_DEP),y)
 	rm -rf $(INSTALLDIR)/www/images/New_ui/delete.svg
 	rm -rf $(INSTALLDIR)/www/images/New_ui/delete_hover.svg
 endif
+	rm -rf $(INSTALLDIR)/www/images/New_ui/disable_hover.svg
 	rm -rf $(INSTALLDIR)/www/images/New_ui/enable.svg
+	rm -rf $(INSTALLDIR)/www/images/New_ui/enable_hover.svg
 	rm -rf $(INSTALLDIR)/www/images/New_ui/logout.svg
 	rm -rf $(INSTALLDIR)/www/images/New_ui/logout_hover.svg
 	rm -rf $(INSTALLDIR)/www/images/New_ui/upgrade.svg
@@ -706,7 +709,7 @@ ifeq ($(BUILD_NAME),$(filter $(BUILD_NAME), GT-AC5300 GT-AC9600 GT-AXY16000 GT-A
 endif
 
 ifneq ($(RTCONFIG_VPN_FUSION), y)
-	rm -rf $(INSTALLDIR)/www/images/New_ui/vpn_illustration.png
+	rm -rf $(INSTALLDIR)/www/images/vpn_illustration.png
 	rm -rf $(INSTALLDIR)/www/ajax_vpn_fusion.asp
 	rm -rf $(INSTALLDIR)/www/Advanced_VPNClientFusion_Content.asp
 else
@@ -730,6 +733,12 @@ ifneq ($(RTCONFIG_AMAS), y)
 	rm -rf $(INSTALLDIR)/www/message.htm
 	rm -rf $(INSTALLDIR)/www/AiMesh_Node_FirmwareUpgrade.asp
 	rm -rf $(INSTALLDIR)/www/Advanced_Roaming_Block_Content.asp
+	rm -rf $(INSTALLDIR)/www/fonts/Roboto-Medium.ttf
+	rm -rf $(INSTALLDIR)/www/fonts/Roboto-Light.ttf
+	rm -rf $(INSTALLDIR)/www/fonts/Roboto-Thin.ttf
+	rm -rf $(INSTALLDIR)/www/js/jstree/jstree.js
+	rm -rf $(INSTALLDIR)/www/AiMesh.asp
+	rm -rf $(INSTALLDIR)/www/aimesh
 endif
 	rm -rf $(INSTALLDIR)/www/Main_ChkSta_Content.asp
 	rm -rf $(INSTALLDIR)/www/ajax_chk_sta.asp
@@ -769,7 +778,14 @@ ifneq ($(RTCONFIG_UUPLUGIN), y)
 endif
 
 ifneq ($(RTCONFIG_ROG_UI),y)
-	rm -rf $(INSTALLDIR)/www/fonts
+ifneq ($(RTCONFIG_AMAS), y)
+	rm -rf $(INSTALLDIR)/www/fonts/Roboto-Regular.ttf
+endif
+	rm -rf $(INSTALLDIR)/www/fonts/Roboto-Regular.woff
+	rm -rf $(INSTALLDIR)/www/fonts/ROG_Fonts-Regular.otf
+	rm -rf $(INSTALLDIR)/www/fonts/ROG_Fonts-Regular.woff
+	rm -rf $(INSTALLDIR)/www/fonts/xolonium.regular.otf
+	rm -rf $(INSTALLDIR)/www/fonts/xolonium.regular.woff
 	rm -rf $(INSTALLDIR)/www/images/triLvGameAcceleration
 	rm -rf $(INSTALLDIR)/www/css/triLvGameAcceleration.css
 	rm -rf $(INSTALLDIR)/www/ajax_wanlink.asp
@@ -777,4 +793,86 @@ endif
 
 ifneq ($(RTCONFIG_APP_FILEFLEX), y)
 	rm -rf $(INSTALLDIR)/www/fileflex.asp
+endif
+
+ifeq ($(REMOVE_ROUTER_UI), y)
+	# General
+	rm -rf $(INSTALLDIR)/www/AiMesh.asp
+	rm -rf $(INSTALLDIR)/www/aimesh/aimesh_topology.css
+ifeq ($(REMOVE_AP_UI), y)
+	rm -rf $(INSTALLDIR)/www/Guest_network.asp
+	rm -rf $(INSTALLDIR)/www/Guest_network.css
+endif
+	rm -rf $(INSTALLDIR)/www/QoS_EZQoS.asp
+	rm -rf $(INSTALLDIR)/www/Advanced_QOSUserRules_Content.asp
+	rm -rf $(INSTALLDIR)/www/Advanced_QOSUserPrio_Content.asp
+	rm -rf $(INSTALLDIR)/www/Main_TrafficMonitor_daily.asp
+	rm -rf $(INSTALLDIR)/www/Main_TrafficMonitor_last24.asp
+	rm -rf $(INSTALLDIR)/www/Main_TrafficMonitor_realtime.asp
+	rm -rf $(INSTALLDIR)/www/ParentalControl.asp
+	rm -rf $(INSTALLDIR)/www/ParentalControl.css
+	# Advanced Settings
+ifeq ($(REMOVE_AP_UI), y)
+	# Wireless
+	rm -rf $(INSTALLDIR)/www/Advanced_Wireless_Content.asp
+	rm -rf $(INSTALLDIR)/www/Advanced_WWPS_Content.asp
+	rm -rf $(INSTALLDIR)/www/Advanced_WMode_Content.asp
+	rm -rf $(INSTALLDIR)/www/Advanced_ACL_Content.asp
+	rm -rf $(INSTALLDIR)/www/Advanced_WSecurity_Content.asp
+	rm -rf $(INSTALLDIR)/www/Advanced_WAdvanced_Content.asp
+endif
+	# LAN
+	rm -rf $(INSTALLDIR)/www/Advanced_DHCP_Content.asp
+	rm -rf $(INSTALLDIR)/www/Advanced_GWStaticRoute_Content.asp
+	rm -rf $(INSTALLDIR)/www/Advanced_IPTV_Content.asp
+	rm -rf $(INSTALLDIR)/www/Advanced_SwitchCtrl_Content.asp
+	# WAN
+	rm -rf $(INSTALLDIR)/www/Advanced_WAN_Content.asp
+	rm -rf $(INSTALLDIR)/www/Advanced_WANPort_Content.asp
+	rm -rf $(INSTALLDIR)/www/Advanced_PortTrigger_Content.asp
+	rm -rf $(INSTALLDIR)/www/Advanced_VirtualServer_Content.asp
+	rm -rf $(INSTALLDIR)/www/Advanced_Exposed_Content.asp
+	rm -rf $(INSTALLDIR)/www/Advanced_ASUSDDNS_Content.asp
+	rm -rf $(INSTALLDIR)/www/Advanced_NATPassThrough_Content.asp
+	# Firewall
+	rm -rf $(INSTALLDIR)/www/Advanced_BasicFirewall_Content.asp
+	rm -rf $(INSTALLDIR)/www/Advanced_URLFilter_Content.asp
+	rm -rf $(INSTALLDIR)/www/Advanced_KeywordFilter_Content.asp
+	rm -rf $(INSTALLDIR)/www/Advanced_Firewall_Content.asp
+	# System Log
+	rm -rf $(INSTALLDIR)/www/Main_DHCPStatus_Content.asp
+	rm -rf $(INSTALLDIR)/www/Main_RouteStatus_Content.asp
+	rm -rf $(INSTALLDIR)/www/Main_IPTStatus_Content.asp
+	rm -rf $(INSTALLDIR)/www/Main_ConnStatus_Content.asp
+	# images
+	rm -rf $(INSTALLDIR)/www/images/checked_parentctrl.png
+	rm -rf $(INSTALLDIR)/www/images/modem_plug.png
+	rm -rf $(INSTALLDIR)/www/images/modem_unplug.png
+	rm -rf $(INSTALLDIR)/www/images/setup.jpg
+	rm -rf $(INSTALLDIR)/www/images/WANunplug_eth.png
+	rm -rf $(INSTALLDIR)/www/images/WANunplug.png
+	rm -rf $(INSTALLDIR)/www/images/mobile
+ifeq ($(REMOVE_AP_UI), y)
+	rm -rf $(INSTALLDIR)/www/images/New_ui/ap.jpg
+	rm -rf $(INSTALLDIR)/www/images/New_ui/icon_close.svg
+	rm -rf $(INSTALLDIR)/www/images/New_ui/icon_CopySetting_hover.svg
+	rm -rf $(INSTALLDIR)/www/images/New_ui/icon_CopySetting.svg
+	rm -rf $(INSTALLDIR)/www/images/New_ui/icon_GuestNetwork_New_hover.svg
+	rm -rf $(INSTALLDIR)/www/images/New_ui/icon_GuestNetwork_New.svg
+endif
+	rm -rf $(INSTALLDIR)/www/images/New_ui/game.png
+	rm -rf $(INSTALLDIR)/www/images/New_ui/parental-control.png
+	rm -rf $(INSTALLDIR)/www/images/New_ui/QoS.png
+	rm -rf $(INSTALLDIR)/www/images/New_ui/rt.jpg
+	rm -rf $(INSTALLDIR)/www/images/New_ui/TimeLimitsSmall.png
+	rm -rf $(INSTALLDIR)/www/images/New_ui/amesh/AiMesh-introduction.png
+	rm -rf $(INSTALLDIR)/www/images/New_ui/amesh/onboardinglist.jpg
+	rm -rf $(INSTALLDIR)/www/images/New_ui/amesh/onboardinglist_search.png
+	rm -rf $(INSTALLDIR)/www/images/New_ui/amesh/location
+	rm -rf $(INSTALLDIR)/www/images/New_ui/new_qis
+endif
+
+ifeq ($(RTCONFIG_ROG_UI),y)
+	cp -rf $(INSTALLDIR)/www/css/ROG/* $(INSTALLDIR)/www/css/
+	rm -rf $(INSTALLDIR)/www/css/ROG
 endif

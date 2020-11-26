@@ -530,6 +530,19 @@ function edit_guest_unit(_unit, _subunit) {
 		}
 	}
 
+	if(amesh_support && amesh_wgn_support){
+		$("#gnset_aimesh_sync").show();
+		$("#gnset_aimesh_sync select[name='wl_sync_node']").attr("disabled", false);
+		if(gn_array[idx][23] == undefined || gn_array[idx][23] == "")
+			$("#gnset_aimesh_sync select[name='wl_sync_node']").val("0");
+		else
+			$("#gnset_aimesh_sync select[name='wl_sync_node']").val(decodeURIComponent(gn_array[idx][23]));
+	}
+	else{
+		$("#gnset_aimesh_sync").hide();
+		$("#gnset_aimesh_sync select[name='wl_sync_node']").attr("disabled", true);
+	}
+
 	$('#full_screen_bg').fadeIn();
 	$('#gnset_block').fadeIn();
 	var scrollTop = $(document).scrollTop();
@@ -963,6 +976,12 @@ function applyRule(){
 		}
 
 		dis_qos_enable(document.form.wl_unit.value + "." + document.form.wl_subunit.value, document.form, "bw_enabled");
+
+		if(amesh_support && amesh_wgn_support){
+			$("input[name='wl_ap_isolate']").attr("disabled", false);
+			var wl_ap_isolate = ($("select[name='wl_lanaccess']").val() == "off") ? 1 : 0;
+			$("input[name='wl_ap_isolate']").val(wl_ap_isolate);
+		}
 
 		var _unit_subunit = "wl" + document.form.wl_unit.value + "." + document.form.wl_subunit.value;
 		if(captive_portal_used_wl_array[_unit_subunit] != undefined) {
@@ -1497,6 +1516,7 @@ function dis_qos_enable(_wl_idx, _form_obj, _control_item){
 <input type="hidden" name="wl_unit" value="<% nvram_get("wl_unit"); %>">
 <input type="hidden" name="wl_subunit" value="<% nvram_get("wl_subunit"); %>">
 <input type="hidden" name="wl_maclist_x" value="<% nvram_get("wl_maclist_x"); %>">
+<input type="hidden" name="wl_ap_isolate" value="<% nvram_get("wl_ap_isolate"); %>" disabled>
 
 <!-- setting table -->
 <div id="gnset_block" class="gnset_edit_bg">
@@ -1704,6 +1724,17 @@ function dis_qos_enable(_wl_idx, _form_obj, _control_item){
 					<input type="radio" name="wl_lanaccess" id="lanaccess_vlan" value="vlan" onchange="updateLanaccess()">
 					<label for="lanaccess_vlan" class="gnset_setting_content">VLAN</label>
 				</div-->
+			</div>
+		</div>
+		<div id="gnset_aimesh_sync" class="gnset_setting_item_bg">
+			<div class='gnset_setting_item_titleName'>
+				Sync to AiMesh Node<!-- untranslated -->
+			</div>
+			<div class='gnset_setting_item_content'>
+				<select name="wl_sync_node" class="gnset_setting_input_text_autoWidth">
+					<option class="content_input_fd" value="0" <% nvram_match("wl_sync_node", "0","selected"); %>>Router only</option><!-- untranslated -->
+					<option class="content_input_fd" value="1" <% nvram_match("wl_sync_node", "1","selected"); %>><#All#></option>
+				</select>
 			</div>
 		</div>
 		<div id="gnset_wl_vlanTag" class="gnset_setting_item_bg">

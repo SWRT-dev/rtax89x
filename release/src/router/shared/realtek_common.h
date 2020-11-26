@@ -196,5 +196,4 @@ struct dot11k_beacon_measurement_req
 extern int update_vsie(char *interface, void *data);
 extern int getmibInfo(const char *interface, void *data, int *length);
 extern int setmibInfo(const char *interface, void *data, int length);
-extern int getWlStaInfo( char *interface,  WLAN_STA_INFO_Tp pInfo );
 #endif

@@ -51,6 +51,10 @@
 #include <sysdeps.h>
 #endif
 
+#ifdef RTCONFIG_AMAS
+#include <amas-utils.h>
+#endif
+
 int wan_phyid = -1;
 
 void init_devs(void)
@@ -86,8 +90,9 @@ void generate_switch_para(void)
 	//	((sw_mode() == SW_MODE_AP) && (nvram_get_int("wlc_psta")))
 	//	cfg = SWCFG_PSTA;
 	else if (sw_mode() == SW_MODE_AP
-#if defined(RTCONFIG_AMAS) && defined(RTCONFIG_DPSTA)
-		&& !(dpsta_mode() && nvram_get_int("re_mode") == 1)
+#if defined(RTCONFIG_AMAS)
+		&& ((nvram_get_int("re_mode") == 0)
+		|| (enable_ETH_U(0) == 0 && nvram_get_int("re_mode") == 1))
 #endif
 	)
 		cfg = SWCFG_BRIDGE;
@@ -727,8 +732,8 @@ void generate_switch_para(void)
 			nvram_unset("mvlan_vid1");
 			nvram_unset("mvlan");
 #ifdef RTCONFIG_DUALWAN
-#if defined(RTCONFIG_AMAS) && defined(RTCONFIG_DPSTA)
-			if (dpsta_mode() && nvram_get_int("re_mode") == 1) {
+#if defined(RTCONFIG_AMAS)
+			if (nvram_get_int("re_mode") == 1 && enable_ETH_U(0) == 1) {
 				switch_gen_config(lan, ports, cfg, 0, "*");
 				switch_gen_config(wan, ports, wancfg, 1, "");
 				nvram_set("vlan1ports", lan);
@@ -834,8 +839,8 @@ void generate_switch_para(void)
 				nvram_unset("wan1ports");
 			}
 #else
-#if defined(RTCONFIG_AMAS) && defined(RTCONFIG_DPSTA)
-			if (dpsta_mode() && nvram_get_int("re_mode") == 1) {
+#if defined(RTCONFIG_AMAS)
+			if (nvram_get_int("re_mode") == 1 && enable_ETH_U(0) == 1) {
 				switch_gen_config(lan, ports, cfg, 0, "*");
 				switch_gen_config(wan, ports, wancfg, 1, "");
 				nvram_set("vlan1ports", lan);
@@ -1213,8 +1218,8 @@ void generate_switch_para(void)
 				nvram_set("vlan2hwname", hw_name);
 			nvram_set("vlan1hwname", hw_name);
 
-#if defined(RTCONFIG_AMAS) && defined(RTCONFIG_DPSTA)
-			if (dpsta_mode() && nvram_get_int("re_mode") == 1) {
+#if defined(RTCONFIG_AMAS)
+			if (nvram_get_int("re_mode") == 1 && enable_ETH_U(0) == 1) {
 				switch_gen_config(lan, ports, cfg, 0, "*");
 				switch_gen_config(wan, ports, wancfg, 1, "");
 				nvram_set("vlan1ports", lan);
@@ -1300,8 +1305,8 @@ void generate_switch_para(void)
 				nvram_unset("wan1ports");
 			}
 #else	// RTCONFIG_DUALWAN
-#if defined(RTCONFIG_AMAS) && defined(RTCONFIG_DPSTA)
-			if (dpsta_mode() && nvram_get_int("re_mode") == 1) {
+#if defined(RTCONFIG_AMAS)
+			if (nvram_get_int("re_mode") == 1 && enable_ETH_U(0) == 1) {
 				switch_gen_config(lan, ports, cfg, 0, "*");
 				switch_gen_config(wan, ports, wancfg, 1, "");
 				nvram_set("vlan1ports", lan);
@@ -1361,8 +1366,8 @@ void generate_switch_para(void)
 				nvram_set("vlan2hwname", hw_name);
 			nvram_set("vlan1hwname", hw_name);
 
-#if defined(RTCONFIG_AMAS) && defined(RTCONFIG_DPSTA)
-			if (dpsta_mode() && nvram_get_int("re_mode") == 1) {
+#if defined(RTCONFIG_AMAS)
+			if (nvram_get_int("re_mode") == 1 && enable_ETH_U(0) == 1) {
 				switch_gen_config(lan, ports, cfg, 0, "*");
 				switch_gen_config(wan, ports, wancfg, 1, "");
 				nvram_set("vlan1ports", lan);
@@ -1704,7 +1709,7 @@ void init_switch_pre()
 	system("tmctl porttminit --devtype 0 --if eth2 --flag 1");
 	system("tmctl porttminit --devtype 0 --if eth3 --flag 1");
 	system("tmctl porttminit --devtype 0 --if eth4 --flag 1");
-#ifdef RTCONFIG_EXT_BCM53134
+#if defined(RTCONFIG_EXT_BCM53134) || defined(RTCONFIG_EXTPHY_BCM84880)
 	system("tmctl porttminit --devtype 0 --if eth5 --flag 1");
 #endif
 }
@@ -1768,6 +1773,8 @@ void init_switch()
 					snprintf(ptr, sizeof(buf)-len, "%s%d", (len > 0)?" ":"", ports[0]);
 				else if(tmp_type == WANS_DUALWAN_IF_LAN)
 					snprintf(ptr, sizeof(buf)-len, "%s%d", (len > 0)?" ":"", ports[wancfg]);
+				else // USB
+					snprintf(ptr, sizeof(buf)-len, "%s%d", (len > 0)?" ":"", -1);
 				ptr = buf+strlen(buf);
 			}
 
@@ -1825,6 +1832,8 @@ void init_switch()
 					snprintf(ptr, sizeof(buf)-len, "%s%d", (len > 0)?" ":"", ports[0]);
 				else if(tmp_type == WANS_DUALWAN_IF_LAN)
 					snprintf(ptr, sizeof(buf)-len, "%s%d", (len > 0)?" ":"", ports[wancfg]);
+				else // USB
+					snprintf(ptr, sizeof(buf)-len, "%s%d", (len > 0)?" ":"", -1);
 				ptr = buf+strlen(buf);
 			}
 
@@ -3201,6 +3210,9 @@ void generate_wl_para(char *ifname, int unit, int subunit)
 	char buf[8];
 	int bss_opmode_cap_reqd = 0;
 #endif
+#if defined(RTCONFIG_AMAS) && defined(RTCONFIG_PRELINK)
+	int result = 0;
+#endif
 
 	if (subunit == -1)
 	{
@@ -3234,6 +3246,15 @@ void generate_wl_para(char *ifname, int unit, int subunit)
 				{
 					dbg("Don't apply wl0 to wl%d in smart_connect function, if enabled DWB mode.\n", i);
 					continue;
+				}
+#endif
+#if defined(RTCONFIG_AMAS) && defined(RTCONFIG_PRELINK)
+				result = 0;
+				if (amas_prelink_band_sync_bypass(i, &result) == AMAS_RESULT_SUCCESS) {
+					if (result == 1) {
+						_dprintf("Do not apply wl0 to wl%d, it meets prelink setting.\n", i);
+						continue;
+					}
 				}
 #endif
 				snprintf(prefix2, sizeof(prefix2), "wl%d_", i);
@@ -4162,11 +4183,11 @@ void generate_wl_para(char *ifname, int unit, int subunit)
 
 			nvram_set(strcat_r(prefix, "preauth", tmp), nvram_safe_get(strcat_r(prefix2, "preauth", tmp2)));
 			nvram_set(strcat_r(prefix, "bss_maxassoc", tmp), nvram_safe_get(strcat_r(prefix2, "bss_maxassoc", tmp2)));
-
+#if !defined(RTCONFIG_AMAS_WGN)
 			/* if amazon_wss is disabled, we need to sync ap_isolate from primary interface */
 			if (!amazon_wss_ap_isolate_support(prefix))
 			nvram_set(strcat_r(prefix, "ap_isolate", tmp), nvram_safe_get(strcat_r(prefix2, "ap_isolate", tmp2)));
-
+#endif	/* !RTCONFIG_AMAS_WGN */
 			nvram_set(strcat_r(prefix, "net_reauth", tmp), nvram_safe_get(strcat_r(prefix2, "net_reauth", tmp2)));
 			nvram_set(strcat_r(prefix, "radius_ipaddr", tmp), nvram_safe_get(strcat_r(prefix2, "radius_ipaddr", tmp2)));
 			nvram_set(strcat_r(prefix, "radius_key", tmp), nvram_safe_get(strcat_r(prefix2, "radius_key", tmp2)));
@@ -7237,7 +7258,8 @@ int reset_exclbase(int unit)
 	nvram_set("wl1_acs_excl_chans_base", nvram_safe_get("wl1_acs_excl_chans"));
 	if(unit == 3)
 		nvram_set("wl2_acs_excl_chans_base", nvram_safe_get("wl2_acs_excl_chans"));
-	_dprintf("\nreset exclchans base:\n0:[%s]\n1:[%s]\n2:[%s]\n", nvram_safe_get("wl0_acs_excl_chans_base"), nvram_safe_get("wl1_acs_excl_chans_base"), nvram_safe_get("wl2_acs_excl_chans_base"));
+
+	_dprintf("\nset exclchans base:\n0:[%s]\n1:[%s]\n2:[%s]\n", nvram_safe_get("wl0_acs_excl_chans_base"), nvram_safe_get("wl1_acs_excl_chans_base"), nvram_safe_get("wl2_acs_excl_chans_base"));
 
 	if(!nvram_get_int("excbase")) {
 		nvram_set("excbase", "1");

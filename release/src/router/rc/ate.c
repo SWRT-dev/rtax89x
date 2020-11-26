@@ -37,6 +37,34 @@ static int setAllSpecificColorLedOn(enum ate_led_color color)
 		return EINVAL;
 	}
 
+#if defined(RTCONFIG_LP5523)
+	{
+		switch (color) {
+			case LED_COLOR_WHITE: 
+				lp55xx_leds_proc(LP55XX_ALL_LEDS_ON, LP55XX_ACT_NONE);
+				break;
+			case LED_COLOR_BLUE:
+				lp55xx_leds_proc(LP55XX_ALL_BLEDS_ON, LP55XX_ACT_NONE);
+				break;
+			case LED_COLOR_RED:
+				lp55xx_leds_proc(LP55XX_ALL_RLEDS_ON, LP55XX_ACT_NONE);
+				break;
+			case LED_COLOR_GREEN:
+				lp55xx_leds_proc(LP55XX_ALL_GLEDS_ON, LP55XX_ACT_NONE);
+				break;
+			case LED_COLOR_ORANGE:
+				lp55xx_leds_proc(LP55XX_ORANGE_LEDS, LP55XX_ACT_NONE);
+				break;
+			default: //Default Color : White color
+				lp55xx_leds_proc(LP55XX_ALL_LEDS_ON, LP55XX_ACT_NONE);
+				break;
+		}
+
+		puts("1");
+		return 0;
+	}
+#endif
+
 	for (i = 0; i < LED_COLOR_MAX; ++i)
 		all_led[i] = &no_led;
 
@@ -183,8 +211,10 @@ static int setAllSpecificColorLedOn(enum ate_led_color color)
 		}
 		break;
 #endif
-#if defined(MAPAC1750)
+#if defined(RTCONFIG_FIXED_BRIGHTNESS_RGBLED)
 	case MODEL_MAPAC1750:
+	case MODEL_RTAC59CD6R:
+	case MODEL_RTAC59CD6N:
 		{
 			static enum led_id blue_led[] = {
 				LED_BLUE,
@@ -774,7 +804,7 @@ int asus_ate_command(const char *command, const char *value, const char *value2)
 	if (!strcmp(command, "Set_StartATEMode")) {
 		asus_ate_StartATEMode();
 		stop_wanduck();
-#if defined(MAPAC1750)
+#ifdef RTCONFIG_FIXED_BRIGHTNESS_RGBLED
 		set_rgbled(RGBLED_ATE_MODE);
 #endif
 		puts("1");
@@ -892,31 +922,13 @@ int asus_ate_command(const char *command, const char *value, const char *value2)
 		return setAllSpecificColorLedOn(LED_COLOR_WHITE);
 	}
 	else if (!strcmp(command, "Set_AllBlueLedOn")) {
-#if defined(RTCONFIG_LP5523)
-		lp55xx_leds_proc(LP55XX_ALL_BLEDS_ON, LP55XX_ACT_NONE);
-		puts("1");
-		return 0;
-#else
 		return setAllSpecificColorLedOn(LED_COLOR_BLUE);
-#endif
 	}
 	else if (!strcmp(command, "Set_AllRedLedOn")) {
-#if defined(RTCONFIG_LP5523)
-		lp55xx_leds_proc(LP55XX_ALL_RLEDS_ON, LP55XX_ACT_NONE);
-		puts("1");
-		return 0;
-#else
 		return setAllSpecificColorLedOn(LED_COLOR_RED);
-#endif
 	}
 	else if (!strcmp(command, "Set_AllGreenLedOn")) {
-#if defined(RTCONFIG_LP5523)
-		lp55xx_leds_proc(LP55XX_ALL_GLEDS_ON, LP55XX_ACT_NONE);
-		puts("1");
-		return 0;
-#else
 		return setAllSpecificColorLedOn(LED_COLOR_GREEN);
-#endif
 	}
 	else if (!strcmp(command, "Set_AllOrangeLedOn")) {
 		return setAllSpecificColorLedOn(LED_COLOR_ORANGE);
@@ -1958,6 +1970,40 @@ int asus_ate_command(const char *command, const char *value, const char *value2)
 	else if (!strncmp(command, "Get_", 4) && !strncmp(command + 4, "BData", 5) &&
 		 *(command + 9) == '_') {
 		Get_BData_X(command);
+		return 0;
+	}
+#endif
+#if defined(RTCONFIG_SOC_IPQ8074)
+	else if (!strcmp(command, "Get_VoltUp")) {
+		Get_VoltUp();
+		return 0;
+	}
+	else if (!strcmp(command, "Set_VoltUp")) {
+		Set_VoltUp(value);
+		return 0;
+	}
+	else if (!strcmp(command, "Get_L2Ceiling")) {
+		Get_L2Ceiling();
+		return 0;
+	}
+	else if (!strcmp(command, "Set_L2Ceiling")) {
+		Set_L2Ceiling(value);
+		return 0;
+	}
+	else if (!strcmp(command, "Get_PwrCycleCnt")) {
+		Get_PwrCycleCnt();
+		return 0;
+	}
+	else if (!strcmp(command, "Set_PwrCycleCnt")) {
+		Set_PwrCycleCnt(value);
+		return 0;
+	}
+	else if (!strcmp(command, "Get_AvgUptime")) {
+		Get_AvgUptime();
+		return 0;
+	}
+	else if (!strcmp(command, "Set_AvgUptime")) {
+		Set_AvgUptime(value);
 		return 0;
 	}
 #endif

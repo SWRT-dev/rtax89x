@@ -49,6 +49,10 @@ ifeq ($(RTCONFIG_SW_HW_AUTH), y)
 CFLAGS += -I$(TOP)/sw-hw-auth
 endif
 
+ifneq ($(QCA_HOSTAPD_DIR),)
+CFLAGS += -I$(QCA_HOSTAPD_DIR)/source/src
+endif
+
 vpath %.c $(SRCBASE)/shared $(WLAN_ComponentSrcDirs)
 
 ifeq ($(wildcard $(SRCBASE)/router/hapdevent/*.c),)

@@ -66,6 +66,7 @@ function initial(){
 	show_menu();
 
 	create_stb_select(original_switch_stb_x);
+	create_mr_select(orig_mr_enable);
 	if(dsl_support) {
 		if( based_modelid == "DSL-AC68U")
 			$("#dsl_vlan_check").show();
@@ -105,10 +106,6 @@ function initial(){
 		document.getElementById("port_settings").style.display = "";
 		document.form.iptv_port_settings.disabled = false;
 		change_port_settings(iptv_port_settings_orig);
-	}
-
-	if(hnd_support){
-		$('#igmp_default_ver_field').show();
 	}
 }
 
@@ -337,12 +334,15 @@ function ISP_Profile_Selection(isp){
 	if(isp_settings.mr_enable_x != ""){
 		document.getElementById("mr_enable_field").style.display = "none";
 		document.form.mr_enable_x.disabled = true;
+		change_mr_enable(0);
 	}
 	else{
 		document.getElementById("mr_enable_field").style.display = "";
 		document.form.mr_enable_x.disabled = false;
 		document.form.mr_enable_x.value = orig_mr_enable;
-		change_mr_enable(isp_settings.switch_stb_x); //hnd or BLUECAVE
+		if(document.form.mr_enable_x.selectedIndex < 0)
+			document.form.mr_enable_x.selectedIndex = 0;
+		change_switch_stb(isp_settings.switch_stb_x); //hnd or BLUECAVE
 	}
 
 	if(isp_settings.emf_enable != ""){
@@ -1109,7 +1109,35 @@ function show_gaming_note(val){
 	document.getElementById("gaming_note_div").style.display = "";
 }
 
-function change_mr_enable(switch_stb_x){
+function create_mr_select(val)
+{
+	var select = document.form.mr_enable_x;
+
+	if(improxy_support){
+		add_option(select, "<#WLANConfig11b_WirelessCtrl_button1name#> IGMP", "1", 0);
+	//	add_option(select, "<#WLANConfig11b_WirelessCtrl_button1name#> MLD", "2", 0);
+		add_option(select, "<#WLANConfig11b_WirelessCtrl_button1name#> IGMP & MLD", "3", 0);
+	}
+	else
+		add_option(select, "<#WLANConfig11b_WirelessCtrl_button1name#>", "1", 0);
+
+	select.value = val;
+	if(select.selectedIndex < 0)
+		select.selectedIndex = 0;
+
+	change_mr_enable(select.value);
+}
+
+function change_mr_enable(val){
+	var igmp_enable = (val == "1" || val == "3") && (improxy_support || hnd_support);
+	var mld_enable = (val == "2" || val == "3") && improxy_support;
+	var qleave_enable = val && (val != "0");
+	inputCtrl(document.form.mr_igmp_ver, igmp_enable ? 1 : 0);
+	inputCtrl(document.form.mr_mld_ver, mld_enable ? 1 : 0);
+	inputCtrl(document.form.mr_qleave_x, qleave_enable ? 1 : 0);
+}
+
+function change_switch_stb(switch_stb_x){
 	if(hnd_support || based_modelid == "BLUECAVE"){
 		if(switch_stb_x != "0"){
 			document.getElementById("mr_enable_x").style.display = "none";
@@ -1120,10 +1148,14 @@ function change_mr_enable(switch_stb_x){
 			document.getElementById("mr_enable_x").style.display = "";
 			document.getElementById("mr_disable").style.display = "none";
 			document.form.mr_enable_x.value = orig_mr_enable;
+			if(document.form.mr_enable_x.selectedIndex < 0)
+				document.form.mr_enable_x.selectedIndex = 0;
 		}
 	}
 	else
 		document.getElementById("mr_disable").style.display = "none";
+
+	change_mr_enable(document.form.mr_enable_x.value);
 }
 </script>
 </head>
@@ -1469,7 +1501,7 @@ function change_mr_enable(switch_stb_x){
 		<tr id="wan_stb_x">
 		<th width="30%"><#Layer3Forwarding_x_STB_itemname#></th>
 		<td align="left">
-		    <select id="switch_stb_x0" name="switch_stb_x0" class="input_option" onchange="control_wans_primary(this.value);change_mr_enable(this.value);">
+		    <select id="switch_stb_x0" name="switch_stb_x0" class="input_option" onchange="control_wans_primary(this.value);change_switch_stb(this.value);">
 		    </select>
 			<span id="dsl_vlan_check" style="color:#FFFFFF; display:none;"><input type="checkbox" name="dslx_rmvlan_check" id="dslx_rmvlan_check" value="" onClick="change_rmvlan();"> Remove VLAN TAG from DSL WAN</input></span>
 		</td>
@@ -1537,11 +1569,11 @@ function change_mr_enable(switch_stb_x){
 			</td>
 		</tr>
 		<tr id="mr_enable_field" style="display:none;">
-			<th><a class="hintstyle" href="javascript:void(0);" onClick="openHint(5,11);"><#RouterConfig_GWMulticastEnable_itemname#> (IGMP Proxy)</a></th>
+			<th><a class="hintstyle" href="javascript:void(0);" onClick="openHint(5,11);"><#RouterConfig_GWMulticastEnable_itemname#></a></th>
 			<td>
-				<select id="mr_enable_x" name="mr_enable_x" class="input_option">
+				<select id="mr_enable_x" name="mr_enable_x" class="input_option" onChange="change_mr_enable(this.value);">
 					<option value="0" <% nvram_match("mr_enable_x", "0","selected"); %> ><#WLANConfig11b_WirelessCtrl_buttonname#></option>
-					<option value="1" <% nvram_match("mr_enable_x", "1","selected"); %> ><#WLANConfig11b_WirelessCtrl_button1name#></option>
+				<!--	<option value="1" <% nvram_match("mr_enable_x", "1","selected"); %> ><#WLANConfig11b_WirelessCtrl_button1name#></option> -->
 				</select>
 				<span id="mr_hint" style="display:none;">( <#RouterConfig_GWMulticastEnable_hint#> )</span>
 				<div id="mr_disable" style="display:none;">
@@ -1550,7 +1582,34 @@ function change_mr_enable(switch_stb_x){
 				</div>
 			</td>
 		</tr>
-
+		<tr style="display:none;">
+			<th><a class="hintstyle" href="javascript:void(0);" onClick="openHint(5,14);">Default IGMP version</a></th>
+			<td>
+				<select name="mr_igmp_ver" class="input_option">
+					<option value="1" <% nvram_match("mr_igmp_ver", "1","selected"); %> >IGMP v1</option>
+					<option value="2" <% nvram_match("mr_igmp_ver", "2","selected"); %> >IGMP v2</option>
+					<option value="3" <% nvram_match("mr_igmp_ver", "3","selected"); %> >IGMP v3</option>
+				</select>
+			</td>
+		</tr>
+		<tr style="display:none;">
+			<th><a class="hintstyle" href="javascript:void(0);" onClick="openHint(5,15);">Default MLD version</a></th>
+			<td>
+				<select name="mr_mld_ver" class="input_option">
+					<option value="1" <% nvram_match("mr_mld_ver", "1","selected"); %> >MLD v1</option>
+					<option value="2" <% nvram_match("mr_mld_ver", "2","selected"); %> >MLD v2</option>
+				</select>
+			</td>
+		</tr>
+		<tr style="display:none;">
+			<th><a class="hintstyle" href="javascript:void(0);" onClick="openHint(5,16);">Enable Fast Leave</a></th>
+			<td>
+				<select name="mr_qleave_x" class="input_option">
+					<option value="0" <% nvram_match("mr_qleave_x", "0","selected"); %> ><#WLANConfig11b_WirelessCtrl_buttonname#></option>
+					<option value="1" <% nvram_match("mr_qleave_x", "1","selected"); %> ><#WLANConfig11b_WirelessCtrl_button1name#></option>
+				</select>
+			</td>
+		</tr>
 		<tr id="enable_eff_multicast_forward" style="display:none;">
 			<th><#WLANConfig11b_x_Emf_itemname#></th>
 			<td>
@@ -1565,15 +1624,6 @@ function change_mr_enable(switch_stb_x){
 			<th><a class="hintstyle" href="javascript:void(0);" onClick="openHint(6, 6);"><#RouterConfig_IPTV_itemname#></a></th>
 			<td>
 				<input id="udpxy_enable_x" type="text" maxlength="5" class="input_6_table" name="udpxy_enable_x" value="<% nvram_get("udpxy_enable_x"); %>" onkeypress="return validator.isNumber(this,event);" autocorrect="off" autocapitalize="off">
-			</td>
-		</tr>
-		<tr id="igmp_default_ver_field" style="display:none;">
-			<th>IGMP default version</th>
-			<td>
-				<select name="igmp_default_version" class="input_option">
-					<option value="2" <% nvram_match("igmp_default_version", "2","selected"); %> >2</option>
-					<option value="3" <% nvram_match("igmp_default_version", "3","selected"); %> >3</option>
-				</select>
 			</td>
 		</tr>
 		</table>

@@ -19,6 +19,7 @@
 #include <syslog.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
+#include <netinet/if_ether.h>	//have in front of <linux/mii.h> to avoid redefinition of 'struct ethhdr'
 #include <linux/mii.h>
 #include <stdarg.h>
 #include <sys/ioctl.h>

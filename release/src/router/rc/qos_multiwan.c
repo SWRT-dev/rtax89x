@@ -964,13 +964,13 @@ static int add_qos_rules(char *pcWANIF)
 // The definations of all partations
 // eth0 : WAN
 // 1:1  : upload
-// 1:2  : download   (1000000Kbits)
+// 1:2  : download   (10240000Kbits = 10Gbps)
 // 1:10 : highest
 // 1:20 : high
 // 1:30 : middle
 // 1:40 : low        (default)
 // 1:50 : lowest
-// 1:60 : ALL Download (WAN to LAN and LAN to LAN) (1000000kbits)
+// 1:60 : ALL Download (WAN to LAN and LAN to LAN) (10240000kbits = 10Gbps)
 /*******************************************************************/
 
 /* Tc */
@@ -1140,9 +1140,9 @@ static int start_tqos(void)
 			protocol = "802.1q";
 			fprintf(f,
 				"# download 1:2\n"
-				"\t$TCA parent 1: classid 1:2 htb rate 1000000kbit ceil 1000000kbit burst 10000 cburst 10000\n"
+				"\t$TCA parent 1: classid 1:2 htb rate 10240000kbit ceil 10240000kbit burst 10000 cburst 10000\n"
 				"# 1:60 ALL Download for BCM\n"
-				"\t$TCA parent 1:2 classid 1:60 htb rate 1000000kbit ceil 1000000kbit burst 10000 cburst 10000 prio 6\n"
+				"\t$TCA parent 1:2 classid 1:60 htb rate 10240000kbit ceil 10240000kbit burst 10000 cburst 10000 prio 6\n"
 				"\t$TQA parent 1:60 handle 60: pfifo\n"
 				"\t$TFA parent 1: prio 6 protocol %s u32 match mark 6 0x%x flowid 1:60\n", protocol, QOS_MASK
 				);
@@ -1592,10 +1592,10 @@ static int start_bandwidth_limiter(void)
 		   "start()\n"
 		   "{\n"
 		   "\t$TQA root handle 1: htb\n"
-		   "\t$TCA parent 1: classid 1:1 htb rate 1024000kbit\n"
+		   "\t$TCA parent 1: classid 1:1 htb rate 10240000kbit\n"
 		   "\n"
 		   "\t$TQAU root handle 2: htb\n"
-		   "\t$TCAU parent 2: classid 2:1 htb rate 1024000kbit\n"
+		   "\t$TCAU parent 2: classid 2:1 htb rate 10240000kbit\n"
 	);
 
 	// access router : mark 9

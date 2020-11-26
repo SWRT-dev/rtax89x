@@ -870,13 +870,13 @@ static int add_qos_rules(char *pcWANIF)
 // The definations of all partations
 // eth0 : WAN
 // 1:1  : upload
-// 1:2  : download   (1000000Kbits)
+// 1:2  : download   (10240000Kbits = 10Gbps)
 // 1:10 : highest
 // 1:20 : high
 // 1:30 : middle
 // 1:40 : low        (default)
 // 1:50 : lowest
-// 1:60 : ALL Download (WAN to LAN and LAN to LAN) (1000000kbits)
+// 1:60 : ALL Download (WAN to LAN and LAN to LAN) (10240000kbits = 10Gbps)
 /*******************************************************************/
 
 /* Tc */
@@ -966,9 +966,9 @@ static int start_tqos(void)
 	protocol = "802.1q";
 	fprintf(f,
 		"# download 1:2\n"
-		"\t$TCA parent 1: classid 1:2 htb rate 1000000kbit ceil 1000000kbit burst 10000 cburst 10000\n"
+		"\t$TCA parent 1: classid 1:2 htb rate 10240000kbit ceil 10240000kbit burst 10000 cburst 10000\n"
 		"# 1:60 ALL Download for BCM\n"
-		"\t$TCA parent 1:2 classid 1:60 htb rate 1000000kbit ceil 1000000kbit burst 10000 cburst 10000 prio 6\n"
+		"\t$TCA parent 1:2 classid 1:60 htb rate 10240000kbit ceil 10240000kbit burst 10000 cburst 10000 prio 6\n"
 		"\t$TQA parent 1:60 handle 60: pfifo\n"
 		"\t$TFA parent 1: prio 6 protocol %s handle 6 fw flowid 1:60\n", protocol
 		);
@@ -1344,10 +1344,10 @@ static int start_bandwidth_limiter(void)
 		"start()\n"
 		"{\n"
 		"\t$TQA root handle 1: htb\n"
-		"\t$TCA parent 1: classid 1:1 htb rate 1024000kbit\n"
+		"\t$TCA parent 1: classid 1:1 htb rate 10240000kbit\n"
 		"\n"
 		"\t$TQAU root handle 2: htb\n"
-		"\t$TCAU parent 2: classid 2:1 htb rate 1024000kbit\n"
+		"\t$TCAU parent 2: classid 2:1 htb rate 10240000kbit\n"
 		, get_wan_ifname(wan_primary_ifunit())
 	);
 	// access router : mark 9
@@ -1600,10 +1600,10 @@ static int start_GeForce_QoS(void)
 	obw_re = strtoul(nvram_safe_get("nvgfn_obw_r"), NULL, 10);
 
 	/* If this value doesn't exist or 0 or empty, will give 1Gbps as default value */
-	if (ibw == 0) ibw = 1024000;
-	if (obw == 0) obw = 1024000;
-	if (ibw_re == 0) ibw_re = 1024000;
-	if (obw_re == 0) obw_re = 1024000;
+	if (ibw == 0) ibw = 10240000;
+	if (obw == 0) obw = 10240000;
+	if (ibw_re == 0) ibw_re = 10240000;
+	if (obw_re == 0) obw_re = 10240000;
 
 	/* If this value exist and it is less then 1Mbps, will force into 1Mbps */
 	if (ibw < 1024 && ibw != 0) ibw = 1024;

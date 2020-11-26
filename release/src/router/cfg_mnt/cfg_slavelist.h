@@ -16,6 +16,7 @@
 #define TERRITORY_CODE_LEN	33
 #define RE_LIST_JSON_FILE	"/tmp/relist.json"
 #define MAX_RELIST_COUNT		10
+#define SSID_LEN				33
 #define LLDP_STAT_LEN       128
 enum reListAction {
 	RELIST_ADD,
@@ -31,6 +32,8 @@ typedef struct _CM_CLIENT_TABLE {
 	time_t reportStartTime[CFG_CLIENT_NUM];
 	unsigned char pap2g[CFG_CLIENT_NUM][MAC_LEN];
 	unsigned char pap5g[CFG_CLIENT_NUM][MAC_LEN];
+	char pap2g_ssid[CFG_CLIENT_NUM][SSID_LEN];
+	char pap5g_ssid[CFG_CLIENT_NUM][SSID_LEN];
 	int rssi2g[CFG_CLIENT_NUM];
 	int rssi5g[CFG_CLIENT_NUM];
 	unsigned char sta2g[CFG_CLIENT_NUM][MAC_LEN];
@@ -39,6 +42,9 @@ typedef struct _CM_CLIENT_TABLE {
 	unsigned char ap5g[CFG_CLIENT_NUM][MAC_LEN];
 	unsigned char ap5g1[CFG_CLIENT_NUM][MAC_LEN];
 	unsigned char apDwb[CFG_CLIENT_NUM][MAC_LEN];
+	char ap2g_ssid[CFG_CLIENT_NUM][SSID_LEN];
+	char ap5g_ssid[CFG_CLIENT_NUM][SSID_LEN];
+	char ap5g1_ssid[CFG_CLIENT_NUM][SSID_LEN];
 	int level[CFG_CLIENT_NUM];
 	char fwVer[CFG_CLIENT_NUM][FWVER_LEN];
 	char newFwVer[CFG_CLIENT_NUM][FWVER_LEN];
@@ -64,7 +70,10 @@ extern int cm_isSlaveOnline(time_t startTime);
 #ifdef RTCONFIG_BCN_RPT
 extern void cm_handleAPListUpdate(unsigned char *decodeMsg);
 #endif
-extern void cm_updateTribandReList(char *newReMac, int bandNum, char *modelName, int action, int commit);
+extern void cm_updateTribandReList(const char *newReMac, int bandNum, char *modelName, int action, int commit);
+#ifdef RTCONFIG_BHCOST_OPT
+extern json_object *cm_recordReListArray(CM_CLIENT_TABLE *clientTbl, char *reMac, char *sta2g, char *sta5g);
+#endif
 
 #endif /* __CFG_SLAVELIST_H__ */
 /* End of cfg_slavelist.h */

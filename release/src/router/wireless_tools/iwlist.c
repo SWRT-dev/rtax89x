@@ -159,6 +159,22 @@ static const char *	iw_ie_key_mgmt_name[] = {
 	"none",
 	"802.1x",
 	"PSK",
+	"FT_802.1x",
+	"FT_PSK",
+	"802.1x_SHA256",
+	"PSK_SHA256",
+	"TPK_HANDSHAKE",
+	"SAE",
+	"FT_OVER_SAE",
+	"undefined-1",
+	"802.1x_SUITE_B",
+	"802.1x_SUITE_B_192",
+	"undefined-2",
+	"FILS_SHA256",
+	"FILS_SHA384",
+	"FT_FILS_SHA256",
+	"FT_FILS_SHA384",
+	"OWE",
 };
 #define	IW_IE_KEY_MGMT_NUM	IW_ARRAY_LEN(iw_ie_key_mgmt_name)
 

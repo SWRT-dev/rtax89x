@@ -87,6 +87,20 @@ export CONFIG_BCMWL5=y
 
 
 define platformRouterOptions
+	@( \
+	if [ "$(RTAC5300)" = "y" ] ; then \
+		sed -i "/RTCONFIG_HAS_5G_2/d" $(1); \
+		echo "RTCONFIG_HAS_5G_2=y" >>$(1); \
+	fi; \
+	if [ "$(GTAC5300)" = "y" ] ; then \
+		sed -i "/RTCONFIG_HAS_5G_2/d" $(1); \
+		echo "RTCONFIG_HAS_5G_2=y" >>$(1); \
+	fi; \
+	if [ "$(RTAC3200)" = "y" ] ; then \
+		sed -i "/RTCONFIG_HAS_5G_2/d" $(1); \
+		echo "RTCONFIG_HAS_5G_2=y" >>$(1); \
+	fi; \
+	)
 endef
 
 define platformBusyboxOptions

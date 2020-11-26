@@ -45,7 +45,7 @@ struct nvram_header {
 	uint32 config_refresh;	/* 0:15 sdram_config, 16:31 sdram_refresh */
 	uint32 config_ncdl;	/* ncdl values for memc */
 	/* point to wlnvram_private if it was commited by wear-levelling nvram.  */
-	char *private_data[0];
+	char private_data[0];
 };
 
 struct nvram_tuple {

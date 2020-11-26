@@ -411,6 +411,11 @@ var httpApi ={
 		){
 			retData.wanType = (iCanUsePPPoE && wanInfo.x_Setting  == "0") ? wanTypeList.pppdhcp : wanTypeList.connected;
 		}
+		else if( (wanInfo.wan0_state_t    == "2" && wanInfo.wan0_sbstate_t  == "0" && wanInfo.wan0_auxstate_t == "2") ||
+				 (wanInfo.wan0_state_t    == "2" && wanInfo.wan0_sbstate_t  == "0" && wanInfo.wan0_auxstate_t == "0")
+		){
+				retData.wanType = wanTypeList.dhcp;
+		}
 		else if(wanInfo.autodet_state == ""){
 			retData.wanType = wanTypeList.check;
 			if(this.detRetryCnt > 0){
@@ -443,6 +448,10 @@ var httpApi ={
 			else{
 				retData.wanType = wanTypeList.noWan;
 			}
+		}
+		else if(wanInfo.wan0_state_t == "4" && wanInfo.wan0_sbstate_t == "4"){
+			retData.wanType = wanTypeList.dhcp;
+			retData.isIPConflict = true;
 		}
 		else{
 			retData.wanType = wanTypeList.check;
@@ -637,7 +646,7 @@ var httpApi ={
 		var retData = {
 				"GAME_BOOST": {
 					"value": 3,
-					"text": "Enable GameBoost",
+					"text": "<#BoostKey_enable#>",
 					"desc": "<#BoostKey_Boost_desc#>"
 				},
 				"ACS_DFS": {
@@ -647,13 +656,13 @@ var httpApi ={
 				},
 				"LED": {
 					"value": 0,
-					"text": "LED On/Off",
-					"desc": "The LED on/off control is used to turn off all LEDs includes Aura light."
+					"text": "<#BoostKey_LED#>",
+					"desc": "<#BoostKey_LED_desc#>"
 				},
 				"AURA_RGB": {
 					"value": 2,
-					"text": "Aura RGB",
-					"desc": "Aura sync control is used to get Aura control from other ROG devices, if disabled, it will be customized Aura RGB."
+					"text": "<#BoostKey_Aura_RGB#>",
+					"desc": "<#BoostKey_Aura_RGB_desc#>"
 				}
 		};
 
@@ -664,13 +673,13 @@ var httpApi ={
 
 			retData.AURA_SHUFFLE = {
 				"value": 4,
-				"text": "Aura Shuffle",
+				"text": "<#BoostKey_AURA_Shuffle#>",
 				"desc": "<#BoostKey_AURA_Shuffle_desc#>"				
 			}
 
 			retData.GEFORCE_NOW = {
 				"value": 5,
-				"text": "GeForce Now",
+				"text": "<#BoostKey_GeForce#>",
 				"desc": "<#BoostKey_GeForce_desc#>"				
 			}
 		}

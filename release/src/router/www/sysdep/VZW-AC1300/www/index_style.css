@@ -919,6 +919,9 @@ width:122px;
 	background: url(images/New_ui/icon_indexes.png);
 	background-position: 0px 0px;
 }
+.menu_AiMesh{
+	background: url(images/New_ui/icon_AiMesh.png);
+}
 .menuClicked{
 	background: rgba(51,51,51,.7); /* Old browsers */
 }

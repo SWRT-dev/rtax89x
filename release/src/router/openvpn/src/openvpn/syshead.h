@@ -179,7 +179,11 @@
 #endif
 
 #ifdef HAVE_SYS_POLL_H
+#if defined(__GLIBC__) || defined(__UCLIBC__) /* not musl */
 #include <sys/poll.h>
+#else
+#include <poll.h>
+#endif
 #endif
 
 #ifdef HAVE_SYS_EPOLL_H

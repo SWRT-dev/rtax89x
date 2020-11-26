@@ -979,7 +979,7 @@ void set_wifiled(int mode)
 		}
 	}
 }
-#elif defined(MAPAC1750)
+#elif defined(RTCONFIG_FIXED_BRIGHTNESS_RGBLED)
 #ifndef ARRAY_SIZE
 #define ARRAY_SIZE(ary) (sizeof(ary) / sizeof((ary)[0]))
 #endif
@@ -1014,6 +1014,9 @@ void set_rgbled(unsigned int mode)
 		"1 1 1"			/* RGBLED_WHITE */
 	};
 	char *udef_trigger = led_color[0];
+#ifdef RTCONFIG_SW_CTRL_ALLLED
+	int ctrl_led_off = nvram_match("wifison_ready", "1") ? nvram_get_int("lp55xx_lp5523_user_enable") : (1 - nvram_get_int("AllLED"));
+#endif
 
 	if (rgbled_udef_mode == 0) {
 		led_control(LED_BLUE, LED_ON);
@@ -1027,7 +1030,11 @@ void set_rgbled(unsigned int mode)
 		udef_trigger = led_color[1];
 		break;
 	case RGBLED_GREEN:
+#ifdef RTCONFIG_SW_CTRL_ALLLED
+		if (ctrl_led_off && b == 0)
+#else
 		if (nvram_match("lp55xx_lp5523_user_enable", "1") && b == 0)
+#endif
 			break;
 		udef_trigger = led_color[2];
 		break;
@@ -1035,7 +1042,11 @@ void set_rgbled(unsigned int mode)
 		udef_trigger = led_color[3];
 		break;
 	case RGBLED_NIAGARA_BLUE:
+#ifdef RTCONFIG_SW_CTRL_ALLLED
+		if (ctrl_led_off && b == 0)
+#else
 		if (nvram_match("lp55xx_lp5523_user_enable", "1") && b == 0)
+#endif
 			break;
 		udef_trigger = led_color[4];
 		break;

@@ -1,6 +1,8 @@
 #ifndef _IPTABLES_USER_H
 #define _IPTABLES_USER_H
 
+#include <sys/types.h>
+#include <limits.h>
 #include "iptables_common.h"
 #include "libiptc/libiptc.h"
 

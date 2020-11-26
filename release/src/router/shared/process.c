@@ -147,7 +147,11 @@ int module_loaded(const char *module)
 #include <netdb.h>
 #include <sys/un.h>
 #include <signal.h>
+#if defined(__GLIBC__) || defined(__UCLIBC__) /* not musl */
 #include <wait.h>
+#else
+#include <sys/wait.h>
+#endif
 
 static int un_tcpsock_connect(char *path, int nodelay)
 {
@@ -176,7 +180,7 @@ static int un_tcpsock_connect(char *path, int nodelay)
 	return sock;
 }
 
-#if defined(RTCONFIG_QCA)
+#if defined(RTCONFIG_QCA) || defined(CONFIG_BCMWL5)
 static int not_in_thread(void)
 {
 	struct stat task_stat;

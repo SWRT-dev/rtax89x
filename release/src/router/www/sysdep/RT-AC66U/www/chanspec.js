@@ -33,34 +33,6 @@ var wl1 = {
 	"channel_160m": []
 }
 
-var _chanspecs_5g =  JSON.parse('<% chanspecs_5g(); %>');
-if(band2g_support){
-	wl_info['0'] = new Object;
-	wl_info['0'].dfs_support = false;
-	wl_info.bw_160_support = false;
-}
-
-if(band5g_support){
-	wl_info['1'] = new Object;
-	wl_info['1'].dfs_support = (function(){
-		if(_chanspecs_5g.indexOf('56') != -1 || _chanspecs_5g.indexOf('100') != -1){
-			return true;
-		}
-
-		return false;
-	})();
-	wl_info['1'].bw_160_support = (function(){
-		var count = 0;
-		for(i=0;i<_chanspecs_5g.length;i++){
-			if(_chanspecs_5g[i].indexOf('/160') != -1){
-				count++;
-			}
-		}
-		
-		return (count != 0) ? true : false;
-	})();
-}
-
 for(i=0;i<_chanspecs_5g.length;i++){
 	if(_chanspecs_5g[i].indexOf("/80") != -1){
 		wl1.channel_80m.push(_chanspecs_5g[i]);
@@ -96,26 +68,6 @@ if(wl_info.band5g_2_support){
 		"channel_80m": [],
 		"channel_160m": []
 	}
-
-	var _chanspecs_5g_2 = JSON.parse('<% chanspecs_5g_2(); %>');
-	wl_info['2'] = new Object;
-	wl_info['2'].dfs_support = (function(){
-		if(_chanspecs_5g_2.indexOf('100') != -1){
-			return true
-		}
-
-		return false;
-	})();
-	wl_info['2'].bw_160_support = (function(){
-		var count = 0;
-		for(i=0;i<_chanspecs_5g_2.length;i++){
-			if(_chanspecs_5g_2[i].indexOf('/160') != -1){
-				count++;
-			}
-		}
-		
-		return (count != 0) ? true : false;
-	})();
 
 	for(i=0;i<_chanspecs_5g_2.length;i++){
 		if(_chanspecs_5g_2[i].indexOf("/80") != -1){
@@ -808,14 +760,18 @@ function change_channel(obj){
 					}
 				}
 				else{
-					if(wl_info[wl_unit].dfs_support){
-						document.getElementById('dfs_checkbox').style.display = "";
-						document.form.acs_dfs.disabled = false;
-					}
-					else{
-						document.getElementById('dfs_checkbox').style.display = "none";
-						document.form.acs_dfs.disabled = true;
-					}
+					document.getElementById('dfs_checkbox').style.display = "none";
+					document.form.acs_dfs.disabled = true;
+				}				
+			}
+			else{
+				if (document.form.wl_channel.value == 0) {
+					document.getElementById('dfs_checkbox').style.display = "";
+					document.form.acs_dfs.disabled = false;
+				}
+				else {
+					document.getElementById('dfs_checkbox').style.display = "none";
+					document.form.acs_dfs.disabled = true;
 				}
 			}
 		}

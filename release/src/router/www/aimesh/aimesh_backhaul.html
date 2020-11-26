@@ -1,0 +1,64 @@
+﻿<div class="card_block_bg connect_type_status_bg backhaul">
+	<div class="backhaul_bg">
+		<div><span id="backhaul_connect_title" class="connect_title"></span></div>
+		<div class="common_title_content_bg">
+			<div>MAC (BSSID)</div>
+			<div id="backhaul_mac" class="content_bg">-- : -- : -- :-- : -- : --</div>
+			<div class="clearBoth"></div>
+		</div>
+		<div class="wired_hide spacing">
+			<div class="common_title"><#QIS_finish_wireless_item1#><span class="bubble_icon info"></span></div>
+			<div class="common_content_bg"><span id="backhaul_ssid" class="common_content_text ssid"></span></div>
+		</div>
+	</div>
+
+	<div class="wired_hide conndiag_data">
+		<div class="traffic_bg">
+			<span class="connect_title vertical traffic">Phy rate</span><!-- untranslated -->
+		</div>
+		<div class="common_separate_bg horizontal_line phy_rate">
+			<div class="common_title white traffic_separate_title_bg">
+				<div><div>Transmit Rate</div></div><!-- untranslated -->
+				<div><div>Receive Rate</div></div><!-- untranslated -->
+			</div>
+			<div>
+				<span class="transmit_value" id="phy_rate_tx">N/A</span>
+				<span class="transmit_unit">Mbps</span><!-- untranslated -->
+			</div>
+			<div>
+				<span class="transmit_value green" id="phy_rate_rx">N/A</span>
+				<span class="transmit_unit">Mbps</span><!-- untranslated -->
+			</div>
+		</div>
+	</div>
+
+	<div class="traffic_bg conndiag_data">
+		<span class="connect_title vertical traffic">Data rate</span><!-- untranslated -->
+	</div>
+	<div class="common_separate_bg horizontal_line conndiag_data">
+		<div class="common_title white">Transmit Rate</div><!-- untranslated -->
+		<div>
+			<span class="transmit_title"><#Current#></span>
+			<span class="transmit_value" id="data_rate_cur_tx">N/A</span>
+			<span class="transmit_unit">Mbps</span><!-- untranslated -->
+		</div>
+		<div>
+			<span class="transmit_title"><#Average#></span>
+			<span class="transmit_value green" id="data_rate_avg_tx">N/A</span>
+			<span class="transmit_unit">Mbps</span><!-- untranslated -->
+		</div>
+	</div>
+	<div class="common_separate_bg conndiag_data">
+		<div class="common_title white">Receive Rate</div><!-- untranslated -->
+		<div>
+			<span class="transmit_title"><#Current#></span>
+			<span class="transmit_value" id="data_rate_cur_rx">N/A</span>
+			<span class="transmit_unit">Mbps</span><!-- untranslated -->
+		</div>
+		<div>
+			<span class="transmit_title"><#Average#></span>
+			<span class="transmit_value green" id="data_rate_avg_rx">N/A</span>
+			<span class="transmit_unit">Mbps</span><!-- untranslated -->
+		</div>
+	</div>
+</div>

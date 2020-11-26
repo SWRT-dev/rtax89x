@@ -12,8 +12,8 @@ LDFLAGS = -L$(TOP)/shared -lshared -L$(TOP)/nvram${BCMEX}${EX7} ${EXTRA_NV_LDFLA
 INSTALL = install
 
 ifeq ($(RTCONFIG_HTTPS),y)
-CFLAGS += -I$(TOP)/curl-7.21.7/include
-LDFLAGS += -L$(TOP)/curl-7.21.7/lib/.libs -lcurl
+CFLAGS += -I$(TOP)/curl/include
+LDFLAGS += -L$(TOP)/curl/lib/.libs -lcurl
 CFLAGS += -I$(TOP)/openssl/include
 LDFLAGS += -L$(TOP)/openssl -lcrypto -lssl $(if $(RTCONFIG_OPENSSL11),-lpthread,)
 endif
@@ -21,7 +21,10 @@ endif
 CFLAGS += -I$(TOP)/json-c
 LDFLAGS += -L$(TOP)/json-c/.libs -ljson-c
 
-OBJS = ahs.o
+CFLAGS += -I$(TOP)/libasc
+LDFLAGS += -L$(TOP)/libasc -lasc
+
+OBJS = utility.o ahs.o
 
 ifneq ($(wildcard ./prebuild),)
 all:

@@ -68,22 +68,31 @@
 /*
  * CPU Architecture Codes (supported by Linux)
  */
-#define IH_CPU_INVALID		0	/* Invalid CPU	*/
-#define IH_CPU_ALPHA		1	/* Alpha	*/
-#define IH_CPU_ARM		2	/* ARM		*/
-#define IH_CPU_I386		3	/* Intel x86	*/
-#define IH_CPU_IA64		4	/* IA64		*/
-#define IH_CPU_MIPS		5	/* MIPS		*/
-#define IH_CPU_MIPS64		6	/* MIPS	 64 Bit */
-#define IH_CPU_PPC		7	/* PowerPC	*/
-#define IH_CPU_S390		8	/* IBM S390	*/
-#define IH_CPU_SH		9	/* SuperH	*/
-#define IH_CPU_SPARC		10	/* Sparc	*/
-#define IH_CPU_SPARC64		11	/* Sparc 64 Bit */
-#define IH_CPU_M68K		12	/* M68K		*/
-#define IH_CPU_NIOS		13	/* Nios-32	*/
-#define IH_CPU_MICROBLAZE	14	/* MicroBlaze   */
-#define IH_CPU_NIOS2		15	/* Nios-II	*/
+#define IH_ARCH_INVALID		0	/* Invalid CPU	*/
+#define IH_ARCH_ALPHA		1	/* Alpha	*/
+#define IH_ARCH_ARM		2	/* ARM		*/
+#define IH_ARCH_I386		3	/* Intel x86	*/
+#define IH_ARCH_IA64		4	/* IA64		*/
+#define IH_ARCH_MIPS		5	/* MIPS		*/
+#define IH_ARCH_MIPS64		6	/* MIPS	 64 Bit */
+#define IH_ARCH_PPC		7	/* PowerPC	*/
+#define IH_ARCH_S390		8	/* IBM S390	*/
+#define IH_ARCH_SH		9	/* SuperH	*/
+#define IH_ARCH_SPARC		10	/* Sparc	*/
+#define IH_ARCH_SPARC64		11	/* Sparc 64 Bit */
+#define IH_ARCH_M68K		12	/* M68K		*/
+#define IH_ARCH_NIOS		13	/* Nios-32	*/
+#define IH_ARCH_MICROBLAZE	14	/* MicroBlaze	*/
+#define IH_ARCH_NIOS2		15	/* Nios-II	*/
+#define IH_ARCH_BLACKFIN	16	/* Blackfin	*/
+#define IH_ARCH_AVR32		17	/* AVR32	*/
+#define IH_ARCH_ST200		18	/* STMicroelectronics ST200  */
+#define IH_ARCH_SANDBOX		19	/* Sandbox architecture (test only) */
+#define IH_ARCH_NDS32		20	/* ANDES Technology - NDS32  */
+#define IH_ARCH_OPENRISC	21	/* OpenRISC 1000  */
+#define IH_ARCH_ARM64		22	/* ARM64        */
+#define IH_ARCH_ARC		23	/* Synopsys DesignWare ARC */
+#define IH_ARCH_X86_64		24	/* AMD x86_64, Intel and Via */
 
 /*
  * Image Types

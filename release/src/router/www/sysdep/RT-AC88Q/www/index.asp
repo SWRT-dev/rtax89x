@@ -268,8 +268,10 @@ function initial(){
 		html += '<div class="clients" id="ameshNumber" style="cursor:pointer;"><#AiMesh_Node#>: <span>0</span></div>';
 		$("#ameshContainer").html(html);
 		require(['/require/modules/amesh.js'], function(){
-			updateAMeshCount();
-			setInterval(updateAMeshCount, 5000);
+			if(typeof updateAMeshCount == "function"){
+				updateAMeshCount();
+				setInterval(updateAMeshCount, 5000);
+			}
 		});
 	}
 	else
@@ -752,7 +754,8 @@ function clickEvent(obj){
 	cookie.unset("wireless_subunit");
 	if(amesh_support && (isSwMode("rt") || isSwMode("ap")) && ameshRouter_support) {
 		require(['/require/modules/amesh.js'], function(){
-			initial_amesh_obj();
+			if(typeof initial_amesh_obj == "function")
+				initial_amesh_obj();
 		});	
 	}
 	var icon;
@@ -1341,7 +1344,7 @@ function edit_confirm(){
 			document.getElementById("loadingIcon").style.display = "";
 			setTimeout(function(){
 				if(timeSchedulingFlag && document.getElementById("internetTimeScheduling").style.display == "none") { //if the latest internetMode is not time mode, then redirect to ParentalControl
-					redirectTimeScheduling();
+					redirectTimeScheduling(document.getElementById('macaddr_field').value);
 				}
 				else {
 					document.getElementById("statusframe").contentWindow.refreshpage();
@@ -1352,7 +1355,7 @@ function edit_confirm(){
 			hideEditBlock(); 
 			setTimeout(function(){
 				if(timeSchedulingFlag && document.getElementById("internetTimeScheduling").style.display == "none") { //if the latest internetMode is not time mode, then redirect to ParentalControl
-					redirectTimeScheduling();
+					redirectTimeScheduling(document.getElementById('macaddr_field').value);
 				}
 				else {
 					refreshpage();
@@ -1540,14 +1543,6 @@ function popupEditBlock(clientObj){
 		}
 		document.getElementById("custom_image").style.display = "none";
 		document.getElementById("changeIconTitle").innerHTML = "<#CTL_Change#>";
-		
-		var convRSSI = function(val) {
-			val = parseInt(val);
-			if(val >= -50) return 4;
-			else if(val >= -80)	return Math.ceil((24 + ((val + 80) * 26)/10)/25);
-			else if(val >= -90)	return Math.ceil((((val + 90) * 26)/10)/25);
-			else return 1;
-		};
 
 		var rssi_t = 0;
 		var connectModeTip = "";
@@ -1557,7 +1552,7 @@ function popupEditBlock(clientObj){
 			connectModeTip = "<#tm_wired#>";
 		}
 		else {
-			rssi_t = convRSSI(clientObj.rssi);
+			rssi_t = client_convRSSI(clientObj.rssi);
 			switch (rssi_t) {
 				case 1:
 					connectModeTip = "<#Radio#>: <#PASS_score1#>\n";
@@ -2053,10 +2048,6 @@ function previewImage(imageObj) {
 	}
 }
 
-function redirectTimeScheduling() {
-	cookie.set("time_scheduling_mac", document.getElementById('macaddr_field').value, 1);
-	location.href = "ParentalControl.asp" ;
-}
 function updateClientsCount() {
 	//When not click iconClient and not click View Client List need update client count.
 	var viewlist_obj = document.getElementById("clientlist_viewlist_content");
@@ -2388,7 +2379,7 @@ function closeClientDetailView() {
 							<span id="time_scheduling_title" onmouseover="return overlib('Time Scheduling allows you to set the time limit for a client\'s network usage.');" onmouseout="return nd();"><#Parental_Control#></span>
 						</div>
 						<div align="center" class="left" style="cursor:pointer;float:right;" id="radio_TimeScheduling_enable"></div>
-						<div id="internetTimeScheduling" class="internetTimeEdit" style="float:right;margin-right:10px;" title="<#Time_Scheduling#>" onclick="redirectTimeScheduling();" ></div>
+					<div id="internetTimeScheduling" class="internetTimeEdit" style="float:right;margin-right:10px;" title="<#Time_Scheduling#>" onclick="redirectTimeScheduling(document.getElementById('macaddr_field').value);" ></div>
 						<div style="clear:both;"></div>
 					</div>
 				</div>

@@ -53,7 +53,11 @@
 #include <stdarg.h>
 
 #include <linux/types.h>
+#if !defined(__GLIBC__) && !defined(__UCLIBC__) /* musl */
+#include <netinet/if_ether.h>		//have to in front of <linux/ethtool.h> to avoid redefinition of 'struct ethhdr'
+#endif
 #include <linux/ethtool.h>
+#include <limits.h>		//PATH_MAX, LONG_MIN, LONG_MAX
 
 #ifdef RTCONFIG_USB
 #include <disk_io_tools.h>
@@ -82,6 +86,10 @@
 
 #ifdef RTCONFIG_BWDPI
 #include <bwdpi_common.h>
+#endif
+
+#if defined(RTCONFIG_AMAS)
+#include <amas_lib.h>
 #endif
 #define	MAX_MAC_NUM	16
 static int mac_num;
@@ -379,28 +387,105 @@ start_ecmh(const char *wan_ifname)
 #endif
 #endif
 
+#ifdef RTCONFIG_IMPROXY
+static const char *improxy_name(int family)
+{
+	switch (family) {
+	case AF_INET:
+		return "improxy-igmp";
+#ifdef RTCONFIG_IPV6
+	case AF_INET6:
+		return "improxy-mld";
+#endif
+	default:
+		return "improxy";
+	}
+}
+
+void
+stop_improxy(int family)
+{
+	char pidfile[sizeof("/var/run/improxy-xxxx.pid")];
+
+	if (family != AF_UNSPEC) {
+		snprintf(pidfile, sizeof(pidfile), "/var/run/%s.pid", improxy_name(family));
+		kill_pidfile_tk(pidfile);
+	} else
+		killall_tk("improxy");
+}
+
+int
+start_improxy(int family, char *wan_ifname)
+{
+	char options[sizeof("/etc/improxy-xxxx.conf")];
+	char pidfile[sizeof("/var/run/improxy-xxxx.pid")];
+	char *improxy_argv[] = { "/usr/sbin/improxy",
+		"-c", options,
+		"-p", pidfile,
+		NULL
+	};
+	const char *fname;
+	FILE *fp;
+	pid_t pid;
+
+	fname = improxy_name(family);
+	snprintf(options, sizeof(options), "/etc/%s.conf", fname);
+	snprintf(pidfile, sizeof(pidfile), "/var/run/%s.pid", fname);
+
+	if ((fp = fopen(options, "w")) == NULL) {
+		perror(options);
+		return -1;
+	}
+
+	fprintf(fp,
+		"igmp %s version %d\n"		/* default igmp version */
+#ifdef RTCONFIG_IPV6
+		"mld %s version %d\n"		/* default mld version */
+#endif
+		"upstream %s\n"			/* upstream interface */
+		"downstream %s\n"		/* downstream interface */
+		"quickleave %s\n",		/* fast leave */
+		(family == AF_UNSPEC || family == AF_INET) ? "enable" : "disable",
+		nvram_get_int("mr_igmp_ver") ? : 3,
+#ifdef RTCONFIG_IPV6
+		(family == AF_UNSPEC || family == AF_INET6) ? "enable" : "disable",
+		nvram_get_int("mr_mld_ver") ? : 2,
+#endif
+		wan_ifname,
+		nvram_get("lan_ifname") ? : "br0",
+		nvram_get_int("mr_qleave_x") ? "enable" : "disable");
+
+	fclose(fp);
+
+	return _eval(improxy_argv, NULL, 0, &pid);
+}
+#endif
+
 void
 stop_igmpproxy()
 {
-	if (pids("udpxy"))
+	if (pids("udpxy")) {
+		_dprintf("stop udpxy [%s]\n");
 		killall_tk("udpxy");
-#ifdef BLUECAVE
+	}
+
+	_dprintf("stop igmpproxy\n");
+
+#ifdef RTCONFIG_IMPROXY
+	stop_improxy(AF_INET);
+#elif defined(BLUECAVE)
 	stop_mcast_proxy();
+#elif defined(HND_ROUTER) || defined(MCPD_PROXY)
+	/* nothing yet */
 #else
 	if (pids("igmpproxy"))
 		killall_tk("igmpproxy");
 #endif
 }
 
-void	// oleg patch , add
+void
 start_igmpproxy(char *wan_ifname)
 {
-#if !defined(HND_ROUTER) && !defined(MCPD_PROXY) && !defined(BLUECAVE)
-	FILE *fp;
-	static char *igmpproxy_conf = "/tmp/igmpproxy.conf";
-	char *altnet, buf[32];
-#endif
-
 #ifdef RTCONFIG_DSL
 #ifdef RTCONFIG_DUALWAN
 	if ( nvram_match("wan0_ifname", wan_ifname)
@@ -440,7 +525,19 @@ start_igmpproxy(char *wan_ifname)
 
 	_dprintf("start igmpproxy [%s]\n", wan_ifname);
 
-#if !defined(HND_ROUTER) && !defined(MCPD_PROXY) && !defined(BLUECAVE)
+#ifdef RTCONFIG_IMPROXY
+	start_improxy(AF_INET, wan_ifname);
+#elif defined(BLUECAVE)
+	nvram_set("igmp_ifname", wan_ifname);
+	start_mcast_proxy();
+#elif defined(HND_ROUTER) || defined(MCPD_PROXY)
+	nvram_set("igmp_ifname", wan_ifname);
+	start_mcpd_proxy();
+#else
+	FILE *fp;
+	static char *igmpproxy_conf = "/tmp/igmpproxy.conf";
+	char *altnet, buf[32];
+
 	if ((fp = fopen(igmpproxy_conf, "w")) == NULL) {
 		perror(igmpproxy_conf);
 		return;
@@ -460,15 +557,35 @@ start_igmpproxy(char *wan_ifname)
 	fclose(fp);
 
 	eval("/usr/sbin/igmpproxy", igmpproxy_conf);
-#else
-	nvram_set("igmp_ifname", wan_ifname);
-#ifndef BLUECAVE
-	start_mcpd_proxy();
-#else
-	start_mcast_proxy();
-#endif
 #endif
 }
+
+#ifdef RTCONFIG_IPV6
+void
+stop_mldproxy()
+{
+	_dprintf("stop mldproxy\n");
+
+#ifdef RTCONFIG_IMPROXY
+	stop_improxy(AF_INET6);
+#endif
+}
+
+void
+start_mldproxy(char *wan_ifname)
+{
+	stop_mldproxy();
+
+	if ((nvram_get_int("mr_enable_x") & 2) == 0)
+		return;
+
+	_dprintf("start mldproxy [%s]\n", wan_ifname);
+
+#ifdef RTCONFIG_IMPROXY
+	start_improxy(AF_INET6, wan_ifname);
+#endif
+}
+#endif
 
 int
 wan_prefix(char *ifname, char *prefix)
@@ -890,21 +1007,24 @@ int check_wan_if(int unit)
 			dbG("cur_vif=%s, new_vif=%s\n", cur_vif, new_vif);
 
 			char word[256], *next, tmp[256];
+			char *p;
 
 			//replace old vlan interface by new vlan interface
 			memset(tmp, 0, 256);
+			p = tmp;
 			foreach(word, nvram_safe_get("wandevs"), next)
 			{
-				sprintf(tmp, "%s %s", tmp, (!strcmp(word, cur_vif))? new_vif: word);
+				p += sprintf(p, " %s", (!strcmp(word, cur_vif))? new_vif: word);
 			}
 			dbG("wandevs=%s\n", tmp);
 			nvram_set("wandevs", tmp);
 
 			//replace wan_phy
 			memset(tmp, 0, 256);
+			p = tmp;
 			foreach(word, nvram_safe_get("wan_ifnames"), next)
 			{
-				sprintf(tmp, "%s %s", tmp, (!strcmp(word, cur_vif))? new_vif: word);
+				p += sprintf(p, " %s", (!strcmp(word, cur_vif))? new_vif: word);
 			}
 			dbG("wan_ifnames=%s\n", tmp);
 			nvram_set("wan_ifnames", tmp);
@@ -1982,6 +2102,7 @@ int update_resolvconf(void)
 	char *wan_xdns, *wan_xdomain;
 	char wan_xdns_buf[sizeof("255.255.255.255 ")*2], wan_xdomain_buf[256];
 	char domain[64], *next_domain;
+	int primary_unit = wan_primary_ifunit();
 	int unit, lock;
 #ifdef RTCONFIG_YANDEXDNS
 	int yadns_mode = nvram_get_int("yadns_enable_x") ? nvram_get_int("yadns_mode") : YADNS_DISABLED;
@@ -2011,9 +2132,16 @@ int update_resolvconf(void)
 		for (unit = WAN_UNIT_FIRST; unit < WAN_UNIT_MAX; unit++) {
 #ifdef RTCONFIG_DUALWAN
 			/* skip disconnected WANs in LB mode */
-			if (nvram_match("wans_mode", "lb") && !is_phy_connect(unit))
-				continue;
+			if (nvram_match("wans_mode", "lb")){
+				if (!is_phy_connect(unit))
+					continue;
+			}
+			else
 #endif
+			{
+				if (unit != primary_unit)
+					continue;
+			}
 
 			snprintf(prefix, sizeof(prefix), "wan%d_", unit);
 			wan_dns = nvram_safe_get_r(strcat_r(prefix, "dns", tmp), wan_dns_buf, sizeof(wan_dns_buf));
@@ -2034,7 +2162,7 @@ int update_resolvconf(void)
 				if (dnspriv_enable)
 					break;
 #endif
-#if defined(RTCONFIG_OPENVPN) && !defined(RTCONFIG_VPN_FUSION)
+#ifdef RTCONFIG_OPENVPN
 				if (write_ovpn_resolv_dnsmasq(fp_servers))
 					break;
 #endif
@@ -2044,9 +2172,7 @@ int update_resolvconf(void)
 					break;
 #endif
 				foreach(tmp, (*wan_dns ? wan_dns : wan_xdns), next)
-				{
- 					fprintf(fp_servers, "server=%s\n", tmp);
-				}
+					fprintf(fp_servers, "server=%s\n", tmp);
 			} while (0);
 
 			wan_domain = nvram_safe_get_r(strcat_r(prefix, "domain", tmp), wan_domain_buf, sizeof(wan_domain_buf));
@@ -2164,16 +2290,20 @@ error:
 }
 
 #ifdef RTCONFIG_IPV6
-void wan6_up(const char *wan_ifname)
+void wan6_up(const char *pwan_ifname)
 {
 	char addr6[INET6_ADDRSTRLEN + 4];
 	struct in_addr addr4;
 	struct in6_addr addr;
+	char wan_ifname[16];
 	char gateway[INET6_ADDRSTRLEN];
 	int mtu, service, accept_defrtr;
 
-	if (!wan_ifname || *wan_ifname == '\0')
+	if (!pwan_ifname || *pwan_ifname == '\0')
 		return;
+
+	/* Value of pwan_ifname can be modfied after do_dns_detect */
+	strlcpy(wan_ifname, pwan_ifname, sizeof(wan_ifname));
 
 	service = get_ipv6_service();
 	switch (service) {
@@ -2314,6 +2444,15 @@ void wan6_up(const char *wan_ifname)
 #if 0
 	start_ecmh(wan_ifname);
 #endif
+	switch (service) {
+	case IPV6_NATIVE_DHCP:
+	case IPV6_MANUAL:
+#ifdef RTCONFIG_6RELAYD
+	case IPV6_PASSTHROUGH:
+#endif
+		start_mldproxy(wan_ifname);
+		break;
+	}
 }
 
 void wan6_down(const char *wan_ifname)
@@ -2322,6 +2461,7 @@ void wan6_down(const char *wan_ifname)
 #if 0
 	stop_ecmh();
 #endif
+	stop_mldproxy();
 #ifdef RTCONFIG_6RELAYD
 	stop_6relayd();
 #endif
@@ -2428,7 +2568,7 @@ wan_up(const char *pwan_ifname)
 	FILE *fp;
 
 	/* Value of pwan_ifname can be modfied after do_dns_detect */
-	strlcpy(wan_ifname, pwan_ifname, 16);
+	strlcpy(wan_ifname, pwan_ifname, sizeof(wan_ifname));
 
 	/* Figure out nvram variable name prefix for this i/f */
 	if ((wan_unit = wan_ifunit(wan_ifname)) < 0)
@@ -2850,6 +2990,12 @@ wan_up(const char *pwan_ifname)
 		AMAS_EVENT_TRIGGER(NULL, NULL, 3);
 	}
 #endif
+
+#ifdef RTCONFIG_AMAS_WGN
+	wgn_check_subnet_conflict();
+	wgn_check_avalible_brif();
+#endif		
+
 #ifdef RTCONFIG_FPROBE
 	start_fprobe();
 #endif
@@ -3446,7 +3592,7 @@ stop_wan(void)
 #else
 	_dprintf("no wifison feature\n");
 #endif
-	}
+	}	
 	else
 	{
 		if (!is_routing_enabled())
@@ -4139,7 +4285,7 @@ static void detwan_preinit(void)
 		nvram_set("lan_ifnames", lan);
 
 	stop_wanduck();
-	// Only MAP-AC2200 && MAC-AC1300 support DETWAN
+	// Only MAP-AC2200 && MAC-AC1300 support DETWAN 
 	// following configs are same in both products
 	nvram_set("detwan_proto", "-1");
 	nvram_set("wanports_mask", "0");

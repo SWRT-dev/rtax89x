@@ -503,11 +503,18 @@ int check_aura_rgb_reg(void)
 	RGB_LED_STATUS_T rgb_cfg = {0};
 	RGB_LED_STATUS_T rgb_cfg_nv = { 0 };
 
-	if(nv_to_rgb("aurargb_val", &rgb_cfg_nv) == -1)
+	if (inhibit_led_on() || !nvram_get_int("aurargb_enable"))
+	{
+		memset(&rgb_cfg_nv, 0x00, sizeof(rgb_cfg_nv));
+	}
+	else if(nv_to_rgb("aurargb_val", &rgb_cfg_nv) == -1)
+	{
 		return -1;
-
-	if(rgb_cfg_nv.mode == 0)
+	}
+	else if(rgb_cfg_nv.mode == 0)
+	{
 		return -1;
+	}
 
 	for(y = 0; y < led_num; y++){
 		memset(&rgb_cfg, 0x00, sizeof(rgb_cfg));

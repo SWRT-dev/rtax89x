@@ -42,6 +42,7 @@ var usb_status_last_time = false;
 var orig_page = '<% get_parameter("origPage"); %>';
 var fb_trans_id = '<% generate_trans_id(); %>';
 var dblog_trans_id = '<% generate_trans_id(); %>';
+var fb_total_size;
 function initial(){
 	show_menu();
 	if(dsl_support){
@@ -70,7 +71,7 @@ function initial(){
 		Reload_pdesc(document.form.fb_ptype,orig_page);
 	}		
 
-	if(modem_support == -1){
+	if(!modem_support || nomodem_support){
 		document.form.attach_modemlog.checked = false;
 		document.getElementById("attach_modem_span").style.display = "none";
 	}
@@ -110,7 +111,6 @@ function initial(){
 			})
 		}
 	})
-
 }
 
 function check_wan_state(){
@@ -177,7 +177,7 @@ function gen_ptype_list(url){
 	ptypelist.push(["<#feedback_setting_problem#>", "Setting_Problem"]);	
 	ptypelist.push(["<#feedback_conn_problem#>", "Connection_or_Speed_Problem"]);
 	ptypelist.push(["<#feedback_compat_problem#>", "Compatibility_Problem"]);
-	ptypelist.push(["<#feedback_translation#>", "Translated_Suggestion"]);
+	ptypelist.push(["<#feedback_suggestion#>", "Suggestion"]);
 	ptypelist.push(["<#Adaptive_Others#>", "Other_Problem"]);
 	free_options(document.form.fb_ptype);
 	document.form.fb_ptype.options.length = ptypelist.length;
@@ -215,17 +215,23 @@ function Reload_pdesc(obj, url){
 		desclist.push(["<#EzQoS_type_traditional#>","Traditional QoS"]);
 		url_group.push(["AiProtection"]);
 
-		desclist.push(["<#Menu_TrafficManager#>","<#Traffic_Analyzer#>"]);
+		desclist.push(["<#Adaptive_Game#>","Gaming"]);
+		url_group.push(["GameBoost"]);
+
+		desclist.push(["<#Traffic_Analyzer#>/<#Menu_TrafficManager#>","Traffic Analyzer/Manager"]);
 		url_group.push(["TrafficMonitor"]);
 
 		desclist.push(["<#Parental_Control#>","Parental Ctrl"]);
 		url_group.push(["ParentalControl"]);
 
-		desclist.push(["<#Menu_usb_application#>","USB Application"]);
+		desclist.push(["<#Menu_usb_application#>","USB Application"]);		//10
 		url_group.push(["APP_", "AiDisk", "aidisk", "mediaserver", "PrinterServer", "TimeMachine"]);
 
-		desclist.push(["AiCloud","AiCloud"]);	//10
+		desclist.push(["AiCloud","AiCloud"]);
 		url_group.push(["cloud"]);
+
+		desclist.push(["AiMesh","AiMesh"]);
+        url_group.push(["AiMesh"]);
 
 		desclist.push(["<#menu5_1#>","Wireless"]);
 		url_group.push(["ACL", "WAdvanced", "Wireless", "WMode", "WSecurity", "WWPS"]);
@@ -233,13 +239,13 @@ function Reload_pdesc(obj, url){
 		desclist.push(["<#menu5_3#>","WAN"]);
 		url_group.push(["WAN_", "PortTrigger", "VirtualServer", "Exposed", "NATPassThrough"]);
 
-		desclist.push(["<#dualwan#>","Dual WAN"]);
+		desclist.push(["<#dualwan#>","Dual WAN"]);		//15
 		url_group.push(["WANPort"]);
 
 		desclist.push(["<#menu5_2#>","LAN"]);
 		url_group.push(["LAN", "DHCP", "GWStaticRoute", "IPTV", "SwitchCtrl"]);
 
-		desclist.push(["<#menu5_4_4#>","USB dongle"]);	//15
+		desclist.push(["<#menu5_4_4#>","USB dongle"]);
 		url_group.push(["Modem"]);
 
 		desclist.push(["<#DM_title#>","DM"]);
@@ -248,13 +254,13 @@ function Reload_pdesc(obj, url){
 		desclist.push(["<#menu5_3_6#>","DDNS"]);
 		url_group.push(["DDNS"]);
 
-		desclist.push(["IPv6","IPv6"]);
+		desclist.push(["IPv6","IPv6"]);		//20
 		url_group.push(["IPv6"]);
 
 		desclist.push(["VPN","VPN"]);
 		url_group.push(["VPN"]);
 
-		desclist.push(["<#menu5_5#>","Firewall"]);	//20
+		desclist.push(["<#menu5_5#>","Firewall"]);
 		url_group.push(["Firewall", "KeywordFilter", "URLFilter"]);
 
 		desclist.push(["<#menu5_6#>","Administration"]);
@@ -263,16 +269,16 @@ function Reload_pdesc(obj, url){
 		desclist.push(["<#System_Log#>","System Log"]);
 		url_group.push(["VPN"]);
 
-		desclist.push(["<#Network_Tools#>","Network Tools"]);
+		desclist.push(["<#Network_Tools#>","Network Tools"]);		//25
 		url_group.push(["Status_"]);
 
-		desclist.push(["<#Rescue_Mode#>","Rescue"]);
+		desclist.push(["Rescue Mode","Rescue"]);
 		url_group.push(["Rescue"]);//false value
 
-		desclist.push(["With other network devices","Other Devices"]);	//25
+		desclist.push(["<#feedback_compat_wond#>","Other Devices"]);
 		url_group.push(["Other_Device"]);//false value
 
-		desclist.push(["<#WebGUI_issue#>","Fail to access"]);
+		desclist.push(["Cannot access firmware page","Fail to access"]);
 		url_group.push(["GUI"]);//false value
 
 		desclist.push(["<#menu5_6_3#>","FW update"]);
@@ -281,27 +287,31 @@ function Reload_pdesc(obj, url){
 	}
 	else if(ptype == "Connection_or_Speed_Problem"){
 		
-		desclist.push(["Slow wireless speed","Wireless speed"]);
-		desclist.push(["Slow wired speed","Wired speed"]);
-		desclist.push(["Unstable connection problem","Unstable connection"]);
-		desclist.push(["Router reboot automatically","Router reboot"]);
+		desclist.push(["<#feedback_conn_swls#>","Wireless speed"]);
+		desclist.push(["<#feedback_conn_sws#>","Wired speed"]);
+		desclist.push(["<#feedback_conn_ucp#>","Unstable connection"]);
+		desclist.push(["<#feedback_conn_rra#>","Router reboot"]);
+		desclist.push(["<#feedback_conn_wdc#>","Wireless disconnected"]);
 		
 	}
 	else if(ptype == "Compatibility_Problem"){
 		
-		desclist.push(["with modem","Compatible Problem"]);
-		desclist.push(["with other router","Compatible Problem"]);
-		desclist.push(["On OS or Application","Compatible Problem"]);
-		desclist.push(["with printer","Compatible Problem"]);
-		desclist.push(["with USB modem","Compatible Problem"]);
-		desclist.push(["with external hardware disk","Compatible Problem"]);
-		desclist.push(["with other network devices","Compatible Problem"]);
+		desclist.push(["<#feedback_compat_wm#>","modem"]);
+		desclist.push(["<#feedback_compat_wor#>","other router"]);
+		desclist.push(["<#feedback_compat_oooa#>","OS or Application"]);
+		desclist.push(["<#feedback_compat_wp#>","printer"]);
+		desclist.push(["<#feedback_compat_wum#>","USB modem"]);
+		desclist.push(["<#feedback_compat_wehd#>","external hardware disk"]);
+		desclist.push(["<#feedback_compat_wond#>","network devices"]);
 
 	}
-	else if(ptype == "Translated_Suggestion"){
+	else if(ptype == "Suggestion"){
 		
 		desclist.splice(0,1);
-		desclist.push(["Translated Suggestion","Translation"]);		
+		desclist.push(["<#feedback_suggestion_ts#>","Translation"]);
+		desclist.push(["<#feedback_suggestion_ux#>","UI/UX"]);
+		desclist.push(["<#feedback_suggestion_cf#>","Current Feature"]);
+		desclist.push(["<#feedback_suggestion_nfr#>","New Feature Request"]);
 	}
 	else{	//Other_Problem
 		
@@ -390,11 +400,22 @@ function applyRule(){
 			}
 		}
 		
-		var re = new RegExp("^[a-zA-Z][0-9]{10}","gi");
-		if(!re.test(document.form.fb_serviceno.value) && document.form.fb_serviceno.value != ""){
-			alert("<#JS_validchar#>");
-			document.form.fb_serviceno.focus();
-			return false;
+		var re_asus = new RegExp("^[a-zA-Z][0-9]{9,10}","gi");
+		var re_crs = new RegExp("^[0-9]{5}","gi");
+		var re_valid = 0;
+		if(document.form.fb_serviceno.value != ""){
+			if(!re_asus.test(document.form.fb_serviceno.value)){
+				re_valid++;				
+			}
+			if(document.form.fb_serviceno.value.length != 5 || !re_crs.test(document.form.fb_serviceno.value)){
+				re_valid++;				
+			}
+
+			if(re_valid == 2){
+				alert("<#JS_validchar#>");
+				document.form.fb_serviceno.focus();
+				return false;
+			}
 		}
 		
 		if(fb_trans_id != "")
@@ -404,8 +425,13 @@ function applyRule(){
 
 		//check Diagnostic
 		if(dblog_support) {
+			document.form.dblog_tousb.disabled = true;
+			document.form.dblog_service.disabled = true;
+			document.form.dblog_duration.disabled = true;
+			document.form.dblog_transid.disabled = true;
+			var dblog_enable_status = httpApi.nvramGet(["dblog_enable"], true).dblog_enable;
 			var dblog_enable = getRadioValue($('form[name="form"]').children().find('input[name=dblog_enable]'));
-			if(dblog_enable == "1") {
+			if(dblog_enable_status == "0" && dblog_enable == "1") {
 				var service_list_checked = $("input:checkbox[name=dblog_service_list]:checked").map(function() {
 					return $(this).val();
 				}).get();
@@ -434,12 +460,6 @@ function applyRule(){
 				document.form.dblog_transid.disabled = false;
 				if(dblog_trans_id != "")
 					document.form.dblog_transid.value = dblog_trans_id;
-			}
-			else {
-				document.form.dblog_tousb.disabled = true;
-				document.form.dblog_service.disabled = true;
-				document.form.dblog_duration.disabled = true;
-				document.form.dblog_transid.disabled = true;
 			}
 		}
 
@@ -485,14 +505,14 @@ function change_dsl_diag_enable(value) {
 }
 function init_diag_feature() {
 	var dblog_enable = '<% nvram_get("dblog_enable"); %>';
+	var dblog_remaining = parseInt('<% nvram_get("dblog_remaining"); %>');
 	setRadioValue($('form[name="form"]').children().find('input[name=dblog_enable]'), dblog_enable);
 
-	if(dblog_enable == "1") {
+	if(dblog_enable == "1" && dblog_remaining > 0) {
 		$(".dblog_disabled_status").find("input, textarea, button, select").attr("disabled", true);
 		$(".dblog_disabled_status").css("display", "none");
 		$(".dblog_enabled_status").css("display", "inline");
 
-		var dblog_remaining = parseInt('<% nvram_get("dblog_remaining"); %>');
 		var transformTime = function(_sec) {
 			var days = Math.floor(dblog_remaining / 60 / 60 / 24);
 			var hours = Math.floor(dblog_remaining / 60 / 60 % 24);
@@ -501,7 +521,7 @@ function init_diag_feature() {
 			var remaining_time_str = "<#mssid_time_remaining#> : ";
 
 			if(dblog_remaining == 0) {
-				remaining_time_str += "0" + " " + "(Prepare data...)";/* untranslated */
+				remaining_time_str += "0" + " " + "(Prepare data...)";	//Untranslated
 				return remaining_time_str;
 			}
 
@@ -733,7 +753,7 @@ function CheckFBSize(){
 }
 </script>
 </head>
-<body onload="initial();" onunLoad="return unload_body();">
+<body onload="initial();" onunLoad="return unload_body();" class="bg">
 <div id="TopBanner"></div>
 <div id="hiddenMask" class="popup_bg">
 <table cellpadding="5" cellspacing="0" id="dr_sweet_advise" class="dr_sweet_advise" align="center">
@@ -794,7 +814,7 @@ function CheckFBSize(){
 <td bgcolor="#4D595D" valign="top" >
 <div>&nbsp;</div>
 <div class="formfonttitle"><#menu5_6#> - <#menu_feedback#></div>
-<div style="margin: 10px 0 10px 5px;" class="splitLine"></div>
+<div style="margin:10px 0 10px 5px;" class="splitLine"></div>
 <div id="fb_desc0" class="formfontdesc" style="display:none;"><#Feedback_desc0#></div>
 <div id="fb_desc1" class="formfontdesc" style="display:none;"><#Feedback_desc1#></div>
 <div id="fb_desc_disconnect" class="formfontdesc" style="display:none;color:#FC0;"><#Feedback_desc_disconnect#> <a href="mailto:broadband_feedback@asus.com?Subject=<%nvram_get("productid");%>" target="_top" style="color:#FFCC00;">broadband_feedback@asus.com </a></div>
@@ -817,10 +837,26 @@ function CheckFBSize(){
 	<input type="text" name="fb_Subscribed_Info" maxlength="50" class="input_25_table" value="" autocorrect="off" autocapitalize="off">
 </td>
 </tr>
+<tr id="fb_email_provider_field" style="display: none;">
+	<th><#Provider#></th>
+	<td>
+		<div style="float:left;">
+			<select class="input_option" name="fb_email_provider" onChange="change_fb_email_provider(this);">
+				<option value="">ASUS</option>
+				<option value="google">Google</option>
+			</select>
+		</div>
+		<div id="option_google" style="float:left;">
+			<div id="oauth_google_btn" class="oauth_google_btn"></div>
+			<img id="oauth_google_loading" src="/images/InternetScan.gif" class="oauth_google_status">
+			<span id="oauth_google_hint" class="oauth_google_status"></span>
+		</div>
+	</td>
+	</tr>
 <tr>
 <th><#feedback_email#> *</th>
 <td>
-	<input type="text" name="fb_email" maxlength="50" class="input_25_table" value="" autocorrect="off" autocapitalize="off">
+	<input type="text" name="fb_email" maxlength="50" class="input_25_table" value="" autocorrect="off" autocapitalize="off">	
 </td>
 </tr>
 
@@ -941,7 +977,7 @@ function CheckFBSize(){
 		<#feedback_comments#> *
 	</th>
 	<td>
-		<textarea name="fb_comment" maxlength="2000" cols="55" rows="8" style="font-family:'Courier New', Courier, mono; font-size:13px;background:#475A5F;color:#FFFFFF;" onKeyDown="textCounter(this,document.form.msglength,2000);" onKeyUp="textCounter(this,document.form.msglength,2000)"></textarea>
+		<textarea name="fb_comment" maxlength="2000" cols="55" rows="8" class="textarea_ssh_table" style="font-family:'Courier New', Courier, mono; font-size:13px;" onKeyDown="textCounter(this,document.form.msglength,2000);" onKeyUp="textCounter(this,document.form.msglength,2000)"></textarea>
 		<span style="color:#FC0"><#feedback_max_counts#> : </span>
 		<input type="text" class="input_6_table" name="msglength" id="msglength" maxlength="4" value="2000" autocorrect="off" autocapitalize="off" readonly>
 	</td>
@@ -961,7 +997,7 @@ function CheckFBSize(){
 	<td colspan="2">
 		<strong><#FW_note#></strong>
 		<ul>
-			<li><#feedback_note1#></li>
+			<li><#feedback_note4#><br><a style="font-weight: bolder;text-decoration:underline;cursor:pointer;" href="https://www.asus.com/support/CallUs/" target="_blank">https://www.asus.com/support/CallUs/</a></li>
 		</ul>
 	</td>
 </tr>	

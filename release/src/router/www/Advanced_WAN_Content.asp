@@ -168,12 +168,64 @@ function initial(){
 
 			change_wanAggre_desc();
 		}
-		else
-			$("#wanAgg_desc").html('<#WANAggregation_desc#>');
 	}
 
 	if(wan_bonding_support)
 		httpApi.faqURL("1039053", function(url){console.log(url); document.getElementById("wanAgg_faq").href=url;});
+
+	$.getJSON("http://nw-dlcdnet.asus.com/plugin/js/dns_db.json",
+		function(data){
+			var dns_db_translation_mapping = [
+				{tag:"#ADGUARD_1",text:"<#IPConnection_x_DNS_DB_ADGUARD_1#>"},
+				{tag:"#ADGUARD_2",text:"<#IPConnection_x_DNS_DB_ADGUARD_2#>"},
+				{tag:"#CLOUDFLARE_1",text:"<#IPConnection_x_DNS_DB_CLOUDFLARE_1#>"},
+				{tag:"#CLOUDFLARE_2",text:"<#IPConnection_x_DNS_DB_CLOUDFLARE_2#>"},
+				{tag:"#CLOUDFLARE_3",text:"<#IPConnection_x_DNS_DB_CLOUDFLARE_3#>"}
+			];
+			Object.keys(data).forEach(function(dns_item) {
+				var dns_name = data[dns_item].name;
+				var dns_list = data[dns_item].server;
+				var dns_desc = data[dns_item].desc;
+				var dns_translation = data[dns_item].translation;
+				Object.keys(dns_list).forEach(function(idx) {
+					var dns_ip = dns_list[idx];
+					var $dns_item_bg = $("<a>");
+					$dns_item_bg.appendTo($("#dns_server_list1"));
+					if(dns_desc != "")
+						$dns_item_bg.attr("title", dns_desc);
+					if(dns_translation != "") {
+						var specific_translation = dns_db_translation_mapping.filter(function(item, index, _array){
+							return (item.tag == dns_translation);
+						})[0];
+						if(specific_translation != undefined)
+							$dns_item_bg.attr("title",  specific_translation.text);
+					}
+					var $dns_item = $("<div>");
+					$dns_item.appendTo($dns_item_bg);
+					$dns_item.unbind("click");
+					$dns_item.click(function(e) {
+						e = e || event;
+						e.stopPropagation();
+						var click_dns_ip = $(this).children("strong").attr("dns_ip");
+						var idx = $(this).closest(".dns_server_list_dropdown").attr("id").replace("dns_server_list", "");
+						$("input[name='wan_dns" + idx + "_x']").val(click_dns_ip);
+						$(".dns_pull_arrow").attr("src","/images/arrow-down.gif");
+						$(".dns_server_list_dropdown").hide();
+					});
+					var $dns_text = $("<strong>");
+					$dns_text.appendTo($dns_item);
+					$dns_text.html("" + dns_name + " ( " + dns_ip +  " )");
+					$dns_text.attr("dns_ip", dns_ip);
+				});
+			});
+			$("#dns_server_list1").children().clone(true).appendTo($("#dns_server_list2"));
+			$(".dns_pull_arrow").show();
+		}
+	);
+	$("body").click(function() {
+		$(".dns_pull_arrow").attr("src","/images/arrow-down.gif");
+		$(".dns_server_list_dropdown").hide();
+	});
 }
 
 function change_notusb_unit(){
@@ -1136,11 +1188,31 @@ function show_dnspriv_rulelist(){
 	document.getElementById("dnspriv_rulelist_Block").innerHTML = code;
 }
 
+var cur_bond_port = /LAN-*\D* 4/;
 function change_wanAggre_desc(){
 	var selectedIndex = document.getElementById("wanports_bond_menu").selectedIndex;
 	var selectedName = document.getElementById("wanports_bond_menu").options[selectedIndex].text;
+	var orig_desc = $("#wanAgg_desc").html();
 
-	$("#wanAgg_desc").html('<#WANAggregation_desc#>'.replace(/LAN-*\D* 4/, selectedName));
+	$("#wanAgg_desc").html(orig_desc.replace(cur_bond_port, selectedName));
+	cur_bond_port = selectedName;
+}
+
+function pullDNSList(_this) {
+	event.stopPropagation();
+	var idx = $(_this).attr("id").replace("dns_pull_arrow", "");
+	$(".dns_pull_arrow:not(#dns_pull_arrow" + idx + ")").attr("src","/images/arrow-down.gif");
+	$(".dns_server_list_dropdown:not(#dns_server_list" + idx + ")").hide();
+	var $element = $("#dns_server_list" + idx + "");
+	var isMenuopen = $element[0].offsetWidth > 0 || $element[0].offsetHeight > 0;
+	if(isMenuopen == 0) {
+		$(_this).attr("src","/images/arrow-top.gif");
+		$element.show();
+	}
+	else {
+		$(_this).attr("src","/images/arrow-down.gif");
+		$element.hide();
+	}
 }
 </script>
 </head>
@@ -1276,7 +1348,7 @@ function change_wanAggre_desc(){
 								<td>
 									<input type="radio" name="bond_wan_radio" class="input" value="1" onclick="return change_common_radio(this, 'LANHostConfig', 'bond_wan', '1')" <% nvram_match("bond_wan", "1", "checked"); %>><#checkbox_Yes#>
 									<input type="radio" name="bond_wan_radio" class="input" value="0" onclick="return change_common_radio(this, 'LANHostConfig', 'bond_wan', '0')" <% nvram_match("bond_wan", "0", "checked"); %>><#checkbox_No#>
-									<div id="wanAgg_desc" style="color:#FFCC00;"></div>
+									<div id="wanAgg_desc" style="color:#FFCC00;"><#WANAggregation_desc#></div>
 									<select id="wanports_bond_menu" class="input_option" style="display:none;" name="wanports_bond" onchange="change_wanAggre_desc();" disabled>
 										<option value="0 1" <% find_word("wanports_bond", "1", "selected"); %>>LAN 1</option>
 										<option value="0 2" <% find_word("wanports_bond", "2", "selected"); %>>LAN 2</option>
@@ -1374,11 +1446,19 @@ function change_wanAggre_desc(){
           		
           		<tr>
             		<th><a class="hintstyle" href="javascript:void(0);" onClick="openHint(7,13);"><#IPConnection_x_DNSServer1_itemname#></a></th>
-            		<td><input type="text" maxlength="15" class="input_15_table" name="wan_dns1_x" value="<% nvram_get("wan_dns1_x"); %>" onkeypress="return validator.isIPAddr(this, event)" autocorrect="off" autocapitalize="off"></td>
+					<td>
+						<input type="text" maxlength="15" class="input_15_table" name="wan_dns1_x" value="<% nvram_get("wan_dns1_x"); %>" onkeypress="return validator.isIPAddr(this, event)" autocorrect="off" autocapitalize="off">
+						<img id="dns_pull_arrow1" class="dns_pull_arrow" src="/images/arrow-down.gif" onclick="pullDNSList(this);">
+						<div id="dns_server_list1" class="dns_server_list_dropdown"></div>
+					</td>
           		</tr>
           		<tr>
             		<th><a class="hintstyle" href="javascript:void(0);" onClick="openHint(7,14);"><#IPConnection_x_DNSServer2_itemname#></a></th>
-            		<td><input type="text" maxlength="15" class="input_15_table" name="wan_dns2_x" value="<% nvram_get("wan_dns2_x"); %>" onkeypress="return validator.isIPAddr(this, event)" autocorrect="off" autocapitalize="off"></td>
+					<td>
+						<input type="text" maxlength="15" class="input_15_table" name="wan_dns2_x" value="<% nvram_get("wan_dns2_x"); %>" onkeypress="return validator.isIPAddr(this, event)" autocorrect="off" autocapitalize="off">
+						<img id="dns_pull_arrow2" class="dns_pull_arrow" src="/images/arrow-down.gif" onclick="pullDNSList(this);">
+						<div id="dns_server_list2" class="dns_server_list_dropdown"></div>
+					</td>
           		</tr>
 			<tr style="display:none">
 				<th><a class="hintstyle" href="javascript:void(0);" onClick="openHint(-1,-1);">DNS Privacy Protocol</a></th>

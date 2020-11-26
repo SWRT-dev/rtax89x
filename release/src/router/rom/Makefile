@@ -87,9 +87,6 @@ install:
 ifeq ($(RTCONFIG_LETSENCRYPT),y)
 	install -m 0644 certs/DST_Root_CA_X3.pem $(INSTALLDIR)/rom/etc/ssl/certs/letsencrypt.pem
 endif
-ifeq ($(RTCONFIG_APP_FILEFLEX),y)
-	install -m 0644 ipkg.conf $(INSTALLDIR)/rom/ipkg.conf
-endif
 
 ifeq ($(RTAC88U),y)
 	install -m 0644 smb.conf $(INSTALLDIR)/rom/smb.conf
@@ -196,6 +193,7 @@ endif
 else
 	cp -f webs_scripts/nozip_webs_upgrade.sh $(INSTALLDIR)/usr/sbin/webs_upgrade.sh
 endif
+
 ifeq ($(RTAC68U),y)
 	cp -f webs_scripts/ssl_webs_upgrade_enc.sh $(INSTALLDIR)/usr/sbin/webs_upgrade_enc.sh
 	cp -f webs_scripts/ssl_webs_update_enc.sh $(INSTALLDIR)/usr/sbin/webs_update_enc.sh
@@ -281,7 +279,12 @@ ifeq ($(RTCONFIG_GETREALIP),y)
 	install -m 0755 apps_scripts/getrealip.sh $(INSTALLDIR)/usr/sbin/getrealip.sh
 endif
 
+ifneq ($(RTCONFIG_INADYN),y)
 	install -m 0755 webs_scripts/GoogleDNS_Update.sh $(INSTALLDIR)/usr/sbin
+endif
+ifeq ($(RTCONFIG_HND_ROUTER_AX),y)
+	install -m 0755 apps_scripts/runin/$(BUILD_NAME)/stress_pkteng.sh $(INSTALLDIR)/usr/sbin
+endif
 
 ifeq ($(HND_ROUTER),y)
 	mkdir -p $(INSTALL_DIR)/rom/rom/usr/share/zoneinfo

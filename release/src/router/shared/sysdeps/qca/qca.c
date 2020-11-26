@@ -716,23 +716,39 @@ void add_beacon_vsie(char *hexdata)
 	int pktflag = 0x0;
 	int len = 0;
 	char *ifname = NULL;
+#ifdef RTCONFIG_BHCOST_OPT
+        int unit = 0;
+        char word[100], *next;
+#endif
+
+
 
 #ifdef RTCONFIG_WIFI_SON
 	if (nvram_match("wifison_ready", "1"))
 		return;
 #endif
 	len = 3 + strlen(hexdata)/2;	/* 3 is oui's len */
-
+#ifdef RTCONFIG_BHCOST_OPT
+	unit=0;
+	foreach (word, nvram_safe_get("wl_ifnames"), next) 
+	{
+		ifname=get_wififname(unit);	
+	//	_dprintf("%s: wl%d_ifname=%s\n", __func__,unit, ifname);
+#else
 	ifname = get_wififname(0);	// TODO: Should we get the band from nvram?
-
 	//_dprintf("%s: wl0_ifname=%s\n", __func__, ifname);
+#endif
 
 	if (ifname && strlen(ifname)) {
-		snprintf(cmd, sizeof(cmd), "hostapd_cli set_vsie -i%s %d DD%02X%02X%02X%02X%s",
+		snprintf(cmd, sizeof(cmd), "hostapd_cli -i%s set_vsie %d DD%02X%02X%02X%02X%s",
 			ifname, pktflag, (uint8_t)len, (uint8_t)OUI_ASUS[0], (uint8_t)OUI_ASUS[1], (uint8_t)OUI_ASUS[2], hexdata);
 		_dprintf("%s: cmd=%s\n", __func__, cmd);
 		system(cmd);
 	}
+#ifdef RTCONFIG_BHCOST_OPT
+		unit++;
+	}
+#endif	
 }
 
 void del_beacon_vsie(char *hexdata)
@@ -750,6 +766,10 @@ void del_beacon_vsie(char *hexdata)
 	int pktflag = 0x0;
 	int len = 0;
 	char *ifname = NULL;
+#ifdef RTCONFIG_BHCOST_OPT
+        int unit = 0;
+        char word[100], *next;
+#endif
 
 #ifdef RTCONFIG_WIFI_SON
 	if (nvram_match("wifison_ready", "1"))
@@ -757,16 +777,28 @@ void del_beacon_vsie(char *hexdata)
 #endif
 	len = 3 + strlen(hexdata)/2;	/* 3 is oui's len */
 
+#ifdef RTCONFIG_BHCOST_OPT
+	unit=0;
+	foreach (word, nvram_safe_get("wl_ifnames"), next) 
+	{
+		ifname=get_wififname(unit);	
+		//_dprintf("%s: wl%d_ifname=%s\n", __func__,unit, ifname);
+#else
 	ifname = get_wififname(0);	// TODO: Should we get the band from nvram?
-
 	//_dprintf("%s: wl0_ifname=%s\n", __func__, ifname);
+#endif
 
 	if (ifname && strlen(ifname)) {
-		snprintf(cmd, sizeof(cmd), "hostapd_cli del_vsie -i%s %d DD%02X%02X%02X%02X%s",
+		snprintf(cmd, sizeof(cmd), "hostapd_cli -i%s del_vsie %d DD%02X%02X%02X%02X%s",
 			ifname, pktflag, (uint8_t)len, (uint8_t)OUI_ASUS[0], (uint8_t)OUI_ASUS[1], (uint8_t)OUI_ASUS[2], hexdata);
 		_dprintf("%s: cmd=%s\n", __func__, cmd);
 		system(cmd);
 	}
+
+#ifdef RTCONFIG_BHCOST_OPT
+		unit++;
+	}
+#endif	
 }
 
 /*
@@ -798,11 +830,19 @@ void Pty_stop_wlc_connect(int band)
 	set_wpa_cli_cmd(band, "disconnect", 0);
 }
 
+#ifdef RTCONFIG_BHCOST_OPT
+void Pty_start_wlc_connect(int band, char *bssid)
+{
+	band = swap_5g_band(band);
+	set_wpa_cli_cmd(band, "reconnect", 0);
+}
+#else
 void Pty_start_wlc_connect(int band)
 {
 	band = swap_5g_band(band);
 	set_wpa_cli_cmd(band, "reconnect", 0);
 }
+#endif
 
 /*
  * int Pty_get_upstream_rssi(int band)
@@ -843,35 +883,69 @@ int Pty_get_upstream_rssi(int band)
 int get_wlan_service_status(int bssidx, int vifidx)
 {
 	int ret;
-	char athfix[8];
-
+	char athfix[8],ifname[20];
+	if (nvram_get_int("wlready") == 0)
+		return -1;
 	if(bssidx < 0 || bssidx >= MAX_NR_WL_IF || vifidx < 0 || vifidx >= MAX_NO_MSSID)
 		return -1;
+
 	if(sw_mode() == SW_MODE_AP && nvram_match("re_mode", "1")) {
-		if(vifidx == 0)
+		if(vifidx == 0) //sta
 			strcpy(athfix, get_staifname(swap_5g_band(bssidx)));
-		else
+		else if(vifidx == 1) //main ap
 			__get_wlifname(swap_5g_band(bssidx), 0, athfix);
+		else //guestnetwork or vif
+		{	
+			snprintf(ifname,sizeof(ifname), "wl%d.%d_ifname", swap_5g_band(bssidx), vifidx);
+			if(strlen(nvram_safe_get(ifname)))
+				strcpy(athfix,nvram_get(ifname));
+			else
+				return -1;
+		}			
 	}
 	else {
 		__get_wlifname(swap_5g_band(bssidx), vifidx, athfix);
 	}
+
 	ret = is_intf_up(athfix);
 	return ret;
 }
 
 void set_wlan_service_status(int bssidx, int vifidx, int enabled)
 {
+	int cfg_stat;
 	char athfix[8];
+        char tmp[20],tmp2[20];
+	if (nvram_get_int("wlready") == 0)
+                return;
 	if(bssidx < 0 || bssidx >= MAX_NR_WL_IF || vifidx < 0 || vifidx >= MAX_NO_MSSID)
 		return;
+
 	if(sw_mode() == SW_MODE_AP && nvram_match("re_mode", "1")) {
-		if(vifidx <= 0) {
+		if(vifidx <= 0) {  //for sta
 			strcpy(athfix, get_staifname(swap_5g_band(bssidx)));
 			doSystem("ifconfig %s %s", athfix, enabled?"up":"down");
 			return;
 		}
-		vifidx--;
+		if(vifidx==1)
+			vifidx--;
+	}
+	cfg_stat = nvram_get_int("cfg_alive");
+
+	if(cfg_stat)
+	{	
+		if (sw_mode() == SW_MODE_AP && nvram_match("re_mode", "1")) {
+			snprintf(tmp, sizeof(tmp), "wl%d_qca_sched", bssidx);
+			snprintf(tmp2, sizeof(tmp2), "wl%d_timesched", bssidx);
+			if(nvram_get_int(tmp2)==1 ) //wifi sched is enabled
+			{
+				if(nvram_get_int(tmp)==0) //sched is radio-off
+				{
+					//_dprintf("radio[%d] should be left to wifi-sched\n",bssidx);	
+					return; 
+				}	
+			}	
+		}	
 	}
 	set_radio(enabled, swap_5g_band(bssidx), vifidx);
 }
@@ -886,10 +960,39 @@ void set_wlan_service_status(int bssidx, int vifidx, int enabled)
  */
 void set_pre_sysdep_config(int iftype)
 {
+	//monitor amas_ifaces for guestnetwork
+
 }
 
 void set_post_sysdep_config(int iftype)
 {
+#if defined(RTCONFIG_AMAS_WGN)
+       char br_name[64], *br_next = NULL;
+       char if_name[64], *if_next = NULL;
+       char s[64];
+
+       if (nvram_get_int("re_mode") == 1 && nvram_get_int("wgn_enabled") == 1)
+       {
+               // delif
+               foreach (br_name, nvram_safe_get("wgn_ifnames"), br_next)
+               {
+                       memset(s, 0, sizeof(s));
+                       snprintf(s, sizeof(s), "wgn_%s_%s_ifnames", br_name, (iftype==0x01) ? "sta" : "lan");//ethernet?
+                       foreach (if_name, nvram_safe_get(s), if_next)
+                               eval("brctl", "delif", br_name, if_name);
+               }
+
+               // addif
+               foreach (br_name, nvram_safe_get("wgn_ifnames"), br_next)
+               {
+                       memset(s, 0, sizeof(s));
+                       snprintf(s, sizeof(s), "wgn_%s_%s_ifnames", br_name, (iftype==0x01) ? "lan" : "sta"); //ethernet?
+                       foreach (if_name, nvram_safe_get(s), if_next)
+                               eval("brctl", "addif", br_name, if_name);
+               }
+       }
+#endif /* RTCONFIG_AMAS_WGN */
+       return;
 }
 
 /*
@@ -1011,7 +1114,11 @@ void update_macfilter_relist(void)
 #ifdef RTCONFIG_WIFI_SON
 		if (nvram_match("wifison_ready", "1"))
 			sec = "_sec";
-#endif // WIFI_SON
+#endif
+#ifdef RTCONFIG_QCA_LBD
+		if (nvram_match("smart_connect_x", "1"))
+			sec = "_sec";
+#endif
 		sprintf(qca_mac, "%s%s", QCA_ADDMAC, sec);
 
 		foreach (word, nvram_safe_get("wl_ifnames"), next) {
@@ -1194,7 +1301,7 @@ static char *get_lbd_data(int sfd, int *rlen, char *terminate)
 }
 
 /* nosteer */
-char *set_steer(char *mac,int val)
+char *set_steer(const char *mac,int val)
 {
 	int sock;
 	char outbuf[100];

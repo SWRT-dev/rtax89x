@@ -16,7 +16,9 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <errno.h>
+#if (defined(__GLIBC__) || defined(__UCLIBC__))
 #include <error.h>
+#endif	/* (__GLIBC__ || __UCLIBC__) */
 #include <string.h>
 #include <sys/ioctl.h>
 #include <sys/types.h>
@@ -314,7 +316,7 @@ int nvram_commit(void)
 
 	fp = fopen("/var/log/commit_ret", "w");
 
-	if (n = wait_action_idle(10)) {
+	if ((n = wait_action_idle(10))) {
 		set_action(ACT_NVRAM_COMMIT);
 		if (n != 10 && nvram_get(ASUS_STOP_COMMIT) != NULL)
 		{

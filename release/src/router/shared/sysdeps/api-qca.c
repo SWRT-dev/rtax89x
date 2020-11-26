@@ -6,6 +6,7 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <typedefs.h>
+#include <limits.h>		//PATH_MAX, LONG_MIN, LONG_MAX
 #include <bcmnvram.h>
 #include <sys/ioctl.h>
 #include <qca.h>
@@ -92,7 +93,11 @@ const char STA_5G[] = "sta1";
 const char STA_2G[] = "sta0";
 const char VPHY_5G[] = "wifi1";
 const char VPHY_2G[] = "wifi0";
+#if defined(RTCONFIG_CFG80211)
+const char WSUP_DRV[] = "nl80211";
+#else
 const char WSUP_DRV[] = "athr";
+#endif
 const char BR_GUEST[] = "brg0";
 const char WIF_5G_BH[] = "ath101";
 const char APMODE_BRGUEST_IP[]="192.168.55.1";
@@ -359,10 +364,15 @@ void set_radio(int on, int unit, int subunit)
 		return;
 	}
 
-	strlcpy(wds_iface, get_wififname(unit), sizeof(wds_iface));
+#if defined(RTCONFIG_SOC_IPQ8074)
+	if(sub)
+	{
+		snprintf(prefix, sizeof(prefix), "wl%d.%d_", unit, sub);
+		strcpy(wds_iface, nvram_safe_get(strcat_r(prefix, "ifname", tmp)));
+	}	
+	else	
+		strlcpy(wds_iface, get_wififname(unit), sizeof(wds_iface));
 
-#if defined(RTCONFIG_WIGIG)
-	if (unit == WL_60G_BAND) {
 #if defined(RTCONFIG_SINGLE_HOSTAPD)
 		if (on) {
 			char bss_cfg[sizeof("bss_config=") + IFNAMSIZ + sizeof(":/etc/Wireless/conf/hostapd_XXX.conf") + IFNAMSIZ];
@@ -381,14 +391,12 @@ void set_radio(int on, int unit, int subunit)
 		if (on) {
 			snprintf(conf_path, sizeof(conf_path), "/etc/Wireless/conf/hostapd_%s.conf", wds_iface);
 			snprintf(entropy_path, sizeof(entropy_path), "/var/run/entropy_%s.bin", wds_iface);
-			eval("hostapd", "-d", "-B", conf_path, "-P", pid_path, "-e", entropy_path);
+			eval("hostapd", "-d", "-B", "-P", pid_path, "-e", entropy_path, conf_path);
 		} else {
 			kill_pidfile(pid_path);
 		}
 #endif
-	}
-#endif	/* RTCONFIG_WIGIG */
-
+#endif
 	do {
 		if (sub > 0)
 			snprintf(prefix, sizeof(prefix), "wl%d.%d_", unit, sub);
@@ -401,6 +409,15 @@ void set_radio(int on, int unit, int subunit)
 			_dprintf("%s: unit %d-%d, %s\n", __func__, unit, sub, (on?"on":"off"));
 			if (unit != WL_60G_BAND) {
 				eval("ifconfig", athfix, on? "up":"down");
+#if  defined(RTCONFIG_SINGLE_HOSTAPD) && defined(RTCONFIG_CFG80211)
+				if (on) {
+					char cfg[sizeof("bss_config=") + IFNAMSIZ + sizeof(":/etc/Wireless/conf/hostapd_XXX.conf") + IFNAMSIZ];
+					snprintf(cfg, sizeof(cfg), "bss_config=%s:/etc/Wireless/conf/hostapd_%s.conf", athfix, athfix);
+					eval(QWPA_CLI, "-g", QHOSTAPD_CTRL_IFACE, "raw", "ADD", cfg);
+				} else {
+					eval(QWPA_CLI, "-g", QHOSTAPD_CTRL_IFACE, "raw", "REMOVE", athfix);
+				}
+#endif
 			}
 
 			/* Reconnect to peer WDS AP */
@@ -1252,8 +1269,8 @@ static void set_nss_power_save_mode(void)
 		nss_max_freq = 800 * 1000000;	/* IPQ8065 */
 	}
 #elif defined(RTCONFIG_SOC_IPQ8074)
-	nss_min_freq = 187200000;
-	nss_max_freq = nss_min_freq * 8;
+	nss_min_freq = 748800000;
+	nss_max_freq = 1689600000;
 #else
 #error Unknown NSS frequency.
 #endif
@@ -1541,6 +1558,28 @@ const char *get_5ghigh_ifname(int unit)
 }
 #endif
 
+/**
+ * Return band if @ifname is STA interface name and the band is supported.
+ * @return:
+ * 	-1:	@ifname is not STA interface name
+ * 	band:	@ifname is STA interface.
+ *  otherwise:	not defined.
+ */
+int get_sta_ifname_unit(const char *ifname)
+{
+	int band;
+	const char *sta[] = { STA_2G, STA_5G, STA_5G2 };
+
+	if (!ifname)
+		return -1;
+	for (band = 0; band < min(MAX_NR_WL_IF, ARRAY_SIZE(sta)); ++band) {
+		SKIP_ABSENT_BAND(band);
+
+		if (!strncmp(ifname, sta[band], strlen(sta[band])))
+			return band;
+	}
+	return -1;
+}
 
 /**
  * Return true if @ifname is main/guest VAP interface name and the band is supported.
@@ -1942,18 +1981,17 @@ int create_vap(char *ifname, int unit, char *mode)
 	if (!ifname || !mode || unit < 0 || unit >= MAX_NR_WL_IF)
 		return -1;
 
-#if defined(RTCONFIG_CFG80211)
 	if (!strcmp(mode, "ap")) {
+#if defined(RTCONFIG_CFG80211)
 	       strlcpy(iwmode, "__ap", sizeof(iwmode));
+#endif
 	} else if (!strcmp(mode, "sta")) {
+#if defined(RTCONFIG_CFG80211)
 		strlcpy(iwmode, "managed", sizeof(iwmode));
+#endif
 		*v++ = "nosbeacon";
 	} else
 		return -1;
-#else
-	if (strcmp(mode, "ap") && strcmp(mode, "sta"))
-		return -1;
-#endif
 
 	strlcpy(vphy, get_vphyifname(unit), sizeof(vphy));
 #if defined(RTCONFIG_CFG80211)
@@ -2353,6 +2391,7 @@ void set_wpa_cli_cmd(int band, const char *cmd, int chk_reply)
 	char fcmd[128];
 	char reply[WPA_CLI_REPLY_SIZE];
 	int timeout = QUERY_WPA_CLI_REPLY_TIMEOUT;
+	int scan_and_with_scan_events = 0;
 
 	if(band < 0 || band >= MAX_NR_WL_IF || cmd == NULL || cmd[0] == '\0')
 		return;
@@ -2360,19 +2399,38 @@ void set_wpa_cli_cmd(int band, const char *cmd, int chk_reply)
 	get_wpa_ctrl_sk(band, ctrl_sk, sizeof(ctrl_sk));
 	sta = get_staifname(band);
 	if (chk_reply) {
-		snprintf(fcmd, sizeof(fcmd), "/usr/bin/wpa_cli -p %s -i %s %s", ctrl_sk, sta, cmd);
-		while (strcmp(wpa_cli_reply(fcmd, reply), "OK") && timeout--) {
-			//dbg("%s: reply [%s] ...(%d/%d)\n", __func__, reply, timeout, QUERY_WPA_CLI_REPLY_TIMEOUT);
-			sleep(1);
-		};
-
-		if (strcmp(cmd, "scan") == 0) {
-			snprintf(fcmd, sizeof(fcmd), "/usr/bin/wpa_cli -p %s -i %s status | grep wpa_state=", ctrl_sk, sta);
+#if defined(RTCONFIG_QCN550X) || defined(RTCONFIG_SOC_IPQ40XX) || defined(RTCONFIG_SOC_IPQ8074) // newer QCA platform with AMAS capability
+		if (strcmp(cmd, "scan") == 0) { // check if scan_events is supported
+			char *rpt;
+			snprintf(fcmd, sizeof(fcmd), "/usr/bin/wpa_cli -p %s -i %s scan_events", ctrl_sk, sta);
+			rpt = wpa_cli_reply(fcmd, reply);
+			if ((strcmp(rpt, "YES")==0) || (strcmp(rpt, "NO")==0))
+				scan_and_with_scan_events = 1;
+		}
+#endif
+		if (scan_and_with_scan_events) {
+			eval("/usr/bin/wpa_cli", "-p", ctrl_sk, "-i", sta, (char*) cmd); // just issue scan command & wait scan_events
+			snprintf(fcmd, sizeof(fcmd), "/usr/bin/wpa_cli -p %s -i %s scan_events", ctrl_sk, sta);
 			timeout = QUERY_WPA_STATE_TIMEOUT;
-			while (strcmp(wpa_cli_reply(fcmd, reply), "wpa_state=INACTIVE") && timeout--) {
-				//dbg("%s: reply [%s] ...(%d/%d)\n", __func__, reply, timeout, QUERY_WPA_STATE_TIMEOUT);
+			while (strcmp(wpa_cli_reply(fcmd, reply), "YES") && timeout--) {
+				//dbg("%s(%d): reply [%s] ...(%d/%d)\n", __func__, band, reply, timeout, QUERY_WPA_STATE_TIMEOUT);
 				sleep(1);
 			};
+		} else { // non-scan cmd or no scan_events supported
+			snprintf(fcmd, sizeof(fcmd), "/usr/bin/wpa_cli -p %s -i %s %s", ctrl_sk, sta, cmd);
+			while (strcmp(wpa_cli_reply(fcmd, reply), "OK") && timeout--) {
+				//dbg("%s(%d): reply [%s] ...(%d/%d)\n", __func__, band, reply, timeout, QUERY_WPA_CLI_REPLY_TIMEOUT);
+				sleep(1);
+			};
+
+			if (strcmp(cmd, "scan") == 0) {
+				snprintf(fcmd, sizeof(fcmd), "/usr/bin/wpa_cli -p %s -i %s status | grep wpa_state=", ctrl_sk, sta);
+				timeout = QUERY_WPA_STATE_TIMEOUT;
+				while (!strcmp(wpa_cli_reply(fcmd, reply), "wpa_state=SCANNING") && timeout--) {
+					//dbg("%s(%d): reply [%s] ...(%d/%d)\n", __func__, band, reply, timeout, QUERY_WPA_STATE_TIMEOUT);
+					sleep(1);
+				};
+			}
 		}
 	}
 	else
@@ -2403,7 +2461,11 @@ void set_maclist_mode(char *ifname, int mode)
 #ifdef RTCONFIG_WIFI_SON
 	if (nvram_match("wifison_ready", "1"))
 		sec = "_sec";
-#endif // WIFI_SON
+#endif
+#ifdef RTCONFIG_QCA_LBD
+	if (nvram_match("smart_connect_x", "1"))
+		sec = "_sec";
+#endif
 	sprintf(qca_maccmd, "%s%s", QCA_MACCMD, sec);
 
 	if (mode < 0 || mode > 3)
@@ -2424,7 +2486,11 @@ void set_maclist_add_kick(char *ifname, int mode, char *sta_addr)
 #ifdef RTCONFIG_WIFI_SON
 	if (nvram_match("wifison_ready", "1"))
 		sec = "_sec";
-#endif // WIFI_SON
+#endif
+#ifdef RTCONFIG_QCA_LBD
+	if (nvram_match("smart_connect_x", "1"))
+		sec = "_sec";
+#endif
 	snprintf(qca_addmac, sizeof(qca_addmac), "%s%s", QCA_ADDMAC, sec);
 
 	eval(IWPRIV, ifname, qca_addmac, sta_addr);
@@ -2444,7 +2510,11 @@ void set_maclist_del_kick(char *ifname, int mode, char *sta_addr)
 #ifdef RTCONFIG_WIFI_SON
 	if (nvram_match("wifison_ready", "1"))
 		sec = "_sec";
-#endif // WIFI_SON
+#endif
+#ifdef RTCONFIG_QCA_LBD
+	if (nvram_match("smart_connect_x", "1"))
+		sec = "_sec";
+#endif
 	snprintf(qca_delmac, sizeof(qca_delmac), "%s%s", QCA_DELMAC, sec);
 
 	eval(IWPRIV, ifname, qca_delmac, sta_addr);
@@ -2488,7 +2558,11 @@ void set_macfilter_unit(int unit, int subnet, FILE *fp)
 #ifdef RTCONFIG_WIFI_SON
 	if (nvram_match("wifison_ready", "1"))
 		sec = "_sec";
-#endif // WIFI_SON
+#endif
+#ifdef RTCONFIG_QCA_LBD
+	if (nvram_match("smart_connect_x", "1"))
+		sec = "_sec";
+#endif
 	sprintf(qca_mac, "%s%s", QCA_MACCMD, sec);
 
 	p = nvram_get(strcat_r(prefix, "macmode", tmp));

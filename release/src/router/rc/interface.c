@@ -18,7 +18,9 @@
 #include <stdlib.h>
 #include <ctype.h>
 #include <errno.h>
+#ifdef __GLIBC__		//musl doesn't have error.h
 #include <error.h>
+#endif	/* __GLIBC__ */
 #include <string.h>
 #include <unistd.h>
 #include <sys/ioctl.h>
@@ -368,11 +370,11 @@ static int route_manip(int cmd, char *name, int metric, char *dst, char *gateway
 
 	/* Fill in rtentry */
 	memset(&rt, 0, sizeof(rt));
-	if (dst)
+	if (dst && *dst)
 		inet_aton(dst, &sin_addr(&rt.rt_dst));
-	if (gateway)
+	if (gateway && *gateway)
 		inet_aton(gateway, &sin_addr(&rt.rt_gateway));
-	if (genmask)
+	if (genmask && *genmask)
 		inet_aton(genmask, &sin_addr(&rt.rt_genmask));
 	rt.rt_metric = metric;
 	rt.rt_flags = RTF_UP;

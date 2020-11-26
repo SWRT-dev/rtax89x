@@ -36,7 +36,11 @@
 #define ETHER_ADDR_LEN 6
 #endif
 
+#ifdef RTCONFIG_AMAS_WGN
+#define WLIFU_MAX_NO_BRIDGE		8
+#else
 #define WLIFU_MAX_NO_BRIDGE		2
+#endif
 #define WLIFU_MAX_NO_WAN		2
 
 #define MAX_USER_KEY_LEN	80			/* same as NAS_WKSP_MAX_USER_KEY_LEN */

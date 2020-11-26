@@ -74,6 +74,7 @@ function LoadingProgress(seconds){
 }
 
 function showLoading(seconds, flag){
+
 	if(window.scrollTo)
 		window.scrollTo(0,0);
 
@@ -118,7 +119,12 @@ function showLoading(seconds, flag){
 	blockmarginTop= winHeight*0.3	
 	
 	document.getElementById("loadingBlock").style.marginTop = blockmarginTop+"px";
-	document.getElementById("loadingBlock").style.marginLeft = blockmarginLeft+"px";
+	if(re_mode == "1"){
+		document.getElementById("loadingBlock").style.left = "50%";
+		document.getElementById("loadingBlock").style.marginLeft = "-200px";
+	}
+	else
+		document.getElementById("loadingBlock").style.marginLeft = blockmarginLeft+"px";
 
 	document.getElementById("Loading").style.width = winW+"px";
 	document.getElementById("Loading").style.height = winH+"px";

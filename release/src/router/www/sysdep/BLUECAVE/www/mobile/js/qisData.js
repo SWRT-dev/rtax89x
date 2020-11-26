@@ -266,7 +266,12 @@ var systemVariable = {
 		"wlcStatus": {}
 	},
 	"wanOption": false,
-	"skipAiMeshOptionPage": false
+	"skipAiMeshOptionPage": false,
+	"interval_status": false,
+	"modelCloudIcon": [],
+	"onboardingInfo": {},
+	"amas_newWindow_addNode": false,
+	"authModePostData": {}
 }
 
 var aimeshObj = {

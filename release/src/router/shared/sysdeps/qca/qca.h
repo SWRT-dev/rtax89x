@@ -507,6 +507,13 @@ enum ASUS_IOCTL_SUBCMD {
 #define OFFSET_CERT_KEY			(MTD_FACTORY_BASE_ADDRESS + FTRY_PARM_SHIFT + 0x0B200)	// 4096 byte
 #endif
 
+#if defined(RTCONFIG_SOC_IPQ8074)
+#define OFFSET_VOLTUP			(MTD_FACTORY_BASE_ADDRESS + FTRY_PARM_SHIFT + 0x0D300)	// 8 byte, uint64_t, little-endian
+#define OFFSET_L2CEILING		(MTD_FACTORY_BASE_ADDRESS + FTRY_PARM_SHIFT + 0x0D308)	// 4 byte, uint32_t, little-endian
+#define OFFSET_PWRCYCLECNT		(MTD_FACTORY_BASE_ADDRESS + FTRY_PARM_SHIFT + 0x0D30C)	// 4 byte, uint32_t, little-endian
+#define OFFSET_AVGUPTIME		(MTD_FACTORY_BASE_ADDRESS + FTRY_PARM_SHIFT + 0x0D310)	// 4 byte, uint32_t, little-endian
+#endif
+
 #define OFFSET_IPADDR_LAN               (MTD_FACTORY_BASE_ADDRESS + FTRY_PARM_SHIFT + 0x0FEF0)
 
 #define OFFSET_HWID			(MTD_FACTORY_BASE_ADDRESS + FTRY_PARM_SHIFT + 0x0FF00)  /*  4 bytes */
@@ -686,6 +693,10 @@ typedef struct {
 #define BD_5G2_HW_DIR	"hw.1"
 #elif defined(RTAC59U)
 #define BD_5G_PREFIX	"boardData_2_0_QCA9888_5G_Y9690"
+#define BD_5G_CHIP_DIR	"QCA9888"
+#define BD_5G_HW_DIR	"hw.2"
+#elif defined(RTAC59_CD6R) || defined(RTAC59_CD6N)
+#define BD_5G_PREFIX	"boardData_2_0_QCA9888_5G_YA105"
 #define BD_5G_CHIP_DIR	"QCA9888"
 #define BD_5G_HW_DIR	"hw.2"
 #elif defined(RPAC51)

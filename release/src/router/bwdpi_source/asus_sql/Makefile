@@ -56,8 +56,8 @@ else ifeq ($(RTCONFIG_SOC_IPQ8074),y)
 CFLAGS += -DPGCONTROL3
 else ifeq ($(RTCONFIG_SOC_IPQ40XX),y)
 	# ipq40xx
-else ifeq ($(RTCONFIG_QCA956X),y)
-	# qca956x
+else ifeq ($(or $(RTCONFIG_QCA956X),$(RTCONFIG_QCN550X)),y)
+	# qca956x / qcn550x
 else ifeq ($(RTCONFIG_RALINK),y)
 	# mtk
 else ifeq ($(RTCONFIG_LANTIQ),y)

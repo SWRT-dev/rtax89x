@@ -98,10 +98,9 @@ body{
 	width: 700px;
 	height: 600px;
 	background-color: #444f53;
-	z-index: 199;
+	z-index: 10;
 	padding: 12px 18px;
 	overflow-y: auto;
-	margin-top: -40px;
 }
 
 .qr_code{
@@ -159,7 +158,7 @@ function initial(){
 	if(!ASUS_EULA.status("tm"))
 		ASUS_EULA.config(eula_confirm, cancel);
 
-	setTimeout("showDropdownClientList('setClientIP', 'mac', 'all', 'ClientList_Block_PC', 'pull_arrow', 'all');", 500);
+	setTimeout("showDropdownClientList('setClientIP', 'mac', 'all', 'ClientList_Block_PC', 'pull_arrow', 'all');", 100);
 	genGameList();	
 }
 
@@ -327,7 +326,7 @@ function addGameList(){
 		}
 	});
 
-	setTimeout("showDropdownClientList('setClientIP', 'mac', 'all', 'ClientList_Block_PC', 'pull_arrow', 'all');", 500);
+	setTimeout("showDropdownClientList('setClientIP', 'mac', 'all', 'ClientList_Block_PC', 'pull_arrow', 'all');", 100);
 }
 
 function delGameList(target){
@@ -354,7 +353,7 @@ function delGameList(target){
 		}
 	});
 
-	setTimeout("showDropdownClientList('setClientIP', 'mac', 'all', 'ClientList_Block_PC', 'pull_arrow', 'all');", 500);
+	setTimeout("showDropdownClientList('setClientIP', 'mac', 'all', 'ClientList_Block_PC', 'pull_arrow', 'all');", 100);
 }
 
 function showGameListField(){

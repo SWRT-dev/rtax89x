@@ -26,6 +26,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/sysinfo.h>
+#include <netinet/if_ether.h>		//have to in front of <linux/ethtool.h> and <linux/mii.h> to avoid redefinition of 'struct ethhdr'
 #include <linux/mii.h>
 #include <wlutils.h>
 #include <bcmdevs.h>
@@ -369,6 +370,9 @@ static const struct irq_smp_affinity_s {
 	{ 174, 2 },	/* wifi2 = 5G2 ==> core 2 */
 	{ 200, 4 },	/* wifi0 = 2G  ==> core 3 */
 	{ 201, 8 },	/* wifi1 = 5G  ==> core 4 */
+#if defined(RTAC58U)
+	{ 164, 2 },	/* USB2.0 ==> core 2 */
+#endif
 #endif
 	{ -1, 0 }	/* Last item. */
 };
@@ -625,7 +629,7 @@ static void qdf_param_hook(char ***pv, char **ps, int *plen)
 	if (!pv || !ps || !plen)
 		return;
 
-	*(*pv)++ = "mem_debug_disabled=1";
+	// *(*pv)++ = "mem_debug_disabled=1";	// Only available if MEMORY_DEBUG is enabled in config_XXX.wlan.unified.profile
 }
 
 /* Generate parameters for qdf in test mode. */
@@ -634,7 +638,7 @@ static void qdf_tmode_param_hook(char ***pv, char **ps, int *plen)
 	if (!pv || !ps || !plen)
 		return;
 
-	*(*pv)++ = "mem_debug_disabled=1";
+	// *(*pv)++ = "mem_debug_disabled=1";	// Only available if MEMORY_DEBUG is enabled in config_XXX.wlan.unified.profile
 }
 #endif	/* RTCONFIG_SPF11_1_QSDK */
 
@@ -810,12 +814,12 @@ void init_devs(void)
     defined(RTCONFIG_SWITCH_RTL8370MB_PHY_QCA8033_X2)
 	__mknod("/dev/rtkswitch", S_IFCHR | 0666, makedev(206, 0));
 #endif
-#if (defined(PLN12) || defined(PLAC56) || defined(PLAC66U) || defined(RPAC66) || defined(RPAC51) || defined(MAPAC1750) || defined(RTN19) || defined(RTAC59U))
+#if defined(RTCONFIG_QCA953X) || \
+    defined(RTCONFIG_QCA956X) || \
+    defined(RTCONFIG_QCN550X)
 	eval("ln", "-sf", "/dev/mtdblock2", "/dev/caldata");	/* mtdblock2 = SPI flash, Factory MTD partition */
-#elif (defined(RTAC58U) || defined(RT4GAC53U) || defined(RTAC82U))
-	eval("ln", "-sf", "/dev/mtdblock3", "/dev/caldata");	/* mtdblock3 = cal in NAND flash, Factory MTD partition */
 #else
-	eval("ln", "-sf", "/dev/mtdblock3", "/dev/caldata");	/* mtdblock3 = Factory MTD partition */
+	eval("ln", "-sf", "/dev/mtdblock3", "/dev/caldata");	/* mtdblock3 = cal in NAND flash, Factory MTD partition */
 #endif
 
 	if ((status = WEXITSTATUS(modprobe("nvram_linux"))))
@@ -984,6 +988,8 @@ static void init_switch_qca(void)
 		"shortcut-fe", "shortcut-fe-ipv6", "shortcut-fe-cm",
 		"qca-ssdk",
 		"hyfi_qdisc", "hyfi-bridging",
+#elif defined(RTCONFIG_QCN550X) && defined(RTCONFIG_SWITCH_QCA8337N)
+		"qca-ssdk",
 #endif
 #ifdef RTCONFIG_QCA_MCSD
 		"qca-mcs",
@@ -1296,6 +1302,8 @@ void config_switch(void)
 	case MODEL_RT4GAC55U:	/* fall through */
 	case MODEL_RTN19:	/* fall through */
 	case MODEL_RTAC59U:	/* fall through */
+	case MODEL_RTAC59CD6R:	/* fall through */
+	case MODEL_RTAC59CD6N:	/* fall through */
 	case MODEL_RTAC58U:	/* fall through */
 	case MODEL_RT4GAC53U:	/* fall through */
 	case MODEL_RTAC82U:	/* fall through */
@@ -1455,6 +1463,8 @@ void config_switch(void)
 			else if (!strcmp(nvram_safe_get("switch_wantag"), "movistar")) {
 #if defined(RTCONFIG_SOC_IPQ40XX)
 				doSystem("echo 10 > /proc/sys/net/edma/default_group1_vlan_tag");
+#elif defined(RTCONFIG_QCA953X) || defined(RTCONFIG_QCA956X) || defined(RTCONFIG_QCN550X)
+				nvram_set("vlan_idx", "1");
 #else
 				/* Software bridge based IPTV implementation need to create VLAN interface
 				 * in __setup_vlan() which is called by config_switch().  In this case,
@@ -1505,7 +1515,7 @@ void config_switch(void)
 					eval("rtkswitch", "8", "4");		/* LAN4 with WAN */
 				}
 			}
-#if defined(RTAC58U)
+#if defined(RTAC58U) || defined(RTAC59U)
 			else if (!strcmp(nvram_safe_get("switch_wantag"), "stuff_fibre")) {
 				system("rtkswitch 38 0");			//No IPTV and VoIP ports
 				/* Internet:	untag: P9;   port: P4, P9 */
@@ -2171,9 +2181,9 @@ static int do_cold_boot_calibration(char *mod, int is_ftm)
 		return -4;
 #if defined(RTCONFIG_GLOBAL_INI)
 	eval("modprobe", "-s", "wifi_3_0");
-	eval("modprobe", "-r", "wifi_3_0");
+	eval("rmmod", "wifi_3_0");
 #endif
-	eval("modprobe", "-r", mod);
+	eval("rmmod",  mod);
 	if (module_loaded(mod))
 		return -5;
 
@@ -2755,6 +2765,17 @@ static void __load_wifi_driver(int testmode)
 				fprintf(fp_wifi, IWPRIV " %s txpwrpc %s\n",
 					vphy, nvram_pf_safe_get(prefix, "txpower"));
 			}
+#ifdef RTCONFIG_AMAS_WGN
+                       if(check_gn()) //guestnetwork enabled
+                       {
+                               eval(IWPRIV, (char*) VPHY_2G, "no_vlan", "1");
+                               eval(IWPRIV, (char*) VPHY_5G, "no_vlan", "1");
+
+#if defined(RTCONFIG_HAS_5G_2)
+                               eval(IWPRIV, (char*) VPHY_5G2, "no_vlan", "1");
+#endif
+                       }
+#endif
 
 #if defined(RTCONFIG_WIFI_SON)
 			if (sw_mode()!=SW_MODE_REPEATER && nvram_match("wifison_ready", "1")) {
@@ -2810,7 +2831,10 @@ void load_wifi_driver(void)
 		f_write_string("/proc/net/skb_recycler/max_skbs", "10", 0, 0);
 		f_write_string("/proc/net/skb_recycler/max_spare_skbs", "10", 0, 0);
 	}
-#elif defined(RTN19) || defined(RTAC59U) || defined(MAPAC1750)
+#elif defined(RTCONFIG_QSDK6PLUS) && (defined(RTCONFIG_QCA953X) || \
+				      defined(RTCONFIG_QCA956X) || \
+				      defined(RTCONFIG_QCN550X))
+	/* For QCA95XX/QCN550X newer SDK with CONFIG_SKB_RECYCLER enabled */
 	f_write_string("/proc/net/skb_recycler/flush", "1", 0, 0);
 	f_write_string("/proc/net/skb_recycler/max_skbs", "256", 0, 0);
 #endif
@@ -3019,10 +3043,9 @@ void init_wl(void)
 					create_vap(ifname, unit, "ap");
 					sleep(1);
 #if defined(RTCONFIG_REPEATER_STAALLBAND)
-					if (sw_mode() == SW_MODE_REPEATER) {
+					if (sw_mode() == SW_MODE_REPEATER && nvram_get_int("x_Setting")) {
 						dbG("\ncreate a STA node %s from %s\n", get_staifname(unit), get_vphyifname(unit));
-						doSystem("wlanconfig %s create wlandev %s wlanmode sta nosbeacon",
-							get_staifname(unit), get_vphyifname(unit));
+						create_vap(get_staifname(unit), unit, "sta");
 						sleep(1);
 					}
 #endif
@@ -3049,8 +3072,7 @@ void init_wl(void)
 
 #ifdef RTCONFIG_WIRELESSREPEATER
 #if !defined(RTCONFIG_CONCURRENTREPEATER) && !defined(RTCONFIG_REPEATER_STAALLBAND)
-		if(sw_mode()==SW_MODE_REPEATER)
-		{ 
+		if (sw_mode() == SW_MODE_REPEATER && nvram_get_int("x_Setting")) {
 		  	wlc_band=nvram_get_int("wlc_band");
 			if (wlc_band != WL_60G_BAND) {
 				create_vap(get_staifname(wlc_band), wlc_band, "sta");
@@ -3062,7 +3084,7 @@ void init_wl(void)
 #endif
 #endif
 
-		/* Calculate 40/80/160MHz bandwidth capability based on channel list.
+		/* Calculate 40/80/160MHz and 4.32/6.48/8.64GHz bandwidth capability based on channel list.
 		 * Main VAP must ready before doing this.
 		 */
 		for (unit = WL_2G_BAND; unit < MAX_NR_WL_IF; ++unit) {
@@ -3077,8 +3099,7 @@ void init_wl(void)
 				if(nvram_get_int("x_Setting"))
 				{
 					_dprintf("=>init_wl: create sta vaps\n");
-					doSystem("wlanconfig %s create wlandev %s wlanmode sta nosbeacon",
-						get_staifname(1), get_vphyifname(1));
+					create_vap(get_staifname(1), 1, "sta");
 					sleep(1);
 					ifconfig(get_staifname(1), IFUP, NULL, NULL);
 				}
@@ -3098,8 +3119,7 @@ void init_wl(void)
 					continue;
 				if (skip_ifnames && strstr(skip_ifnames, sta) != NULL)
 					continue;
-				doSystem("wlanconfig %s create wlandev %s wlanmode sta nosbeacon",
-					get_staifname(i), get_vphyifname(i));
+				create_vap(get_staifname(i), i, "sta");
 			}
 			free(sta_ifnames);
 			free(skip_ifnames);
@@ -3139,8 +3159,7 @@ void init_wl(void)
 						_dprintf("exit!!!\n");
 					}
 					_dprintf("=> switch router to ap : create %s\n", sta);
-					doSystem("wlanconfig %s create wlandev %s wlanmode sta nosbeacon",
-						sta, get_vphyifname(i));
+					create_vap(sta, i, "sta");
 					sleep(1);
 					ifconfig(sta, IFUP, NULL, NULL);
 				}
@@ -3167,13 +3186,14 @@ void init_wl(void)
  		if (get_role()==0) // CAP
                 {
                         char vif[15];
+			char *def_nic;
                         if (strcmp(CONFIGURED_WAN_NIC, DEFAULT_WAN_NIC)==0)
-                                sprintf(vif,"%s",DEFAULT_LAN_NIC);
+                                def_nic = DEFAULT_LAN_NIC;
                         else
-                                sprintf(vif,"%s",DEFAULT_WAN_NIC);
+                                def_nic = DEFAULT_WAN_NIC;
                 
 			eval("vconfig", "add",vif,"55");
-			sprintf(vif,"%s.55",vif);
+			sprintf(vif,"%s.55",def_nic);
 			eval("ifconfig",vif,"up");
 			eval("brctl","addif",BR_GUEST,vif);
 		}
@@ -3244,6 +3264,9 @@ void fini_wl(void)
 		stop_bluetooth_service();
 #endif
 		eval("killall", "hostapd");
+#if defined(RTCONFIG_AMAS)
+		kill_wifi_wpa_supplicant(-1); // under AMAS, wpa_supplicant is enabled in default state
+#endif
 		nvram_set("restwifi_qis","1");
 		nvram_commit();
 		bg=0;
@@ -3299,6 +3322,11 @@ void fini_wl(void)
 		if (!iface_exist(ifname) || i == WL_60G_BAND)
 			continue;
 
+#if defined(RTCONFIG_AMAS)
+		if (aimesh_re_node()) {
+			remove_netdev_bled_if(get_wl_led_gpio_nv(i), get_staifname(i));
+		}
+#endif
 		ifconfig(ifname, 0, NULL, NULL);
 		destroy_vap(ifname);
 	}
@@ -3534,7 +3562,11 @@ void init_syspara(void)
 #else
 	//TODO: separate for different chipset solution
 	nvram_set("et0macaddr", macaddr);
+#if defined(RTAC95U) /*SYNC LAN as 2.4G */
+	nvram_set("et1macaddr", nvram_get("wl0macaddr"));
+#else
 	nvram_set("et1macaddr", macaddr2);
+#endif /* 95U */
 #endif
 
 #if defined(VZWAC1300) /* bad eeprom fix, temp workaround */
@@ -3646,8 +3678,9 @@ void init_syspara(void)
 		else
 			nvram_set("wifi_psk", buffer);
 	}
-#if defined(RTAC58U)
-	if (!strncmp(nvram_safe_get("territory_code"), "CX", 2))
+#if defined(RTAC58U) || defined(RTAC59U)
+	if (!strncmp(nvram_safe_get("territory_code"), "CX/01", 5)
+	 || !strncmp(nvram_safe_get("territory_code"), "CX/05", 5))
 		nvram_set("wifi_psk", nvram_safe_get("secret_code"));
 #endif
 #endif
@@ -3722,8 +3755,9 @@ void init_syspara(void)
 
 #ifdef RTCONFIG_AMAS
 	char bdl;
+#ifdef RTCONFIG_PRELINK
 	char bdlkey_buf[CFGSYNC_GROUPID_LEN+1];
-
+#endif
 	if (FRead(&bdl, OFFSET_AMAS_BUNDLE_FLAG, 1) < 0) {
 		_dprintf("READ AiMesh bundle flag: Out of scope\n");
 	} else {
@@ -3732,7 +3766,7 @@ void init_syspara(void)
 		else
 			nvram_unset("amas_bdl");
 	}
-
+#ifdef RTCONFIG_PRELINK
 	if (FRead(bdlkey_buf, OFFSET_AMAS_BUNDLE_KEY, CFGSYNC_GROUPID_LEN) < 0) {
 		_dprintf("READ AiMesh bundle key: Out of scope\n");
 	} else {
@@ -3745,6 +3779,7 @@ void init_syspara(void)
 			nvram_set("amas_bdlkey", bdlkey_buf);
 		}
 	}
+#endif
 #endif
 
 #if defined(RTCONFIG_WIFI_DRV_DISABLE) /* for IPQ40XX */
@@ -4210,11 +4245,15 @@ set_wan_tag(char *interface)
 	switch(model) {
 	case MODEL_BRTAC828:
 	case MODEL_RTAD7200:
+		set_hwaddr(interface, nvram_safe_get("wan0_hwaddr"));
+		/* fall-through */
 	case MODEL_RTAC55U:
 	case MODEL_RTAC55UHP:
 	case MODEL_RT4GAC55U:
 	case MODEL_RTN19:
 	case MODEL_RTAC59U:
+	case MODEL_RTAC59CD6R:
+	case MODEL_RTAC59CD6N:
 	case MODEL_RTAC58U:
 	case MODEL_RT4GAC53U:
 	case MODEL_RTAC82U:
@@ -4230,7 +4269,7 @@ set_wan_tag(char *interface)
 		/* Set Wan port PRIO */
 		if(nvram_invmatch("switch_wan0prio", "0"))
 			eval("vconfig", "set_egress_map", wan_dev, "0", nvram_get("switch_wan0prio"));
-#if defined(RTAC58U)
+#if defined(RTAC58U) || defined(RTAC59U)
 		if (nvram_match("switch_wantag", "stuff_fibre"))
 			eval("vconfig", "set_egress_map", wan_dev, "3", "5");
 #endif

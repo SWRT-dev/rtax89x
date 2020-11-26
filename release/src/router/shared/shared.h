@@ -10,6 +10,11 @@
 #include <errno.h>
 #include <endian.h>
 #include <dirent.h>
+#if defined(RTCONFIG_QCA)
+#include <net/ethernet.h>	//struct ethjdr
+#include <netinet/if_ether.h>	//struct ethhdr
+#include <netinet/ether.h>	//struct ether_addr
+#endif
 #ifndef _LINUX_IF_H
 #include <net/if.h>
 #endif
@@ -36,6 +41,10 @@
 #include <tld_utils.h>
 #endif
 
+#ifdef RTCONFIG_AMAS_WGN
+#include "amas_wgn_shared.h"
+#endif	/* RTCONFIG_AMAS_WGN */
+
 #ifdef HND_ROUTER
 #include "ethswctl.h"
 #endif
@@ -57,8 +66,10 @@
 #endif /* RTCONFIG_AHS */
 
 #if defined(RTCONFIG_PTHSAFE_POPEN)
+#if defined(RTCONFIG_QCA)
 #define	popen	PS_popen
 #define	pclose	PS_pclose
+#endif
 #define	PS_SOCK	"/tmp/ps_sock"
 extern FILE *PS_popen(const char *, const char *);
 extern int PS_pclose(FILE *);
@@ -410,11 +421,9 @@ enum conndiagEvent {
 	EID_CD_MAX
 };
 #define RAST_IPC_MAX_CONNECTION		5
-
 #define RAST_IPC_SOCKET_PATH		"/var/run/rast_ipc_socket"
 #define RAST_INTERNAL_IPC_SOCKET_PATH	"/var/run/rast_internal_ipc_socket"
 #define CONNDIAG_IPC_SOCKET_PATH	"/var/run/conndiag_ipc_socket"
-
 #define RAST_PREFIX     "RAST"
 #define CHKSTA_PREFIX   "CHKSTA"
 /* key name of json from rast */
@@ -647,7 +656,6 @@ extern long uptime(void);
 extern float uptime2(void);
 extern int _vstrsep(char *buf, const char *sep, ...);
 #if defined(RTCONFIG_QCA)
-struct ether_addr;
 extern char *wl_ether_etoa(const struct ether_addr *n);
 #endif
 extern void shortstr_encrypt(unsigned char *src, unsigned char *dst, unsigned char *shift);
@@ -747,153 +755,8 @@ extern int is_cdrom_device(const char *discname);
 #endif
 #endif //RTCONFIG_USB
 
-#define MODEL_UNUSED(x)	__MDL_UNUSED(x)
-#define __MDL_UNUSED(s)	MODEL_unused ## s
-
-/* NOTE: Do not insert new entries in the middle of this enum,
- * always add them to the end! */
-enum {
-	MODEL_GENERIC = -1,
-	MODEL_UNKNOWN = 0,
-	MODEL_DSLN55U,
-	MODEL_DSLAC68U,
-	MODEL_EAN66,
-	MODEL_RTN11P,
-	MODEL_RTN300,
-	MODEL_RTN13U,
-	MODEL_RTN14U,
-	MODEL_RTAC52U,
-	MODEL_RTAC51U,
-	MODEL_RTN54U,
-	MODEL_RTAC54U,
-	MODEL_RTN56UB1,
-	MODEL_RTN56UB2,
-	MODEL_RTAC1200HP,
-	MODEL_RTAC55U,
-	MODEL_RTAC55UHP,
-	MODEL_RT4GAC55U,
-	MODEL_RTAC59U,
-	MODEL_PLN12,
-	MODEL_PLAC56,
-	MODEL_PLAC66U,
-	MODEL_RTAC58U,
-	MODEL_RT4GAC53U,
-	MODEL_RTAC82U,
-	MODEL_MAPAC1300,
-	MODEL_MAPAC2200,
-	MODEL_VZWAC1300,
-	MODEL_MAPAC1750,
-	MODEL_RTAC95U,
-	MODEL_MAPAC2200V,
-	MODEL_RTN36U3,
-	MODEL_RTN56U,
-	MODEL_RTN65U,
-	MODEL_RTN67U,
-	MODEL_RTN12,
-	MODEL_RTN12B1,
-	MODEL_RTN12C1,
-	MODEL_RTN12D1,
-	MODEL_RTN12VP,
-	MODEL_RTN12HP,
-	MODEL_RTN12HP_B1,
-	MODEL_APN12,
-	MODEL_APN12HP,
-	MODEL_RTN16,
-	MODEL_RTN18U,
-	MODEL_RTN15U,
-	MODEL_RTN53,
-	MODEL_RTN66U,
-	MODEL_RTAC66U,
-	MODEL_RTAC68U,
-	MODEL_UNUSED(__LINE__),
-	MODEL_RTAC87U,
-	MODEL_RTAC56S,
-	MODEL_RTAC56U,
-	MODEL_RTAC53U,
-	MODEL_RTAC3200,
-	MODEL_RTAC88U,
-	MODEL_RTAC3100,
-	MODEL_RTAC5300,
-	MODEL_GTAC5300,
-	MODEL_RTN14UHP,
-	MODEL_RTN10U,
-	MODEL_RTN10P,
-	MODEL_RTN10D1,
-	MODEL_RTN10PV2,
-	MODEL_RTAC1200,
-	MODEL_RTAC1200G,
-	MODEL_RTAC1200GP,
-	MODEL_RTAC1200GA1,
-	MODEL_RTAC1200GU,
-	MODEL_RPAC66,
-	MODEL_RPAC51,
-	MODEL_RTAC51UP,
-	MODEL_RTAC53,
-	MODEL_RTN11P_B1,
-	MODEL_RPAC87,
-	MODEL_RTAC85U,
-	MODEL_RTAC85P,
-	MODEL_RTACRH26,
-	MODEL_RTN800HP,
-	MODEL_RTAC88N,
-	MODEL_BRTAC828,
-	MODEL_RTAC88S,
-	MODEL_RPAC53,
-	MODEL_RPAC68U,
-	MODEL_RPAC55,
-	MODEL_RTAC86U,
-	MODEL_GTAC9600,
-	MODEL_BLUECAVE,
-	MODEL_RTAD7200,
-	MODEL_GTAXY16000,
-	MODEL_GTAX6000N,
-	MODEL_RTAX89U,
-	MODEL_RTAC1200V2,
-	MODEL_RTN19,
-	MODEL_TUFAC1750,
-	MODEL_RTAX88U,
-	MODEL_GTAX11000,
-	MODEL_RTAX92U,
-	MODEL_RTAX95Q,
-	MODEL_RTAX56_XD4,
-	MODEL_RTAX58U,
-	MODEL_RTAX56U,
-	MODEL_SHAC1300,
-	MODEL_RPAC92,
-	MODEL_ZENWIFICD6R,
-	MODEL_ZENWIFICD6N,
-	MODEL_RTAX86U,
-	MODEL_RTAX68U,
-	MODEL_RT4GAC56,
-	MODEL_DSLAX82U,
-	MODEL_RTAX55,
-	MODEL_GTAXE11000,
-	MODEL_MAX
-};
-
-/* NOTE: Do not insert new entries in the middle of this enum,
- * always add them to the end! */
-enum {
-	SWITCH_GENERIC = -1,
-	SWITCH_UNKNOWN = 0,
-	SWITCH_BCM5325,
-	SWITCH_BCM53115,
-	SWITCH_BCM53125,
-	SWITCH_BCM5301x,
-	SWITCH_BCM5301x_EX,
-	SWITCH_BCM53134,
-	SWITCH_RT305x,
-	SWITCH_RT3350,
-	SWITCH_RT3352,
-	SWITCH_RT5350,
-	SWITCH_MT7620,
-	SWITCH_MT7621,
-	SWITCH_MT7628,
-	SWITCH_RTL8365MB,
-	SWITCH_RTL8367MB,
-	SWITCH_RTL8367RB,
-	SWITCH_RTL8370M,
-};
+/* MODEL_*, SWITCH_* and model.c */
+#include "model.h"
 
 #define RTCONFIG_NVRAM_VER "1"
 
@@ -933,9 +796,6 @@ enum {
 
 extern int check_hw_type(void);
 //	extern int get_hardware(void) __attribute__ ((weak, alias ("check_hw_type")));
-extern int get_model(void);
-extern char *get_modelid(int model);
-extern int get_switch(void);
 extern int supports(unsigned long attr);
 
 // pids.c
@@ -1120,10 +980,13 @@ enum led_id {
 	LED_5G_GREEN,
 	LED_5G_ORANGE,
 	LED_5G_RED,
-#elif defined(MAPAC1750)
+#elif defined(RTCONFIG_FIXED_BRIGHTNESS_RGBLED)
 	LED_BLUE,
 	LED_GREEN,
 	LED_RED,
+#if defined(RTAC59_CD6R) || defined(RTAC59_CD6N)
+	LED_WHITE,
+#endif
 #endif
 #ifdef RPAC53
 	LED_POWER_RED ,
@@ -1291,6 +1154,10 @@ enum wl_bandwidth_id {
 	WL_BW_80 = 3,
 	WL_BW_80_80 = 4,
 	WL_BW_160 = 5,
+	WL_BW_2160 = 6,		/* 60G: 2.16GHz */
+	WL_BW_4320 = 7,		/* 60G: 4.32GHz */
+	WL_BW_6480 = 8,		/* 60G: 6.48GHz */
+	WL_BW_8640 = 9,		/* 60G: 8.64GHz */
 
 	WL_NR_BW
 };
@@ -1420,10 +1287,10 @@ static inline char *sta_default_mode(int band)
 		char prefix[sizeof("wlXXXXXX_")];
 
 		snprintf(prefix, sizeof(prefix), "wl%d_", band);
-		if (nvram_pf_match(prefix, "bw_160", "1"))
-			return "11AHE160";
-		else
+		if (nvram_pf_match(prefix, "country_code", "JP") || !strncmp(nvram_safe_get("territory_code"), "JP/", 3))
 			return "11AHE80";
+		else
+			return "11AHE160";
 	} else
 		return "AUTO";
 }
@@ -1842,6 +1709,7 @@ extern int get_sw_bridge_iptv_vid(void);
 extern int get_bonding_speed(char *bond_if);
 extern int get_bonding_port_status(int port);
 extern int __get_bonding_port_status(enum bs_port_id bs_port) __attribute__((weak));
+extern int wl_max_no_vifs(int unit);
 extern const char *bs_port_id_to_iface(enum bs_port_id bs_port);
 extern int set_netdev_sysfs_param(const char *iface, const char *param, const char *val);
 extern char *get_lan_mac_name(void);
@@ -1851,6 +1719,8 @@ extern char *get_5g_hwaddr(void);
 extern char *get_lan_hwaddr(void);
 extern char *get_wan_hwaddr(void);
 extern char *get_label_mac(void);
+extern void __wgn_sysdep_swtich_unset(int vid) __attribute__((weak));
+extern void __wgn_sysdep_swtich_set(int vid) __attribute__((weak));
 #if defined(RTCONFIG_QCA)
 extern char *__get_wlifname(int band, int subunit, char *buf);
 extern int get_wlsubnet(int band, const char *ifname);
@@ -1858,6 +1728,7 @@ extern int get_wlif_unit(const char *wlifname, int *unit, int *subunit);
 extern char *get_wififname(int band);
 extern char *get_staifname(int band);
 extern char *get_vphyifname(int band);
+extern int get_sta_ifname_unit(const char *ifname);
 extern int is_vap_ifname(const char *ifname);
 extern int is_sta_ifname(const char *ifname);
 extern int is_vphy_ifname(const char *ifname);
@@ -1909,13 +1780,14 @@ static inline int rtconfig_amas(void) { return 1; }
 extern int aimesh_re_mode(void);
 extern void add_beacon_vsie(char *hexdata);
 extern void del_beacon_vsie(char *hexdata);
-#ifdef RTCONFIG_RALINK
-extern void add_probe_req_vsie(char *hexdata);
-extern void del_probe_req_vsie(char *hexdata);
-#endif
 extern int get_psta_status(int unit);
 extern void Pty_stop_wlc_connect(int band);
+#ifdef RTCONFIG_BHCOST_OPT
+extern void Pty_start_wlc_connect(int band, char* bssid);
+extern void bhcost_opt_settings();
+#else
 extern void Pty_start_wlc_connect(int band);
+#endif
 extern int Pty_get_upstream_rssi(int band);
 extern void set_pre_sysdep_config(int iftype);
 extern void set_post_sysdep_config(int iftype);
@@ -1926,13 +1798,15 @@ extern int is_wlsta_exist(int unit, int vidx);
 extern int get_wl_count();
 extern int get_eth_count();
 extern int cal_space(char *s1);
+extern int is_self_optmz_stage(int band);
+extern int enable_ETH_U(int unit);
+extern void add_led_ctrl_capability(int val);
+extern void del_led_ctrl_capability(int val);
 #if defined(RTCONFIG_BCMWL6)
 extern int get_wl_sta_list(void);
 extern int get_maxassoc(char *ifname);
 extern int wl_add_ie(int unit, uint32 pktflag, int ielen, uchar *oui, uchar *data);
 extern void wl_del_ie_with_oui(int unit, uchar *oui);
-#endif
-#if defined(RTCONFIG_BCMWL6) || defined(RTCONFIG_RALINK)
 extern void wait_connection_finished(int band);
 #endif
 #if defined(RTCONFIG_LANTIQ)
@@ -2003,7 +1877,6 @@ static inline int rtconfig_amas(void) { return 0; }
 
 /* sysdeps/ralink/ *.c */
 #if defined(RTCONFIG_RALINK)
-extern char *__get_wlifname(int band, int subunit, char *buf);
 extern int rtkswitch_ioctl(int val, int val2);
 extern unsigned int rtkswitch_wanPort_phyStatus(int wan_unit);
 extern unsigned int rtkswitch_lanPorts_phyStatus(void);
@@ -2029,14 +1902,6 @@ extern int __mt7620_wan_bytecount(int unit, unsigned long *tx, unsigned long *rx
 #elif defined(RTCONFIG_RALINK_MT7620)
 extern int __mt7621_wan_bytecount(int unit, unsigned long *tx, unsigned long *rx);
 #endif
-extern int get_channel_list(int unit, int ch_list[], int size);
-extern int get_radar_channel_list(int, int radar_list[], int size);
-extern int set_acl_entry(const char *ifname, char *addr);
-extern int set_channel(const char* ifname, int channel);
-extern int set_bw_nctrlsb(const char* ifname, int bw, int nctrlsb);
-extern int get_channel_info(const char *ifname, int *channel, int *bw, int *nctrlsb);
-extern char *get_wififname(int band);
-extern char *get_staifname(int band);
 
 #elif defined(RTCONFIG_QCA)
 extern int rtkswitch_ioctl(int val, int *val2);
@@ -2092,7 +1957,7 @@ static inline int get_firmware_length(void *ptr) { return 0; }
 #endif
 
 /* sysdeps/qca/ *.c */
-extern char *set_steer(char *mac,int val);
+extern char *set_steer(const char *mac,int val);
 
 #if defined(RTCONFIG_POWER_SAVE)
 extern void set_power_save_mode(void);
@@ -2397,9 +2262,6 @@ extern int notify_rc_and_wait_1min(const char *event_name);
 extern int notify_rc_and_wait_2min(const char *event_name);
 extern int notify_rc_and_period_wait(const char *event_name, int wait);
 
-/* models.c */
-extern int get_blver(char *bls);
-
 /* wl.c */
 #ifdef CONFIG_BCMWL5
 #ifdef __CONFIG_DHDAP__
@@ -2618,32 +2480,66 @@ extern int config_interrupt_bled(const char *led_gpio, char *interrupt_list);
 extern int add_gpio_to_bled(const char *main_led_gpio, const char *led_gpio);
 #if (defined(PLN12) || defined(PLAC56))
 extern void set_wifiled(int mode);
-#elif defined(MAPAC1750)
+#elif defined(RTCONFIG_FIXED_BRIGHTNESS_RGBLED)
 /* color */
 #define RGBLED_OFF			0x0
 #define RGBLED_BLED			0x1
 #define RGBLED_GLED			0x2
 #define RGBLED_RLED			0x4
-#define RGBLED_COLOR_MESK		RGBLED_BLED | RGBLED_GLED | RGBLED_RLED
+#define RGBLED_COLOR_MESK		(RGBLED_BLED | RGBLED_GLED | RGBLED_RLED)
 #define RGBLED_BLUE			RGBLED_BLED
 #define RGBLED_GREEN			RGBLED_GLED
 #define RGBLED_RED			RGBLED_RLED
 #define RGBLED_WHITE			RGBLED_COLOR_MESK
-#define RGBLED_NIAGARA_BLUE		RGBLED_BLED | RGBLED_GLED
-#define RGBLED_YELLOW			RGBLED_GLED | RGBLED_RLED
-#define RGBLED_PURPLE			RGBLED_BLED | RGBLED_RLED
+#define RGBLED_NIAGARA_BLUE		(RGBLED_BLED | RGBLED_GLED)
+#define RGBLED_YELLOW			(RGBLED_GLED | RGBLED_RLED)
+#define RGBLED_PURPLE			(RGBLED_BLED | RGBLED_RLED)
 /* blink */
 #define RGBLED_SBLINK			0x10
 #define RGBLED_3ON1OFF			0x20
 #define RGBLED_ATE_MODE			0x40
 #define RGBLED_3ON3OFF			0x80
-#define RGBLED_BLINK_MESK		RGBLED_SBLINK | RGBLED_3ON1OFF | RGBLED_ATE_MODE | RGBLED_3ON3OFF
+#define RGBLED_BLINK_MESK		(RGBLED_SBLINK | RGBLED_3ON1OFF | RGBLED_ATE_MODE | RGBLED_3ON3OFF)
 /* color+blink */
-#define RGBLED_GREEN_3ON1OFF		RGBLED_GREEN | RGBLED_3ON1OFF
-#define RGBLED_BLUE_3ON3OFF		RGBLED_BLUE | RGBLED_3ON3OFF
-#define RGBLED_PURPLE_3ON1OFF		RGBLED_PURPLE | RGBLED_3ON1OFF
-#define RGBLED_WHITE_SBLINK		RGBLED_WHITE | RGBLED_SBLINK
-#define RGBLED_YELLOW_SBLINK		RGBLED_YELLOW | RGBLED_SBLINK
+#define RGBLED_GREEN_3ON1OFF		(RGBLED_GREEN | RGBLED_3ON1OFF)
+#define RGBLED_GREEN_3ON3OFF		(RGBLED_GREEN | RGBLED_3ON3OFF)
+#define RGBLED_BLUE_3ON1OFF		(RGBLED_BLUE | RGBLED_3ON1OFF)
+#define RGBLED_BLUE_3ON3OFF		(RGBLED_BLUE | RGBLED_3ON3OFF)
+#define RGBLED_PURPLE_3ON1OFF		(RGBLED_PURPLE | RGBLED_3ON1OFF)
+#define RGBLED_WHITE_SBLINK		(RGBLED_WHITE | RGBLED_SBLINK)
+#define RGBLED_YELLOW_SBLINK		(RGBLED_YELLOW | RGBLED_SBLINK)
+/* event */
+#if defined(MAPAC1750)
+#define RGBLED_BOOTING			RGBLED_BLUE_3ON3OFF
+#define RGBLED_DEFAULT_STANDBY		RGBLED_WHITE
+#define RGBLED_APPLY_EVENT		RGBLED_BOOTING
+#define RGBLED_BT_CONNECT		RGBLED_WHITE_SBLINK
+#define RGBLED_PRESS_RSTBTN		RGBLED_YELLOW_SBLINK
+#define RGBLED_RST_EVENT		RGBLED_YELLOW
+#define RGBLED_WPS_EVENT		RGBLED_GREEN_3ON1OFF
+#define RGBLED_SYNC_EVENT		RGBLED_WPS_EVENT
+#define RGBLED_RE_JOIN			RGBLED_GREEN		/* unnecessary */
+#define RGBLED_CONNECTED		RGBLED_NIAGARA_BLUE
+#define RGBLED_DISCONNECTED		RGBLED_RED
+#define RGBLED_AP_MODE_CONNECTED	RGBLED_YELLOW		/* unnecessary */
+#define RGBLED_ETH_BACKHAUL		RGBLED_GREEN
+#define RGBLED_WEAK_BACKHAUL		RGBLED_YELLOW		/* unnecessary */
+#elif defined(RTAC59_CD6R) || defined(RTAC59_CD6N)
+#define RGBLED_BOOTING			RGBLED_GREEN_3ON3OFF
+#define RGBLED_DEFAULT_STANDBY		RGBLED_BLUE
+#define RGBLED_APPLY_EVENT		RGBLED_BOOTING
+#define RGBLED_BT_CONNECT		RGBLED_WHITE_SBLINK	/* unnecessary */
+#define RGBLED_PRESS_RSTBTN		RGBLED_YELLOW_SBLINK
+#define RGBLED_RST_EVENT		RGBLED_YELLOW
+#define RGBLED_WPS_EVENT		RGBLED_BLUE_3ON1OFF
+#define RGBLED_SYNC_EVENT		RGBLED_WPS_EVENT
+#define RGBLED_RE_JOIN			RGBLED_GREEN
+#define RGBLED_CONNECTED		RGBLED_WHITE
+#define RGBLED_DISCONNECTED		RGBLED_RED
+#define RGBLED_AP_MODE_CONNECTED	RGBLED_YELLOW
+#define RGBLED_ETH_BACKHAUL		RGBLED_WHITE
+#define RGBLED_WEAK_BACKHAUL		RGBLED_YELLOW
+#endif
 extern void set_rgbled(unsigned int mode);
 #endif
 
@@ -2873,13 +2769,15 @@ extern char *search_mnt(char *mac);
 extern void erase_symbol(char *old, char *sym);
 
 /* pwenc.c */
-#ifdef RTCONFIG_NVRAM_ENCRYPT
-#define NVRAM_ENC_LEN	1024
-#define NVRAM_ENC_MAXLEN	4096
+#if defined(RTCONFIG_NVRAM_ENCRYPT) || defined(RTCONFIG_ASD) || defined(RTCONFIG_AHS)
 extern int pw_enc(const char *input, char *output);
 extern int pw_dec(const char *input, char *output, int len);
 extern int pw_enc_blen(const char *input);
 extern int pw_dec_len(const char *input);
+#endif
+#ifdef RTCONFIG_NVRAM_ENCRYPT
+#define NVRAM_ENC_LEN	1024
+#define NVRAM_ENC_MAXLEN	4096
 extern int set_enc_nvram(char *name, char *input, char *output);
 extern int enc_nvram(char *name, char *input, char *output);
 extern int dec_nvram(char *name, char *input, char *output);
@@ -3033,6 +2931,12 @@ static inline int is_dfs_channel(int ch)
 	return 0;
 }
 
+#if defined(RTCONFIG_SW_HW_AUTH)
+// hw_auth.c
+extern int HwCheckResult();
+extern char *DoHardwareComponent(char *index);
+#endif
+
 #if defined(RTCONFIG_SW_HW_AUTH) && defined(RTCONFIG_AMAS)
 /*
 	AMAS define type bitmap
@@ -3056,36 +2960,26 @@ extern int getAmasSupportMode();
 
 typedef enum __amaslib_action__t_
 {
-	AMASLIB_ACTION_NODE_MAC_UPDATE = 0,
-	AMASLIB_ACTION_DEVICE_IP_QUERY
+       AMASLIB_ACTION_NODE_MAC_UPDATE = 0,
+       AMASLIB_ACTION_DEVICE_IP_QUERY
 } AMASLIB_ACTION_T;
 /*
-	AMAS_LIB define for event and socket
+       AMAS_LIB define for event and socket
 */
 typedef struct __amaslib_notification__t_
 {
-	AMASLIB_ACTION_T action;
-	char sta2g[18];     /* Node 2G MAC */
-	char sta5g[18];     /* Node 5G MAC */
-	int  flag;          /* Node status */
-	char ip[16];        /* Device IP */
+       AMASLIB_ACTION_T action;
+       char sta2g[18];     /* Node 2G MAC */
+       char sta5g[18];     /* Node 5G MAC */
+       int  flag;          /* Node status */
+       char ip[16];        /* Device IP */
 } AMASLIB_EVENT_T;
 
 #define AMASLIB_PID_PATH           "/var/run/amas_lib.pid"
-#define AMASLIB_SOCKET_PATH        "/etc/amas_lib_socket"
-#define MAX_AMASLIB_SOCKET_CLIENT  5
-
-/* DEBUG DEFINE */
-#define AMASLIB_DEBUG             "/tmp/AMASLIB_DEBUG"
-#define AMASLIB_DBG(fmt,args...) \
-	if(f_exists(AMASLIB_DEBUG) > 0) { \
-		_dprintf("[AMASLIB][%s:(%d)]"fmt, __FUNCTION__, __LINE__, ##args); \
-	}
-
-extern int AMAS_EVENT_TRIGGER(char *sta2g, char *sta5g, int flag);
-extern int is_amaslib_enabled();
+#define AMASLIB_SOCKET_PATH        "/var/run/amas_lib_socket"
 
 #endif /* defined(RTCONFIG_AMAS) */
+
 
 extern int get_discovery_ssid(char *ssid_g, int size);
 extern int get_index_page(char *page, int size);

@@ -24,7 +24,11 @@
 #ifndef _httpd_h_
 #define _httpd_h_
 
+#ifndef _GNU_SOURCE
 #define _GNU_SOURCE
+#endif
+
+#include <time.h>
 
 #include <arpa/inet.h>
 #include <errno.h>
@@ -37,6 +41,11 @@
 #define AUTH_MAX 64
 
 #define DEFAULT_LOGIN_MAX_NUM	5
+
+#ifdef RTCONFIG_CAPTCHA
+/* Limit of login failure. If the number of login failure excceds this limit, captcha will show. */
+#define CAPTCHA_MAX_LOGIN_NUM   2
+#endif
 
 #ifndef ARRAY_SIZE
 #define ARRAY_SIZE(a) (sizeof(a) / sizeof((a)[0]))
@@ -144,6 +153,9 @@ struct REPLACE_PRODUCTID_S {
 #define LOGINLOCK	7
 #define ISLOGOUT	8
 #define NOLOGIN		9
+#ifdef RTCONFIG_CAPTCHA
+#define WRONGCAPTCHA   10
+#endif
 
 #define LOCKTIME 60*5
 
@@ -363,7 +375,7 @@ extern void set_cgi(char *name, char *value);
 /* httpd.c */
 extern int json_support;
 extern int amas_support;
-extern void start_ssl(void);
+extern void start_ssl(int http_port);
 extern char *gethost(void);
 extern void http_logout(unsigned int ip, char *cookies, int fromapp_flag);
 extern int is_auth(void);
@@ -405,7 +417,7 @@ extern int ej_wl_status(int eid, webs_t wp, int argc, char_t **argv, int unit);
 extern int ej_wl_status_2g(int eid, webs_t wp, int argc, char_t **argv);
 extern int ej_wps_info_2g(int eid, webs_t wp, int argc, char_t **argv);
 extern int ej_wps_info(int eid, webs_t wp, int argc, char_t **argv);
-extern int skip_log(char *message);
+extern const char *syslog_msg_filter[];
 
 /* web.c/web-*.c */
 extern char referer_host[64];
@@ -480,4 +492,10 @@ extern void do_set_fw_path_cgi(char *url, FILE *stream);
 #if defined(RTCONFIG_AMAZON_WSS)
 extern void amazon_wss_enable(char *wss_enable, char *do_rc);
 #endif
+#ifdef RTCONFIG_CAPTCHA
+extern unsigned int login_fail_num;
+extern int is_captcha_match(char *catpch);
+#endif
+extern int get_external_ip(void);
+extern int get_rtinfo(void);
 #endif /* _httpd_h_ */

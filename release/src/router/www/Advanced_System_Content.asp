@@ -95,7 +95,12 @@ if(wan_unit == "0")
 else
 	var wan_ipaddr = '<% nvram_get("wan1_ipaddr"); %>';
 
-function initial(){	
+var le_enable = '<% nvram_get("le_enable"); %>';
+var orig_http_enable = '<% nvram_get("http_enable"); %>';
+
+var captcha_support = isSupport("captcha");
+
+function initial(){
 	//parse nvram to array
 	var parseNvramToArray = function(oriNvram) {
 		var parseArray = [];
@@ -255,15 +260,6 @@ function initial(){
 
 	// load shell_timeout_x
 	document.form.shell_timeout_x.value = orig_shell_timeout_x;
-	if(based_modelid == "GT-AXY16000" || based_modelid == "RT-AX89U"){
-		var pwrsave_desc = new Array();
-		var pwrsave_value = new Array();
-		pwrsave_desc = [ "<#Auto#>", "<#usb_Power_Save#>" ];
-		pwrsave_value = [1,2];
-		if(document.form.pwrsave_mode.value != '1' && document.form.pwrsave_mode.value != '2')
-			document.form.pwrsave_mode.value = '1';
-		add_options_x2(document.form.pwrsave_mode, pwrsave_desc, pwrsave_value, document.form.pwrsave_mode.value);
-	}
 
 	if(pwrsave_support){
 		document.getElementById("pwrsave_tr").style.display = "";
@@ -282,6 +278,10 @@ function initial(){
 		$('select[name="usb_idle_enable"]').prop("disabled", false);
 		$('input[name="usb_idle_timeout"]').prop("disabled", false);
 	}
+
+	$("#https_download_cert").css("display", (le_enable != "1" && orig_http_enable != "0")? "": "none");
+
+	$("#login_captcha_tr").css("display", captcha_support? "": "none");
 }
 
 var time_zone_tmp="";
@@ -977,6 +977,22 @@ function hide_https_lanport(_value){
 	else{
 		document.getElementById("https_access_page").style.display = 'none';
 	}
+
+
+	if(le_enable != "1" && _value != "0"){
+		$("#https_download_cert").css("display", "");
+		if(orig_http_enable == "0"){
+			$("#download_cert_btn").css("display", "none");
+			$("#download_cert_desc").css("display", "");
+		}
+		else{
+			$("#download_cert_btn").css("display", "");
+			$("#download_cert_desc").css("display", "none");
+		}
+	}
+	else{
+		$("#https_download_cert").css("display", "none");
+	}
 }
 
 // show clientlist
@@ -1455,8 +1471,7 @@ function appendMonitorOption(obj){
 
 var isPingListOpen = 0;
 function showPingTargetList(){
-	var ttc = httpApi.nvramGet(["territory_code"]).territory_code;
-	if(ttc.search("CN") >= 0){
+	if(is_CN){
 		var APPListArray = [
 			["Baidu", "www.baidu.com"], ["QQ", "www.qq.com"], ["Taobao", "www.taobao.com"]
 		];
@@ -1508,6 +1523,10 @@ function reset_portconflict_hint(){
 		$("#https_lanport_input").removeClass("highlight");
 	$("#port_conflict_sshdport").hide();
 	$("#port_conflict_httpslanport").hide();
+}
+
+function save_cert_key(){
+	location.href = "cert.tar";
 }
 </script>
 </head>
@@ -1605,6 +1624,13 @@ function reset_portconflict_hint(){
 						<div style="margin:-25px 0px 5px 175px;"><input type="checkbox" name="show_pass_1" onclick="pass_checked(document.form.http_passwd2);pass_checked(document.form.v_password2);"><#QIS_show_pass#></div>
 						<span id="alert_msg2" style="color:#FC0;margin-left:8px;display:inline-block;"></span>
 					
+					</td>
+				</tr>
+				<tr id="login_captcha_tr" style="display:none">
+					<th><a class="hintstyle" href="javascript:void(0);" onClick="openHint(11,13)">Enable Login Captcha</a></th>
+					<td>
+						<input type="radio" value="1" name="captcha_enable" <% nvram_match("captcha_enable", "1", "checked"); %>><#checkbox_Yes#>
+						<input type="radio" value="0" name="captcha_enable" <% nvram_match("captcha_enable", "0", "checked"); %>><#checkbox_No#>
 					</td>
 				</tr>
 			</table>
@@ -1955,6 +1981,14 @@ function reset_portconflict_hint(){
 						<span id="port_conflict_httpslanport" style="color: #e68282; display: none;">Port Conflict</span>
 						<div id="https_access_page" style="color: #FFCC00;"></div>
 						<div style="color: #FFCC00;">* <#HttpsLanport_Hint#></div>
+					</td>
+				</tr>
+
+				<tr id="https_download_cert" style="display: none;">
+					<th>Download Certificate</th>
+					<td>
+						<input id="download_cert_btn" class="button_gen" onclick="save_cert_key();" type="button" value="<#btn_Export#>" />
+						<span id="download_cert_desc">Download and install SSL certificate on your browser to trust accessing your local domain “router.asus.com” with HTTPS protocol. To export certificate after applying setting.</span><a href="https://www.asus.com/support/FAQ/1034294" style="font-family:Lucida Console;text-decoration:underline;color:#FFCC00; margin-left: 5px;" target="_blank">FAQ</a>
 					</td>
 				</tr>
 			</table>

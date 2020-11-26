@@ -319,7 +319,7 @@ function in_territory_code(_ptn){
 }
 var ttc = '<% nvram_get("territory_code"); %>';
 var is_KR_sku = in_territory_code("KR");
-var is_CN = in_territory_code("CN");
+var is_CN = (in_territory_code("CN") || in_territory_code("CT") || in_territory_code("GD"));
 var is_TW_sku = in_territory_code("TW");
 var is_US_sku = in_territory_code("US");
 var is_UA_sku = in_territory_code("UA");
@@ -410,6 +410,10 @@ var band2g_support = isSupport("2.4G");
 var band5g_support = isSupport("5G");
 var band5g2_support = isSupport("5G-2");
 var band60g_support = isSupport("wigig");
+var max_band60g_wl_bw = 6;	// 2.16 GHz
+if (based_modelid == "GT-AXY16000") {
+	max_band60g_wl_bw = 7; // 4.32 GHz
+}
 var live_update_support = isSupport("update"); 
 var no_update_support = isSupport("noupdate");
 var cooler_support = isSupport("fanctrl");
@@ -429,6 +433,7 @@ var wifi_logo_support = isSupport("wifilogo");
 var vht80_80_support = isSupport("vht80_80");
 var vht160_support = isSupport("vht160");
 var dfs_US_support = isSupport("dfs");
+var non_frameburst_support = isSupport("non_frameburst");
 var SwitchCtrl_support = isSupport("switchctrl");
 var dsl_support = isSupport("dsl");
 var sfpp_support = isSupport("sfp+");
@@ -511,11 +516,7 @@ var keyGuard_support = isSupport("keyGuard");
 var rog_support = isSupport("rog");
 var aura_support = isSupport("aura_rgb");
 var boostKey_support = isSupport("boostkey");
-var smart_connect_support = isSupport("smart_connect");
-if(based_modelid == "BLUECAVE" || based_modelid == "MAP-AC1750" || based_modelid == "RT-AX89U" || based_modelid == "GT-AXY16000"){
-	smart_connect_support = isSupport("bandstr");
-}
-
+var smart_connect_support = isSupport("smart_connect") || isSupport("bandstr");
 var rrsut_support = isSupport("rrsut");
 var gobi_support = isSupport("gobi");
 var findasus_support = isSupport("findasus");
@@ -536,6 +537,7 @@ var cp_freewifi_support = isSupport("cp_freewifi");
 var cp_advanced_support = isSupport("cp_advanced");
 var fbwifi_support = isSupport("fbwifi");
 var noiptv_support = isSupport("noiptv");
+var improxy_support = isSupport("improxy");
 var app_support = isSupport("app");
 var letsencrypt_support = isSupport("letsencrypt");
 var pm_support = isSupport("permission_management");
@@ -632,16 +634,6 @@ var amazon_wss_support = isSupport("amazon_wss");
 
 if(nt_center_support)
 	document.write('<script type="text/javascript" src="/client_function.js"></script>');
-
-if(live_update_support){
-	if(exist_firmver[0] == 9)
-		var current_firmware_path = 1;
-	else
-		var current_firmware_path = 0;	
-}	
-else{
-	var current_firmware_path = 0;
-}	
 
 // Todo: Support repeater mode
 /*if(isMobile() && sw_mode != 2 && !dsl_support)
@@ -858,9 +850,16 @@ function show_banner(L3){// L3 = The third Level of Menu
 			banner_code +='<div class="banner1" align="center"><img src="images/New_ui/logo_ROG.png" align="left" style="width:450px;height:96px;margin-left:45px;">\n';
 		}
 		
-		banner_code +='<div style="margin-top:0px;margin-left:-90px;*margin-top:0px;*margin-left:0px;" align="center"><span id="modelName_top" onclick="this.focus();" class="modelName_top"><#Web_Title2#></span></div>';
-		// logout
-		banner_code +='<a href="javascript:logout();"><div style="margin:20px 0 0 15px;*width:136px;background:url(\'images/New_ui/btn_logout.png\') no-repeat;background-size:cover;width:132px;height:34px;float:left;" align="center"><div style="margin:8px 0 0 15px;"><#t1Logout#></div></div></a>\n';		
+		if(support_site_modelid == "GT-AC2900_SH"){	//Fine tune margin-left
+			banner_code +='<div style="margin-top:0px;margin-left:-90px;*margin-top:0px;*margin-left:0px;" align="center"><span id="modelName_top" onclick="this.focus();" class="modelName_top" style="margin:7px 0 0 5px;"><#Web_Title2#></span></div>';
+			// logout
+			banner_code +='<a href="javascript:logout();"><div style="margin:20px 0 0 10px;*width:136px;background:url(\'images/New_ui/btn_logout.png\') no-repeat;background-size:cover;width:132px;height:34px;float:left;" align="center"><div style="margin:8px 0 0 15px;"><#t1Logout#></div></div></a>\n';
+		}
+		else{
+			banner_code +='<div style="margin-top:0px;margin-left:-90px;*margin-top:0px;*margin-left:0px;" align="center"><span id="modelName_top" onclick="this.focus();" class="modelName_top"><#Web_Title2#></span></div>';
+			// logout
+			banner_code +='<a href="javascript:logout();"><div style="margin:20px 0 0 15px;*width:136px;background:url(\'images/New_ui/btn_logout.png\') no-repeat;background-size:cover;width:132px;height:34px;float:left;" align="center"><div style="margin:8px 0 0 15px;"><#t1Logout#></div></div></a>\n';
+		}
 	}
 	else if(spirit_logo_support){
 		banner_code +='<div class="banner1" align="center"><img src="images/New_ui/asus_spirit_title.png" width="214" height="31" align="left" style="margin-top:13px;margin-left:30px;">\n';

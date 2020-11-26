@@ -19,7 +19,7 @@ CFLAGS	+= -O2 -Wall $(EXTRACFLAGS) -ffunction-sections -fdata-sections -W -Wshad
 CFLAGS  += -D_FILE_OFFSET_BITS=64 -D_LARGEFILE_SOURCE=1 -D_LARGEFILE64_SOURCE=1 -D_LARGE_FILES=1
 LDFLAGS = -ffunction-sections -fdata-sections -Wl,--gc-sections
 
-LIBS	=	-lcrypt -lnsl
+LIBS	=	-lcrypt
 LINK	=
 
 CFLAGS	+=	-I../shared

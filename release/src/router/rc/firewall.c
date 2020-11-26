@@ -41,6 +41,7 @@
 #include <stdarg.h>
 #include <netdb.h>	// for struct addrinfo
 #include <net/ethernet.h>
+#include <limits.h>		//PATH_MAX, LONG_MIN, LONG_MAX
 
 #if defined(RTCONFIG_FBWIFI)
 #include "../fb_wifi/fbwifi.h"
@@ -82,10 +83,6 @@ const int allowed_local_icmpv6[] =
 	{ 130, 131, 132, 133, 134, 135, 136,
 	  141, 142, 143,
 	  148, 149, 151, 152, 153 };
-#endif
-
-#ifdef RTCONFIG_VPN_FUSION
-extern int write_vpn_fusion(FILE *fp, const char* lan_ip);
 #endif
 
 char *mac_conv(char *mac_name, int idx, char *buf);	// oleg patch
@@ -888,11 +885,6 @@ int timematch_conv2(char *mstr, int mstr_size, char *nv_date, char *nv_time, cha
 
 		// normal period
 		if((strcmp(datetime[i].start, "")!=0) && (strcmp(datetime[i].stop, "")!=0)){
-			if(strcmp(buf, "")!=0)
-			{
-				 snprintf(buf, sizeof(buf), "%s>", buf); // add ">"
-			}
-
 			if(strcmp(buf, "")!=0) {
 				snprintf(buf2, sizeof(buf2), "%s>", buf); // add ">"
 				strlcpy(buf, buf2, sizeof(buf));
@@ -1591,10 +1583,6 @@ void nat_setting(char *wan_if, char *wan_ip, char *wanx_if, char *wanx_ip, char 
 			":CLIENT_TO_INTERNET - [0:0]\n");
 	}
 #endif
-#ifdef RTCONFIG_VPN_FUSION
-	fprintf(fp,
-		":VPN_FUSION - [0:0]\n");
-#endif
 
 	ip2class(lan_ip, nvram_safe_get("lan_netmask"), lan_class);
 
@@ -1676,10 +1664,6 @@ void nat_setting(char *wan_if, char *wan_ip, char *wanx_if, char *wanx_ip, char 
 			free(nv);
 		}
 	}
-#endif
-
-#ifdef RTCONFIG_VPN_FUSION
-        write_vpn_fusion(fp, lan_ip);
 #endif
 
 #ifdef RTCONFIG_YANDEXDNS
@@ -1871,7 +1855,7 @@ void nat_setting2(char *lan_if, char *lan_ip, char *logaccept, char *logdrop)	//
 	strcpy(g_lan_ip, inet_ntoa(gst));
 #endif
 
- 	ip2class(lan_ip, nvram_safe_get("lan_netmask"), lan_class);
+	ip2class(lan_ip, nvram_safe_get("lan_netmask"), lan_class);
 
 #ifdef RTCONFIG_MULTICAST_IPTV
 	if (nvram_get_int("switch_stb_x") > 6)
@@ -2312,7 +2296,7 @@ void redirect_setting(void)
 #endif
 #ifdef RTCONFIG_ATEFROMWAN
 	if(repeater_mode() && !nvram_get_int("x_Setting")) {
-		fprintf(redirect_fp, "-I PREROUTING -i %s -p tcp -m tcp --dport 80 -j ACCEPT\n",
+		fprintf(redirect_fp, "-I PREROUTING -i %s -p tcp -m tcp --dport 80 -j ACCEPT\n", 
 		nvram_safe_get("wan_ifnames"));
 	}
 #endif
@@ -2478,6 +2462,11 @@ start_default_filter(int lanunit)
 	/* Write input rule for vlan */
 	vlan_subnet_filter_input(fp);
 #endif
+
+#ifdef RTCONFIG_AMAS_WGN
+	wgn_filter_input(fp);
+#endif	
+
 	if (nvram_match("enable_acc_restriction", "1"))
 	{
 		int  https_port = 0;
@@ -3270,6 +3259,13 @@ TRACE_PT("writing Parental Control\n");
 			fprintf(fp, "-A INPUT -p 2 -d 224.0.0.0/4 -j %s\n", logaccept);
 			fprintf(fp, "-A INPUT -p udp -d 224.0.0.0/4 ! --dport 1900 -j %s\n", logaccept);
 		}
+#ifdef RTCONFIG_IPV6
+		/* not necesary for now, udpxy is ipv4-only
+		if (ipv6_enabled() && (nvram_get_int("mr_enable_x") & 2)) {
+			fprintf(fp_ipv6, "-A INPUT -p udp -d ff00::/8 ! --dport 1900 -j %s\n", logaccept);
+		}
+		*/
+#endif
 
 		/* enable incoming packets from broken dhcp servers, which are sending replies
 		 * from addresses other than used for query, this could lead to lower level
@@ -3395,6 +3391,11 @@ TRACE_PT("writing Parental Control\n");
 		/* Write input rule for vlan */
 		vlan_subnet_filter_input(fp);
 #endif
+
+#ifdef RTCONFIG_AMAS_WGN
+		wgn_filter_input(fp);
+#endif		
+
 #if defined(RTCONFIG_WIFI_SON) && defined(RTCONFIG_ETHBACKHAUL)
 		if (sw_mode() != SW_MODE_REPEATER && nvram_match("wifison_ready", "1"))
 			fprintf(fp, "-A INPUT -p udp --sport 9413 --dport 9413 -j ACCEPT\n");
@@ -3414,6 +3415,10 @@ TRACE_PT("writing Parental Control\n");
 	/* Pass multicast */
 	if (nvram_get_int("mr_enable_x"))
 		fprintf(fp, "-A FORWARD -p udp -d 224.0.0.0/4 -j ACCEPT\n");
+#ifdef RTCONFIG_IPV6
+	if (ipv6_enabled() && (nvram_get_int("mr_enable_x") & 2))
+		fprintf(fp_ipv6, "-A FORWARD -p udp -d ff00::/8 -j ACCEPT\n");
+#endif
 
 	/* Clamp TCP MSS to PMTU of WAN interface before accepting RELATED packets */
 	if (nvram_get_int("jumbo_frame_enable") ||
@@ -3485,6 +3490,10 @@ TRACE_PT("writing Parental Control\n");
 	/* Write forward rule for deny lan */
 	vlan_subnet_deny_forward(fp);
 #endif
+
+#ifdef RTCONFIG_AMAS_WGN
+	wgn_filter_forward(fp);
+#endif	
 
 	if(nvram_match("wifison_ready", "1"))
 	{
@@ -4361,6 +4370,13 @@ TRACE_PT("writing Parental Control\n");
 			fprintf(fp, "-A INPUT -p 2 -d 224.0.0.0/4 -j %s\n", logaccept);
 			fprintf(fp, "-A INPUT -p udp -d 224.0.0.0/4 ! --dport 1900 -j %s\n", logaccept);
 		}
+#ifdef RTCONFIG_IPV6
+		/* not necesary for now, udpxy is ipv4-only
+		if (ipv6_enabled() && (nvram_get_int("mr_enable_x") & 2)) {
+			fprintf(fp_ipv6, "-A INPUT -p udp -d ff00::/8 ! --dport 1900 -j %s\n", logaccept);
+		}
+		*/
+#endif
 
 //#ifdef RTCONFIG_MULTICAST_IPTV
 		if (nvram_get_int("switch_stb_x") > 6) {
@@ -4457,11 +4473,6 @@ TRACE_PT("writing Parental Control\n");
 
 		if (!nvram_match("misc_lpr_x", "0"))
 		{
-/*
-			fprintf(fp, "-A INPUT -p tcp -m tcp -d %s --dport %d -j %s\n", wan_ip, 515, logaccept);
-			fprintf(fp, "-A INPUT -p tcp -m tcp -d %s --dport %d -j %s\n", wan_ip, 9100, logaccept);
-			fprintf(fp, "-A INPUT -p tcp -m tcp -d %s --dport %d -j %s\n", wan_ip, 3838, logaccept);
-*/
 			fprintf(fp, "-A INPUT -p tcp -m tcp --dport %d -j %s\n", 515, logaccept);	// oleg patch
 			fprintf(fp, "-A INPUT -p tcp -m tcp --dport %d -j %s\n", 9100, logaccept);	// oleg patch
 			fprintf(fp, "-A INPUT -p tcp -m tcp --dport %d -j %s\n", 3838, logaccept);	// oleg patch
@@ -4506,6 +4517,10 @@ TRACE_PT("writing Parental Control\n");
 		/* Write input rule for vlan */
 		vlan_subnet_filter_input(fp);
 #endif
+
+#ifdef RTCONFIG_AMAS_WGN
+		wgn_filter_input(fp);
+#endif		
 		fprintf(fp, "-A INPUT -j %s\n", logdrop);
 	}
 
@@ -4521,6 +4536,10 @@ TRACE_PT("writing Parental Control\n");
 	/* Pass multicast */
 	if (nvram_get_int("mr_enable_x"))
 		fprintf(fp, "-A FORWARD -p udp -d 224.0.0.0/4 -j ACCEPT\n");
+#ifdef RTCONFIG_IPV6
+	if (ipv6_enabled() && (nvram_get_int("mr_enable_x") & 2))
+		fprintf(fp_ipv6, "-A FORWARD -p udp -d ff00::/8 -j ACCEPT\n");
+#endif
 
 	/* Clamp TCP MSS to PMTU of WAN interface before accepting RELATED packets */
 	if (nvram_get_int("jumbo_frame_enable"))
@@ -4601,6 +4620,10 @@ TRACE_PT("writing Parental Control\n");
 	/* Write forward rule for vlan */
 	vlan_subnet_filter_forward(fp, wan_if);
 #endif
+
+#ifdef RTCONFIG_AMAS_WGN
+	wgn_filter_forward(fp);
+#endif	
 // ~ oleg patch
 		/* Filter out invalid WAN->WAN connections */
 		fprintf(fp, "-A FORWARD -o %s ! -i %s -j %s\n", wan_if, lan_if, logdrop);
@@ -5286,7 +5309,7 @@ mangle_setting(char *wan_if, char *wan_ip, char *lan_if, char *lan_ip, char *log
 	}
 #endif
 
-#if defined(RTAC58U) || defined(RTAC88U)
+#if defined(RTAC58U) || defined(RTAC59U) || defined(RTAC88U)
 	if (nvram_match("switch_wantag", "stuff_fibre")) {
 		eval("iptables", "-t", "mangle", "-A", "POSTROUTING", "-p", "udp", "--dport", "53", "-j", "CLASSIFY", "--set-class", "0:3");
 		eval("iptables", "-t", "mangle", "-A", "POSTROUTING", "-d", "27.111.14.67", "-j", "CLASSIFY", "--set-class", "0:3");
@@ -5885,9 +5908,9 @@ int start_firewall(int wanunit, int lanunit)
 		modprobe("xt_hl");
 	}
 	/* nat setting */
- #ifdef RTCONFIG_DUALWAN // RTCONFIG_DUALWAN
+#ifdef RTCONFIG_DUALWAN // RTCONFIG_DUALWAN
 	if (nvram_match("wans_mode", "lb")) {
- 		nat_setting2(lan_if, lan_ip, logaccept, logdrop);
+		nat_setting2(lan_if, lan_ip, logaccept, logdrop);
 
 #ifdef WEB_REDIRECT
 		redirect_setting();
@@ -5918,7 +5941,7 @@ int start_firewall(int wanunit, int lanunit)
 		if(wanunit != wan_primary_ifunit())
 			goto leave;
 
- 		nat_setting(wan_if, wan_ip, wanx_if, wanx_ip, lan_if, lan_ip, logaccept, logdrop);
+		nat_setting(wan_if, wan_ip, wanx_if, wanx_ip, lan_if, lan_ip, logaccept, logdrop);
 
 #ifdef WEB_REDIRECT
 		redirect_setting();

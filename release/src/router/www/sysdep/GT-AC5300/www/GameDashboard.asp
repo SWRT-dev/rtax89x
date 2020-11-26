@@ -1222,7 +1222,7 @@ function uuRegister(mac){
 										</div>
 
 										<div style="display:flex;align-items: center;justify-content: space-around;;">
-											<div class="rog-title" style="height:65px;">AURA RGB</div>
+											<div class="rog-title" style="height:65px;"><#BoostKey_Aura_RGB#></div>
 											<div style="width: 68px;height:68px;margin-top:10px;background: url('./images/New_ui/img-aurasync-logo.png')"></div>
 										</div>
 										<div style="display:flex;margin-top:-20px;">
@@ -1356,22 +1356,22 @@ function uuRegister(mac){
 										<div style="display:flex;width:720px;height: 76px;margin: 20px 0 10px 30px;">
 											<div style="width:30px;height:76px;background: rgb(145,7,31);transform: skew(-30deg);"></div>
 											<div id="boost_led" class="boost-function boost-border-odd" onclick="handleBoostKey(this)">
-												<div class="boost-text">LED</div>
+												<div class="boost-text"><#BoostKey_LED#></div>
 											</div>
 											<div id="boost_shuffle" style="display:none;" class="boost-function boost-border-even" onclick="handleBoostKey(this)">
-												<div class="boost-text">AURA Shuffle</div>
+												<div class="boost-text"><#BoostKey_AURA_Shuffle#></div>
 											</div>
 											<div id="boost_dfs" style="display:none;" class="boost-function boost-border-even" onclick="handleBoostKey(this)">
-												<div class="boost-text">DFS Channel</div>
+												<div class="boost-text"><#BoostKey_DFS#></div>
 											</div>
 											<div id="boost_aura" class="boost-function boost-border-odd" onclick="handleBoostKey(this)">
-												<div class="boost-text">AURA RGB</div>
+												<div class="boost-text"><#BoostKey_Aura_RGB#></div>
 											</div>
 											<div id="boost_qos" style="display:none;" class="boost-function boost-border-even" onclick="handleBoostKey(this)">
 												<div class="boost-text"><#Game_Boost#></div>
 											</div>
 											<div id="boost_geforce" style="display:none;" class="boost-function boost-border-even" onclick="handleBoostKey(this)">
-												<div class="boost-text">Geforce Now</div>
+												<div class="boost-text"><#BoostKey_GeForce#></div>
 											</div>
 										</div>
 									</div>

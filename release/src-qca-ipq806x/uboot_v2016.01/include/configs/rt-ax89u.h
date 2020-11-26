@@ -12,7 +12,7 @@
  * ASUS configuration.
  * All CONFIG_XXX will be copied to include/autoconf.mk automatically.
  */
-#define SPFVER			8	/* 8: SPF8, 11 or 111: SPF11.1, 110: SPF11.0 */
+#define SPFVER			110	/* 8: SPF8, 11 or 111: SPF11.1, 110: SPF11.0 */
 #define CONFIG_MODEL		"RT-AX89U"
 #define CONFIG_FLASH_TYPE	"nand"
 #define CONFIG_BLS_FIT_IMAGE

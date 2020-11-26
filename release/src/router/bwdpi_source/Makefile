@@ -14,10 +14,10 @@ else ifeq ($(RTCONFIG_SOC_IPQ40XX),y)
 	@cp include/tdts/sysdeps/dakota-tmcfg.h include/tdts/tmcfg.h -f                      # dakota
 	@cp include/udb/sysdeps/dakota-tmcfg_udb.h include/udb/tmcfg_udb.h -f                # dakota
 	@cp bin/dakota/* bin/ -rf                                                            # dakota
-else ifeq ($(RTCONFIG_QCA956X),y)
-	@cp include/tdts/sysdeps/qca956x-tmcfg.h include/tdts/tmcfg.h -f                     # qca956x
-	@cp include/udb/sysdeps/qca956x-tmcfg_udb.h include/udb/tmcfg_udb.h -f               # qca956x
-	@cp bin/qca956x/* bin/ -rf                                                           # qca956x
+else ifeq ($(or $(RTCONFIG_QCA956X),$(RTCONFIG_QCN550X)),y)
+	@cp include/tdts/sysdeps/qca956x-tmcfg.h include/tdts/tmcfg.h -f                     # qca956x / qnc550x
+	@cp include/udb/sysdeps/qca956x-tmcfg_udb.h include/udb/tmcfg_udb.h -f               # qca956x / qnc550x
+	@cp bin/qca956x/* bin/ -rf                                                           # qca956x / qnc550x
 else ifeq ($(RTCONFIG_RALINK),y)
 	@cp include/tdts/sysdeps/mtk-tmcfg.h include/tdts/tmcfg.h -f                         # mtk
 	@cp include/udb/sysdeps/mtk-tmcfg_udb.h include/udb/tmcfg_udb.h -f                   # mtk
@@ -84,9 +84,12 @@ else ifeq ($(RTCONFIG_SOC_IPQ8074),y)
 else ifeq ($(RTCONFIG_SOC_IPQ40XX),y)
 	@cp include/tdts/sysdeps/dakota-tmcfg.h include/tdts/tmcfg.h -f                      # dakota
 	@cp include/udb/sysdeps/dakota-tmcfg_udb.h include/udb/tmcfg_udb.h -f                # dakota
-else ifeq ($(RTCONFIG_QCA956X),y)
-	@cp include/tdts/sysdeps/qca956x-tmcfg.h include/tdts/tmcfg.h -f                     # qca956x
-	@cp include/udb/sysdeps/qca956x-tmcfg_udb.h include/udb/tmcfg_udb.h -f               # qca956x
+else ifeq ($(or $(RTCONFIG_QCA956X),$(RTCONFIG_QCN550X)),y)
+	@cp include/tdts/sysdeps/qca956x-tmcfg.h include/tdts/tmcfg.h -f                     # qca956x / qnc550x
+	@cp include/udb/sysdeps/qca956x-tmcfg_udb.h include/udb/tmcfg_udb.h -f               # qca956x / qnc550x
+else ifeq ($(RTCONFIG_QCN550X),y)
+	@cp include/tdts/sysdeps/qcn550x-tmcfg.h include/tdts/tmcfg.h -f                     # qcn550x
+	@cp include/udb/sysdeps/qcn550x-tmcfg_udb.h include/udb/tmcfg_udb.h -f               # qcn550x
 else ifeq ($(RTCONFIG_RALINK),y)
 	@cp include/tdts/sysdeps/mtk-tmcfg.h include/tdts/tmcfg.h -f                         # mtk
 	@cp include/udb/sysdeps/mtk-tmcfg_udb.h include/udb/tmcfg_udb.h -f                   # mtk
@@ -168,7 +171,7 @@ else ifeq ($(RTCONFIG_SOC_IPQ8074),y)
 	@$(if $(RTCONFIG_SPF11_1_QSDK),cp -f modules/ipq807x_spf11.1/* RC_INDEP/)		# SPF11.1
 else ifeq ($(RTCONFIG_SOC_IPQ40XX),y)
 	@cp -f modules/dakota/* RC_INDEP/
-else ifeq ($(RTCONFIG_QCA956X),y)
+else ifeq ($(or $(RTCONFIG_QCA956X),$(RTCONFIG_QCN550X)),y)
 	@cp -f modules/qca956x/* RC_INDEP/
 	@cp -f bin/wrs/rule.trf RC_INDEP/ # wrs / lite version
 else ifeq ($(RTCONFIG_RALINK),y)
@@ -187,10 +190,14 @@ ifeq ($(RTCONFIG_HND_ROUTER_AX_675X),y)
 ifeq ($(RTCONFIG_HND_ROUTER_AX_6710),y)
 	@cp -f modules/bcm6710/* RC_INDEP/
 else
-ifeq ($(BUILD_NAME), RT-AX56_XD4)
+ifeq ($(BUILD_NAME),$(filter $(BUILD_NAME),RT-AX56_XD4 RT-AX55))
 	@cp -f bin/wrs/rule.trf RC_INDEP/ # wrs / lite version
 endif
+ifeq ($(BUILD_NAME),$(filter $(BUILD_NAME),RT-AX58U TUF-AX3000 RT-AX82U RT-AX82_XD6)) # model flag
+	@cp -f modules/bcm6750/* RC_INDEP/
+else
 	@cp -f modules/bcm675x/* RC_INDEP/
+endif # model flag
 endif # RTCONFIG_HND_ROUTER_AX_6710
 else
 	@cp -f modules/axhnd/* RC_INDEP/
@@ -235,7 +242,7 @@ install:
 	# [INSTALL] prebuild into RC_INDEP
 	-@mkdir RC_INDEP
 	-@cp -f prebuild/* RC_INDEP/
-ifeq ($(or $(HND_ROUTER),$(HND_ROUTER_AX),$(RTCONFIG_HND_ROUTER_AX_675X),$(RTCONFIG_HND_ROUTER_AX_6710))),y)
+ifeq ($(or $(HND_ROUTER),$(HND_ROUTER_AX),$(RTCONFIG_HND_ROUTER_AX_675X),$(RTCONFIG_HND_ROUTER_AX_6710)),y)
 	@echo "start to install bwdpi_source into 94908HND"
 	@install -d $(INSTALLDIR)/usr/bwdpi/
 	@cp -f $(TOP)/bwdpi_source/RC_INDEP/*.so $(INSTALLDIR)/usr/lib/
