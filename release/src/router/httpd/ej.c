@@ -192,6 +192,10 @@ translate_lang (char *s, char *e, FILE *f, kw_t *pkw)
 			char GET_PID_STR[32]={0};
 			char *p_PID_STR = NULL;
 			char *PID_STR = nvram_safe_get("productid");
+#if defined(R7900P) || defined(SBRAC1900P) || defined(SBRAC3200P) || defined(K3) || defined(K3C) || defined(R8000P) || defined(RAX20)
+			char *modelname = nvram_safe_get("modelname");
+			int merlinr_len;
+#endif
 			char *pSrc, *pDest;
 			int pid_len, get_pid_len;
 
@@ -199,9 +203,14 @@ translate_lang (char *s, char *e, FILE *f, kw_t *pkw)
 			pid_len = strlen(PID_STR);
 			get_pid_len = strlen(GET_PID_STR);
 
+#if defined(R7900P) || defined(SBRAC1900P) || defined(SBRAC3200P) || defined(K3) || defined(K3C) || defined(R8000P) || defined(RAX20)
+			merlinr_len = strlen(modelname);
+			if (merlinr_len && strcmp(RP_PID_STR, modelname) != 0)
+				strlcpy(RP_PID_STR, modelname, merlinr_len+1);
+#else 
 			memset(RP_PID_STR, 0, sizeof(RP_PID_STR));
 			replace_productid(GET_PID_STR, RP_PID_STR, sizeof(RP_PID_STR));
-
+#endif
 			if(strcmp(PID_STR, RP_PID_STR) != 0){
 				get_pid_len = strlen(RP_PID_STR);
 				pSrc  = desc;
@@ -262,14 +271,25 @@ do_ej(char *path, FILE *stream)
 #ifdef TRANSLATE_ON_FLY
 	// Load dictionary file
 	lang = nvram_safe_get("preferred_lang");
-	if(!check_lang_support(lang)){
+	if(!check_lang_support_merlinr(lang)){
 		lang = nvram_default_get("preferred_lang");
 		nvram_set("preferred_lang", lang);
 	}
 
-	if (load_dictionary (lang, &kw)){
-		no_translate = 0;
+	char *current_lang;
+	struct json_object *root=NULL;
+	do_json_decode(&root);
+	if ((current_lang = get_cgi_json("current_lang", root)) != NULL){
+		if (load_dictionary (current_lang, &kw)){
+			no_translate = 0;
+		}
 	}
+	else{
+		if (load_dictionary (lang, &kw)){
+			no_translate = 0;
+		}
+	}
+	if (root) json_object_put(root);
 #endif  //defined TRANSLATE_ON_FLY
 
 	start_pat = end_pat = pattern;
@@ -282,12 +302,10 @@ do_ej(char *path, FILE *stream)
 		if (((pattern + pattern_size) - end_pat) < frag_size)
 		{
 			len = end_pat - start_pat;
-			if(len < pattern_size){
-				memcpy (pattern, start_pat, len);
-				start_pat = pattern;
-				end_pat = start_pat + len;
-				*end_pat = '\0';
-			}
+			memcpy (pattern, start_pat, len);
+			start_pat = pattern;
+			end_pat = start_pat + len;
+			*end_pat = '\0';
 		}
 
 		read_len = (pattern + pattern_size) - end_pat;
@@ -439,3 +457,4 @@ ejArgs(int argc, char **argv, char *fmt, ...)
 
 	return arg;
 }
+

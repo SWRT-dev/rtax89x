@@ -166,7 +166,7 @@ config RTCONFIG_BRCM_NAND_JFFS2
 
 config RTCONFIG_JFFS_NVRAM
 	bool "NVRAM on JFFS support"
-	depends on RTCONFIG_BRCM_NAND_JFFS2
+	depends on RTCONFIG_BRCM_NAND_JFFS2 || RTCONFIG_UBIFS
 	default y
 
 config RTCONFIG_JFFS2
@@ -2091,4 +2091,12 @@ config RTCONFIG_MULTIFW
 
 config RTCONFIG_CAPTCHA
 	bool "Web UI supports captcha"
+	default n
+
+config RTCONFIG_SOFTCENTER
+	bool "softcenter"
+	default n
+
+config RTCONFIG_SMARTDNS
+	bool "smart dns"
 	default n

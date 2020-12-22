@@ -211,6 +211,10 @@ extern int ssl_stream_fd;
 #endif
 
 #include <iboxcom.h>
+#include "sysinfo.h"
+#ifdef RTCONFIG_SOFTCENTER
+#include "dbapi.h"
+#endif
 
 #ifdef RTCONFIG_CONNDIAG
 #include <conn_diag-sql.h>
@@ -318,6 +322,7 @@ extern void unescape(char *s);
 void response_nvram_config(webs_t wp, char *config_name, json_object *res, json_object *root);
 
 extern int get_lang_num();
+extern int get_lang_num_merlinr();
 extern int ej_get_iptvSettings(int eid, webs_t wp, int argc, char_t **argv);
 extern int config_iptv_vlan(char *isp);
 
@@ -1108,6 +1113,94 @@ ej_nvram_match(int eid, webs_t wp, int argc, char_t **argv)
  * <% nvram_match("wan_proto", "dhcp", "selected"); %> produces "selected"
  * <% nvram_match("wan_proto", "static", "selected"); %> does not produce
  */
+#ifdef RTCONFIG_SOFTCENTER
+static int
+ej_dbus_get(int eid, webs_t wp, int argc, char_t **argv)
+{
+	char *name, c[512];
+	int ret = 0;
+
+	if (ejArgs(argc, argv, "%s", &name) < 1) {
+		websError(wp, 400, "Insufficient args\n");
+		return -1;
+	}
+	doSystem("dbus get %s > /tmp/dbusxxx", name);
+	char *buffer = read_whole_file("/tmp/dbusxxx");
+	if (buffer) {
+		sscanf(buffer, "%[^\n]", c);
+		free(buffer);
+	} else {
+		strcpy(c, "");
+	}
+	unlink("/tmp/dbusxxx");
+
+	ret += websWrite(wp, c);
+
+	return ret;
+}
+
+
+static int
+ej_dbus_get_def(int eid, webs_t wp, int argc, char_t **argv)
+{
+	char *name, c[512], *output;
+	int ret = 0;
+//	char sid_dummy = "",
+
+	if (ejArgs(argc, argv, "%s %s", &name, &output) < 2) {
+		websError(wp, 400, "Insufficient args\n");
+		return -1;
+	}
+	doSystem("dbus get %s > /tmp/dbusxxx", name);
+	char *buffer = read_whole_file("/tmp/dbusxxx");
+	if (buffer) {
+		sscanf(buffer, "%[^\r]", c);
+		if (c[0]!='\n') {
+			c[strlen(c)-1]='\0';
+			ret += websWrite(wp, c);
+		} else
+			ret += websWrite(wp, output);
+		free(buffer);
+	} else {
+		ret += websWrite(wp, output);
+	}
+	unlink("/tmp/dbusxxx");
+	//doSystem("rm -rf /tmp/dbusxxx");
+	//for (; *c; c++) {
+			//ret += websWrite(wp, c);
+	//}
+
+	return ret;
+}
+
+static int
+ej_dbus_match(int eid, webs_t wp, int argc, char_t **argv)
+{
+	char c[512], *name, *match, *output;
+
+	if (ejArgs(argc, argv, "%s %s %s", &name, &match, &output) < 3) {
+		websError(wp, 400, "Insufficient args\n");
+		return -1;
+	}
+	doSystem("dbus get %s > /tmp/dbusxxx", name);
+	char *buffer = read_whole_file("/tmp/dbusxxx");
+	if (buffer) {
+		sscanf(buffer, "%[^\n]", c);
+		free(buffer);
+	} else {
+		strcpy(c, "");
+	}
+	unlink("/tmp/dbusxxx");
+	//doSystem("rm -rf /tmp/dbusxxx");
+	if (strcmp(c,match) == 0)
+	{
+		return websWrite(wp, output);
+	}
+
+	return 0;
+}
+#endif
+
 static int
 ej_nvram_match_x(int eid, webs_t wp, int argc, char_t **argv)
 {
@@ -2102,6 +2195,10 @@ ej_dump(int eid, webs_t wp, int argc, char_t **argv)
 		|| strcmp(file, "adsl/adsllog.log")==0
 #endif
 	){
+		snprintf(filename, sizeof(filename), "/tmp/%s", file);
+		ret += dump_file(wp, filename);
+	}
+	else {
 		snprintf(filename, sizeof(filename), "/tmp/%s", file);
 		ret += dump_file(wp, filename);
 	}
@@ -4782,6 +4879,15 @@ static int ej_update_variables(int eid, webs_t wp, int argc, char_t **argv)
 			_dprintf("restart_needed_time [%d]\n", restart_needed_time);
 		}
 	}
+	else if(!strcmp(action_mode, "toolscript")){
+		nvram_set("freeze_duck", "5");
+		strncpy(notify_cmd, action_script, 128);
+		_dprintf("Scrip_Cmd: [%s]\n", notify_cmd);
+		validate_apply(wp, NULL);
+		strlcpy(SystemCmd, notify_cmd, sizeof(SystemCmd));
+		sys_script("syscmd.sh");
+	}
+
 #if defined(RTCONFIG_USB_SMS_MODEM) && !defined(RTCONFIG_USB_MULTIMODEM)
 	else if(!strcmp(action_script, "start_savesms")){
 		int fd;
@@ -6154,8 +6260,7 @@ static int get_fanctrl_info(int eid, webs_t wp, int argc, char_t **argv)
 }
 #endif
 
-#if defined(RTCONFIG_BCMARM) || \
-    (defined(RTCONFIG_QCA) && defined(RTCONFIG_FANCTRL))
+#if defined(RTCONFIG_BCMARM) || defined(RTCONFIG_LANTIQ) || defined(RTCONFIG_QCA) || defined(RTCONFIG_RALINK)
 static int get_cpu_temperature(int eid, webs_t wp, int argc, char_t **argv)
 {
 #ifdef HND_ROUTER
@@ -6169,11 +6274,26 @@ static int get_cpu_temperature(int eid, webs_t wp, int argc, char_t **argv)
 
 	return websWrite(wp, "%3.3f", (double) temperature / 1000);
 #elif defined(RTCONFIG_QCA)
+#if defined(RTAC82U)
+	return websWrite(wp, "0");//ipq401x not support
+#else
 	char temperature[6] = { 0 };
 
 	if (f_read_string("/sys/class/thermal/thermal_zone0/temp", temperature, sizeof(temperature)) <= 0)
 		*temperature = '\0';
 	return websWrite(wp, "%d", safe_atoi(temperature));
+#endif
+#elif defined(RTCONFIG_LANTIQ)
+	FILE *fp;
+	int temperature;
+	if ((fp = fopen("/sys/kernel/debug/ltq_tempsensor/allsensors", "r")) != NULL) {
+		fscanf(fp, "TS_CODE= %*[0-9]; TEMP   = %d; CH_SEL = %*[0-9]", &temperature);
+		fclose(fp);
+	}
+
+	return websWrite(wp, "%d", (temperature/1000));
+#elif defined(RTCONFIG_RALINK)
+	return websWrite(wp, "0");//mtk not support
 #else
 	FILE *fp;
 	int temperature = -1;
@@ -8538,6 +8658,11 @@ static int get_client_detail_info(struct json_object *clients, struct json_objec
 					json_object_object_add(client, "isOnline", json_object_new_string("0"));
 			}
 			else
+#if defined(MERLINR_VER_MAJOR_B)
+				if(p_client_info_tab->device_flag[i]&(1<<FLAG_EXIST))
+					json_object_object_add(client, "isOnline", json_object_new_string("1"));
+				else
+#endif
 				json_object_object_add(client, "isOnline", json_object_new_string("0"));
 #endif
 			json_object_object_add(client, "ssid", json_object_new_string(p_client_info_tab->ssid[i]));
@@ -10585,7 +10710,7 @@ int ej_shown_language_css(int eid, webs_t wp, int argc, char **argv){
 	memset(lang, 0, 4);
 	strlcpy(lang, nvram_safe_get("preferred_lang"), sizeof(lang));
 
-	if(get_lang_num() == 1){
+	if(get_lang_num_merlinr() == 1){
 		websWrite(wp, "<li style=\"visibility:hidden;\"><dl><a href=\"#\"><dt id=\"selected_lang\"></dt></a>\\n");
 	}
 	else{
@@ -10611,7 +10736,7 @@ int ej_shown_language_css(int eid, webs_t wp, int argc, char **argv){
 				memset(target, 0, sizeof(target));
 				strncpy(target, follow_info, len);
 
-				if (check_lang_support(key) && strcmp(key,lang))
+				if (check_lang_support_merlinr(key) && strcmp(key,lang))
 					websWrite(wp, "<dd><a onclick=\"submit_language(this)\" id=\"%s\">%s</a></dd>\\n", key, target);
 			}
 			else
@@ -11869,10 +11994,19 @@ wps_finish:
 		if (!strcmp(action_mode, "firmware_check")){
 			nvram_set("webs_update_trigger", "cfgsync_firmware_check");
 			snprintf(event_msg, sizeof(event_msg), HTTPD_GENERIC_MSG, EID_HTTPD_FW_CHECK);
+#if defined(MERLINR_VER_MAJOR_B)
+			doSystem("/usr/sbin/webs_update.sh");
+#endif
 		}
 		else if (!strcmp(action_mode, "firmware_upgrade"))
+#if defined(MERLINR_VER_MAJOR_B)
+		{
+#endif
 			snprintf(event_msg, sizeof(event_msg), HTTPD_GENERIC_MSG, EID_HTTPD_FW_UPGRADE);
-
+#if defined(MERLINR_VER_MAJOR_B)
+			doSystem("/usr/sbin/webs_upgrade.sh");
+		}
+#endif
 		if (strlen(event_msg))
 			send_cfgmnt_event(event_msg);
 	}
@@ -12210,6 +12344,9 @@ do_upgrade_post(char *url, FILE *stream, int len, char *boundary)
 	int count, cnt;
 	long filelen;
 	int offset;
+#if defined(K3) || defined(K3C) || defined(SBRAC1900P) || defined(SBRAC3200P) || defined(R8000P) || defined(R7900P) || defined(RAX20) || defined(XWR3100) || defined(R7000P)
+	int checkname=0;
+#endif
 #ifndef RTCONFIG_SMALL_FW_UPDATE
 	struct sysinfo si;
 #endif
@@ -12245,11 +12382,38 @@ do_upgrade_post(char *url, FILE *stream, int len, char *boundary)
 		}
 
 		len -= strlen(buf);
-
+#if defined(K3)
+		if (strstr(buf, "K3"))
+			checkname=1;
+#elif defined(XWR3100)
+		if (strstr(buf, "XWR3100"))
+			checkname=1;
+#elif defined(K3C)
+		if (strstr(buf, "K3C"))
+			checkname=1;
+#elif defined(SBRAC1900P)
+		if (strstr(buf, "SBRAC1900P"))
+			checkname=1;
+#elif defined(SBRAC3200P)
+		if (strstr(buf, "SBRAC3200P"))
+			checkname=1;
+#elif defined(R8000P) || defined(R7900P)
+		if (strstr(buf, "R7900P")||strstr(buf, "R8000P"))
+			checkname=1;
+#elif defined(R7000P)
+		if (strstr(buf, "R7000P"))
+			checkname=1;
+#elif  defined(RAX20)
+		if (strstr(buf, "RAX20"))
+			checkname=1;
+#endif
 		if (!strncasecmp(buf, "Content-Disposition:", 20) && strstr(buf, "name=\"file\""))
 			break;
 	}
-
+#if defined(K3) || defined(K3C) || defined(SBRAC1900P) || defined(SBRAC3200P) || defined(R8000P) || defined(R7900P) || defined(RAX20) || defined(XWR3100) || defined(R7000P)
+	if(checkname==0)
+		goto err;
+#endif
 	/* Skip boundary and headers */
 	while (len > 0) {
 		if (!fgets(buf, MIN(len + 1, sizeof(buf)), stream))
@@ -13335,6 +13499,289 @@ do_download_cert_cgi(char *url, FILE *stream)//for browser
 		);
 	do_file("/tmp/cert.tar", stream);
 }
+
+#ifdef RTCONFIG_SOFTCENTER
+static int ssupload = 0;
+static void
+do_ssupload_post(char *url, FILE *stream, int len, char *boundary)
+{
+	do_html_get(url, len, boundary);
+	char *name = websGetVar(wp, "a","");
+	char upload_fifo[64];
+	memset(upload_fifo, 0, 64);
+	strcpy(upload_fifo, name);
+	FILE *fifo = NULL;
+	char buf[4096];
+	int ch, ret = EINVAL;
+	int count, cnt;
+	long filelen;
+	int offset;
+
+	/* Look for our part */
+	while (len > 0)
+	{
+		if (!fgets(buf, MIN(len + 1, sizeof(buf)), stream))
+		{
+			goto err;
+		}
+
+		len -= strlen(buf);
+
+		if (!strncasecmp(buf, "Content-Disposition:", 20) && strstr(buf, "name=\"file\""))
+			break;
+	}
+
+	/* Skip boundary and headers */
+	while (len > 0) {
+		if (!fgets(buf, MIN(len + 1, sizeof(buf)), stream))
+		{
+			goto err;
+		}
+		len -= strlen(buf);
+		if (!strcmp(buf, "\n") || !strcmp(buf, "\r\n"))
+		{
+			break;
+		}
+	}
+
+
+	if (!(fifo = fopen(upload_fifo, "a+"))) goto err;
+	filelen = len;
+	cnt = 0;
+	offset = 0;
+
+	/* Pipe the rest to the FIFO */
+	while (len>0 && filelen>0)
+	{
+
+#ifdef RTCONFIG_HTTPS
+		if(do_ssl){
+			if (waitfor(ssl_stream_fd, (len >= 0x4000)? 3 : 1) <= 0)
+				break;
+		}
+		else{
+			if (waitfor (fileno(stream), 10) <= 0)
+			{
+				break;
+			}
+		}
+#else
+		if (waitfor (fileno(stream), 10) <= 0)
+		{
+			break;
+		}
+#endif
+
+		count = fread(buf + offset, 1, MIN(len, sizeof(buf)-offset), stream);
+
+		if(count <= 0)
+			goto err;
+
+		len -= count;
+
+		if(cnt==0) {
+			if(count + offset < 8)
+			{
+				offset += count;
+				continue;
+			}
+
+			count += offset;
+			offset = 0;
+			_dprintf("read from stream: %d\n", count);
+			cnt++;
+		}
+		filelen-=count;
+		fwrite(buf, 1, count, fifo);
+	}
+
+	/* Slurp anything remaining in the request */
+	while (len-- > 0)
+	{
+		if((ch = fgetc(stream)) == EOF)
+			break;
+
+		if (filelen>0)
+		{
+			fputc(ch, fifo);
+			filelen--;
+		}
+	}
+	fclose(fifo);
+	fifo = NULL;
+	ssupload = 1;
+err:
+	if (fifo)
+		fclose(fifo);
+
+	/* Slurp anything remaining in the request */
+	while (len-- > 0)
+		if((ch = fgetc(stream)) == EOF)
+			break;
+}
+
+
+static void
+do_ssupload_cgi(char *url, FILE *stream)
+{
+	int i;
+	for (i=0; i<10; i++)
+	{
+		if(ssupload == 1)
+		{
+			websWrite(stream,"<script>parent.upload_ok(1);</script>\n" );
+			break;
+		} else
+			sleep(1);
+	}
+	if (i == 10)
+		websWrite(stream,"<script>parent.upload_ok(0);</script>\n" );
+}
+
+
+static void
+do_dbupload_post(char *url, FILE *stream, int len, char *boundary)
+{
+	char upload_fifo[64];
+	memset(upload_fifo, 0, 64);
+	int ret = EINVAL;
+	FILE *fifo = NULL;
+	char buf[4096];
+	int ch;
+	int count, cnt;
+	long filelen;
+	int offset;
+	char org_file_name[64];
+	memset(org_file_name, 0, 64);
+	char file_name[64];
+	memset(file_name, 0, 64);
+	/* Look for our part */
+	while (len > 0)
+	{
+		if (!fgets(buf, MIN(len + 1, sizeof(buf)), stream))
+		{
+			goto err;
+		}
+
+		len -= strlen(buf);
+
+		if (!strncasecmp(buf, "Content-Disposition:", 20)){
+			if(strstr(post_buf, "name=\"file\"")) {
+				sprintf(org_file_name, "%s", strstr(post_buf, "filename="));
+				substr(file_name, org_file_name, 10, (strlen(org_file_name)-13));
+				sprintf(file_name, "/tmp/upload/%s", file_name);
+				strcpy(upload_fifo, file_name);
+				break;
+			}
+		}
+	}
+
+	/* Skip boundary and headers */
+	while (len > 0) {
+		if (!fgets(buf, MIN(len + 1, sizeof(buf)), stream))
+		{
+			goto err;
+		}
+		len -= strlen(buf);
+		if (!strcmp(buf, "\n") || !strcmp(buf, "\r\n"))
+		{
+			break;
+		}
+	}
+
+
+	if (!(fifo = fopen(upload_fifo, "a+"))) goto err;
+	filelen = len;
+	cnt = 0;
+	offset = 0;
+
+	/* Pipe the rest to the FIFO */
+	while (len>0 && filelen>0)
+	{
+
+#ifdef RTCONFIG_HTTPS
+		if(do_ssl){
+			if (waitfor(ssl_stream_fd, (len >= 0x4000)? 3 : 1) <= 0)
+				break;
+		}
+		else{
+			if (waitfor (fileno(stream), 10) <= 0)
+			{
+				break;
+			}
+		}
+#else
+		if (waitfor (fileno(stream), 10) <= 0)
+		{
+			break;
+		}
+#endif
+
+		count = fread(buf + offset, 1, MIN(len, sizeof(buf)-offset), stream);
+
+		if(count <= 0)
+			goto err;
+
+		len -= count;
+
+		if(cnt==0) {
+			if(count + offset < 8)
+			{
+				offset += count;
+				continue;
+			}
+
+			count += offset;
+			offset = 0;
+			_dprintf("read from stream: %d\n", count);
+			cnt++;
+		}
+		filelen-=count;
+		fwrite(buf, 1, count, fifo);
+	}
+
+	/* Slurp anything remaining in the request */
+	while (len-- > 0)
+	{
+		if((ch = fgetc(stream)) == EOF)
+			break;
+
+		if (filelen>0)
+		{
+			fputc(ch, fifo);
+			filelen--;
+		}
+	}
+	ret=0;
+	fclose(fifo);
+	fifo = NULL;
+err:
+	if (fifo)
+		fclose(fifo);
+
+	/* Slurp anything remaining in the request */
+	while (len-- > 0)
+		if((ch = fgetc(stream)) == EOF)
+			break;
+
+	fcntl(fileno(stream), F_SETOWN, -ret);	
+}
+static void
+do_dbupload_cgi(char *url, FILE *stream)
+{
+	int ret;
+#ifdef RTCONFIG_HTTPS
+	if(do_ssl)
+		ret = fcntl(ssl_stream_fd , F_GETOWN, 0);
+	else
+#endif
+	ret = fcntl(fileno(stream), F_GETOWN, 0);
+
+	if (ret == 0)
+		websWrite(stream,"<script>parent.upload_ok(0);</script>\n" );
+}
+#endif
+
 
 // Viz 2010.08
 static void
@@ -16105,6 +16552,440 @@ do_appGet_cgi(char *url, FILE *stream)
 	hook_get_json = 0;
 }
 
+#ifdef RTCONFIG_SOFTCENTER
+static int
+applydb_cgi(webs_t wp, char_t *urlPrefix, char_t *webDir, int arg,
+		char_t *url, char_t *path, char_t *query)
+{
+	char *action_mode;
+	char *action_script;
+	char dbjson[100][9999];
+	char dbvar[2048];
+	char dbval[9999];
+	char notify_cmd[128];
+	char db_cmd[128];
+	int i, j;
+	char *result = NULL;
+	char *temp = NULL;
+	char *name = websGetVar(wp, "p","");
+	char *userm = websGetVar(wp, "use_rm", "");
+	char scPath[128];
+	char *post_db_buf = post_json_buf;
+
+	action_mode = websGetVar(wp, "action_mode", "");
+	action_script = websGetVar(wp, "action_script", "");
+	
+	dbclient client;
+	dbclient_start(&client);
+	if (strlen(name) <= 0) {
+		printf("No \"name\"!\n");
+	}
+	if ( !strcmp("", post_db_buf)){
+		//get
+		sprintf(post_db_buf, "%s", post_buf_backup+1);
+		unescape(post_db_buf);
+		//logmessage("HTTPD", "url: %s,%s", post_db_buf, name);
+		strcpy(post_json_buf, post_db_buf);
+		result = strtok( post_json_buf, "&" );
+		i =0;
+	while( result != NULL )
+	{
+		if (result!=NULL)
+		{
+		strcpy(dbjson[i], result);
+		i++;
+			result = strtok( NULL, "&" );
+		}
+	}
+	for (j =0; j < i; j++)
+	{
+		if(!strncasecmp(dbjson[j], name, strlen(name))){
+				memset(dbvar,'\0',sizeof(dbvar));
+				memset(dbval,'\0',sizeof(dbval));
+				temp=strstr(dbjson[j], "=");
+				strcpy(dbval, temp+1);
+				strncpy(dbvar, dbjson[j], strlen(dbjson[j])-strlen(temp));
+			//logmessage("HTTPD", "dbvar: %s dbval: %s,userm:%s,dbval:%d", dbvar, dbval,userm,strlen(dbval));
+			if(*userm || dbval[0]=='\0')
+				dbclient_rm(&client, dbvar, strlen(dbvar));
+			else
+				dbclient_bulk(&client, "set", dbvar, strlen(dbvar), dbval, strlen(dbval));
+		}
+	}
+	} else {
+	//post
+	unescape(post_db_buf);
+	//logmessage("HTTPD", "name: %s post: %s", name, post_json_buf);
+	//logmessage("HTTPD", "name: %s post: %s", name, post_db_buf);
+	strcpy(post_json_buf, post_db_buf);
+	result = strtok( post_json_buf, "&" );
+	i =0;
+	while( result != NULL )
+	{
+		if (result!=NULL)
+		{
+		strcpy(dbjson[i], result);
+		i++;
+			result = strtok( NULL, "&" );
+		}
+	}
+	for (j =0; j < i; j++)
+	{
+		if(!strncasecmp(dbjson[j], name, strlen(name))){
+				memset(dbvar,'\0',sizeof(dbvar));
+				memset(dbval,'\0',sizeof(dbval));
+				temp=strstr(dbjson[j], "=");
+				strcpy(dbval, temp+1);
+				strncpy(dbvar, dbjson[j], strlen(dbjson[j])-strlen(temp));
+			//logmessage("HTTPD", "dbvar: %s dbval: %s,userm:%s,dbval:%d", dbvar, dbval,userm,strlen(dbval));
+			if(*userm || dbval[0]=='\0')
+				dbclient_rm(&client, dbvar, strlen(dbvar));
+			else
+				dbclient_bulk(&client, "set", dbvar, strlen(dbvar), dbval, strlen(dbval));
+		}
+	}
+	}
+	dbclient_end(&client);
+	memset(db_cmd,'\0',sizeof(db_cmd));
+	if(!strcmp(action_mode, "toolscript") || !strcmp(action_mode, " Refresh ")){
+		snprintf(scPath, sizeof(scPath), "/jffs/softcenter/scripts/");
+		strncpy(notify_cmd, action_script, 128);
+		strcat(scPath, notify_cmd);
+		strlcpy(SystemCmd, scPath, sizeof(SystemCmd));
+		sys_script("syscmd.sh");
+	}
+	else if(!strcmp(action_mode, "dummy_script") || !strcmp(action_mode, "dummy")){
+		//dummy script
+	}
+	else if(*action_mode){
+		snprintf(scPath, sizeof(scPath), "/jffs/softcenter/scripts/");
+		strncpy(notify_cmd, action_script, 128);
+		strcat(scPath, notify_cmd);
+		snprintf(db_cmd, sizeof(db_cmd), " %s", action_mode);
+		strcat(scPath, db_cmd);
+		strlcpy(SystemCmd, scPath, sizeof(SystemCmd));
+		sys_script("syscmd.sh");
+	}
+	websWrite(wp,"<script>parent.done_validating('', '');</script>\n" );
+	return 0;
+}
+
+static void
+do_applydb_cgi(char *url, FILE *stream)
+{
+    applydb_cgi(stream, NULL, NULL, 0, url, NULL, NULL);
+}
+
+static int db_print(dbclient* client, webs_t wp, char* prefix, char* key, char* value) {
+	websWrite(wp,"o[\"%s\"]=\"%s\";\n", key, value);
+	return 0;
+}
+
+static void
+do_dbconf(char *url, FILE *stream)
+{
+	char *name = NULL;
+	char * delim = ",";
+	char *pattern = websGetVar(wp, "p","");
+	char *dup_pattern = strdup(pattern);
+	char *sepstr = dup_pattern;
+	dbclient client;
+	dbclient_start(&client);
+	if(strstr(sepstr,delim)) {
+		for(name = strsep(&sepstr, delim); name != NULL; name = strsep(&sepstr, delim)) {
+			websWrite(stream,"var db_%s=(function() {\nvar o={};\n", name);
+
+			dbclient_list(&client, name, stream, db_print);
+			websWrite(stream,"return o;\n})();\n" );
+		}
+	} else {
+		name= strdup(pattern);
+		websWrite(stream,"var db_%s=(function() {\nvar o={};\n", name);
+		dbclient_list(&client, name, stream, db_print);
+		websWrite(stream,"return o;\n})();\n" );
+	}
+	free(dup_pattern);
+	dbclient_end(&client);
+}
+
+static void
+do_ss_status(char *url, FILE *stream)
+{
+
+	if(check_if_file_exist("/jffs/softcenter/ss/cru/china.sh"))
+	{
+		doSystem("sh /jffs/softcenter/ss/cru/china.sh &");
+		doSystem("sh /jffs/softcenter/ss/cru/foreign.sh &");
+	}
+	else
+	{
+		nvram_set("ss_foreign_state", "USB Problem detected!");
+		nvram_set("ss_china_state", "USB Problem detected!");
+	}
+	sleep(1);
+	websWrite(stream,"[\"%s\", ", nvram_get("ss_foreign_state") );
+	websWrite(stream,"\"%s\"]", nvram_get("ss_china_state") );
+}
+
+static int
+do_logread(webs_t wp, char_t *urlPrefix, char_t *webDir, int arg,
+		char_t *url, char_t *path, char_t *query)
+{
+	char buf[4096];
+	char logpath[128], scPath[128];
+	FILE *fp;
+	//char filename[100];
+	//sscanf(url, "logreaddb.cgi?%s", filename);
+	char *filename = websGetVar(wp, "p","");
+	char *script = websGetVar(wp, "script", "");
+	if(*script){
+		sprintf(scPath, "/jffs/softcenter/scripts/%s", script);
+		strlcpy(SystemCmd, scPath, sizeof(SystemCmd));
+		sys_script("syscmd.sh");
+	}
+	sprintf(logpath, "/tmp/%s", filename);
+	//logmessage("HTTPD", "logread: %s, url: %s", logpath, url);
+	//sleep(1);//
+	if(check_if_file_exist(logpath)){
+		if((fp = fopen(logpath, "r"))!= NULL){
+			while(fgets(buf, sizeof(buf),fp) != NULL){
+				websWrite(wp,"%s\n", buf);
+			}
+		}
+		fclose(fp);
+		//doSystem("rm -rf %s", path);
+	} else
+		websWrite(wp,"not found log file\n");
+	return 0;
+}
+static void
+do_logread_cgi(char *url, FILE *stream)
+{
+    do_logread(stream, NULL, NULL, 0, url, NULL, NULL);
+}
+//1.5
+struct msg_list_s {
+int id;
+char buf[2048];
+};
+struct msg_list_s msglist;
+struct msg_list_s msglist2;
+struct msg_list_s msglist3;
+struct msg_list_s msglist4;
+static int list_count=0;
+
+static int db_print2(dbclient* client, webs_t wp, char* prefix, char* key, char* value) {
+	if(list_count!=0)
+		websWrite(wp,",");
+	websWrite(wp,"\"%s\":\"%s\"\n", key, value);
+	list_count++;
+	return 0;
+}
+static int
+dbapi_cgi(webs_t wp, char_t *urlPrefix, char_t *webDir, int arg,
+		char_t *url, char_t *path, char_t *query)
+{
+	int i, id=0, count;
+	char script[99], p[15], db_cmd[128], scPath[256], notify_cmd[128];
+	char *post_db_buf = post_json_buf;
+	char *name = NULL;
+	FILE *fp;
+	char buf[4096];
+	dbclient client;
+	dbclient_start(&client);
+
+	if ( !strcmp("", post_db_buf)){//get
+		char dbname[100];
+		sscanf(url, "_api/%s", dbname);
+		char * delim = ",";
+		char *dup_pattern = strdup(dbname);
+		char *sepstr = dup_pattern;
+		websWrite(wp,"{\"result\":[{");
+		i=0;
+		for(name = strsep(&sepstr, delim); name != NULL; name = strsep(&sepstr, delim)) {
+			if(i!=0)
+				websWrite(wp,",{");
+			dbclient_list(&client, name, wp, db_print2);
+			list_count=0;
+			websWrite(wp,"}\n" );
+			i++;
+		}
+		websWrite(wp,"]}\n" );
+		free(dup_pattern);
+		dbclient_end(&client);
+	}else{//post
+		json_object *root = NULL;
+		json_object *idObj = NULL;
+		json_object *methodObj = NULL;
+		json_object *paramsObj = NULL;
+		json_object *fieldsObj = NULL;
+		json_object *arrayObj = NULL;
+		root = json_tokener_parse(post_db_buf);
+		//printf("%s\n",json_object_to_json_string(root));
+		if (root) {
+			json_object_object_get_ex(root,"id", &idObj);
+			id = json_object_get_int(idObj);
+			json_object_object_get_ex(root,"method", &methodObj);
+			memset(script,'\0',sizeof(script));
+			sprintf(script,"%s", json_object_get_string(methodObj));
+			json_object_object_get_ex(root,"params", &paramsObj);
+			count  = json_object_array_length(paramsObj);
+			memset(p,'\0',sizeof(p));
+			for (i = 0; i < count; i++){
+				arrayObj = json_object_array_get_idx(paramsObj, i);
+				if (json_object_get_type(arrayObj) == json_type_int)
+					sprintf(p,"%d", json_object_get_int(arrayObj));
+				else if (json_object_get_type(arrayObj) == json_type_string)
+					sprintf(p,"%s", json_object_get_string(arrayObj));
+			}
+			json_object_object_get_ex(root,"fields", &fieldsObj);
+			if(json_object_get_type(fieldsObj)==json_type_object){
+				json_object_object_foreach(fieldsObj, key, val){
+					if(strlen(json_object_get_string(val)))
+						dbclient_bulk(&client, "set", key, strlen((char *)key), json_object_get_string(val), strlen(json_object_get_string(val)));
+					else
+						dbclient_rm(&client, key, strlen(key));
+				}
+			}
+			if(!check_if_dir_exist("/tmp/upload"))
+				mkdir("/tmp/upload", 0755);
+			memset(db_cmd,'\0',sizeof(db_cmd));
+			memset(scPath,'\0',sizeof(scPath));
+			snprintf(scPath, sizeof(scPath), "/jffs/softcenter/scripts/");
+			strncpy(notify_cmd, script, strlen(script));
+			strcat(scPath, notify_cmd);
+			if(*p){
+				snprintf(db_cmd, sizeof(db_cmd), " %d %s", id, p);
+				strcat(scPath, db_cmd);
+			} else {
+				snprintf(db_cmd, sizeof(db_cmd), " %d", id);
+				strcat(scPath, db_cmd);
+			}
+			strlcpy(SystemCmd, scPath, sizeof(SystemCmd));
+			sys_script("syscmd.sh");
+			json_object_put(idObj);
+			json_object_put(methodObj);
+			json_object_put(paramsObj);
+			json_object_put(fieldsObj);
+			json_object_put(arrayObj);
+			json_object_put(root);
+			dbclient_end(&client);
+			memset(scPath,'\0',sizeof(scPath));
+			snprintf(scPath, sizeof(scPath), "/tmp/upload/%d",id);
+			for(i=0; i<10; i++){
+				usleep(100000);//wait for script
+				if(check_if_file_exist(scPath)){
+					if((fp = fopen(scPath, "r"))!= NULL){
+						while(fgets(buf, sizeof(buf),fp) != NULL){
+							buf[strlen(buf)-1]=0;
+							websWrite(wp,"{\"result\":\"%s\"}\n",buf);
+							unlink(scPath);
+							return 0;
+						}
+					}
+				}
+			}
+			websWrite(wp,"{\"result\":%d}\n",id);
+		}
+	}
+	return 0;
+}
+static void
+do_dbapi_cgi(char *url, FILE *stream)
+{
+	dbapi_cgi(stream, NULL, NULL, 0, url, NULL, NULL);
+}
+
+static void
+do_dbtemp_cgi(char *url, FILE *stream)
+{
+	char dbname[100];
+	char logpath[128];
+	sscanf(url, "_temp/%s", dbname);
+	memset(logpath,'\0',sizeof(logpath));
+	sprintf(logpath, "/tmp/upload/%s", dbname);
+	if(check_if_file_exist(logpath))
+		do_file(logpath, stream);
+}
+
+static void
+do_dbroot_cgi(char *url, FILE *stream)
+{
+	char dbname[100];
+	char logpath[128];
+	sscanf(url, "_root/%s", dbname);
+	memset(logpath,'\0',sizeof(logpath));
+	sprintf(logpath, "/jffs/softcenter/webs/%s", dbname);
+	if(check_if_file_exist(logpath))
+		do_file(logpath, stream);
+}
+
+static int
+dbresp_cgi(webs_t wp, char_t *urlPrefix, char_t *webDir, int arg,
+		char_t *url, char_t *path, char_t *query)
+{
+	int i;
+	sscanf(url, "_resp/%d", &i);
+	if(msglist.id==0){
+		msglist.id=i;
+		snprintf(msglist.buf, sizeof(msglist.buf), "%s", post_json_buf);
+	} else if(msglist.id>0 && msglist2.id==0){
+		msglist2.id=i;
+		snprintf(msglist2.buf, sizeof(msglist2.buf), "%s", post_json_buf);
+		msglist3.id=0;
+		msglist4.id=0;
+		memset(msglist3.buf,'\0',sizeof(msglist3.buf));
+		memset(msglist4.buf,'\0',sizeof(msglist4.buf));
+	} else if(msglist.id>0 && msglist2.id>0 && msglist3.id==0){
+		msglist3.id=i;
+		snprintf(msglist3.buf, sizeof(msglist3.buf), "%s", post_json_buf);
+	} else {
+		msglist.id=0;
+		msglist2.id=0;
+		memset(msglist.buf,'\0',sizeof(msglist.buf));
+		memset(msglist2.buf,'\0',sizeof(msglist2.buf));
+		msglist4.id=i;
+		snprintf(msglist4.buf, sizeof(msglist4.buf), "%s", post_json_buf);
+	}
+	return 0;
+}
+
+static void
+do_dbresp_cgi(char *url, FILE *stream)
+{
+	dbresp_cgi(stream, NULL, NULL, 0, url, NULL, NULL);
+}
+
+static void
+do_result_cgi(char *url, FILE *stream)
+{
+	int resultid;
+	char path[50],buf[2048];
+	FILE *fp;
+	sscanf(url, "_result/%d", &resultid);
+	snprintf(path, sizeof(path), "/tmp/upload/%d",resultid);
+	if(check_if_file_exist(path)){
+		if((fp = fopen(path, "r"))!= NULL){
+			while(fgets(buf, sizeof(buf),fp) != NULL){
+				buf[strlen(buf)-1]=0;
+				websWrite(stream,"{\"result\":\"%s\"}\n",buf);
+				unlink(path);
+				return ;
+			}
+		}
+	}
+	websWrite(stream,"{\"result\":%d}\n",resultid);
+	//if(resultid==msglist.id)
+	//	websWrite(stream,"%s\n",msglist.buf);
+	//else if(resultid==msglist2.id)
+	//	websWrite(stream,"%s\n",msglist2.buf);
+	//else if(resultid==msglist3.id)
+	//	websWrite(stream,"%s\n",msglist3.buf);
+	//else if(resultid==msglist4.id)
+	//	websWrite(stream,"%s\n",msglist4.buf);
+}
+#endif
+
 static void
 do_appGet_image_path_cgi(char *url, FILE *stream)
 {
@@ -17613,6 +18494,21 @@ struct mime_handler mime_handlers[] = {
 #endif
 	{ "wlc_status.json", "application/json", no_cache_IE7, do_html_post_and_get, do_ej, do_auth },
 	{ "get_webdavInfo.asp", "text/html", no_cache_IE7, do_html_post_and_get, do_ej, NULL },
+#ifdef RTCONFIG_SOFTCENTER
+//1.1
+	{ "dbconf", "text/javascript", no_cache_IE7 , do_html_post_and_get, do_dbconf, NULL },
+	{ "ss_status", "text/javascript", no_cache_IE7 , do_html_post_and_get , do_ss_status, NULL },
+	{ "applydb.cgi*", "text/html", no_cache_IE7, do_html_post_and_get, do_applydb_cgi, do_auth },
+	{ "logreaddb.cgi*", "text/html", no_cache_IE7, do_html_post_and_get, do_logread_cgi, do_auth },
+	{ "ssupload.cgi*", "text/html", no_cache_IE7, do_ssupload_post, do_ssupload_cgi, do_auth },
+//v1.5
+	{ "_temp/*", "text/html", no_cache_IE7, do_html_post_and_get, do_dbtemp_cgi, do_auth },
+	{ "_root/**", "text/html", no_cache_IE7, do_html_post_and_get, do_dbroot_cgi, do_auth },
+	{ "_upload/*", "text/html", no_cache_IE7, do_dbupload_post, do_dbupload_cgi, do_auth },
+	{ "_resp/*", "text/html", no_cache_IE7, do_html_post_and_get, do_dbresp_cgi, do_auth },
+	{ "_result/*", "text/html", no_cache_IE7, do_html_post_and_get, do_result_cgi, do_auth },
+	{ "_api**", "text/html", no_cache_IE7, do_html_post_and_get, do_dbapi_cgi, do_auth },
+#endif
 	{ "appGet_image_path.cgi", "text/html", no_cache_IE7, do_html_post_and_get, do_appGet_image_path_cgi, NULL },
 	{ "login.cgi", "text/html", no_cache_IE7, do_html_post_and_get, do_login_cgi, NULL },
 	{ "update_clients.asp", "text/html", no_cache_IE7, do_html_post_and_get, do_ej, do_auth },
@@ -17685,6 +18581,7 @@ struct mime_handler mime_handlers[] = {
 	{ "**.json", "application/json", no_cache_IE7, do_html_post_and_get, do_ej, do_auth },
 	{ "**.cab", "text/txt", NULL, NULL, do_file, do_auth },
 	{ "**.CFG", "application/force-download", NULL, do_html_post_and_get, do_prf_file, do_auth },
+	{ "**.crt", "application/force-download", NULL, NULL, do_file, do_auth },
 	{ "uploadIconFile.tar", "application/force-download", NULL, NULL, do_uploadIconFile_file, do_auth },
 	{ "networkmap.tar", "application/force-download", NULL, NULL, do_networkmap_file, do_auth },
 	{ "upnp.log", "application/force-download", NULL, NULL, do_upnp_file, do_auth },
@@ -17851,6 +18748,9 @@ struct except_mime_handler except_mime_handlers[] = {
 	{ "detwan.cgi", MIME_EXCEPTION_NOAUTH_FIRST},
 #endif
 	{ "athX_state.cgi", MIME_EXCEPTION_NOAUTH_FIRST},
+#endif
+#ifdef RTCONFIG_SOFTCENTER
+	{ "applydb.cgi", MIME_EXCEPTION_NOAUTH_FIRST},
 #endif
 	{ NULL, 0 }
 };
@@ -25114,7 +26014,11 @@ ej_get_wan_lan_status(int eid, webs_t wp, int argc, char **argv)
 	struct json_object *wanLanLinkSpeed = NULL;
 	struct json_object *wanLanCount = NULL;
 
+#if defined(K3) || defined(R8000P) || defined(R7900P)
+	fp = popen("rc Get_PhyStatus", "r");
+#else
 	fp = popen("ATE Get_WanLanStatus", "r");
+#endif
 	if (fp == NULL)
 		goto error;
 
@@ -25930,7 +26834,7 @@ struct ej_handler ej_handlers[] = {
 #ifdef RTCONFIG_FANCTRL
 	{ "get_fanctrl_info", get_fanctrl_info},
 #endif
-#if defined(RTCONFIG_BCMARM) || defined(RTCONFIG_FANCTRL)
+#if defined(RTCONFIG_BCMARM) || defined(RTCONFIG_LANTIQ) || defined(RTCONFIG_QCA) || defined(RTCONFIG_RALINK)
 	{ "get_cpu_temperature", get_cpu_temperature},
 #endif
 	{ "get_machine_name" , get_machine_name},
@@ -26128,7 +27032,8 @@ struct ej_handler ej_handlers[] = {
 #endif
 	{ "get_default_reboot_time", ej_get_default_reboot_time},
 	{ "radio_status", ej_radio_status},
-	{ "sysinfo", ej_sysinfo},
+	{ "asus_sysinfo", ej_sysinfo},
+	{ "sysinfo", ej_show_sysinfo},
 #ifdef RTCONFIG_OPENVPN
 	{ "vpn_server_get_parameter", ej_vpn_server_get_parameter},
 	{ "vpn_client_get_parameter", ej_vpn_client_get_parameter},
@@ -26254,6 +27159,11 @@ struct ej_handler ej_handlers[] = {
 	{ "wan_bonding_speed", ej_wan_bonding_speed },
 	{ "wan_bonding_p1_status", ej_wan_bonding_p1_status},
 	{ "wan_bonding_p2_status", ej_wan_bonding_p2_status},
+#ifdef RTCONFIG_SOFTCENTER
+	{ "dbus_get", ej_dbus_get},
+	{ "dbus_get_def", ej_dbus_get_def},
+	{ "dbus_match", ej_dbus_match},
+#endif
 	{ NULL, NULL }
 };
 
@@ -26532,3 +27442,4 @@ struct log_pass_url_list log_pass_handlers[] = {
 	{ "**.xml", NULL },
 	{ NULL, NULL }
 };
+

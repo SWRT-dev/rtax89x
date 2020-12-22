@@ -1006,7 +1006,7 @@ handle_request(void)
 						{
 							char dictname[32];
 							_dprintf("handle_request: pLang->Lang = %s\n", pLang->Lang);
-							if (!check_lang_support(pLang->Target_Lang))
+							if (!check_lang_support_merlinr(pLang->Target_Lang))
 								break;
 
 							snprintf(dictname, sizeof(dictname), "%s.dict", pLang->Target_Lang);
@@ -1128,7 +1128,11 @@ handle_request(void)
 	}
 
 //2008.08 magic{
+#ifdef RTCONFIG_SOFTCENTER
+	if (file[0] == '\0' || (index(file, '?') == NULL && file[len-1] == '/' && file[0] != '_')){//_api,_temp
+#else
 	if (file[0] == '\0' || (index(file, '?') == NULL && file[len-1] == '/')){
+#endif
 		if (is_firsttime()
 #ifdef RTCONFIG_FINDASUS
 		    && !isDeviceDiscovery
@@ -1203,6 +1207,29 @@ handle_request(void)
         }
 #endif
 	HTTPD_DBG("IP(%s), file = %s\nUser-Agent: %s\n", inet_ntoa(login_usa_tmp.sa_in.sin_addr), file, user_agent);
+#ifdef RTCONFIG_SOFTCENTER
+	char scPath[128];
+	if ((strncmp(file, "Main_S", 6)==0) || (strncmp(file, "Module_", 7)==0))//jsp
+	{
+		if(!check_if_file_exist(file)){
+			snprintf(scPath, sizeof(scPath), "/jffs/softcenter/webs/");
+			strcat(scPath, file);
+			if(check_if_file_exist(scPath)){
+				file = scPath;
+			}
+		}
+	}
+	else if (strstr(file, "res/"))//jpg,png,js,css,html
+	{
+		if(!check_if_file_exist(file)){
+			snprintf(scPath, sizeof(scPath), "/jffs/softcenter/");
+			strcat(scPath, file);
+			if(check_if_file_exist(scPath)){
+				file = scPath;
+			}
+		}
+	}
+#endif
 	mime_exception = 0;
 	do_referer = 0;
 
@@ -1220,6 +1247,9 @@ handle_request(void)
 #endif
 			}else{
 				if((strncmp(file, "Main_Login.asp", 14)==0 && login_error_status == LOGINLOCK)|| strstr(url, ".png")){
+#if defined(RTCONFIG_SOFTCENTER)
+				}else if(strstr(url, "_resp") || strstr(url, "_result")){
+#endif
 				}else{
 					send_login_page(fromapp, LOGINLOCK, url, NULL, login_dt, NOLOGINTRY);
 					return;
@@ -1239,6 +1269,9 @@ handle_request(void)
 #endif
 			}else{
 				if((strncmp(file, "Main_Login.asp", 14)==0 && login_error_status == LOGINLOCK)|| strstr(url, ".png")){
+#if defined(RTCONFIG_SOFTCENTER)
+				}else if(strstr(url, "_resp") || strstr(url, "_result")){
+#endif
 				}else{
 					send_login_page(fromapp, LOGINLOCK, url, NULL, login_dt, NOLOGINTRY);
 					return;
@@ -1281,7 +1314,11 @@ handle_request(void)
 #endif
 			nvram_set("httpd_handle_request", url);
 			nvram_set_int("httpd_handle_request_fromapp", fromapp);
+#if defined(RTCONFIG_SOFTCENTER)
+			if(login_state==3 && !fromapp && !strstr(url, "_resp") && !strstr(url, "_result")){
+#else
 			if(login_state==3 && !fromapp) { // few pages can be shown even someone else login
+#endif
 				if(!(mime_exception&MIME_EXCEPTION_MAINPAGE || (strncmp(file, "Main_Login.asp", 14)==0 && login_error_status == 9) || ((!handler->auth) && strncmp(file, "Main_Login.asp", 14) != 0))) {
 					if(strcasecmp(method, "post") == 0 && handler->input)	//response post request
 						while (cl--) (void)fgetc(conn_fp);
@@ -1310,6 +1347,10 @@ handle_request(void)
 #endif
 				else if((mime_exception&MIME_EXCEPTION_NOAUTH_ALL)) {
 				}
+#if defined(RTCONFIG_SOFTCENTER)
+				else if(strstr(url, "_resp") || strstr(url, "_result")){
+				}
+#endif
 				else {
 					if(do_referer&CHECK_REFERER){
 						referer_result = referer_check(referer, fromapp);
@@ -1348,6 +1389,9 @@ handle_request(void)
 						http_login(login_ip_tmp, url);
 					}
 				}
+#if defined(RTCONFIG_SOFTCENTER)
+			}else if(strstr(url, "_resp") || strstr(url, "_result")){
+#endif
 			}else{
 				if(do_referer&CHECK_REFERER){
 					referer_result = check_noauth_referrer(referer, fromapp);
@@ -1414,6 +1458,17 @@ handle_request(void)
 #endif
 #ifdef RTCONFIG_CAPTCHA
 					&& !strstr(file, "captcha.gif")
+#endif
+#ifdef RTCONFIG_SOFTCENTER
+					&& !strstr(file, "ss_conf")
+					&& !strstr(file, "ss_status")
+					&& !strstr(file, "dbconf")
+					&& !strstr(url, "_api")
+					&& !strstr(url, "_root")
+					&& !strstr(url, "_temp")
+					&& !strstr(url, "_upload")
+					&& !strstr(url, "_resp")
+					&& !strstr(url, "_result")
 #endif
 					){
 				send_error( 404, "Not Found", (char*) 0, "File not found." );
