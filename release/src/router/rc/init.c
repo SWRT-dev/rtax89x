@@ -79,6 +79,20 @@
 #include <sys/statfs.h>
 #endif
 
+#if defined(K3C)
+#include "k3c.h"
+#elif defined(K3)
+#include "k3.h"
+#elif defined(SBRAC1900P)
+#include "1900p.h"
+#elif defined(SBRAC3200P)
+#include "3200p.h"
+#elif defined(R7900P) || defined(R8000P)
+#include "r7900p.h"
+#else
+#include "merlinr.h"
+#endif
+
 #define SHELL "/bin/sh"
 #define LOGIN "/bin/login"
 
@@ -6156,6 +6170,7 @@ int init_nvram(void)
 #if defined(RTCONFIG_FANCTRL)
 		add_rc_support("fanctrl");
 #endif
+		merlinr_init();
 		if (get_soc_version_major() == 1)
 			add_rc_support("DL_OFDMA");		/* DL OFDMA only; UL OFDMA is not supported. */
 #if defined(RTCONFIG_QCA_LBD)
@@ -12166,6 +12181,14 @@ dbg("boot/continue fail= %d/%d\n", nvram_get_int("Ate_boot_fail"),nvram_get_int(
 #ifndef RTCONFIG_LANTIQ
 			nvram_set("success_start_service", "1");
 			force_free_caches();
+#endif
+
+#if defined(K3)
+			k3_init_done();
+#elif defined(R7900P)||defined(R8000P)
+			r8000p_init_done();
+#else
+			merlinr_init_done();
 #endif
 
 #ifdef RTCONFIG_AMAS

@@ -1665,7 +1665,7 @@ int umount_mountpoint(struct mntent *mnt, uint flags)
 {
 	int ret = 1, count;
 	char flagfn[128];
-
+	nvram_set_int("sc_unmount_sig", 1);
 	snprintf(flagfn, sizeof(flagfn), "%s/.autocreated-dir", mnt->mnt_dir);
 
 	/* Run user pre-unmount scripts if any. It might be too late if
@@ -1769,6 +1769,7 @@ _dprintf("%s: stop_cloudsync.\n", __func__);
 		stop_usb_swap(mnt->mnt_dir);
 #endif	
 
+	run_custom_script("unmount", 120, mnt->mnt_dir, NULL);
 	for (count = 0; count < 35; count++) {
 		sync();
 		ret = umount(mnt->mnt_dir);
@@ -1949,6 +1950,7 @@ int mount_partition(char *dev_name, int host_num, char *dsc_name, char *pt_name,
 	}
 	if (type == NULL)
 		type = "unknown";
+	run_custom_script("pre-mount", 120, dev_name, type);
 
 	if (f_exists("/etc/fstab")) {
 		if (strcmp(type, "swap") == 0) {
@@ -2140,6 +2142,9 @@ _dprintf("usb_path: 4. don't set %s.\n", tmp);
 
 		if (nvram_get_int("usb_automount"))
 			run_nvscript("script_usbmount", mountpoint, 3);
+
+		run_custom_script("post-mount", 120, mountpoint, NULL);
+		nvram_set_int("sc_mount_sig", 1);
 
 #if defined(RTCONFIG_APP_PREINSTALLED) && defined(RTCONFIG_CLOUDSYNC)
 		char word[PATH_MAX], *next_word;
@@ -2703,7 +2708,11 @@ void write_ftpd_conf()
 		fprintf(fp, "xferlog_file=/var/log/vsftpd.log\n");
 	}
 
+	append_custom_config("vsftpd.conf", fp);
 	fclose(fp);
+
+	use_custom_config("vsftpd.conf", "/etc/vsftpd.conf");
+	run_postconf("vsftpd", "/etc/vsftpd.conf");
 }
 
 /*
@@ -3612,6 +3621,8 @@ void start_dms(void)
 		if (nvram_get_int("dms_web"))
 			argv[index++] = "-W";
 #endif
+		use_custom_config(MEDIA_SERVER_APP".conf","/etc/"MEDIA_SERVER_APP".conf");
+		run_postconf(MEDIA_SERVER_APP, "/etc/"MEDIA_SERVER_APP".conf");
 
 		/* start media server if it's not already running */
 		if (pidof(MEDIA_SERVER_APP) <= 0) {
