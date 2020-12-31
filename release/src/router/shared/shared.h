@@ -1055,6 +1055,12 @@ enum led_id {
 	LED_ID_MAX,	/* last item */
 };
 
+// Outside of enum to avoid conflicting with Asus's code
+enum led_merlin_id {
+	LED_SWITCH = LED_ID_MAX + 1,
+	LED_5G_FORCED,
+};
+
 enum led_fan_mode_id {
 	LED_OFF = 0,
 	LED_ON,
@@ -1675,6 +1681,7 @@ extern int set_pwr_modem(int boolOn);
 #endif
 extern int button_pressed(int which);
 extern int led_control(int which, int mode);
+extern int led_control_atomic(int which, int mode);
 
 /* api-*.c */
 extern uint32_t gpio_dir(uint32_t gpio, int dir);
@@ -2024,6 +2031,8 @@ extern int discover_interface(const char *current_wan_ifname, int dhcp_det);
 extern int discover_all(int wan_unit);
 
 // strings.c
+extern int replace_char(char *str, const char from, const char to);
+extern int str_escape_quotes(const char *output, const char *input, int outsize);
 extern int char_to_ascii_safe(const char *output, const char *input, int outsize);
 extern void char_to_ascii(const char *output, const char *input);
 #if defined(RTCONFIG_UTF8_SSID)
@@ -2242,6 +2251,12 @@ extern int isValidEnableOption(const char* option, int range);
 extern int isValid_digit_string(const char *string);
 extern int is_valid_hostname(const char *name);
 extern int is_valid_domainname(const char *name);
+
+/* scripts.c */
+extern void run_custom_script(char *name, int timeout, char *arg1, char *arg2);
+extern void run_postconf(char *name, char *config);
+extern void use_custom_config(char *config, char *target);
+extern void append_custom_config(char *config, FILE *fp);
 
 /* mt7620.c */
 #if defined(RTCONFIG_RALINK_MT7620)
@@ -2993,3 +3008,4 @@ extern int wl_set_mcsindex(char *ifname, int *is_auto, int *idx, char *idx_type,
 extern int amazon_wss_ap_isolate_support(char *prefix);
 
 #endif	/* !__SHARED_H__ */
+
