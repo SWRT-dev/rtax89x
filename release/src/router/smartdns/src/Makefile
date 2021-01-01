@@ -28,6 +28,9 @@ else
 CFLAGS +=-O2 -g -Wall -Wstrict-prototypes -fno-omit-frame-pointer -Wstrict-aliasing 
 endif
 CFLAGS +=-I./include -I$(TOP)/openssl/include
+ifeq ($(RTCONFIG_QCA),y)
+LDFLAGS +=-ldl
+endif
 
 CFLAGS += -DBASE_FILE_NAME=\"$(notdir $<)\"
 LDFLAGS +=-L$(TOP)/openssl -lssl -lcrypto
