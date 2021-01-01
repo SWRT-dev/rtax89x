@@ -1,3 +1,13 @@
+git clone https://github.com/MerlinRdev/rtax89x
+cd rtax89x/tools
+tar jxvf openwrt-gcc463.arm.tar.bz2
+cd openwrt-gcc463.arm
+sudo ln -sf $(pwd)/openwrt-gcc463.arm /opt
+/*sudo chmod +x openwrt-gcc463.arm/bin/* */
+cd ../../release/src-qca-ipq806x
+make rt-ax89u
+
+
 The GPL source is created for ASUS wireless router related products. Please visit the ASUS support site (http://support.asus.com) to get the latest GPL tarball.It has a lot in common with many wireless router open source projects, including Oleg/Tomato/DD-WRT/OpenWRT. Thanks the developers of those projects for making the source code available.
 
 Set Up Environment(Tested in Fedora 8/9 and Ubuntu)

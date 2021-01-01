@@ -3939,3 +3939,5 @@ elink_mode=E-link Mode
 elink_change_elink_hint=Using China Telecom E-link Mode, "e surfing gateway" needs to support E-link. Please set "Synchronize wireless configuration with smart gateway" in "Administration - System" properly, in order to control whether "e surfing gateway” delivers the configuration to router or not.
 elink_change_aimesh_hint=Please turn off the "One Button Configuration" and "One Button Switch" functions in "e surfing gateway" first. Then the router will reset automatically. Please follow the on-screen instructions to complete the QIS related settings.
 Elink_Gateway_Sync=Synchronize wireless configuration with smart gateway
+Softcenter=Softcenter
+Softcenter_tool=Tools

@@ -397,9 +397,15 @@ var wl_info = {
 			})()
 };
 //wireless end
-
+var rc_support = '<% nvram_get("rc_support"); %>';
 function isSupport(_ptn){
 	var ui_support = [<% get_ui_support(); %>][0];
+	if(_ptn == "uu_accel"){
+		if(rc_support.search("uu_accel") != -1)
+			return true;
+		else if ('<% nvram_get("uu_enable"); %>' == 0)
+			return false;
+	}
 	return (ui_support[_ptn]) ? ui_support[_ptn] : 0;
 }
 
@@ -1223,7 +1229,8 @@ function submitenter(myfield,e)
 	else
 		return true;
 }
-
+var tabtitle = [""];
+var tablink = [""];
 function show_menu(){
 	var wan_pppoe_username = decodeURIComponent('<% nvram_char_to_ascii("", "wan0_pppoe_username"); %>');
 	var cht_pppoe = wan_pppoe_username.split("@");
@@ -1251,7 +1258,26 @@ function show_menu(){
 			menus: menuTree.exclude.menus(),
 			tabs: menuTree.exclude.tabs()
 		};
-
+		if (typeof menu_hook != "undefined") {
+			menu_hook();
+			for (var i = 0; i < tablink[0].length - 1; i++) {
+				menuList[menuList.length - 1].tab[i] = {
+					url: tablink[0][i + 1],
+					tabName: tabtitle[0][i + 1]
+				}
+			}
+			menuList[menuList.length - 1].tab[tablink[0].length - 1] = {
+				url: "NULL",
+				tabName: "__INHERIT__"
+			}
+		}else{
+			if(window.location.pathname.indexOf("Module_") != -1){
+				menuList[menuList.length - 1].tab[0] = {
+					url: window.location.pathname.split("/")[1],
+					tabName: window.location.pathname.split(".asp")[0].split("/Module_")[1]
+				}
+			}
+		}
 		Session.set("menuList", menuList);
 		Session.set("menuExclude", menuExclude);
 		showMenuTree(menuList, menuExclude);
@@ -3895,3 +3921,4 @@ function setRadioValue(obj,val) {
 			obj[i].checked = true;
 	}
 }
+

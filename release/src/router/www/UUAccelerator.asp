@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml">
 <html xmlns:v>
 <head>
@@ -17,14 +17,21 @@
 <script type="text/javascript" src="/help.js"></script>
 <script type="text/javascript" src="/js/jquery.js"></script>
 <script>
-	var label_mac = <% get_label_mac(); %>;
+var label_mac = <% get_label_mac(); %>;
+var modelname = "<% nvram_get("modelname"); %>";
 function initial(){
 	show_menu();
 
 }
 function uuRegister(mac){
 	var _mac = mac.toLowerCase();
-	window.open('https://router.uu.163.com/asus/pc.html#/acce?gwSn=' + _mac + '&type=asuswrt', '_blank');
+	if(modelname.indexOf("RTAC") != -1 || modelname.indexOf("RTAX") != -1 || modelname.indexOf("GTAC") != -1 || modelname.indexOf("GTAX") != -1 || modelname.indexOf("BLUE") != -1 || modelname.indexOf("ZEN") != -1 || modelname.indexOf("XT") != -1 || modelname.indexOf("TUF") != -1)
+		window.open('https://router.uu.163.com/asus/pc.html#/acce?gwSn=' + _mac + '&type=asuswrt', '_blank');
+	else
+		window.open('https://router.uu.163.com/asus/pc.html#/acce?gwSn=' + _mac + '&type=asuswrt-merlin', '_blank');
+}
+function enableuu(){
+	window.open("http://"+window.location.hostname+"/Advanced_System_Content.asp");
 }
 </script>
 </head>
@@ -88,6 +95,11 @@ function uuRegister(mac){
 						<div style="width:1px;height: 120px;background-color: #929EA1"></div>
 						<div style="margin: auto;" onclick="uuRegister(label_mac);">
 							<input type="button" class="button_gen" value="<#btn_go#>">
+						</div>
+					</div>
+					<div style="display:flex;border: 2px solid #41484a;padding: 18px 6px;align-items: center;border-radius:4px;margin: 12px 6px;">
+						<div style="margin: auto;" onclick="enableuu();">
+							<input type="button" class="button_gen" value="<#CTL_Enabled#> UU">
 						</div>
 					</div>
 				</div>

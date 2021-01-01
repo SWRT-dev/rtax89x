@@ -6274,7 +6274,7 @@ static int get_cpu_temperature(int eid, webs_t wp, int argc, char_t **argv)
 
 	return websWrite(wp, "%3.3f", (double) temperature / 1000);
 #elif defined(RTCONFIG_QCA)
-#if defined(RTAC82U)
+#if defined(RTCONFIG_SOC_IPQ40XX)
 	return websWrite(wp, "0");//ipq401x not support
 #else
 	char temperature[6] = { 0 };
@@ -27419,6 +27419,11 @@ struct AiMesh_whitelist AiMesh_whitelists[] = {
 	{"set_iperf3_cli.cgi", NULL},
 	{"get_iperf3_state.cgi", NULL},
 #endif
+	{"Tools_Sysinfo.asp", NULL},
+	{"ajax_coretmp.asp", NULL},
+	{"ajax_sysinfo.asp", NULL},
+	{"update_clients.asp", NULL},
+	{"ajax_status.xml", NULL },
 	{ NULL, NULL }
 };
 #endif

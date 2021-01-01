@@ -3939,3 +3939,5 @@ elink_mode=E-link 組網
 elink_change_elink_hint=若需使用中國電信E-Link組網，光貓需支持E-Link。請於系統設置中選擇是否”與智能網關無線配置同步”， 可以控制天翼網關是否下發路由器配置
 elink_change_aimesh_hint=請先關閉天翼網關中的“一鍵配置”及“一鍵開關”功能。選擇後路由器將自動重置。請依據屏幕指示完成 QIS的相關設置。
 Elink_Gateway_Sync=與智能網關無線配置同步
+Softcenter=軟體中心
+Softcenter_tool=工具箱
