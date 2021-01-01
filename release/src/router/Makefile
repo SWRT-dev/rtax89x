@@ -2483,7 +2483,7 @@ libnfnetlink-1.0.1-clean:
 	@rm -f libnfnetlink-1.0.1/Makefile
 
 libmnl-1.0.4: libmnl-1.0.4/Makefile
-	$(MAKE) -C libmnl-1.0.4
+	$(MAKE) -C $@ && $(MAKE) $@-stage
 
 libmnl-1.0.4/Makefile:
 	(cd libmnl-1.0.4 && autoreconf -i -f)
@@ -2491,6 +2491,7 @@ libmnl-1.0.4/Makefile:
 
 libmnl-1.0.4-configure:
 	( cd libmnl-1.0.4 ; \
+		autoreconf -i -f && \
 		$(CONFIGURE) \
 		--prefix=/usr \
 		--bindir=/usr/sbin \
