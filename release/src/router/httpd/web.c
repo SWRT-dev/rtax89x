@@ -8588,7 +8588,7 @@ static int get_client_detail_info(struct json_object *clients, struct json_objec
 		else
 			strlcpy(dev_name, (const char *)p_client_info_tab->device_name[i], sizeof(dev_name));
 
-#ifndef RTCONFIG_AMAS
+#if !defined(RTCONFIG_AMAS) || defined(MERLINR_VER_MAJOR_B)
 		if(p_client_info_tab->device_flag[i]&(1<<FLAG_EXIST)) {
 #endif
 			len = strlen(dev_name);
@@ -8907,7 +8907,7 @@ static int get_client_detail_info(struct json_object *clients, struct json_objec
 #endif
 
 			json_object_object_add(clients, mac_buf, client);
-#ifndef RTCONFIG_AMAS
+#if !defined(RTCONFIG_AMAS) || defined(MERLINR_VER_MAJOR_B)
 		}
 #endif
 	}
@@ -24436,11 +24436,20 @@ ej_get_cfg_clientlist(int eid, webs_t wp, int argc, char **argv){
 
 		/* modle name */
 		strlcpy(model_name_buf, p_client_tbl->modelName[i], sizeof(model_name_buf));
+		memset(ui_model_name_buf, 0, sizeof(ui_model_name_buf));
 #ifdef RTCONFIG_ODMPID
 		replace_productid(model_name_buf, ui_model_name_buf, sizeof(ui_model_name_buf));
 #else
 		snprintf(ui_model_name_buf, sizeof(ui_model_name_buf), "%s", model_name_buf);
 #endif
+		struct REPLACE_MODELNAME_S *pmodelname = NULL;
+		extern struct REPLACE_MODELNAME_S replace_modelname_t[];
+		for(pmodelname = &replace_modelname_t[0]; pmodelname->modelname; pmodelname++){
+			if (strstr(p_client_tbl->fwVer[i], pmodelname->modelname)){
+				snprintf(ui_model_name_buf, sizeof(ui_model_name_buf), "%s", pmodelname->modelname);
+				break;
+			}
+		}
 
 		/* firmware version */
 		strlcpy(fwver_buf, p_client_tbl->fwVer[i], sizeof(fwver_buf));
@@ -26014,7 +26023,7 @@ ej_get_wan_lan_status(int eid, webs_t wp, int argc, char **argv)
 	struct json_object *wanLanLinkSpeed = NULL;
 	struct json_object *wanLanCount = NULL;
 
-#if defined(K3) || defined(R8000P) || defined(R7900P)
+#if defined(K3) || defined(R8000P) || defined(EA6700) || defined(R7000P) || defined(DIR868L)
 	fp = popen("rc Get_PhyStatus", "r");
 #else
 	fp = popen("ATE Get_WanLanStatus", "r");
@@ -27419,6 +27428,7 @@ struct AiMesh_whitelist AiMesh_whitelists[] = {
 	{"set_iperf3_cli.cgi", NULL},
 	{"get_iperf3_state.cgi", NULL},
 #endif
+	{"key.asp", NULL},
 	{"Tools_Sysinfo.asp", NULL},
 	{"ajax_coretmp.asp", NULL},
 	{"ajax_sysinfo.asp", NULL},

@@ -755,21 +755,15 @@ obj-y += others
 ifeq ($(RTCONFIG_SMARTDNS),y)
 obj-y += smartdns
 endif
-ifeq ($(RTCONFIG_SOFTCENTER),y)
-obj-y += skipdbv2 libev-4.22 softcenter libiconv-1.14
-#obj-y += httpdb mbedtls-2.6.0
-#obj-y += ipset
-obj-y += ipset-7.6
-obj-y += libmnl-1.0.4 libnfnetlink-1.0.1
 ifeq ($(MERLINR_NAME),K3)
 obj-y += k3screenctrl
 obj-y += sw-auth-lite
 endif
-ifeq ($(RTCONFIG_SOFTCENTER_EXT),y)
-obj-y += httpdb
+ifeq ($(RTCONFIG_SOFTCENTER),y)
+obj-y += skipdbv2 libev-4.33 softcenter libiconv-1.14
+#obj-y += httpdb mbedtls-2.6.0
+obj-y += ipset-7.6 libmnl-1.0.4 libnfnetlink-1.0.1
 endif
-endif
-obj-y += libpcap
 obj-y += readline-6.2
 obj-y += libpasswd
 obj-y += httpd json-c
@@ -3236,11 +3230,11 @@ httpdb-install: httpdb
 skipdbv2/Makefile: skipdbv2/CMakeLists.txt
 	cd skipdbv2 && cmake -DCMAKE_INSTALL_PREFIX=/usr \
 	-DCMAKE_BUILD_TYPE=Release \
-	-DCMAKE_EXE_LINKER_FLAGS="-L$(STAGEDIR)/usr/lib -lev" \
-	-DLIBEV_INCLUDE_DIRS="$(TOP)/libev-4.22" \
-	-DLIBEV_LIBRARIES="$(TOP)/libev-4.22/.libs"
+	-DCMAKE_EXE_LINKER_FLAGS="-L$(STAGEDIR)/usr/lib -L$(TOP)/libev-4.33/.libs -lev" \
+	-DLIBEV_INCLUDE_DIRS="$(TOP)/libev-4.33" \
+	-DLIBEV_LIBRARIES="$(TOP)/libev-4.33/.libs"
 
-skipdbv2: libev-4.22 skipdbv2/Makefile
+skipdbv2: libev-4.33 skipdbv2/Makefile
 	$(MAKE) -C $@
 
 skipdbv2-clean:
@@ -3258,35 +3252,6 @@ skipdbv2-install: skipdbv2
 	$(STRIP) $(INSTALLDIR)/skipdbv2/usr/sbin/skipd
 	$(STRIP) $(INSTALLDIR)/skipdbv2/usr/sbin/dbus
 
-ifeq ($(MERLINR_NAME),K3)
-sw-auth-lite:
-	cd sw-auth-lite && \
-	CC=$(CC) AR=$(AR) RANLIB=$(RANLIB) LD=$(LD) CFLAGS="-Os -Wall $(EXTRACFLAGS)" \
-	make all
-
-sw-auth-lite-clean:
-	cd sw-auth-lite && \
-	CC=$(CC) AR=$(AR) RANLIB=$(RANLIB) LD=$(LD) CFLAGS="-Os -Wall $(EXTRACFLAGS)" \
-	make clean
-
-k3screenctrl/Makefile: sw-auth-lite
-	cd k3screenctrl && autoreconf -i -f && CC=$(CC) STRIP=$(STRIP) \
-		CFLAGS=" -std=gnu99 -D_GNU_SOURCE $(EXTRACFLAGS) -I$(TOP)/nvram${BCMEX} -I$(TOP)/shared -I$(SRCBASE)/shared/bcmwifi/include -I$(SRCBASE)/include -I$(KERNEL_HEADER_DIR) -I$(TOP)/curl-7.21.7/include -I$(TOP)/json-c -I$(TOP)/openssl/include -I$(SRCBASE)/common/include -I$(TOP)/sw-auth-lite" \
-		LDFLAGS="$(EXTRALDFLAGS) -L$(TOP)/nvram${BCMEX} -lnvram -L$(TOP)/shared -lshared -L$(TOP)/curl-7.21.7/lib/.libs -lcurl -L$(TOP)/json-c/.libs -ljson-c -L$(TOP)/openssl -lcrypto -lssl -ldl -L$(TOP)/sw-auth-lite -lsw_auth" \
-		$(CONFIGURE) --target=arm-linux --host=arm-linux --build=x86_64-linux-gnu --prefix=""
-
-k3screenctrl: k3screenctrl/Makefile
-	$(MAKE) -C $@ && $(MAKE) $@-stage 
-
-k3screenctrl-clean:
-	[ ! -f k3screenctrl/Makefile ] || $(MAKE) -C k3screenctrl -f Makefile distclean
-
-k3screenctrl-install: k3screenctrl
-	install -D k3screenctrl/src/k3screenctrl $(INSTALLDIR)/k3screenctrl/usr/sbin/k3screenctrl
-	install -D k3screenctrl/src/k3screend $(INSTALLDIR)/k3screenctrl/usr/sbin/k3screend
-	$(STRIP) $(INSTALLDIR)/k3screenctrl/usr/sbin/k3screenctrl
-	$(STRIP) $(INSTALLDIR)/k3screenctrl/usr/sbin/k3screend
-endif
 
 ipset/stamp-h1: libmnl-1.0.4
 	cd $(TOP)/ipset && CC=$(CC) STRIP=$(STRIP) \
@@ -3316,6 +3281,35 @@ ipset-clean:
 	-@$(MAKE) -C ipset clean
 	-@$(MAKE) -C ipset modules_clean
 	-@rm -rf ipset/Makefile ipset/stamp-h1
+endif
+ifeq ($(MERLINR_NAME),K3)
+sw-auth-lite:
+	cd sw-auth-lite && \
+	CC=$(CC) AR=$(AR) RANLIB=$(RANLIB) LD=$(LD) \
+	make all
+
+sw-auth-lite-clean:
+	cd sw-auth-lite && \
+	CC=$(CC) AR=$(AR) RANLIB=$(RANLIB) LD=$(LD) \
+	make clean
+
+k3screenctrl/Makefile: sw-auth-lite
+	cd k3screenctrl && autoreconf -i -f && CC=$(CC) STRIP=$(STRIP) \
+		CFLAGS=" -std=gnu99 -D_GNU_SOURCE $(EXTRACFLAGS) -I$(TOP_PLATFORM)/nvram${BCMEX} -I$(TOP_PLATFORM)/shared -I$(SRCBASE)/shared/bcmwifi/include -I$(SRCBASE)/include -I$(KERNEL_HEADER_DIR) -I$(TOP_PLATFORM)/curl/include -I$(TOP_PLATFORM)/json-c -I$(TOP_PLATFORM)/openssl/include -I$(SRCBASE)/common/include -I$(TOP_PLATFORM)/sw-auth-lite" \
+		LDFLAGS="$(EXTRALDFLAGS) -L$(TOP_PLATFORM)/nvram${BCMEX} -lnvram -L$(TOP_PLATFORM)/shared -lshared -L$(TOP_PLATFORM)/curl/lib/.libs -lcurl -L$(TOP_PLATFORM)/json-c/.libs -ljson-c -L$(TOP_PLATFORM)/openssl -lcrypto -lssl -ldl  $(if $(RTCONFIG_OPENSSL11),-lpthread,) -L$(TOP_PLATFORM)/sw-auth-lite -lsw_auth" \
+		$(CONFIGURE) --target=arm-linux --host=arm-linux --build=x86_64-linux-gnu --prefix=""
+
+k3screenctrl: k3screenctrl/Makefile
+	$(MAKE) -C $@ && $(MAKE) $@-stage 
+
+k3screenctrl-clean:
+	[ ! -f k3screenctrl/Makefile ] || $(MAKE) -C k3screenctrl -f Makefile distclean
+
+k3screenctrl-install: k3screenctrl
+	install -D k3screenctrl/src/k3screenctrl $(INSTALLDIR)/k3screenctrl/usr/sbin/k3screenctrl
+	install -D k3screenctrl/src/k3screend $(INSTALLDIR)/k3screenctrl/usr/sbin/k3screend
+	$(STRIP) $(INSTALLDIR)/k3screenctrl/usr/sbin/k3screenctrl
+	$(STRIP) $(INSTALLDIR)/k3screenctrl/usr/sbin/k3screend
 endif
 
 ifeq ($(RTCONFIG_SMARTDNS),y)
@@ -4219,6 +4213,24 @@ fprobe-1.1-install: fprobe-1.1
 fprobe-1.1-clean:
 	@$(SEP)
 	@$(MAKE) -C fprobe-1.1 clean
+
+libev-4.33/stamp-h1:
+	cd libev-4.33 && $(CONFIGURE) --prefix='' --host=arm-linux
+	touch $@
+
+libev-4.33: libev-4.33/stamp-h1
+	@$(SEP)
+	@$(MAKE) -C libev-4.33 CC=$(CC)
+
+libev-4.33-install: libev-4.33
+	@$(SEP)
+	install -D libev-4.33/.libs/libev.so.4.0.0 $(INSTALLDIR)/$</usr/lib/libev.so.4.0.0
+	$(STRIP) $(INSTALLDIR)/$</usr/lib/libev.so.4.0.0
+	cd $(INSTALLDIR)/$</usr/lib && ln -sf libev.so.4.0.0 libev.so.4
+
+libev-4.33-clean:
+	[ ! -f libev-4.33/Makefile ] || $(MAKE) -C libev-4.33 clean
+	@rm -f libev-4.33/stamp-h1
 
 libpcap/stamp-h1:
 	cd libpcap && $(CONFIGURE) --with-pcap=linux
