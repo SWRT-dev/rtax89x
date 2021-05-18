@@ -440,7 +440,12 @@ int ej_show_sysinfo(int eid, webs_t wp, int argc, char_t ** argv)
 			}
 			unlink("/rom/opt/lantiq/etc/wave_components.ver");
 #elif defined(RTCONFIG_QCA)
-			strcpy(result,"Unknow");
+			char *buffer = read_whole_file("/proc/athversion");
+
+			if (buffer) {
+				strlcpy(result, buffer, sizeof(result));
+				free(buffer);
+			}
 #elif defined(RTCONFIG_RALINK)
 			char buffer[16];
 			if(get_mtk_wifi_driver_version(buffer, strlen(buffer))>0){

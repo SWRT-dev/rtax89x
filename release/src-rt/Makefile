@@ -3016,6 +3016,20 @@ define RouterOptions
 		sed -i "/RTCONFIG_EAPOL\>/d" $(1); \
 		echo "# RTCONFIG_EAPOL is not set" >>$(1); \
 	fi; \
+	if [ "$(VHT160)" = "y" ]; then \
+		sed -i "/RTCONFIG_VHT160/d" $(1); \
+		echo "RTCONFIG_VHT160=y" >>$(1); \
+	else \
+		sed -i "/RTCONFIG_VHT160/d" $(1); \
+		echo "# RTCONFIG_VHT160 is not set" >>$(1); \
+	fi; \
+	if [ "$(VHT80_80)" = "y" ]; then \
+		sed -i "/RTCONFIG_VHT80_80/d" $(1); \
+		echo "RTCONFIG_VHT80_80=y" >>$(1); \
+	else \
+		sed -i "/RTCONFIG_VHT80_80/d" $(1); \
+		echo "# RTCONFIG_VHT80_80 is not set" >>$(1); \
+	fi; \
 	if [ "$(SOFTCENTER)" = "y" ]; then \
 	sed -i "/RTCONFIG_SOFTCENTER/d" $(1); \
 	echo "RTCONFIG_SOFTCENTER=y" >>$(1); \

@@ -32,6 +32,8 @@
 #include <shutils.h>
 #if defined(RTCONFIG_LANTIQ)
 #include <lantiq.h>
+#elif defined(RTCONFIG_QCA)
+#include <qca.h>
 #endif
 #include "merlinr.h"
 #include <curl/curl.h>
@@ -443,12 +445,10 @@ int merlinr_firmware_check_update_main(int argc, char *argv[])
 						nvram_set("webs_state_url", "");
 #if (defined(RTAC82U) && !defined(RTCONFIG_AMAS)) || defined(RTAC3200) || defined(RTAC85P) || defined(RMAC2100)
 						snprintf(info,sizeof(info),"3004_382_%s_%s-%s",modelname,fwver,tag);
-#elif (defined(RTAC82U) && defined(RTCONFIG_AMAS)) || defined(RTAC95U) || defined(RTAX56_XD4) || defined(RTAX95Q) || defined(RTAX89U)
-						snprintf(info,sizeof(info),"3004_386_%s_%s-%s",modelname,fwver,tag);
-#elif defined(RTAC68U) || defined(RTAC3100) || defined(RTAC88U)
-						snprintf(info,sizeof(info),"3004_385_%s_%s-%s",modelname,fwver,tag);
-#else
+#elif defined(BLUECAVE)
 						snprintf(info,sizeof(info),"3004_384_%s_%s-%s",modelname,fwver,tag);
+#else
+						snprintf(info,sizeof(info),"3004_386_%s_%s-%s",modelname,fwver,tag);
 #endif
 						FWUPDATE_DBG("---- current version : %s ----", nvram_get("extendno"));
 						FWUPDATE_DBG("---- productid : %s_%s-%s ----", modelname, fwver, tag);
@@ -500,12 +500,10 @@ int merlinr_firmware_check_update_main(int argc, char *argv[])
 GODONE:
 #if (defined(RTAC82U) && !defined(RTCONFIG_AMAS)) || defined(RTAC3200) || defined(RTAC85P) || defined(RMAC2100)
 	snprintf(info,sizeof(info),"3004_382_%s",nvram_get("extendno"));
-#elif (defined(RTAC82U) && defined(RTCONFIG_AMAS)) || defined(RTAC95U) || defined(RTAX56_XD4) || defined(RTAX95Q) || defined(RTAX89U)
-	snprintf(info,sizeof(info),"3004_386_%s",nvram_get("extendno"));
-#elif defined(RTAC68U) || defined(RTAC3100) || defined(RTAC88U)
-	snprintf(info,sizeof(info),"3004_385_%s",nvram_get("extendno"));
-#else
+#elif defined(BLUECAVE)
 	snprintf(info,sizeof(info),"3004_384_%s",nvram_get("extendno"));
+#else
+	snprintf(info,sizeof(info),"3004_386_%s",nvram_get("extendno"));
 #endif
 	nvram_set("webs_state_url", "");
 	nvram_set("webs_state_flag", "0");

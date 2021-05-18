@@ -118,10 +118,10 @@ define(function(){
 				] 
 			},
 			{
-				menuName: "#UU_Accelerator#",
+				menuName: "<#UU_Accelerator#>",
 				index: "menu_UU", 
 				tab: [
-					{url: "UUAccelerator.asp", tabName: "#UU_Accelerator#"},
+					{url: "UUAccelerator.asp", tabName: "<#UU_Accelerator#>"},
 					{url: "NULL", tabName: "__INHERIT__"}
 				] 
 			},
