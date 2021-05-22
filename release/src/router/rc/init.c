@@ -10985,6 +10985,7 @@ static void sysinit(void)
 		"/tmp/lib/firmware",
 		"/tmp/etc/wireless",
 #endif // RTCONFIG_WLMODULE_MT7663E_AP
+		"/tmp/etc/dnsmasq.user",	// ssr and adbyby
 		NULL
 	};
 	umask(0);

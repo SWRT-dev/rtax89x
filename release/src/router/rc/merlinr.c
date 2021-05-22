@@ -14,8 +14,8 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston,
  * MA 02111-1307 USA
  *
- * Copyright 2019-2020, paldier <paldier@hotmail.com>.
- * Copyright 2019-2020, lostlonger<lostlonger.g@gmail.com>.
+ * Copyright 2019-2021, paldier <paldier@hotmail.com>.
+ * Copyright 2019-2021, lostlonger<lostlonger.g@gmail.com>.
  * All Rights Reserved.
  * 
  *
