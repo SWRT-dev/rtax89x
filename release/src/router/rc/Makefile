@@ -29,8 +29,13 @@ ifeq ($(RTCONFIG_WPS),y)
 CFLAGS += -I$(SRCBASE)/wps/brcm_apps/include
 endif
 
+ifeq ($(RTCONFIG_EXT_RTL8365MB),y)
+CFLAGS += -I$(LINUXDIR)/drivers/char/rtl8365mb
+endif
+
 ifeq ($(RTCONFIG_REALTEK),y)
 CFLAGS += -Wl,--gc-sections -ldl
+CFLAGS += -I$(TOP)/shared/sysdeps/realtek
 ifneq ($(findstring CONFIG_RTL_USERSPACE_WTDOG=, $(shell cat $(LINUXDIR)/.config)),)
 export CFLAGS += -DRTL_WTDOG
 endif
@@ -239,6 +244,10 @@ ifeq ($(RTCONFIG_SW_HW_AUTH), y)
 CFLAGS += -I$(TOP)/sw-hw-auth
 endif
 
+ifneq ($(findstring CONFIG_BCM_KF_NETFILTER=, $(shell cat $(LINUXDIR)/.config)),)
+CFLAGS         += -DBCM_KF_NETFILTER
+endif
+
 OBJS := rc.o init.o interface.o lan.o wireless.o wan.o pppd.o auth.o services.o
 OBJS += firewall.o ppp.o services.o common.o
 OBJS += watchdog.o check_watchdog.o ntp.o $(if $(RTCONFIG_MULTIWAN_CFG),qos_multiwan.o,qos.o) udhcpc.o ate.o
@@ -305,7 +314,7 @@ ifeq ($(RTCONFIG_DSL),y)
 OBJS += init-ralink-dsl.o
 endif
 else ifeq ($(RTCONFIG_QCA),y)
-OBJS += init-qca.o wps-qca.o qca.o ate-qca.o ctl.obj
+OBJS += init-qca.o wps-qca.o qca.o ate-qca.o ctl.o
 ifeq ($(RTCONFIG_AMAS),y)
 OBJS += obd-qca.o
 ifeq ($(RTCONFIG_BHCOST_OPT),y)
@@ -332,16 +341,10 @@ endif
 endif
 
 OBJS += $(if $(wildcard private.c),private.o,prebuild/private.o)
-ifeq ($(K3),y)
-OBJS += $(if $(wildcard k3.c), k3.o, prebuild/k3.o)
-OBJS += $(if $(wildcard k3ex.c), k3ex.o, prebuild/k3ex.o)
-else ifeq ($(K3C),y)
-OBJS += $(if $(wildcard k3c.c), k3c.o, prebuild/k3c.o)
-else ifeq ($(R8000P),y)
-OBJS += $(if $(wildcard r7900p.c), r7900p.o, prebuild/r7900p.o)
-else
-OBJS += merlinr.o
-endif
+
+OBJS += swrt.o
+OBJS += $(if $(wildcard swrtex.c),swrtex.o,prebuild/$(SWRT_NAME)/swrtex.o)
+
 # TODO, speedtest
 ifeq ($(RTCONFIG_SPEEDTEST),y)
 OBJS += $(if $(wildcard speedtest.c),speedtest.o,prebuild/speedtest.o)
@@ -768,7 +771,8 @@ endif
 all: PB rc init.prep
 
 PB:
-	[ ! -d prebuild ] || cp prebuild/* ./
+	[ ! -d prebuild ] || cp prebuild/*.o ./
+	[ ! -d prebuild/$(SWRT_NAME) ] || cp -f prebuild/$(SWRT_NAME)/*.o ./
 
 rc: $(OBJS) $(if $(RTCONFIG_CONNDIAG),libconn_diag.so,)
 	@echo " [rc] CC $@"
@@ -1078,9 +1082,6 @@ ifeq ($(HND_ROUTER),y)
 endif
 	@cd $(INSTALLDIR)/sbin && ln -sf rc lanports_ctrl
 	@cd $(INSTALLDIR)/sbin && ln -sf rc GetExtPhyStatus
-ifeq ($(MERLINR_NAME), $(filter $(MERLINR_NAME), K3 R7900P R8000P))
-	@cd $(INSTALLDIR)/sbin && ln -sf rc Get_PhyStatus
-endif
 ifeq ($(HND_ROUTER),y)
 	@cd $(INSTALLDIR)/sbin && ln -sf rc memdw
 endif
@@ -1363,9 +1364,9 @@ ifneq ($(wildcard ./prebuild/obd-qca.o),)
 obd-qca.o:
 	@-cp -f ./prebuild/obd-qca.o .
 endif
-ifneq ($(wildcard ./prebuild/amas-ssd-qca),)
+ifneq ($(wildcard ./prebuild/amas-ssd-qca.o),)
 amas-ssd-qca:
-	@-cp -f ./prebuild/amas-ssd-qca .
+	@-cp -f ./prebuild/amas-ssd-qca.o .
 endif
 endif
 endif

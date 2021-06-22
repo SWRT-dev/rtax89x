@@ -154,14 +154,6 @@ define(function(){
 				] 
 			},
 			{
-				menuName: "Tencent Game Acceleration",
-				index: "menu_TencentAcceleration",
-				tab: [
-					{url: "GameBoost_Tencent.asp", tabName: "Tencent Game Acceleration"},
-					{url: "NULL", tabName: "__INHERIT__"}
-				]
-			},
-			{
 				menuName: "<#Menu_usb_application#>",
 				index: "menu_APP", 
 				tab: [
@@ -461,9 +453,6 @@ define(function(){
 						retArray.push("menu_Alexa_IFTTT");
 					}
 				}
-				else if (<% nvram_get("sc_installed"); %> == "0"){
-					retArray.push("menu_Softcenter");
-				}
 				else if(isSwMode("ap")){
 					retArray.push("menu_AccessControl");
 					retArray.push("menu_TrafficAnalyzer");
@@ -503,6 +492,9 @@ define(function(){
 					if(ifttt_support || alexa_support){
 						retArray.push("menu_Alexa_IFTTT");
 					}
+				}
+				else if (<% nvram_get("sc_installed"); %> == "0"){
+					retArray.push("menu_Softcenter");
 				}
 
 				return retArray;
@@ -656,9 +648,6 @@ define(function(){
 				if(!wtfast_support && !gameMode_support){
 					retArray.push("GameBoost.asp");
 				}
-
-				if(!tencent_qmacc_support)
-					retArray.push("GameBoost_Tencent.asp");
 
 				if(!alexa_support){
 					retArray.push("Advanced_Smart_Home_Alexa.asp");

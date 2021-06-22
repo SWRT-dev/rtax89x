@@ -117,10 +117,10 @@ ifneq ($(MODEL),)
 export CFLAGS += -D$(MODEL)
 export $(MODEL)=y
 endif
-export CFLAGS += -D$(MERLINR_NAME)
-export $(MERLINR_NAME)=y
-export CFLAGS += -DMERLINR_VER_MAJOR_$(MERLINR_VER_MAJOR)
-export MERLINR_VER_MAJOR_$(MERLINR_VER_MAJOR)=y
+export CFLAGS += -D$(SWRT_NAME)
+export $(SWRT_NAME)=y
+export CFLAGS += -DSWRT_VER_MAJOR_$(SWRT_VER_MAJOR)
+export SWRT_VER_MAJOR_$(SWRT_VER_MAJOR)=y
 
 export OLD_SRC=$(SRCBASE)/../src
 ifeq ($(RTCONFIG_REALTEK),y)
@@ -755,7 +755,7 @@ obj-y += others
 ifeq ($(RTCONFIG_SMARTDNS),y)
 obj-y += smartdns
 endif
-ifeq ($(MERLINR_NAME),K3)
+ifeq ($(SWRT_NAME),K3)
 obj-y += k3screenctrl
 obj-y += sw-auth-lite
 endif
@@ -2291,10 +2291,10 @@ roldconf: config/conf
 #	@$(MAKE) iptables-clean ebtables-clean pppd-clean zebra-clean openssl-clean mssl-clean pppd-clean
 	$(MAKE) dnsmasq-clean iproute2-clean networkmap-clean
 ifeq ($(RTCONFIG_SOFTCENTER),y)
-	$(MAKE) skipdbv2-clean libev-4.22-clean
-ifeq ($(MERLINR_NAME),K3)
-	$(MAKE) k3screenctrl-clean
+	$(MAKE) skipdbv2-clean
 endif
+ifeq ($(SWRT_NAME),K3)
+	$(MAKE) k3screenctrl-clean
 endif
 ifeq ($(RTCONFIG_BCMARM),y)
 	$(MAKE) compressed-clean
@@ -3282,7 +3282,7 @@ ipset-clean:
 	-@$(MAKE) -C ipset modules_clean
 	-@rm -rf ipset/Makefile ipset/stamp-h1
 endif
-ifeq ($(MERLINR_NAME),K3)
+ifeq ($(SWRT_NAME),K3)
 sw-auth-lite:
 	cd sw-auth-lite && \
 	CC=$(CC) AR=$(AR) RANLIB=$(RANLIB) LD=$(LD) \

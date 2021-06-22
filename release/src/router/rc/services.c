@@ -1246,11 +1246,6 @@ void start_dnsmasq(void)
 			}
 		}
 #endif
-#if defined(RTCONFIG_SOFTCENTER)
-//anti dns hijacking
-		fprintf(fp, "121.40.153.145 wufan.softcenter.site\n");
-		fprintf(fp, "123.56.45.194 sc.softcenter.site\n");
-#endif
 		fclose(fp);
 	} else
 		perror("/etc/hosts");
@@ -1717,14 +1712,12 @@ void start_dnsmasq(void)
 		write_static_leases(fp);
 	}
 
-#if (defined(RTCONFIG_TR069) && !defined(RTCONFIG_TR181)) || \
-    (defined(RTCONFIG_AMAS))
 	/* dhcp-script */
 	fprintf(fp, "dhcp-script=/sbin/dhcpc_lease\n");
 #if defined(RTCONFIG_AMAS)
 	fprintf(fp, "script-arp\n");
 #endif
-#endif
+
 	append_custom_config("dnsmasq.conf", fp);
 	/* close fp move to the last */
 	fclose(fp);
@@ -1772,7 +1765,6 @@ void reload_dnsmasq(void)
 	kill_pidfile_s("/var/run/dnsmasq.pid", SIGHUP);
 }
 
-#if defined(RTCONFIG_TR069) ||  defined(RTCONFIG_AMAS)
 int dnsmasq_script_main(int argc, char **argv)
 {
 	// TODO : call function directly
@@ -1789,7 +1781,6 @@ int dnsmasq_script_main(int argc, char **argv)
 #endif
 	return 0;
 }
-#endif
 
 #ifdef RTCONFIG_DNSPRIVACY
 void start_stubby(void)
@@ -4866,11 +4857,11 @@ start_smartdns(void)
 		logmessage(LOGNAME, "start smartdns failed\n");
 		return;
 	}
-	fprintf(fp, "server-name MerlinR-smartdns\n");
+	fprintf(fp, "server-name SWRT-smartdns\n");
 	fprintf(fp, "conf-file /etc/blacklist-ip.conf\n");
 	fprintf(fp, "conf-file /etc/whitelist-ip.conf\n");
 	//fprintf(fp, "conf-file /etc/seconddns.conf\n");
-	fprintf(fp, "bind [::]:9053\n");
+	fprintf(fp, "bind [::]:9053 -group master\n");
 	//fprintf(fp, "bind-tcp [::]:5353\n");
 	fprintf(fp, "cache-size 9999\n");
 	//fprintf(fp, "prefetch-domain yes\n");
@@ -4887,17 +4878,17 @@ start_smartdns(void)
 	//fprintf(fp, "log-file /var/log/smartdns.log\n");
 	//fprintf(fp, "log-size 128k\n");
 	//fprintf(fp, "log-num 2\n");
-#if !defined(K3) && !defined(SBRAC1900P) && !defined(SBRAC3200P) && !defined(R8000P) && !defined(R7000P) && !defined(XWR3100)
-	if(!strncmp(nvram_get("territory_code"), "CN",2)){
+#if !defined(K3) && !defined(R8000P) && !defined(R7000P) && !defined(XWR3100)
+	if(!strncmp(nvram_safe_get("territory_code"), "CN",2)){//Only the modified CFE of ac68u does not have this information(to unlock channels) 
 #endif
-		fprintf(fp, "server 114.114.114.114\n");
-		fprintf(fp, "server 119.29.29.29\n");
-		fprintf(fp, "server 223.5.5.5\n");
-#if !defined(K3) && !defined(SBRAC1900P) && !defined(SBRAC3200P) && !defined(R8000P) && !defined(R7000P) && !defined(XWR3100)
+		fprintf(fp, "server 114.114.114.114 -group master\n");
+		fprintf(fp, "server 119.29.29.29 -group master\n");
+		fprintf(fp, "server 223.5.5.5 -group master\n");
+#if !defined(K3) && !defined(R8000P) && !defined(R7000P) && !defined(XWR3100)
 	} else {
-		fprintf(fp, "server 8.8.8.8\n");
-		fprintf(fp, "server 208.67.222.222\n");
-		fprintf(fp, "server 1.1.1.1\n");
+		fprintf(fp, "server 8.8.8.8 -group master\n");
+		fprintf(fp, "server 208.67.222.222 -group master\n");
+		fprintf(fp, "server 1.1.1.1 -group master\n");
 	}
 #endif
 	for (unit = WAN_UNIT_FIRST; unit < WAN_UNIT_MAX; unit++) {
@@ -16216,7 +16207,13 @@ void setup_leds()
 	} else {
 /*** Enable ***/
 		nvram_set("AllLED", "1");
-
+#if defined(RTCONFIG_SWRT_LED)
+#if defined(XWR3100)
+		LanWanLedCtrl();
+#endif
+		swrt_ledon();
+		return;
+#endif
 		led_control(LED_POWER, LED_ON);
 
 #ifdef RTCONFIG_USB
@@ -16225,119 +16222,108 @@ void setup_leds()
 #ifdef RTCONFIG_LED_ALL
 		led_control(LED_ALL, LED_ON);
 #endif
-#if defined(RTCONFIG_RGBLED)
-		start_aurargb();
-#endif
+
 
 /* WAN/LAN */
 #if defined(RTAC3200) || defined(RTCONFIG_BCM_7114)
 		eval("et", "-i", "eth0", "robowr", "0", "0x18", "0x01ff");
 		eval("et", "-i", "eth0", "robowr", "0", "0x1a", "0x01ff");
 #elif defined(HND_ROUTER)
+#ifndef GTAC2900
 		led_control(LED_WAN_NORMAL, LED_ON);
+#endif
 		setLANLedOn();
 #else
 		eval("et", "robowr", "0", "0x18", "0x01ff");
 		eval("et", "robowr", "0", "0x1a", "0x01ff");
 #endif
 
+#if defined(GTAX11000) || defined(GTAXE11000)
+#ifdef RTCONFIG_EXTPHY_BCM84880
+		eval("ethctl", "phy", "ext", EXTPHY_ADDR_STR, "0x7fff0", "0x1");
+		eval("ethctl", "phy", "ext", EXTPHY_ADDR_STR, "0x1a832", "0x6");
+#endif
+#endif
+
 #ifdef RTCONFIG_LAN4WAN_LED
 		LanWanLedCtrl();
+#endif
+#ifdef RTAC87U
+		qcsapi_wifi_run_script("router_command.sh", "lan4_led_ctrl on");
 #endif
 		kill_pidfile_s("/var/run/wanduck.pid", SIGUSR2);
 
 
 /* Wifi */
 		if (nvram_match("wl0_radio", "1")) {
-#if defined(RTAC86U)
+#ifdef RTAC68U
+			eval("wl", "ledbh", "10", "7");
+#elif defined(RTAC3200)
+			eval("wl", "-i", "eth2", "ledbh", "10", "7");
+#elif defined(RTCONFIG_BCM_7114) || defined(RTAC86U)
 			eval("wl", "ledbh", "9", "7");
-#elif defined(GTAC2900)
-			eval("wl", "ledbh", "9", "1");
-#elif defined(R8000P)
-			eval("wl", "-i", "eth5", "ledbh", "9", "7");
-#elif defined(GTAC5300)
-			eval("wl", "-i", "eth6", "ledbh", "9", "7");
 #elif defined(RTAX88U) || defined(GTAX11000)
 			eval("wl", "-i", "eth6", "ledbh", "15", "7");
-#elif defined(RTAX92U)
-			eval("wl", "-i", "eth5", "ledbh", "10", "7");
-#elif defined(RTAX95Q)
-			eval("wl", "-i", "eth4", "ledbh", "10", "7");
-#elif defined(RTAX56_XD4)
-			eval("wl", "-i", "wl0", "ledbh", "10", "7");
-#elif defined(RTAX55)
-			eval("wl", "-i", "eth2", "ledbh", "0", "25");
-#elif defined(RTAX58U) || defined(TUFAX3000) || defined(RTAX82U)
+#elif defined(RTAX58U) || defined(RTAX56U)
 			eval("wl", "-i", "eth5", "ledbh", "0", "25");
-#elif defined(RTAX86U) || defined(RTAX5700)
+#elif defined(RTAX86U)
 			eval("wl", "-i", "eth6", "ledbh", "7", "7");
-#elif defined(RTAX68U)
-			eval("wl", "-i", "eth5", "ledbh", "7", "7");
-#elif defined(RTAX56U)
-			eval("wl", "-i", "eth5", "ledbh", "0", "25");
+#elif defined(GTAC2900)
+			eval("wl", "ledbh", "9", "1");
+#elif defined(GTAC5300) && !defined(R8000P)
+			eval("wl", "-i", "eth6", "ledbh", "9", "7");
 #endif
 		}
 
 		if (nvram_match("wl1_radio", "1")) {
-#if defined(RTAC86U)
+#ifdef RTAC68U
+			eval("wl", "-i", "eth2", "ledbh", "10", "7");
+#elif defined(RTAC3200)
+			eval("wl", "ledbh", "10", "7");
+#elif defined(RTAC86U)
 			eval("wl", "-i", "eth6", "ledbh", "9", "7");
 #elif defined(GTAC2900)
 			eval("wl", "-i", "eth6", "ledbh", "9", "1");
-#elif defined(R8000P)
-			//eval("wl", "-i", "eth6", "ledbh", "9", "7");
-#elif defined(GTAC5300)
+#elif defined(GTAC5300) && !defined(R8000P)
 			eval("wl", "-i", "eth7", "ledbh", "9", "7");
-#elif defined(RTAX88U) || defined(GTAX11000)
+#elif defined(RTCONFIG_BCM_7114)
+			eval("wl", "-i", "eth2", "ledbh", "9", "7");
+#elif defined(RTAC87U)
+			qcsapi_wifi_run_script("router_command.sh", "wifi_led_on");
+			qcsapi_led_set(1, 1);
+#elif defined(RTAX88U) || defined(RTAX86U) || defined(GTAX11000)
 			eval("wl", "-i", "eth7", "ledbh", "15", "7");
-#elif defined(RTAX92U)
-			eval("wl", "-i", "eth6", "ledbh", "10", "7");
-#elif defined(RTAX95Q)
-			eval("wl", "-i", "eth5", "ledbh", "10", "7");
-#elif defined(RTAX56_XD4)
-			eval("wl", "-i", "wl1", "ledbh", "10", "7");
-#elif defined(RTAX55)
-			eval("wl", "-i", "eth3", "ledbh", "0", "25");
-#elif defined(RTAX58U) || defined(TUFAX3000) || defined(RTAX82U)
+#elif defined(RTAX58U)
 			eval("wl", "-i", "eth6", "ledbh", "15", "7");
 #elif defined(RTAX56U)
 			eval("wl", "-i", "eth6", "ledbh", "0", "25");
-#elif defined(RTAX86U) || defined(RTAX5700)
-			eval("wl", "-i", "eth7", "ledbh", "15", "7");
-#elif defined(RTAX68U)
-			eval("wl", "-i", "eth6", "ledbh", "7", "7");
 #endif
 		}
-#if defined(RTAC3200) || defined(RTAC5300) || defined(GTAC5300) || defined(GTAX11000) || defined(RTAX92U) || defined(RTAX95Q)
+
+#if defined(RTAC3200) || defined(RTAC5300) || defined(GTAX11000) || defined(GTAC5300)
 		if (nvram_match("wl2_radio", "1")) {
 #if defined(RTAC3200)
 			eval("wl", "-i", "eth3", "ledbh", "10", "7");
-#elif defined(GTAC5300)
-			eval("wl", "-i", "eth8", "ledbh", "9", "7");
-#elif defined(GTAX11000)
-			eval("wl", "-i", "eth8", "ledbh", "15", "7");
-#elif defined(RTAX92U)
-			eval("wl", "-i", "eth7", "ledbh", "15", "7");
-#elif defined(RTAX95Q)
-			eval("wl", "-i", "eth6", "ledbh", "15", "7");
 #elif defined(RTAC5300)
 			eval("wl", "-i", "eth3", "ledbh", "9", "7");
+#elif defined(GTAX11000)
+			eval("wl", "-i", "eth8", "ledbh", "15", "7");
+#elif defined(GTAC5300) && !defined(R8000P)
+			eval("wl", "-i", "eth8", "ledbh", "9", "7");
 #endif
 		}
 #endif
-#ifdef RTCONFIG_EXTPHY_BCM84880
-#if defined(RTAX86U) || defined(RTAX5700)
-		if(nvram_get_int("ext_phy_model") == 0){
-			if(nvram_get_int("wans_extwan")){
-				led_control(LED_LAN, LED_ON);
-			}
 
-			eval("ethctl", "phy", "ext", EXTPHY_ADDR_STR, "0x1a832", "0x6");	// default. CTL LED3 MASK LOW
-			eval("ethctl", "phy", "ext", EXTPHY_ADDR_STR, "0x1a835", "0x40");	// default. CTL LED4 MASK LOW
-		}
-#endif
+#ifdef RTCONFIG_LOGO_LED
+		led_control(LED_LOGO, LED_ON);
 #endif
 	}
+
+#if defined(RTCONFIG_RGBLED)
+	start_aurargb();
+#endif
 }
+
 
 // Takes one argument:  0 = update failure
 //                      1 (or missing argument) = update success
@@ -17757,15 +17743,14 @@ overwrite_fbwifi_ssid(void) {
 #ifdef RTCONFIG_CFGSYNC
 int start_cfgsync(void)
 {
-#if defined(MERLINR_VER_MAJOR_B)
-	return 0;
-#endif
 
 	char *cfg_server_argv[] = {"cfg_server", NULL};
 	char *cfg_client_argv[] = {"cfg_client", NULL};
 	pid_t pid;
 	int ret = 0;
-
+#if defined(SWRT_VER_MAJOR_B)
+	return 0;
+#endif
 #ifdef RTCONFIG_MASTER_DET
 	if (nvram_match("cfg_master", "1") && (is_router_mode() || access_point_mode()))
 #else

@@ -68,14 +68,10 @@ export SRCBASEDIR := $(shell pwd | sed 's/.*release\///g')
 RELEASEDIR := $(shell (cd $(SRC_ROOT)/.. && pwd -P))
 export PATH := $(RELEASEDIR)/tools:$(SRCBASE)/ctools:$(PATH)
 
-#K3C/K3/SBRAC1900P/SBRAC3200P/R7000/R8000/R7900P/R8000P
-export MERLINR_NAME := AX89X
-export MERLINR_VER_MAJOR :=R
-export MERLINR_VER_MINOR :=5.1.4b2
-export MERLINR_VER := $(MERLINR_VER_MAJOR)$(MERLINR_VER_MINOR)
-export MERLINRVER := $(MERLINR_NAME)_$(MERLINR_VER)
-ifeq ($(MERLINR_NAME),RTACRH17)
-export PATH := $(SRCBASE)/../../tools/openwrt-gcc463.arm/openwrt-gcc463.arm/bin:$(PATH)
+export SWRT_VER := $(SWRT_VER_MAJOR)$(SWRT_VER_MINOR)
+export SWRTVER := $(SWRT_NAME)_$(SWRT_VER)
+ifeq ($(QCA),y)
+export PATH := /opt/openwrt-gcc463.arm/bin:$(PATH)
 endif
 
 # tmp depend on busybox
@@ -106,8 +102,8 @@ else
 RCSTRING:=
 RC_EXT_NO=0
 endif
-#EXTENDNO1=$(shell git log --pretty=oneline asuswrt_$(KERNEL_VER).$(FS_VER).$(SERIALNO)..HEAD | wc -l)
-EXTENDNO1=0
+EXTENDNO1=$(shell git log --pretty=oneline asuswrt_$(KERNEL_VER).$(FS_VER).$(SERIALNO)..HEAD | wc -l)
+
 ifeq ($(BRANCH),)
 include ./router/extendno.conf
 else
@@ -117,15 +113,15 @@ else
 EXSTRING:=
 endif
 ifneq ($(FW_JUMP),)
-export EXTENDNO := $(MERLINRVER)-g$(shell git log --pretty=format:'%h' -n 1|sed -e "s,\([0-9a-z]\{7\}\)[0-9a-z]*,\1,")$(EXSTRING)
+export EXTENDNO := $(SWRTVER)-g$(shell git log --pretty=format:'%h' -n 1|sed -e "s,\([0-9a-z]\{7\}\)[0-9a-z]*,\1,")$(EXSTRING)
 else
 #export EXTENDNO := $(shell expr $(EXTENDNO1) + $(RC_EXT_NO))-g$(shell git log --pretty=format:'%h' -n 1|sed -e "s,\([0-9a-z]\{7\}\)[0-9a-z]*,\1,")$(EXSTRING)
-export EXTENDNO := $(MERLINRVER)-g$(shell git log --pretty=format:'%h' -n 1|sed -e "s,\([0-9a-z]\{7\}\)[0-9a-z]*,\1,")$(EXSTRING)
+export EXTENDNO := $(SWRTVER)-g$(shell git log --pretty=format:'%h' -n 1|sed -e "s,\([0-9a-z]\{7\}\)[0-9a-z]*,\1,")$(EXSTRING)
 endif
 endif
 
 ifeq ($(EXTENDNO),)
-export EXTENDNO := $(MERLINRVER)-g$(shell git log --pretty=format:'%h' -n 1|sed -e "s,\([0-9a-z]\{7\}\)[0-9a-z]*,\1,")
+export EXTENDNO := $(SWRTVER)-g$(shell git log --pretty=format:'%h' -n 1|sed -e "s,\([0-9a-z]\{7\}\)[0-9a-z]*,\1,")
 endif
 
 export SWPJNAME := $(shell git branch | grep "*" | grep "swpj-" | sed 's/.*swpj-//g')
@@ -143,7 +139,7 @@ export SWPJEXTENDNO := $(shell git describe --match swpj_$(SWPJNAME)_$(SWPJVERNO
 ifneq ($(SWPJEXTENDNO),)
 export EXTENDNO := $(SWPJEXTENDNO)
 else
-export EXTENDNO := $(MERLINRVER)-g$(shell git log --pretty=format:'%h' -n 1|sed -e "s,\([0-9a-z]\{7\}\)[0-9a-z]*,\1,")
+export EXTENDNO := $(SWRTVER)-g$(shell git log --pretty=format:'%h' -n 1|sed -e "s,\([0-9a-z]\{7\}\)[0-9a-z]*,\1,")
 endif
 endif
 
@@ -199,10 +195,12 @@ ifneq ($(MODEL),)
 export MODEL
 export CFLAGS += -D$(MODEL)
 export $(MODEL):=y
-export CFLAGS += -D$(MERLINR_NAME)
-export $(MERLINR_NAME)=y
-export CFLAGS += -DMERLINR_VER_MAJOR_$(MERLINR_VER_MAJOR)
-export MERLINR_VER_MAJOR_$(MERLINR_VER_MAJOR)=y
+ifneq ($(SWRT_NAME),)
+export CFLAGS += -D$(SWRT_NAME)
+export $(SWRT_NAME):=y
+export CFLAGS += -DSWRT_VER_MAJOR_$(SWRT_VER_MAJOR)
+export SWRT_VER_MAJOR_$(SWRT_VER_MAJOR):=y
+endif
 endif
 
 EXTRA_KERNEL_YES_CONFIGS_1 := $(filter %=y %=Y,$(EXTRA_KERNEL_CONFIGS))
@@ -232,7 +230,7 @@ lowercase_B = $(shell echo $(BUILD_NAME) | tr A-Z a-z)
 BUILD_TIME := $(shell LC_ALL=C date -u)
 BUILD_USER ?= $(shell whoami)
 ifeq ($(BUILD_USER),paldier)
-BUILD_INFO := MerlinRdev
+BUILD_INFO := SWRTdev
 else
 BUILD_INFO := $(shell git log --pretty="%h" -n 1|sed -e "s,\([0-9a-z]\{7\}\)[0-9a-z]*,\1,")
 endif
@@ -437,6 +435,7 @@ endif
 endif
 	@echo '$(BUILD_NAME)_$(KERNEL_VER).$(FS_VER) $(BUILD_TIME)' > router/shared/version
 	@echo 'EXTENDNO=$(EXTENDNO)' > router/extendno.conf
+	@echo '#define RT_FWVER "$(SWRT_VER_MINOR)"' >> router/shared/version.h
 
 rt_ver_ntools:
 	-@rm -f ntools/version
@@ -711,7 +710,7 @@ endif
 		RFSOFFSET=`expr 64 + $${KSIZE} + $${PAD2}` ; \
 		asustools/mkimage -A $(ARCH) -O linux -T kernel -C lzma \
 			-a $(LOADADDR) -e $(ENTRYADDR) -r $${RFSOFFSET} \
-			-n $(BUILD_NAME) -V "$(KERNEL_VER)" "$(FS_VER)" "$(SERIALNO)" "$(EXTENDNO)" "0" "0" "0" "0" "0" "0" \
+			-n $(BUILD_NAME) -V "$(KERNEL_VER)" "$(FS_VER)" "$(SERIALNO)" "$(SWRT_CODEBASE)" "0" "0" "0" "0" "0" "0" \
 			-d $(PLATFORMDIR)/zImage.img image/$(IMGNAME).trx
 endif
 else ifeq ($(RTCONFIG_REALTEK),y)
@@ -3030,6 +3029,11 @@ define RouterOptions
 		sed -i "/RTCONFIG_VHT80_80/d" $(1); \
 		echo "# RTCONFIG_VHT80_80 is not set" >>$(1); \
 	fi; \
+	if [ "$(BW160M)" = "y" ]; then \
+		echo "RTCONFIG_BW160M=y" >>$(1); \
+	else \
+		echo "# RTCONFIG_BW160M is not set" >>$(1); \
+	fi; \
 	if [ "$(SOFTCENTER)" = "y" ]; then \
 	sed -i "/RTCONFIG_SOFTCENTER/d" $(1); \
 	echo "RTCONFIG_SOFTCENTER=y" >>$(1); \
@@ -3037,6 +3041,14 @@ define RouterOptions
 	if [ "$(SMARTDNS)" = "y" ]; then \
 	sed -i "/RTCONFIG_SMARTDNS/d" $(1); \
 	echo "RTCONFIG_SMARTDNS=y" >>$(1); \
+	fi; \
+	if [ "$(SWRT)" = "y" ]; then \
+	sed -i "/RTCONFIG_SWRT\>/d" $(1); \
+	echo "RTCONFIG_SWRT=y" >>$(1); \
+	fi; \
+	if [ "$(SWRT_LED)" = "y" ]; then \
+	sed -i "/RTCONFIG_SWRT_LED/d" $(1); \
+	echo "RTCONFIG_SWRT_LED=y" >>$(1); \
 	fi; \
 	)
 	$(call platformRouterOptions, $(1))
@@ -4565,7 +4577,7 @@ endef
 	$(call save_src_config, RT$@)
 	$(MAKE) bin
 
-brt-% BRT-% rt-% RT-% gt-% GT-% gx-% GX-% rp-% RP-% ea-% EA-% tm-% TM-% pl-% PL-% ac% map-% MAP-% vzw-% VZW-% sh-% SH-% tuf-% TUF-%:
+brt-% BRT-% rt-% RT-% gt-% GT-% gx-% GX-% rp-% RP-% ea-% EA-% tm-% TM-% pl-% PL-% ac% map-% MAP-% vzw-% VZW-% sh-% SH-% tuf-% TUF-% swrt-% SWRT-%:
 ifeq ($(REALTEK),y)
 	rm -f include
 	ln -sf include-n66u include
@@ -4774,3 +4786,4 @@ get_extendno:
 .PHONY: a b c d m Makefile allversions
 .PHONY: tags
 .PHONY: dummy
+

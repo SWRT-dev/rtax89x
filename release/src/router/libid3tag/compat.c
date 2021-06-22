@@ -1,4 +1,4 @@
-/* ANSI-C code produced by gperf version 3.1 */
+/* C code produced by gperf version 3.0.4 */
 /* Command-line: gperf -tCcTonD -K id -N id3_compat_lookup -s -3 -k '*' compat.gperf  */
 
 #if !((' ' == 32) && ('!' == 33) && ('"' == 34) && ('#' == 35) \
@@ -25,7 +25,7 @@
       && ('w' == 119) && ('x' == 120) && ('y' == 121) && ('z' == 122) \
       && ('{' == 123) && ('|' == 124) && ('}' == 125) && ('~' == 126))
 /* The character set is not based on ISO-646.  */
-#error "gperf generated tables don't work with this execution character set. Please report a bug to <bug-gperf@gnu.org>."
+error "gperf generated tables don't work with this execution character set. Please report a bug to <bug-gnu-gperf@gnu.org>."
 #endif
 
 #line 1 "compat.gperf"
@@ -92,7 +92,9 @@ inline
 #endif
 #endif
 static unsigned int
-hash (register const char *str, register size_t len)
+hash (str, len)
+     register const char *str;
+     register unsigned int len;
 {
   static const unsigned char asso_values[] =
     {
@@ -123,7 +125,7 @@ hash (register const char *str, register size_t len)
       128, 128, 128, 128, 128, 128, 128, 128, 128, 128,
       128, 128, 128, 128, 128, 128, 128
     };
-  register unsigned int hval = 0;
+  register int hval = 0;
 
   switch (len)
     {
@@ -143,8 +145,16 @@ hash (register const char *str, register size_t len)
   return hval;
 }
 
+#ifdef __GNUC__
+__inline
+#if defined __GNUC_STDC_INLINE__ || defined __GNUC_GNU_INLINE__
+__attribute__ ((__gnu_inline__))
+#endif
+#endif
 const struct id3_compat *
-id3_compat_lookup (register const char *str, register size_t len)
+id3_compat_lookup (str, len)
+     register const char *str;
+     register unsigned int len;
 {
   static const struct id3_compat wordlist[] =
     {
@@ -296,7 +306,7 @@ id3_compat_lookup (register const char *str, register size_t len)
       {"IPLS", EQ(TIPL)  /* Involved people list */}
     };
 
-  static const signed char lookup[] =
+  static const short lookup[] =
     {
       -1, -1, -1, -1, -1, -1,  0,  1,  2,  3,  4,  5,  6,  7,
        8,  9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, -1,
@@ -312,9 +322,9 @@ id3_compat_lookup (register const char *str, register size_t len)
 
   if (len <= MAX_WORD_LENGTH && len >= MIN_WORD_LENGTH)
     {
-      register unsigned int key = hash (str, len);
+      register int key = hash (str, len);
 
-      if (key <= MAX_HASH_VALUE)
+      if (key <= MAX_HASH_VALUE && key >= 0)
         {
           register int index = lookup[key];
 

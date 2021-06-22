@@ -51,7 +51,7 @@ struct REPLACE_PRODUCTID_S replace_productid_t[] =
 };
 
 struct REPLACE_MODELNAME_S replace_modelname_t[] = {
-	{ "K3C" },//Must be before k3
+	{ "K3C" },
 	{ "K3" },
 	{ "XWR3100" },
 	{ "R7000P" },
@@ -65,6 +65,7 @@ struct REPLACE_MODELNAME_S replace_modelname_t[] = {
 	{ "TY6201_BCM" },
 	{ "RAX120" },
 	{ "DIR868L" },
+	{ "R6300V2" },
 	//{ "RMAC2100" },move to model_list
 	{ NULL },
 };
@@ -296,7 +297,7 @@ do_ej(char *path, FILE *stream)
 #ifdef TRANSLATE_ON_FLY
 	// Load dictionary file
 	lang = nvram_safe_get("preferred_lang");
-	if(!check_lang_support_merlinr(lang)){
+	if(!check_lang_support_swrt(lang)){
 		lang = nvram_default_get("preferred_lang");
 		nvram_set("preferred_lang", lang);
 	}

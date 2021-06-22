@@ -334,6 +334,9 @@ void enable_wan_led()
 	led_control(LED_WAN_NORMAL, LED_ON);
 #endif
 #else
+#if defined(R8500) || defined(R7000P) || defined(XWR3100) || defined(EA6700) || defined(DIR868L)
+	led_control(LED_WAN, LED_ON);
+#endif
 	eval("et", "-i", "eth0", "robowr", "0", "0x18", "0x01ff");
 	eval("et", "-i", "eth0", "robowr", "0", "0x1a", "0x01ff");
 #endif
@@ -4765,3 +4768,4 @@ WANDUCK_SELECT:
 	_dprintf("# wanduck exit error\n");
 	exit(1);
 }
+

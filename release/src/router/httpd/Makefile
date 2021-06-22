@@ -154,7 +154,7 @@ OBJS += $(if $(wildcard pwenc.c), pwenc.o, prebuild/pwenc.o)
 endif
 
 OBJS += sysinfo.o
-OBJS += merlinr.o
+OBJS += swrt.o
 ifeq ($(RTCONFIG_SOFTCENTER),y)
 OBJS += dbapi.o
 endif

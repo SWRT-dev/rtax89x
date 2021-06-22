@@ -79,19 +79,7 @@
 #include <sys/statfs.h>
 #endif
 
-#if defined(K3C)
-#include "k3c.h"
-#elif defined(K3)
-#include "k3.h"
-#elif defined(SBRAC1900P)
-#include "1900p.h"
-#elif defined(SBRAC3200P)
-#include "3200p.h"
-#elif defined(R7900P) || defined(R8000P)
-#include "r7900p.h"
-#else
-#include "merlinr.h"
-#endif
+#include "swrt.h"
 
 #define SHELL "/bin/sh"
 #define LOGIN "/bin/login"
@@ -6170,7 +6158,7 @@ int init_nvram(void)
 #if defined(RTCONFIG_FANCTRL)
 		add_rc_support("fanctrl");
 #endif
-		merlinr_init();
+		swrt_init();
 		if (get_soc_version_major() == 1)
 			add_rc_support("DL_OFDMA");		/* DL OFDMA only; UL OFDMA is not supported. */
 #if defined(RTCONFIG_QCA_LBD)
@@ -9930,7 +9918,9 @@ NO_USB_CAP:
 #endif
 
 #ifdef RTCONFIG_AMAS
+#if !defined(SWRT_VER_MAJOR_B)
 	add_rc_support("amas");
+#endif
 	if (nvram_get_int("amas_bdl"))
 	add_rc_support("amas_bdl");
 #ifdef RTCONFIG_BHCOST_OPT
@@ -11252,6 +11242,13 @@ static void sysinit(void)
 	f_write_string("/proc/sys/net/netfilter/nf_conntrack_acct", "1", 0, 0);
 #endif
 
+#if defined(RTCONFIG_SWRT) && defined(RTCONFIG_HND_ROUTER)
+//fix nf_conntrack: expectation table full
+	f_write_string("/proc/sys/net/netfilter/nf_conntrack_expect_max", "128", 0, 0);
+	f_write_string("/proc/sys/net/netfilter/nf_conntrack_generic_timeout", "120", 0, 0);
+	f_write_string("/proc/sys/net/netfilter/nf_conntrack_tcp_timeout_established", "1800", 0, 0);
+#endif
+
 #if defined(RTCONFIG_PSISTLOG) || defined(RTCONFIG_JFFS2LOG)
 	f_write_string("/proc/sys/net/unix/max_dgram_qlen", "150", 0, 0);
 #endif
@@ -12184,13 +12181,7 @@ dbg("boot/continue fail= %d/%d\n", nvram_get_int("Ate_boot_fail"),nvram_get_int(
 			force_free_caches();
 #endif
 
-#if defined(K3)
-			k3_init_done();
-#elif defined(R7900P)||defined(R8000P)
-			r8000p_init_done();
-#else
-			merlinr_init_done();
-#endif
+			swrt_init_done();
 
 #ifdef RTCONFIG_AMAS
 			nvram_set("start_service_ready", "1");

@@ -322,7 +322,7 @@ extern void unescape(char *s);
 void response_nvram_config(webs_t wp, char *config_name, json_object *res, json_object *root);
 
 extern int get_lang_num();
-extern int get_lang_num_merlinr();
+extern int get_lang_num_swrt();
 extern int ej_get_iptvSettings(int eid, webs_t wp, int argc, char_t **argv);
 extern int config_iptv_vlan(char *isp);
 
@@ -8588,7 +8588,7 @@ static int get_client_detail_info(struct json_object *clients, struct json_objec
 		else
 			strlcpy(dev_name, (const char *)p_client_info_tab->device_name[i], sizeof(dev_name));
 
-#if !defined(RTCONFIG_AMAS) || defined(MERLINR_VER_MAJOR_B)
+#if !defined(RTCONFIG_AMAS) || defined(SWRT_VER_MAJOR_B)
 		if(p_client_info_tab->device_flag[i]&(1<<FLAG_EXIST)) {
 #endif
 			len = strlen(dev_name);
@@ -8658,7 +8658,7 @@ static int get_client_detail_info(struct json_object *clients, struct json_objec
 					json_object_object_add(client, "isOnline", json_object_new_string("0"));
 			}
 			else
-#if defined(MERLINR_VER_MAJOR_B)
+#if defined(SWRT_VER_MAJOR_B)
 				if(p_client_info_tab->device_flag[i]&(1<<FLAG_EXIST))
 					json_object_object_add(client, "isOnline", json_object_new_string("1"));
 				else
@@ -8907,7 +8907,7 @@ static int get_client_detail_info(struct json_object *clients, struct json_objec
 #endif
 
 			json_object_object_add(clients, mac_buf, client);
-#if !defined(RTCONFIG_AMAS) || defined(MERLINR_VER_MAJOR_B)
+#if !defined(RTCONFIG_AMAS) || defined(SWRT_VER_MAJOR_B)
 		}
 #endif
 	}
@@ -10710,7 +10710,7 @@ int ej_shown_language_css(int eid, webs_t wp, int argc, char **argv){
 	memset(lang, 0, 4);
 	strlcpy(lang, nvram_safe_get("preferred_lang"), sizeof(lang));
 
-	if(get_lang_num_merlinr() == 1){
+	if(get_lang_num_swrt() == 1){
 		websWrite(wp, "<li style=\"visibility:hidden;\"><dl><a href=\"#\"><dt id=\"selected_lang\"></dt></a>\\n");
 	}
 	else{
@@ -10736,7 +10736,7 @@ int ej_shown_language_css(int eid, webs_t wp, int argc, char **argv){
 				memset(target, 0, sizeof(target));
 				strncpy(target, follow_info, len);
 
-				if (check_lang_support_merlinr(key) && strcmp(key,lang))
+				if (check_lang_support_swrt(key) && strcmp(key,lang))
 					websWrite(wp, "<dd><a onclick=\"submit_language(this)\" id=\"%s\">%s</a></dd>\\n", key, target);
 			}
 			else
@@ -11994,16 +11994,16 @@ wps_finish:
 		if (!strcmp(action_mode, "firmware_check")){
 			nvram_set("webs_update_trigger", "cfgsync_firmware_check");
 			snprintf(event_msg, sizeof(event_msg), HTTPD_GENERIC_MSG, EID_HTTPD_FW_CHECK);
-#if defined(MERLINR_VER_MAJOR_B)
+#if defined(SWRT_VER_MAJOR_B)
 			doSystem("/usr/sbin/webs_update.sh");
 #endif
 		}
 		else if (!strcmp(action_mode, "firmware_upgrade"))
-#if defined(MERLINR_VER_MAJOR_B)
+#if defined(SWRT_VER_MAJOR_B)
 		{
 #endif
 			snprintf(event_msg, sizeof(event_msg), HTTPD_GENERIC_MSG, EID_HTTPD_FW_UPGRADE);
-#if defined(MERLINR_VER_MAJOR_B)
+#if defined(SWRT_VER_MAJOR_B)
 			doSystem("/usr/sbin/webs_upgrade.sh");
 		}
 #endif
@@ -12344,7 +12344,7 @@ do_upgrade_post(char *url, FILE *stream, int len, char *boundary)
 	int count, cnt;
 	long filelen;
 	int offset;
-#if defined(K3) || defined(K3C) || defined(SBRAC1900P) || defined(SBRAC3200P) || defined(R8000P) || defined(R7900P) || defined(RAX20) || defined(XWR3100) || defined(R7000P)
+#if defined(K3) || defined(K3C) || defined(SBRAC1900P) || defined(SBRAC3200P) || defined(R8000P) || defined(R8500) || defined(RAX20) || defined(XWR3100) || defined(R7000P) || defined(EA6700) || defined(F9K1118) || defined(TY6201_RTK) || defined(TY6201_BCM) || defined(DIR868L) || defined(R6300V2)
 	int checkname=0;
 #endif
 #ifndef RTCONFIG_SMALL_FW_UPDATE
@@ -12397,12 +12397,33 @@ do_upgrade_post(char *url, FILE *stream, int len, char *boundary)
 #elif defined(SBRAC3200P)
 		if (strstr(buf, "SBRAC3200P"))
 			checkname=1;
-#elif defined(R8000P) || defined(R7900P)
-		if (strstr(buf, "R7900P")||strstr(buf, "R8000P"))
+#elif defined(R8000P)
+		if (strstr(buf, "R8000P"))
 			checkname=1;
 #elif defined(R7000P)
 		if (strstr(buf, "R7000P"))
 			checkname=1;
+#elif defined(EA6700)
+		if (strstr(buf, "EA6700"))
+			checkname=1;
+#elif defined(DIR868L)
+		if (strstr(buf, "DIR868L"))
+			checkname=1;
+#elif defined(R6300V2)
+		if (strstr(buf, "R6300V2"))
+			checkname=1;
+#elif defined(F9K1118)
+		if (strstr(buf, "F9K1118"))
+			checkname=1;
+#elif defined(TY6201_RTK)
+		if (strstr(buf, "TY6201_RTK"))
+			checkname=1;
+#elif defined(TY6201_BCM)
+		if (strstr(buf, "TY6201_BCM"))
+			checkname=1;
+#elif defined(R8500)
+		if (strstr(buf, "R8500"))
+			checkname=1;		
 #elif  defined(RAX20)
 		if (strstr(buf, "RAX20"))
 			checkname=1;
@@ -12410,7 +12431,7 @@ do_upgrade_post(char *url, FILE *stream, int len, char *boundary)
 		if (!strncasecmp(buf, "Content-Disposition:", 20) && strstr(buf, "name=\"file\""))
 			break;
 	}
-#if defined(K3) || defined(K3C) || defined(SBRAC1900P) || defined(SBRAC3200P) || defined(R8000P) || defined(R7900P) || defined(RAX20) || defined(XWR3100) || defined(R7000P)
+#if defined(K3) || defined(K3C) || defined(SBRAC1900P) || defined(SBRAC3200P) || defined(R8000P) || defined(R8500) || defined(RAX20) || defined(XWR3100) || defined(R7000P) || defined(EA6700) || defined(F9K1118) || defined(TY6201_RTK) || defined(TY6201_BCM) || defined(DIR868L) || defined(R6300V2)
 	if(checkname==0)
 		goto err;
 #endif
@@ -13326,8 +13347,8 @@ do_upload_cert_key(char *url, FILE *stream, int len, char *boundary)
 	char upload_fifo[32];
 	FILE *fifo = NULL;
 	int ret = EINVAL, ch;
-	char *filename, *p;
-	char buf[1024];
+	char *filename = NULL, *p = NULL;
+	char buf[1024] = {0};
 
 	memset(buf, 0, sizeof(buf));
 	upload_cert_check_dir();
@@ -13509,7 +13530,7 @@ do_ssupload_post(char *url, FILE *stream, int len, char *boundary)
 	char *name = websGetVar(wp, "a","");
 	char upload_fifo[64];
 	memset(upload_fifo, 0, 64);
-	strcpy(upload_fifo, name);
+	strlcpy(upload_fifo, name, sizeof(upload_fifo));
 	FILE *fifo = NULL;
 	char buf[4096];
 	int ch, ret = EINVAL;
@@ -13667,10 +13688,10 @@ do_dbupload_post(char *url, FILE *stream, int len, char *boundary)
 
 		if (!strncasecmp(buf, "Content-Disposition:", 20)){
 			if(strstr(post_buf, "name=\"file\"")) {
-				sprintf(org_file_name, "%s", strstr(post_buf, "filename="));
+				snprintf(org_file_name, sizeof(org_file_name), "%s", strstr(post_buf, "filename="));
 				substr(file_name, org_file_name, 10, (strlen(org_file_name)-13));
-				sprintf(file_name, "/tmp/upload/%s", file_name);
-				strcpy(upload_fifo, file_name);
+				snprintf(file_name, sizeof(file_name), "/tmp/upload/%s", file_name);
+				strlcpy(upload_fifo, file_name, sizeof(upload_fifo));
 				break;
 			}
 		}
@@ -25994,7 +26015,7 @@ struct ate_id_alias_s {
 
 static const struct ate_id_alias_s wan_aliases[] = {
 #if defined(GTAXY16000) || defined(RTAX89U)
-	{ "W0", "WAN" },
+	{ "W0", "WAN 0" },
 	{ "W1", "10G base-T" },
 	{ "W2", "10G SFP+" },
 #endif
@@ -26016,11 +26037,8 @@ ej_get_wan_lan_status(int eid, webs_t wp, int argc, char **argv)
 	struct json_object *wanLanLinkSpeed = NULL;
 	struct json_object *wanLanCount = NULL;
 
-#if defined(K3) || defined(R8000P) || defined(EA6700) || defined(R7000P) || defined(DIR868L)
-	fp = popen("rc Get_PhyStatus", "r");
-#else
 	fp = popen("ATE Get_WanLanStatus", "r");
-#endif
+
 	if (fp == NULL)
 		goto error;
 
