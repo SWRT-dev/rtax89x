@@ -402,10 +402,13 @@ function isSupport(_ptn){
 	var ui_support = [<% get_ui_support(); %>][0];
 	if(_ptn == "uu_accel"){
 		if(rc_support.search("uu_accel") != -1)
-			return true;
+			return 1;
 		else if ('<% nvram_get("uu_enable"); %>' == 0)
-			return false;
+			return 0;
 	}
+	else if(_ptn == "swrt_fullcone")
+		if(rc_support.search("swrt_fullcone") != -1)
+			return 1;
 	return (ui_support[_ptn]) ? ui_support[_ptn] : 0;
 }
 

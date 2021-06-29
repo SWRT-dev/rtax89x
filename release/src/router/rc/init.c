@@ -9999,7 +9999,9 @@ NO_USB_CAP:
 	add_rc_support("amazon_wss"); // depends on gn_wbl
 #endif
 #endif
-
+#if defined(RTCONFIG_SWRT_FULLCONE)
+	add_rc_support("swrt_fullcone");
+#endif
 	return 0;
 }
 

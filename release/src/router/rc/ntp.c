@@ -36,6 +36,7 @@
 #include <shutils.h>
 #include <rc.h>
 #include <stdarg.h>
+#include "swrt.h"
 
 #define SECONDS_TO_WAIT 3
 #define NTP_RETRY_INTERVAL 30
@@ -79,7 +80,7 @@ static void ntp_service()
 #endif
 #ifdef RTCONFIG_UUPLUGIN
 		if(nvram_get_int("uu_enable"))
-#if defined(R8000P) || defined(K3) || defined(SBRAC3200P) || defined(RTAC3100) || defined(RTAC3200) || defined(EA6700) || defined(RAX20) || defined(SBRAC1900P) || defined(XWR3100)
+#if defined(RTCONFIG_SWRT_UU)
 		exec_uu_swrt();
 #else
 		exec_uu();

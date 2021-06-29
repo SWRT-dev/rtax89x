@@ -3050,6 +3050,14 @@ define RouterOptions
 	sed -i "/RTCONFIG_SWRT_LED/d" $(1); \
 	echo "RTCONFIG_SWRT_LED=y" >>$(1); \
 	fi; \
+	if [ "$(SWRT_UU)" = "y" ]; then \
+	sed -i "/RTCONFIG_SWRT_UU/d" $(1); \
+	echo "RTCONFIG_SWRT_UU=y" >>$(1); \
+	fi; \
+	if [ "$(SWRT_FULLCONE)" = "y" ]; then \
+	sed -i "/RTCONFIG_SWRT_FULLCONE/d" $(1); \
+	echo "RTCONFIG_SWRT_FULLCONE=y" >>$(1); \
+	fi; \
 	)
 	$(call platformRouterOptions, $(1))
 endef
