@@ -6167,8 +6167,12 @@ int init_nvram(void)
 		if (is_aqr_phy_exist()) {
 			/* GT-AXY16000/RT-AX89U */
 			wan1 = "eth5";				/* 10G RJ-45 */
+#if defined(RAX120)
+			nvram_set_int("led_r10g_gpio", 1);	/* 5G RJ-45 */
+#else
 			nvram_set_int("led_r10g_gpio", 20);	/* 10G RJ-45 */
 			config_netdev_bled("led_r10g_gpio", "eth5");
+#endif
 			add_rc_support("10G_LWAN");
 		} else {
 			/* RT-AC89U */
@@ -6327,7 +6331,9 @@ int init_nvram(void)
 		}
 #endif
 		set_basic_ifname_vars(wan_ifaces, lan_ifs, wl_ifaces, "usb", NULL, "vlan2", "vlan3", 0);
-
+#if defined(RAX120)
+		nvram_set_int("btn_wps_gpio", 57|GPIO_ACTIVE_LOW);
+#else
 		nvram_set_int("btn_wps_gpio", 34|GPIO_ACTIVE_LOW);
 #if defined(RTCONFIG_TURBO_BTN)
 		nvram_set_int("btn_turbo_gpio", 25|GPIO_ACTIVE_LOW);	/* ER2 or above */
@@ -6337,7 +6343,7 @@ int init_nvram(void)
 		nvram_set_int("btn_led_gpio", 25|GPIO_ACTIVE_LOW);	/* RT-AX89U SR1 ~ ER1 */
 #endif
 		nvram_set_int("btn_wltog_gpio", 26|GPIO_ACTIVE_LOW);
-
+#endif
 		if (!strlen(nvram_safe_get("HwId"))) {
 #if defined(GTAXY16000)
 			nvram_set("HwId", "C");
@@ -6345,7 +6351,10 @@ int init_nvram(void)
 			nvram_set("HwId", "A");
 #endif
 		}
-
+#if defined(RAX120)
+		nvram_set_int("led_wan_gpio", 7);
+		nvram_set_int("btn_rst_gpio", 54|GPIO_ACTIVE_LOW);
+#else
 		if (nvram_match("HwId", "A")) {
 			/* PR: A; ER2 or before: not defined. */
 			nvram_set_int("led_wan_gpio", 33);
@@ -6359,6 +6368,18 @@ int init_nvram(void)
 			nvram_set_int("led_wan_gpio", 47);
 			nvram_set_int("btn_rst_gpio", 61|GPIO_ACTIVE_LOW);
 		}
+#endif
+#if defined(RAX120)
+		nvram_set_int("led_2g_gpio", 6);
+		nvram_set_int("led_5g_gpio", 5);
+		nvram_set_int("led_pwr_gpio", 8);
+		nvram_set_int("led_usb_gpio", 4);
+		nvram_set_int("led_usb3_gpio", 3);
+		nvram_set_int("led_wps_gpio", 40);
+		nvram_set_int("led_lan_gpio", 41);
+		nvram_set_int("pwr_usb_gpio", 31);	/* USB port1 5V */
+		nvram_set_int("pwr_usb_gpio2", 30);	/* USB port2 5V */
+#else
 		nvram_set_int("led_wan_red_gpio", 44);
 		nvram_set_int("led_2g_gpio", 18);
 		nvram_set_int("led_5g_gpio", 19);
@@ -6375,7 +6396,7 @@ int init_nvram(void)
 		config_swports_bled_sleep("led_lan_gpio", 0);
 		config_netdev_bled("led_2g_gpio", "ath1");
 		config_netdev_bled("led_5g_gpio", "ath0");
-
+#endif
 		if (nvram_match("usb_usb3", "0")) {
 			nvram_set("ehci_ports", "3-1 1-1");
 			nvram_set("ohci_ports", "");
@@ -9999,6 +10020,12 @@ NO_USB_CAP:
 	add_rc_support("amazon_wss"); // depends on gn_wbl
 #endif
 #endif
+
+#ifdef RTCONFIG_REDIRECT_DNAME
+	if (sw_mode() == SW_MODE_REPEATER || sw_mode() == SW_MODE_AP)
+		add_rc_support("redirect_dname");
+#endif
+
 #if defined(RTCONFIG_SWRT_FULLCONE)
 	add_rc_support("swrt_fullcone");
 #endif
@@ -10159,6 +10186,11 @@ int init_nvram2(void)
 	dwb_init_settings();
 #endif
 	nvram_set("label_mac", get_label_mac());
+
+#ifdef RTCONFIG_FRS_FEEDBACK
+	/* reset the counter "fb_req_cnt" to "0" */
+	nvram_set("fb_req_cnt", "0");
+#endif /* RTCONFIG_FRS_FEEDBACK */
 
 	// upgrade/downgrade dont keep info
 	if(!nvram_match("extendno", nvram_safe_get("extendno_org"))){
@@ -10734,7 +10766,11 @@ void Ate_run_in_interrupted_led_fail_loop(void)
 
 	enum led_id left_leds_gpio[] = {
 #if defined(RTAX89U)
+#if defined(RAX120)
+		LED_R10G,
+#else
 		LED_WAN_RED, LED_LAN, LED_R10G, LED_SFPP,
+#endif
 #elif defined(GTAXY16000)
 		LED_R10G, LED_2G, LED_LAN,
 #else
@@ -10838,6 +10874,18 @@ void turn_off_160m(void)
 		nvram_set("wl1_bw_160", "0");
 	if (nvram_match("wl1_bw", "5"))	/* fixed 160MHz ==> 80MHz */
 		nvram_set("wl1_bw", "3");
+}
+
+void fix_pwrsave_mode(void)
+{
+	int buildno, extendno;
+
+	if (nvram_match("pwrsave_mode", "1") || nvram_match("pwrsave_mode", "2"))
+		return;
+	buildno = nvram_get_int("buildno");
+	extendno = nvram_get_int("extendno");
+	if ((buildno == 384 && extendno <= 82800) || (buildno == 386 && extendno <= 22790))
+		nvram_set("pwrsave_mode", "1");
 }
 #endif
 
@@ -10977,7 +11025,9 @@ static void sysinit(void)
 		"/tmp/lib/firmware",
 		"/tmp/etc/wireless",
 #endif // RTCONFIG_WLMODULE_MT7663E_AP
+#if defined(RTCONFIG_SOFTCENTER)
 		"/tmp/etc/dnsmasq.user",	// ssr and adbyby
+#endif
 		NULL
 	};
 	umask(0);
@@ -11106,6 +11156,7 @@ static void sysinit(void)
 
 #if defined(RTAX89U)
 	turn_off_160m();
+	fix_pwrsave_mode();
 #endif
 
 	init_syspara();// for system dependent part (befor first get_model())
@@ -11242,13 +11293,6 @@ static void sysinit(void)
 
 #if defined(RTCONFIG_BWDPI) && defined(RTCONFIG_QCA)
 	f_write_string("/proc/sys/net/netfilter/nf_conntrack_acct", "1", 0, 0);
-#endif
-
-#if defined(RTCONFIG_SWRT) && defined(RTCONFIG_HND_ROUTER)
-//fix nf_conntrack: expectation table full
-	f_write_string("/proc/sys/net/netfilter/nf_conntrack_expect_max", "128", 0, 0);
-	f_write_string("/proc/sys/net/netfilter/nf_conntrack_generic_timeout", "120", 0, 0);
-	f_write_string("/proc/sys/net/netfilter/nf_conntrack_tcp_timeout_established", "1800", 0, 0);
 #endif
 
 #if defined(RTCONFIG_PSISTLOG) || defined(RTCONFIG_JFFS2LOG)
@@ -11692,6 +11736,10 @@ int init_main(int argc, char *argv[])
 				stop_wan();
 
 			stop_lan();
+#if defined(RTCONFIG_SOC_QCA9557) || defined(RTCONFIG_QCA953X) || defined(RTCONFIG_QCA956X) || defined(RTCONFIG_QCN550X)
+			if ((state != SIGTERM /* REBOOT */) &&
+				(state != SIGQUIT /* HALT */))
+#endif
 			stop_vlan();
 			stop_logger();
 

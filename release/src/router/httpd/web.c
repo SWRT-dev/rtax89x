@@ -12344,7 +12344,7 @@ do_upgrade_post(char *url, FILE *stream, int len, char *boundary)
 	int count, cnt;
 	long filelen;
 	int offset;
-#if defined(K3) || defined(K3C) || defined(SBRAC1900P) || defined(SBRAC3200P) || defined(R8000P) || defined(R8500) || defined(RAX20) || defined(XWR3100) || defined(R7000P) || defined(EA6700) || defined(F9K1118) || defined(TY6201_RTK) || defined(TY6201_BCM) || defined(DIR868L) || defined(R6300V2)
+#if defined(K3) || defined(K3C) || defined(SBRAC1900P) || defined(SBRAC3200P) || defined(R8000P) || defined(R8500) || defined(RAX20) || defined(XWR3100) || defined(R7000P) || defined(EA6700) || defined(F9K1118) || defined(TY6201_RTK) || defined(TY6201_BCM) || defined(DIR868L) || defined(R6300V2) || defined(RAX120)
 	int checkname=0;
 #endif
 #ifndef RTCONFIG_SMALL_FW_UPDATE
@@ -12424,14 +12424,17 @@ do_upgrade_post(char *url, FILE *stream, int len, char *boundary)
 #elif defined(R8500)
 		if (strstr(buf, "R8500"))
 			checkname=1;		
-#elif  defined(RAX20)
+#elif defined(RAX20)
 		if (strstr(buf, "RAX20"))
+			checkname=1;
+#elif defined(RAX120)
+		if (strstr(buf, "RAX120"))
 			checkname=1;
 #endif
 		if (!strncasecmp(buf, "Content-Disposition:", 20) && strstr(buf, "name=\"file\""))
 			break;
 	}
-#if defined(K3) || defined(K3C) || defined(SBRAC1900P) || defined(SBRAC3200P) || defined(R8000P) || defined(R8500) || defined(RAX20) || defined(XWR3100) || defined(R7000P) || defined(EA6700) || defined(F9K1118) || defined(TY6201_RTK) || defined(TY6201_BCM) || defined(DIR868L) || defined(R6300V2)
+#if defined(K3) || defined(K3C) || defined(SBRAC1900P) || defined(SBRAC3200P) || defined(R8000P) || defined(R8500) || defined(RAX20) || defined(XWR3100) || defined(R7000P) || defined(EA6700) || defined(F9K1118) || defined(TY6201_RTK) || defined(TY6201_BCM) || defined(DIR868L) || defined(R6300V2) || defined(RAX120)
 	if(checkname==0)
 		goto err;
 #endif
@@ -13371,9 +13374,13 @@ do_upload_cert_key(char *url, FILE *stream, int len, char *boundary)
 
 	unlink(upload_fifo);
 	p = buf;
-	filename = strstr(p, "filename=\"") + strlen("filename=\"");
-	p = strstr(filename, "\"");
-	strcpy(p, "\0");
+
+	if(p != NULL && (filename = strstr(p, "filename=\"")) != NULL){
+		filename = filename + strlen("filename=\"");
+		p = strstr(filename, "\"");
+		strcpy(p, "\0");
+	}else
+		goto err;
 	//_dprintf("key filename = %s\n", filename);
 
 	/* Skip boundary and headers */
@@ -13433,9 +13440,12 @@ do_upload_cert_key(char *url, FILE *stream, int len, char *boundary)
 	unlink(upload_fifo);
 
 	p = buf;
-	filename = strstr(p, "filename=\"") + strlen("filename=\"");
-	p = strstr(filename, "\"");
-	strcpy(p, "\0");
+	if(p != NULL && (filename = strstr(p, "filename=\"")) != NULL){
+		filename = filename + strlen("filename=\"");
+		p = strstr(filename, "\"");
+		strcpy(p, "\0");
+	}else
+		goto err;
 	//_dprintf("cert filename = %s\n", filename);
 
 	/* Skip boundary and headers */
@@ -15294,37 +15304,50 @@ FINISH:
 static void
 do_blocking_cgi(char *url, FILE *stream)
 {
-	char nvramTmp[4096]={0};
-	struct json_object *root=NULL;
-	char *buf, *g, *p;
-	char *block_CName, *block_mac,*block_interval, *block_timestap;
-	char *block_enabled_t, *block_CName_t, *block_mac_t,*block_interval_t, *block_timestap_t;
+	char nvramTmp[4096] = {0};
+	struct json_object *root = NULL;
+	char *buf = NULL, *g = NULL, *p = NULL;
+	char block_CName[32] = {0}, block_mac[18] = {0},block_interval[10] = {0}, block_timestamp[11] = {0};
+	char *block_enabled_t = NULL, *block_CName_t = NULL, *block_mac_t = NULL,*block_interval_t = NULL, *block_timestamp_t = NULL;
 	int retStatus = 0;
 	time_t now = uptime();
 	time(&now);
 
 	do_json_decode(&root);
 
-	block_CName = get_cgi_json("CName", root);
-	block_mac = get_cgi_json("MacAddress", root);
-	block_interval = get_cgi_json("Interval", root);
-	block_timestap = get_cgi_json("TimeStamp", root);
+	strlcpy(block_CName, safe_get_cgi_json("CName", root), sizeof(block_CName));
+	strlcpy(block_mac, safe_get_cgi_json("MacAddress", root), sizeof(block_mac));
+	strlcpy(block_interval, safe_get_cgi_json("Interval", root), sizeof(block_interval));
+	strlcpy(block_timestamp, safe_get_cgi_json("TimeStamp", root), sizeof(block_timestamp));
 
-	if(strstr(nvram_safe_get("MULTIFILTER_MAC"), block_mac) == NULL || now - atol(block_timestap) > 0){
+	if(!isValidMacAddress(block_mac))
+		goto FINISH;
+
+	if(!isValidtimestamp_noletter(block_timestamp))
+		goto FINISH;
+
+	if(!isValidtimestamp_noletter(block_interval))
+		goto FINISH;
+
+
+	if(strstr(nvram_safe_get("MULTIFILTER_MAC"), block_mac) == NULL || now - atol(block_timestamp) > 0){
 		_dprintf("blocking_cgi: not valid blocking request\n");
-		if (root != NULL) 
+		if (root)
 			json_object_put(root);
 		return;
 	}
 
-	//_dprintf("%s: block_CName = %s, block_mac = %s, block_timestr = \"%ld\", block_timestap = %s\n", __func__, block_CName, block_mac, now, block_timestap);
+	//_dprintf("%s: block_CName = %s, block_mac = %s, block_timestr = \"%ld\", block_timestamp = %s\n", __func__, block_CName, block_mac, now, block_timestamp);
 	g = buf = strdup(nvram_safe_get("MULTIFILTER_TMP"));
 	while (buf) {
 		if ((p = strsep(&g, "<")) == NULL) break;
-		if((vstrsep(p, ">", &block_enabled_t, &block_CName_t, &block_mac_t, &block_interval_t, &block_timestap_t)) != 5) continue;
+		if((vstrsep(p, ">", &block_enabled_t, &block_CName_t, &block_mac_t, &block_interval_t, &block_timestamp_t)) != 5) continue;
 
-		//_dprintf("%s: block_enabled_t = %s, block_CName_t = %s, block_mac_t = %s , block_interval_t =%s, block_timestap_t = %s\n", __func__, block_enabled_t, block_CName_t, block_mac_t, block_interval_t, block_timestap_t);
-		if((now-atol(block_timestap_t)) > 0){
+		if(!isValidtimestamp_noletter(block_timestamp_t))
+			continue;
+
+		//_dprintf("%s: block_enabled_t = %s, block_CName_t = %s, block_mac_t = %s , block_interval_t =%s, block_timestamp_t = %s\n", __func__, block_enabled_t, block_CName_t, block_mac_t, block_interval_t, block_timestamp_t);
+		if((now-atol(block_timestamp_t)) > 0){
 			continue;
 		}else if(strstr(nvram_safe_get("MULTIFILTER_MAC"), block_mac_t) == NULL){
 			continue;
@@ -15332,37 +15355,40 @@ do_blocking_cgi(char *url, FILE *stream)
 			if(!strcmp(block_mac_t, block_mac))
 				retStatus = 1;
 
-			strcat(nvramTmp, "<");
-			strcat(nvramTmp, "1");
-			strcat(nvramTmp, ">");
-			strcat(nvramTmp, block_CName_t);
-			strcat(nvramTmp, ">");
-			strcat(nvramTmp, block_mac_t);
-			strcat(nvramTmp, ">");
-			strcat(nvramTmp, block_interval_t);
-			strcat(nvramTmp, ">");
-			strcat(nvramTmp, block_timestap_t);
+			strlcat(nvramTmp, "<", sizeof(nvramTmp));
+			strlcat(nvramTmp, "1", sizeof(nvramTmp));
+			strlcat(nvramTmp, ">", sizeof(nvramTmp));
+			strlcat(nvramTmp, block_CName_t, sizeof(nvramTmp));
+			strlcat(nvramTmp, ">", sizeof(nvramTmp));
+			strlcat(nvramTmp, block_mac_t, sizeof(nvramTmp));
+			strlcat(nvramTmp, ">", sizeof(nvramTmp));
+			strlcat(nvramTmp, block_interval_t, sizeof(nvramTmp));
+			strlcat(nvramTmp, ">", sizeof(nvramTmp));
+			strlcat(nvramTmp, block_timestamp_t, sizeof(nvramTmp));
 		}
 	}
-	free(buf);
-	if (root != NULL) 
-		json_object_put(root);
 
 	if(retStatus == 0){
-		strcat(nvramTmp, "<");
-		strcat(nvramTmp, "1");
-		strcat(nvramTmp, ">");
-		strcat(nvramTmp, block_CName);
-		strcat(nvramTmp, ">");
-		strcat(nvramTmp, block_mac);
-		strcat(nvramTmp, ">");
-		strcat(nvramTmp, block_interval);
-		strcat(nvramTmp, ">");
-		strcat(nvramTmp, block_timestap);
+		strlcat(nvramTmp, "<", sizeof(nvramTmp));
+		strlcat(nvramTmp, "1", sizeof(nvramTmp));
+		strlcat(nvramTmp, ">", sizeof(nvramTmp));
+		strlcat(nvramTmp, block_CName, sizeof(nvramTmp));
+		strlcat(nvramTmp, ">", sizeof(nvramTmp));
+		strlcat(nvramTmp, block_mac, sizeof(nvramTmp));
+		strlcat(nvramTmp, ">", sizeof(nvramTmp));
+		strlcat(nvramTmp, block_interval, sizeof(nvramTmp));
+		strlcat(nvramTmp, ">", sizeof(nvramTmp));
+		strlcat(nvramTmp, block_timestamp, sizeof(nvramTmp));
 	}
 	nvram_set("MULTIFILTER_TMP", nvramTmp);
 	nvram_commit();
 	notify_rc("restart_firewall");
+
+FINISH:
+	free(buf);
+
+	if(root)
+		json_object_put(root);
 }
 #else
 static void do_blocking_request_cgi(char *url, FILE *stream){}
@@ -25590,7 +25616,11 @@ ej_httpd_cert_info(int eid, webs_t wp, int argc, char **argv)
 	}
 
 	X509_NAME_oneline(X509_get_issuer_name(x509data), buf, sizeof(buf));
-	_get_common_name(buf, issuer, sizeof(issuer));
+	if (strstr(buf, "Let's Encrypt")) {
+		snprintf(issuer, sizeof(issuer), "Let's Encrypt");
+	} else {
+		_get_common_name(buf, issuer, sizeof(issuer));
+	}
 	X509_NAME_oneline(X509_get_subject_name(x509data), buf, sizeof(buf));
 	_get_common_name(buf, subject, sizeof(subject));
 	ASN1_TimeToTM(X509_getm_notBefore(x509data), &tm);
@@ -25617,7 +25647,8 @@ ej_get_realip(int eid, webs_t wp, int argc, char **argv)
         char *cmd[] = {"/usr/sbin/getrealip.sh", NULL};
         int pid;
 
-        _eval(cmd, NULL, 0, &pid);
+	if(nvram_match("link_internet", "2"))
+		_eval(cmd, NULL, 0, &pid);
 
 	return 0;
 }
@@ -26038,7 +26069,6 @@ ej_get_wan_lan_status(int eid, webs_t wp, int argc, char **argv)
 	struct json_object *wanLanCount = NULL;
 
 	fp = popen("ATE Get_WanLanStatus", "r");
-
 	if (fp == NULL)
 		goto error;
 
@@ -26087,6 +26117,13 @@ ej_get_wan_lan_status(int eid, webs_t wp, int argc, char **argv)
 		default:
 			continue;
 		}
+#if defined(MAPAC2200)
+		if(lan_count==2)
+		{
+			lan_count=1;
+			break;
+		}
+#endif		
 		json_object_object_add(wanLanLinkSpeed, name, json_object_new_string(speed));
 	}
 	json_object_object_add(wanLanCount, "wanCount", json_object_new_int(wan_count));
@@ -26098,7 +26135,6 @@ ej_get_wan_lan_status(int eid, webs_t wp, int argc, char **argv)
 	ptr = (char *)json_object_get_string(wanLanStatus);
 	if (ptr == NULL)
 		goto error_put;
-
 	ret = websWrite(wp, "%s", ptr);
 
 error_put:

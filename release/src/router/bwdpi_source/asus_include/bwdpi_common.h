@@ -97,9 +97,8 @@
 	Now, new module only uses /dev/idp. Old platforms / models use old node /dev/detector.
 	Add compile flag to make these platform use old node, others are considered as new models to make sure module could untar and load signature.
 */
-#if defined(RTCONFIG_SOC_IPQ8064) || defined(RTCONFIG_SOC_IPQ40XX) || defined(RTCONFIG_QCA956X) || defined(RTCONFIG_RALINK) \
-	|| defined(RTCONFIG_LANTIQ) || defined(RTCONFIG_BCM7) || defined(RTCONFIG_BCM_7114) \
-	|| ((defined(RTCONFIG_BCMSMP) || defined(RTCONFIG_HND_ROUTER)) && !defined(RTCONFIG_HND_ROUTER_AX))
+#if defined(RTCONFIG_SOC_IPQ8064) || defined(RTCONFIG_QCA956X) || (defined(RTCONFIG_RALINK) && !defined(RTCONFIG_RALINK_MT7622)) \
+	|| defined(RTCONFIG_LANTIQ) || defined(RTCONFIG_BCM7)
 #define DEVNODE         "/dev/detector" // old node
 #else
 #define DEVNODE         "/dev/idp"      // new node
@@ -113,6 +112,13 @@
 #define BWDPI_ANA_DIR   BWDPI_DB_DIR"/TrafficAnalyzer"
 #define BWDPI_HIS_DIR   BWDPI_DB_DIR"/WebHistory"
 #define BWDPI_MON_DIR   BWDPI_DB_DIR"/AiProtectionMonitor"
+#define BWDPI_WBL_PATH  BWDPI_DB_DIR"/WBL"
+
+// Traffic Analyzer database
+#define BWDPI_ANA_DB    (strcmp(nvram_safe_get("bwdpi_ana_path"), "")) ? nvram_safe_get("bwdpi_ana_path") : BWDPI_ANA_DIR"/TrafficAnalyzer.db"
+
+// Web History database
+#define BWDPI_HIS_DB    (strcmp(nvram_safe_get("bwdpi_his_path"), "")) ? nvram_safe_get("bwdpi_his_path") : BWDPI_HIS_DIR"/WebHistory.db"
 
 // AiProtection Monitor database
 #define BWDPI_MON_DB    (strcmp(nvram_safe_get("bwdpi_mon_path"), "")) ? nvram_safe_get("bwdpi_mon_path") : BWDPI_MON_DIR"/AiProtectionMonitor.db"
@@ -124,6 +130,17 @@
 #define NT_MON_CC    BWDPI_MON_DIR"/NT-AiMonitorCCevent.txt"
 #define NT_MON_VP    BWDPI_MON_DIR"/NT-AiMonitorVPevent.txt"
 #define NT_MON_MALS  BWDPI_MON_DIR"/NT-AiMonitorMALSevent.txt"
+
+/* database size define, unit : KB */
+#if defined(RTCONFIG_LANTIQ) || defined(RTCONFIG_QCA956X) || defined(RTCONFIG_QCN550X)
+#define BWDPI_ANA_DB_SIZE "2048"
+#define BWDPI_HIS_DB_SIZE "1024"
+#define BWDPI_MON_DB_SIZE "1024"
+#else
+#define BWDPI_ANA_DB_SIZE "14336"
+#define BWDPI_HIS_DB_SIZE "3072"
+#define BWDPI_MON_DB_SIZE "3072"
+#endif
 
 //iqos.c
 extern void check_qosd_wan_setting(char *dev_wan, int len);
@@ -160,6 +177,7 @@ extern void start_dpi_engine_service();
 extern void save_version_of_bwdpi();
 extern void setup_dpi_conf_bit(int input);
 extern void start_wrs_wbl_service();
+extern void MobileDevMode_restart();
 
 //wrs_app.c
 extern int wrs_app_main(char *cmd);

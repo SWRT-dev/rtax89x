@@ -36,7 +36,6 @@ body {
 .app_desc{
 	margin-left:10px;
 	margin-top:10px;
-	font-style: italic;
 }
 .app_ver{
 	font-size: 10px;
@@ -70,7 +69,6 @@ body {
 }
 .MethodDesc{
 	margin-top: -10px;	
-	font-style: italic;
 	color: #999;
 }
 .imdShade{

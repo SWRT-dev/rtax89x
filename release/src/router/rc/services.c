@@ -1251,7 +1251,7 @@ void start_dnsmasq(void)
 		perror("/etc/hosts");
 
 #ifdef RTCONFIG_REDIRECT_DNAME
-	if (access_point_mode()) {
+	if (nvram_invmatch("redirect_dname", "0") && access_point_mode()) {
 #ifdef RTCONFIG_DHCP_OVERRIDE
 		if (nvram_match("dhcp_enable_x", "1") && nvram_match("dnsqmode", "2")
 #ifdef RTCONFIG_DEFAULT_AP_MODE
@@ -6594,6 +6594,8 @@ void stop_bluetooth_service(void)
 #if defined(RTCONFIG_LP5523)
 		lp55xx_leds_proc(LP55XX_ALL_BREATH_LEDS, LP55XX_ACT_BREATH_UP_00);
 #endif
+		nvram_unset("bt_turn_off_service");
+		nvram_unset("bt_turn_off");
 #if defined(RTCONFIG_AMAS) && defined(RTCONFIG_PRELINK)
 		nvram_unset("ble_dut_con");
 		nvram_unset("ble_rename_ssid");
@@ -14092,6 +14094,10 @@ retry_wps_enr:
 #if defined(RTCONFIG_OPENVPN)
 			}
 #endif
+#if defined(RTCONFIG_SOC_IPQ8064) || defined(RTCONFIG_SOC_IPQ8074)
+		/* It's a workaround for QCA platform due to accelerator / module / vpn can't work together */
+		start_dpi_engine_service();
+#endif
 		}
 	}
 #endif
@@ -14283,6 +14289,10 @@ _dprintf("test 2. turn off the USB power during %d seconds.\n", reset_seconds[re
             rc_ipsec_set(IPSEC_SET,PROF_SVR);
 			start_firewall(wan_primary_ifunit(), 0);
 			start_dnsmasq();
+#if defined(RTCONFIG_SOC_IPQ8064) || defined(RTCONFIG_SOC_IPQ8074)
+		/* It's a workaround for QCA platform due to accelerator / module / vpn can't work together */
+		start_dpi_engine_service();
+#endif
         } else if(0 == strcmp(script, "ipsec_start")){
             rc_ipsec_set(IPSEC_START,PROF_SVR);
 			start_firewall(wan_primary_ifunit(), 0);
@@ -14293,6 +14303,10 @@ _dprintf("test 2. turn off the USB power during %d seconds.\n", reset_seconds[re
             rc_ipsec_set(IPSEC_SET,PROF_CLI);
         } else if(0 == strcmp(script, "ipsec_start_cli")){
             rc_ipsec_set(IPSEC_START,PROF_CLI);
+#if defined(RTCONFIG_SOC_IPQ8064) || defined(RTCONFIG_SOC_IPQ8074)
+		/* It's a workaround for QCA platform due to accelerator / module / vpn can't work together */
+		start_dpi_engine_service();
+#endif
         } else if(0 == strcmp(script, "ipsec_stop_cli")){
             rc_ipsec_set(IPSEC_STOP,PROF_CLI);
         } else if(strcmp(script, "generate_ca") == 0) {
@@ -16191,9 +16205,6 @@ int service_main(int argc, char *argv[])
 void setup_leds()
 {
 	int model;
-#if defined(RTAX89X)
-	return;
-#endif
 	model = get_model();
 
 /*** Disable ***/
@@ -16225,7 +16236,8 @@ void setup_leds()
 
 
 /* WAN/LAN */
-#if defined(RTAC3200) || defined(RTCONFIG_BCM_7114)
+#if defined(RTCONFIG_QCA) || defined(RTCONFIG_LANTIQ) || defined(RTCONFIG_RALINK)
+#elif defined(RTAC3200) || defined(RTCONFIG_BCM_7114)
 		eval("et", "-i", "eth0", "robowr", "0", "0x18", "0x01ff");
 		eval("et", "-i", "eth0", "robowr", "0", "0x1a", "0x01ff");
 #elif defined(HND_ROUTER)
@@ -16256,7 +16268,9 @@ void setup_leds()
 
 /* Wifi */
 		if (nvram_match("wl0_radio", "1")) {
-#ifdef RTAC68U
+#if defined(RTCONFIG_QCA) || defined(RTCONFIG_LANTIQ) || defined(RTCONFIG_RALINK)
+			led_control(LED_2G, LED_ON);
+#elif defined(RTAC68U)
 			eval("wl", "ledbh", "10", "7");
 #elif defined(RTAC3200)
 			eval("wl", "-i", "eth2", "ledbh", "10", "7");
@@ -16276,7 +16290,9 @@ void setup_leds()
 		}
 
 		if (nvram_match("wl1_radio", "1")) {
-#ifdef RTAC68U
+#if defined(RTCONFIG_QCA) || defined(RTCONFIG_LANTIQ) || defined(RTCONFIG_RALINK)
+			led_control(LED_5G, LED_ON);
+#elif defined(RTAC68U)
 			eval("wl", "-i", "eth2", "ledbh", "10", "7");
 #elif defined(RTAC3200)
 			eval("wl", "ledbh", "10", "7");

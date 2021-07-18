@@ -1961,6 +1961,8 @@ int switch_exist(void)
 
 #ifdef RTCONFIG_QCA8033
 	snprintf(cmd, sizeof(cmd), "cat /proc/link_status");
+#elif defined(RTCONFIG_QCN550X) && defined(RTCONFIG_SWITCH_QCA8337N)
+	snprintf(cmd, sizeof(cmd), "ssdk_sh port linkstatus get 0");
 #else
 	snprintf(cmd, sizeof(cmd), "swconfig dev %s port 0 get link", MII_IFNAME);
 #endif
@@ -1975,6 +1977,8 @@ int switch_exist(void)
 	buf[rlen-1] = '\0';
 #ifdef RTCONFIG_QCA8033
 	if (strstr(buf, "link up (1000"))
+#elif defined(RTCONFIG_QCN550X) && defined(RTCONFIG_SWITCH_QCA8337N)
+	if (strstr(buf, ":ENABLE"))
 #else
 	if (strstr(buf, "link:up speed:1000"))
 #endif

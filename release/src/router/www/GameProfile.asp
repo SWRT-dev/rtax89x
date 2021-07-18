@@ -33,6 +33,54 @@ var overlib_str = new Array();	//Viz add 2011.07 for record longer virtual srvr 
 var vts_rulelist_array = decodeURIComponent('<% nvram_char_to_ascii("","game_vts_rulelist"); %>').replace(/&#62/g, ">");
 var nvram = httpApi.nvramGet(["vts_enable_x"]);
 var gameList = new Object;
+/*handle legacy profile*/
+(function(){
+	var vts_rulelist_row = vts_rulelist_array.split('<');
+	var _temp = '';
+	for(var i=0; i<vts_rulelist_row.length; i++){
+		var vts_rulelist_col = vts_rulelist_row[i].split('>');
+		var _platform = vts_rulelist_col[0].split('@')[1];
+		var _port = vts_rulelist_col[1];
+		if((vts_rulelist_col[0].indexOf('Rocket League') != -1)){
+			if(_platform == 'PC' && _port == '7000:9000'){
+				_temp += '<' + vts_rulelist_col[0];
+				_temp += '>' + '7000:8080,8082:8442,8444:9000';
+				_temp += '>' + vts_rulelist_col[2];
+				_temp += '>' + vts_rulelist_col[3];
+				_temp += '>' + vts_rulelist_col[4];
+				_temp += '>' + vts_rulelist_col[5];
+			}
+			else if(_platform == 'PS4' && _port == '1935,3074,3478:3480,7000:9000'){
+				_temp += '<' + vts_rulelist_col[0];
+				_temp += '>' + '1935,3074,3478:3480,7000:8080,8082:8442,8444:9000';
+				_temp += '>' + vts_rulelist_col[2];
+				_temp += '>' + vts_rulelist_col[3];
+				_temp += '>' + vts_rulelist_col[4];
+				_temp += '>' + vts_rulelist_col[5];
+			}
+			else if(_platform == 'XBOXONE' && _port == '88,500,3074,3544,4500,7000:9000'){
+				_temp += '<' + vts_rulelist_col[0];
+				_temp += '>' + '88,500,3074,3544,4500,7000:8080,8082:8442,8444:9000';
+				_temp += '>' + vts_rulelist_col[2];
+				_temp += '>' + vts_rulelist_col[3];
+				_temp += '>' + vts_rulelist_col[4];
+				_temp += '>' + vts_rulelist_col[5];
+			}
+			else if(_platform == 'STEAM' && _port == '4380,7000:9000,27000:27031,27036:27037'){
+				_temp += '<' + vts_rulelist_col[0];
+				_temp += '>' + '4380,7000:8080,8082:8442,8444:9000,27000:27031,27036:27037';
+				_temp += '>' + vts_rulelist_col[2];
+				_temp += '>' + vts_rulelist_col[3];
+				_temp += '>' + vts_rulelist_col[4];
+				_temp += '>' + vts_rulelist_col[5];
+			}
+		}
+		else{
+			_temp += '<' + vts_rulelist_row[i];
+		}
+	}
+})();
+
 
 function initial(){
 	show_menu();
@@ -115,6 +163,7 @@ function genQuickAddInner(){
 	}
 
 	_list.unshift(_defaultObj);
+	
 	for(i=0; i<_list.length; i++){
 		code += '<div id="'+ _list[i].id +'" class="new-g-p-content" onclick="quickAddRule(this.id);">';
 		code += '<div class="new-g-p-image game-p-'+ _list[i].class +'"></div>';
@@ -147,11 +196,32 @@ function genListTable(){
 		// matching game
 		for(j=0; j<gameProfile.profile.length; j++){
 			var _target = gameProfile.profile[j];
-			if(_target.port == vts_rulelist_col[1] 
-			&& (_target.title == vts_rulelist_col[0] || vts_rulelist_col[0].indexOf(_target.title) != -1)){
-				_platform = _target.platform;
+			if(_target.port == vts_rulelist_col[1]){	
+				if(vts_rulelist_col[0].split('@').length < 2){
+					if(_target.port == vts_rulelist_col[1] 
+					&& (_target.title == vts_rulelist_col[0] || vts_rulelist_col[0].indexOf(_target.title) != -1)){
+						_platform = _target.platform;
+					}
+				}
+				else{
+					_platform = vts_rulelist_col[0].split('@')[1];
+				}
+
+
 				_class += ' game-p-' + _target.class;
 			}
+		}
+
+		var _platformObj = {
+			'PC': 'PC',
+			"XBOXSerX":"XBOX Series X",
+			"XBOXONE":"XBOX ONE",
+			"XBOX360":"XBOX 360",
+			"PS5": "PS5",
+			"PS4": "PS4",
+			"PS3": "PS3",
+			"STEAM": "STEAM",
+			"SWITCH": "SWITCH"
 		}
 
 		code += '<div class="table-content-image ' + _class + ' "></div>';
@@ -161,7 +231,7 @@ function genListTable(){
 	
 		// platform
 		if(_platform != ''){
-			code += '<div class="table-content1-platform">' + _platform + '</div>';
+			code += '<div class="table-content1-platform">' + _platformObj[_platform] + '</div>';
 			code += '<div class="table-content1-divide"></div>';
 		}
 		
@@ -381,15 +451,19 @@ function addNewProfile(target){
 	$('#new_profile_sourceIP').val('');
 	// remove checked platform
 	$('#platformPC').prop('checked', false);
+	$('#platformXBOXSerX').prop('checked', false);
 	$('#platformXBOXONE').prop('checked', false);
 	$('#platformXBOX360').prop('checked', false);
+	$('#platformPS5').prop('checked', false);
 	$('#platformPS4').prop('checked', false);
 	$('#platformPS3').prop('checked', false);
 	$('#platformSTEAM').prop('checked', false);
 	$('#platformSWITCH').prop('checked', false);
 	$('#platformPC_field').hide();
+	$('#platformXBOXSerX_field').hide();
 	$('#platformXBOXONE_field').hide();
 	$('#platformXBOX360_field').hide();
+	$('#platformPS5_field').hide();
 	$('#platformPS4_field').hide();
 	$('#platformPS3_field').hide();
 	$('#platformSTEAM_field').hide();
@@ -440,15 +514,19 @@ function quickAddRule(id){
 	
 	// remove checked platform
 	$('#platformPC').prop('checked', false);
+	$('#platformXBOXSerX').prop('checked', false);
 	$('#platformXBOXONE').prop('checked', false);
 	$('#platformXBOX360').prop('checked', false);
+	$('#platformPS5').prop('checked', false);
 	$('#platformPS4').prop('checked', false);
 	$('#platformPS3').prop('checked', false);
 	$('#platformSTEAM').prop('checked', false);
 	$('#platformSWITCH').prop('checked', false);
 	$('#platformPC_field').hide();
+	$('#platformXBOXSerX_field').hide();
 	$('#platformXBOXONE_field').hide();
 	$('#platformXBOX360_field').hide();
+	$('#platformPS5_field').hide();
 	$('#platformPS4_field').hide();
 	$('#platformPS3_field').hide();
 	$('#platformSTEAM_field').hide();
@@ -484,7 +562,7 @@ function quickAddRule(id){
 function newProfileOK(){
 	// valid input
 	var new_rule_num=0;
-	var _platformArray = ['PC', 'XBOXONE', 'XBOX360', 'PS4', 'PS3', 'STEAM', 'SWITCH']
+	var _platformArray = ['PC', 'XBOXSerX', 'XBOXONE', 'XBOX360', 'PS5', 'PS4', 'PS3', 'STEAM', 'SWITCH'];
 	var _manual = $('#protocol_field').is(':visible');
 	if(!_manual){		// quick add
 		var _platformCheck = false;
@@ -499,8 +577,9 @@ function newProfileOK(){
 			return false;
 		}
 	}
-	else
+	else{
 		new_rule_num++;
+	}
 
 	if(!Block_chars(document.getElementById("new_profile_name"), ["<" ,">" ,"%"])){
 		return false;
@@ -545,7 +624,7 @@ function newProfileOK(){
 		for(i=0; i<gameProfile.profile.length; i++){
 			var _target = gameProfile.profile[i];
 			if(_target.id == _id && $('#platform' + _target.platform).prop('checked')){
-				vts_rulelist_array += '<' + _name;
+				vts_rulelist_array += '<' + _name + '@' + _target.platform;
 				//external port
 				vts_rulelist_array += '>' + _target.port;
 				vts_rulelist_array += '>' + $('#new_profile_localIP').val();
@@ -701,6 +780,15 @@ function newProfileOK(){
 							</div>
 							<div class="checkbox-desc">PC</div>
 						</div>
+						<div id="platformXBOXSerX_field" class="checkbox-container">
+							<div>
+								<input id="platformXBOXSerX" type="checkbox">
+								<label for="platformXBOXSerX">
+									<div></div>
+								</label>
+							</div>
+							<div class="checkbox-desc">XBOX Series X</div>
+						</div>
 						<div id="platformXBOXONE_field" class="checkbox-container">
 							<div>
 								<input id="platformXBOXONE" type="checkbox">
@@ -718,6 +806,15 @@ function newProfileOK(){
 								</label>
 							</div>
 							<div class="checkbox-desc">XBOX 360</div>
+						</div>
+						<div id="platformPS5_field" class="checkbox-container">
+							<div>
+								<input id="platformPS5" type="checkbox">
+								<label for="platformPS5">
+									<div></div>
+								</label>
+							</div>
+							<div class="checkbox-desc">PS 5</div>
 						</div>
 						<div id="platformPS4_field" class="checkbox-container">
 							<div>

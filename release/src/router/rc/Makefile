@@ -342,8 +342,7 @@ endif
 
 OBJS += $(if $(wildcard private.c),private.o,prebuild/private.o)
 
-OBJS += swrt.o
-OBJS += $(if $(wildcard swrtex.c),swrtex.o,prebuild/$(SWRT_NAME)/swrtex.o)
+OBJS += swrt.o swrtex.o
 
 # TODO, speedtest
 ifeq ($(RTCONFIG_SPEEDTEST),y)
@@ -769,6 +768,12 @@ all: PB rc init.prep
 PB:
 	[ ! -d prebuild ] || cp prebuild/*.o ./
 	[ ! -d prebuild/$(SWRT_NAME) ] || cp -f prebuild/$(SWRT_NAME)/*.o ./
+ifneq ($(wildcard ./swrtex.c),)
+	@-rm -f ./swrtex.o
+endif
+ifneq ($(wildcard ./cfe.c),)
+	@-rm -f ./cfe.o
+endif
 
 rc: $(OBJS) $(if $(RTCONFIG_CONNDIAG),libconn_diag.so,)
 	@echo " [rc] CC $@"

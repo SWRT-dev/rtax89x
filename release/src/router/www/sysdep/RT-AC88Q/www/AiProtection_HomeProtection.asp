@@ -983,7 +983,7 @@ function shadeHandle(flag){
 			</th>
 		</tr>
 			<td>
-				<div class="formfontdesc" style="font-style: italic;font-size: 14px;"><#AiProtection_HomeDesc1#></div>
+				<div class="formfontdesc" style="font-size: 14px;"><#AiProtection_HomeDesc1#></div>
 			</td>
 		<tr>
 			<td>
@@ -1154,7 +1154,7 @@ function shadeHandle(flag){
 											<tr class="block_bg block_line" style="height:120px;">
 												<td style="padding:10px;border-radius:10px 0px 0px 10px">
 													<div style="font-size:18px;text-shadow:1px 1px 0px black;"><#AiProtection_scan#></div>
-													<div style="font-style: italic;font-size: 14px;color:#FC0;height:auto;padding-top:5px;"><#AiProtection_scan_desc#></div>
+													<div style="font-size: 14px;color:#FC0;height:auto;padding-top:5px;"><#AiProtection_scan_desc#></div>
 												</td>
 												 <td width="6px">
 													<div class="line_vertical"></div>
@@ -1179,7 +1179,7 @@ function shadeHandle(flag){
 												<td style="padding:10px;border-radius:10px 0px 0px 10px;cursor:pointer;" onclick="location.href='AiProtection_MaliciousSitesBlocking.asp'">
 													<div>
 														<div style="font-size:18px;text-shadow:1px 1px 0px black;"><#AiProtection_sites_blocking#></div>
-														<div style="font-style: italic;font-size: 14px;color:#FC0;height:auto;padding-top:5px;"><#AiProtection_sites_block_desc#></div>
+														<div style="font-size: 14px;color:#FC0;height:auto;padding-top:5px;"><#AiProtection_sites_block_desc#></div>
 													</div>
 												</td>
 												 <td width="6px">
@@ -1226,7 +1226,7 @@ function shadeHandle(flag){
 												<td style="padding:10px;border-radius:10px 0px 0px 10px;cursor:pointer;" onclick="location.href='AiProtection_IntrusionPreventionSystem.asp'">
 													<div>
 														<div style="font-size:18px;text-shadow:1px 1px 0px black;"><#AiProtection_two-way_IPS#></div>
-														<div style="font-style: italic;font-size: 14px;color:#FC0;height:auto;padding-top:5px;"><#AiProtection_two-way_IPS_desc#></div>
+														<div style="font-size: 14px;color:#FC0;height:auto;padding-top:5px;"><#AiProtection_two-way_IPS_desc#></div>
 													</div>
 												</td>
 												 <td width="6px">
@@ -1271,7 +1271,7 @@ function shadeHandle(flag){
 											<tr class="block_bg" style="height:120px;">
 												<td style="padding:10px;border-radius:10px 0px 0px 10px;cursor:pointer" onclick="location.href='AiProtection_InfectedDevicePreventBlock.asp'">
 													<div style="font-size:18px;text-shadow:1px 1px 0px black;"><#AiProtection_detection_blocking#></div>
-													<div style="font-style: italic;font-size: 14px;color:#FC0;height:auto;;padding-top:5px;"><#AiProtection_detection_block_desc#></div>
+													<div style="font-size: 14px;color:#FC0;height:auto;;padding-top:5px;"><#AiProtection_detection_block_desc#></div>
 												</td>
 												 <td>
 													<div class="line_vertical"></div>

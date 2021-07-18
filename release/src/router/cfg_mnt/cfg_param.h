@@ -30,11 +30,15 @@
 #define FT_LINK_AGGREGATION    BIT(13) /* link aggregation */
 #define FT_CTRL_LED		BIT(14)
 #define FT_AURARGB		BIT(15)
+#if defined(RTCONFIG_FANCTRL)
+#define FT_FANCTRL		BIT(19)
+#endif
 
 /* service */
 #define RESTART_WIRELSS		"restart_wireless"
 #define CHPASS		"chpass"
 #define RESTART_TIME		"restart_time"
+#define RESTART_FANCTRL		"restart_fanctrl"
 #define RESTART_LOGGER		"restart_logger"
 #define RESTART_SENDFEEDBACK		"restart_sendfeedback"
 #define RESTART_DBLOG		"restart_dblog"
@@ -78,6 +82,9 @@ struct feature_mapping_s feature_mapping_list[] = {
 	{ "link_aggregation", FT_LINK_AGGREGATION,	REBOOT },
 	{ "ctrl_led", FT_CTRL_LED,	CTRL_LED },
 	{ "aurargb", FT_AURARGB,	START_AURARGB },
+#if defined(RTCONFIG_FANCTRL)
+	{ "fanctrl",	FT_FANCTRL,	RESTART_FANCTRL },
+#endif
 	{ NULL, 0, NULL }
 };
 
@@ -252,6 +259,9 @@ enum {
 	SUBFT_OFDMA_5G,
 	SUBFT_OFDMA_5G1,
 
+#if defined(RTCONFIG_FANCTRL)
+	SUBFT_FANCTRL,
+#endif
 	SUBFT_MAX
 };
 
@@ -414,6 +424,9 @@ struct subfeature_mapping_s subfeature_mapping_list[] = {
 	/* contrl aura rgb */
 	{ "aurargb", SUBFT_AURARGB, FT_AURARGB},
 
+#if defined(RTCONFIG_FANCTRL)
+	{ "fanctrl",		SUBFT_FANCTRL,	FT_FANCTRL },
+#endif
 	/* END */
 	{ NULL, 0, 0}
 };
@@ -810,6 +823,9 @@ struct param_mapping_s param_mapping_list[] = {
 	{ "aurargb_enable",	FT_AURARGB,		SUBFT_AURARGB},
 	{ "aurargb_val",	FT_AURARGB,		SUBFT_AURARGB},
 
+#if defined(RTCONFIG_FANCTRL)
+	{ "fanctrl_dutycycle",	FT_FANCTRL,	SUBFT_FANCTRL },
+#endif
 	/* END */
 	{ NULL, 0, 0 }
 };

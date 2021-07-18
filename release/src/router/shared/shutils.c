@@ -119,7 +119,10 @@ void dbgprintf (const char * format, ...)
 			va_end(args);
 			fclose(f);
 		}
-		close(nfd);
+		else
+		{
+			close(nfd);
+		}
 	}
 }
 
@@ -136,6 +139,7 @@ void dbg(const char * format, ...)
 		vfprintf(f, format, args);
 		va_end(args);
 		fclose(f);
+		nfd = -1;
 	}
 	else
 	{
@@ -612,6 +616,30 @@ char *ether_etoa2(const unsigned char *e, char *a)
 {
 	sprintf(a, "%02X%02X%02X%02X%02X%02X", e[0], e[1], e[2], e[3], e[4], e[5]);
 	return a;
+}
+
+/*
+ * Increase Ethernet address e with n
+ */
+int ether_inc(unsigned char *e, const unsigned char n)
+{
+	int c = 0;
+	int ret = 0;
+
+	c = (e[5] >= (0xff - n + 1)) ? 1 : 0;
+	e[5] += n;
+
+	if (c) {
+		c = (e[4] >= 0xff) ? 1 : 0;
+		e[4] += 1;
+
+		if (c) {
+			ret = (e[3] >= 0xff) ? -1 : 0;
+			e[3] += 1;
+		}
+	}
+
+	return (ret);
 }
 
 #ifdef GTAC5300

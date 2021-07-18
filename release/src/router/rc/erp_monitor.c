@@ -813,8 +813,11 @@ static void ERP_CHECK_MODE()
 	// step2. tcode in EE / WE / UK / EU
 	char *tcode = nvram_safe_get("territory_code");
 	if (strstr(tcode, "EE") == NULL && strstr(tcode, "WE") == NULL
-		&& strstr(tcode, "UK") == NULL && strstr(tcode, "EU") == NULL)
-	{
+		&& strstr(tcode, "UK") == NULL && strstr(tcode, "EU") == NULL
+#if defined(RTAX89U)
+	    && !strstr(tcode, "IL")
+#endif
+	   ) {
 		ERP_DBG("The model isn't under EU SKU!\n");
 		return;
 	}
@@ -971,8 +974,11 @@ int erp_monitor_main(int argc, char **argv)
 	/* tcode support in EE / WE / UK / EU */
 	char *tcode = nvram_safe_get("territory_code");
 	if (strstr(tcode, "EE") == NULL && strstr(tcode, "WE") == NULL
-		&& strstr(tcode, "UK") == NULL && strstr(tcode, "EU") == NULL)
-	{
+		&& strstr(tcode, "UK") == NULL && strstr(tcode, "EU") == NULL
+#if defined(RTAX89U)
+	    && !strstr(tcode, "IL")
+#endif
+	   ) {
 		logmessage("ERP", "The model isn't under EU SKU!\n");
 		return -2;
 	}

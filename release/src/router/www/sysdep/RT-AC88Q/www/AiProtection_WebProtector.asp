@@ -414,7 +414,7 @@ function genMain_table(){
 		}
 
 		code += '</div>';
-		code += '<div style="margin-left:25px;color:#FC0;font-style:italic;font-size:12px;font-weight:normal;">'+ category_desc[i] +'</div>';
+		code += '<div style="margin-left:25px;color:#FC0;font-size:12px;font-weight:normal;">'+ category_desc[i] +'</div>';
 		code += '</div>';
 	}
 
@@ -830,7 +830,7 @@ function setGroup(name){
 								<div id="PC_desc">
 									<table width="700px" style="margin-left:25px;">
 										<tr>
-											<td style="font-style: italic;font-size: 14px;">
+											<td style="font-size: 14px;">
 												<span><#AiProtection_WebProtector_Desc#></span>
 											</td>
 										</tr>

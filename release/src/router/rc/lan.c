@@ -836,11 +836,19 @@ static int check_bonding_policy(const char *policy)
 static int add_slaves_to_bonding_iface(const char *bond_if, char *slaves)
 {
 	const char *bonding_entry = "/sys/class/net/%s/bonding/%s";
-	char *next, path[256], iface[IFNAMSIZ], value[IFNAMSIZ + 1], slave_ifs[20 * IFNAMSIZ];
+	char *p, *next, path[256], iface[IFNAMSIZ], value[IFNAMSIZ + 1], slave_ifs[20 * IFNAMSIZ];
+	char mac[sizeof("00:00:00:00:00:00")] = { 0 };
+	unsigned char ea[ETHER_ADDR_LEN];
 	int r = 0;
 
 	if (!bond_if || *bond_if == '\0' || !slaves || *slaves == '\0')
 		return -1;
+
+	if ((p = get_hwaddr(bond_if)) != NULL) {
+		strlcpy(mac, p, sizeof(mac));
+		ether_atoe(mac, ea);
+		free(p);
+	}
 
 	snprintf(path, sizeof(path), bonding_entry, bond_if, "slaves");
 	*slave_ifs = '\0';
@@ -850,6 +858,11 @@ static int add_slaves_to_bonding_iface(const char *bond_if, char *slaves)
 		if (find_word(slave_ifs, iface))
 			continue;
 		ifconfig(iface, 0, NULL, NULL);
+		if (*mac != '\0') {
+			set_hwaddr(iface, mac);
+			ether_inc(ea, 1);
+			ether_etoa(ea, mac);
+		}
 		snprintf(value, sizeof(value), "+%s", iface);
 		if (f_write_string(path, value, 0, 0) <= 0)
 			r++;
@@ -3702,16 +3715,17 @@ lan_up(char *lan_ifname)
 	start_dnsmasq();
 
 #ifdef RTCONFIG_REDIRECT_DNAME
+	if (nvram_invmatch("redirect_dname", "0")
 #ifdef RTCONFIG_REALTEK
-	if(access_point_mode() 
+	&& (access_point_mode()
 #ifdef RTCONFIG_AMAS
 	|| re_mode()
 #endif
 	)
 #else
-	if(sw_mode() == SW_MODE_AP)
+	&& sw_mode() == SW_MODE_AP
 #endif
-	{
+	) {
 		redirect_nat_setting();
 		eval("iptables-restore", NAT_RULES);
 	}
@@ -3851,16 +3865,17 @@ lan_up(char *lan_ifname)
 #endif
 
 #ifdef RTCONFIG_REDIRECT_DNAME
+	if (nvram_invmatch("redirect_dname", "0")
 #ifdef RTCONFIG_REALTEK
-	if(access_point_mode()
+	&& (access_point_mode()
 #ifdef RTCONFIG_AMAS
 		|| re_mode()
 #endif
 	)
 #else
-	if(sw_mode() == SW_MODE_AP)
+	&& sw_mode() == SW_MODE_AP
 #endif
-	{
+	) {
 		redirect_nat_setting();
 		eval("iptables-restore", NAT_RULES);
 	}
@@ -5194,6 +5209,7 @@ void lanaccess_wl(void)
 #ifdef RTCONFIG_CAPTIVE_PORTAL
 	CP_lanaccess_wl();
 #endif
+	setup_leds();   // Refresh LED state if in Stealth Mode
 }
 
 #ifdef RTCONFIG_FBWIFI

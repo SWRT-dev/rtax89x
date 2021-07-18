@@ -334,9 +334,6 @@ void enable_wan_led()
 	led_control(LED_WAN_NORMAL, LED_ON);
 #endif
 #else
-#if defined(R8500) || defined(R7000P) || defined(XWR3100) || defined(EA6700) || defined(DIR868L)
-	led_control(LED_WAN, LED_ON);
-#endif
 	eval("et", "-i", "eth0", "robowr", "0", "0x18", "0x01ff");
 	eval("et", "-i", "eth0", "robowr", "0", "0x1a", "0x01ff");
 #endif
@@ -3247,6 +3244,8 @@ _dprintf("wanduck(%d)(first detect start): state %d, state_old %d, changed %d, w
 #endif
 		{
 #ifdef RTCONFIG_REDIRECT_DNAME
+			if (nvram_invmatch("redirect_dname", "0")) {
+
 			if(cross_state == DISCONN){
 				_dprintf("\n# AP mode: Enable direct rule(DISCONN)\n");
 				eval("ebtables", "-t", "broute", "-F");
@@ -3296,6 +3295,7 @@ _dprintf("wanduck(%d)(first detect start): state %d, state_old %d, changed %d, w
 				// nat_rules = NAT_STATE_NORMAL;
 			}
 
+			}
 #endif
 
 #ifdef RTCONFIG_RESTRICT_GUI
@@ -4326,7 +4326,8 @@ _dprintf("nat_rule: stop_nat_rules 6.\n");
 
 #ifndef RTCONFIG_LANTIQ
 #ifdef RTCONFIG_REDIRECT_DNAME
-					eval("ebtables", "-t", "broute", "-A", "BROUTING", "-p", "ipv4", "--ip-proto", "udp", "--ip-dport", "53", "-j", "redirect", "--redirect-target", "DROP");
+					if (nvram_invmatch("redirect_dname", "0"))
+						eval("ebtables", "-t", "broute", "-A", "BROUTING", "-p", "ipv4", "--ip-proto", "udp", "--ip-dport", "53", "-j", "redirect", "--redirect-target", "DROP");
 #endif
 #endif
 
@@ -4369,6 +4370,8 @@ _dprintf("nat_rule: start_nat_rules 6.\n");
 #endif
 		{
 #ifdef RTCONFIG_REDIRECT_DNAME
+			if (nvram_invmatch("redirect_dname", "0")) {
+
 			if (conn_changed_state[current_wan_unit] == C2D) {
 				_dprintf("\n# AP mode: Enable direct rule(C2D)\n");
 				eval("ebtables", "-t", "broute", "-F");
@@ -4403,6 +4406,8 @@ _dprintf("nat_rule: start_nat_rules 6.\n");
 				redirect_nat_setting();
 				eval("iptables-restore", NAT_RULES);
 				// nat_rules = NAT_STATE_NORMAL;
+			}
+
 			}
 #else
 			; // do nothing.
@@ -4768,4 +4773,3 @@ WANDUCK_SELECT:
 	_dprintf("# wanduck exit error\n");
 	exit(1);
 }
-

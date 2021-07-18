@@ -6767,7 +6767,7 @@ static void link_pap_status()
 					set_rgbled(RGBLED_AP_MODE_CONNECTED);
 #endif
 				}
-				else if ((wifison_ready && sw_mode==SW_MODE_AP) || (!wifison_ready && nvram_match("re_mode", "1"))) { // AiMesh Re
+				else if ((wifison_ready && sw_mode==SW_MODE_AP) || (!wifison_ready && nvram_match("re_mode", "1"))) { //AiMesh Re
 					if (nvram_get_int("amas_eap_bhmode") > 0) { //Re Eth Only
 #if defined(RTCONFIG_LP5523)
 						lp55xx_leds_proc(LP55XX_DISCONNCOR_LDES, LP55XX_ACT_NONE);
@@ -6775,6 +6775,17 @@ static void link_pap_status()
 						set_rgbled(RGBLED_DISCONNECTED);
 #endif
 					}
+#if defined(MAPAC2200) || defined(MAPAC1300)
+					else if (nvram_match("productid", "MAP-AC2200") || nvram_match("productid", "MAP-AC1300")) { //Lyra only
+						if (prelink_pap_status == 1) {
+							link_pap_status = count_point + 20;
+							lp55xx_leds_proc(LP55XX_AMAS_RE_SYNC_LEDS, LP55XX_ACT_3ON1OFF);
+						}
+						else {
+							lp55xx_leds_proc(LP55XX_DISCONNCOR_LDES, LP55XX_ACT_NONE);
+						}
+					}
+#endif
 					else {
 #if defined(RTCONFIG_LP5523)
 						lp55xx_leds_proc(LP55XX_AMAS_RE_SYNC_LEDS, LP55XX_ACT_3ON1OFF);
@@ -6964,28 +6975,27 @@ static void bt_turn_off_service()
 	strncpy(buf, nvram_safe_get("bt_turn_off_service"), sizeof(buf));
 
 	if (strlen(buf)) {
+		if (strstr(buf, "ble_qis_done")) {
+			if (nvram_get_int("bt_turn_off") != 2)
+				return;
+			nvram_set("x_Setting", "1");
+			nvram_set("qis_Setting", "1");
+			nvram_commit();
+			stop_bluetooth_service();
+		}
 		nvram_set("w_Setting", "1");
+
 		tmp = strtok(buf, delim);
 		while (tmp!=NULL) {
 			int retry = 20;
-
-			if (!strncmp(tmp, "ble_qis_done", strlen(tmp))) {
-				nvram_set("x_Setting", "1");
-				nvram_set("qis_Setting", "1");
-				nvram_unset("bt_turn_off_service");
-				nvram_commit();
-				stop_bluetooth_service();
-
-				tmp = strtok(NULL, delim);
-				continue;
-			}
 
 			while(retry-- > 0 && strlen(nvram_safe_get("rc_service"))) {
 				_dprintf("\nwaiting for previous service");
 				sleep(1);
 			}
 
-			notify_rc_and_wait(tmp);
+			if (strncmp(tmp, "ble_qis_done", strlen(tmp))) 
+				notify_rc_and_wait(tmp);
 
 			tmp = strtok(NULL, delim);
 		}
@@ -8248,9 +8258,7 @@ wdp:
 		modem_flow_check(modem_unit);
 #endif
 #endif
-#ifdef RTCONFIG_FORCE_AUTO_UPGRADE
 	auto_firmware_check();
-#endif
 #ifdef RTCONFIG_BWDPI
 	auto_sig_check();		// libbwdpi.so
 	web_history_save();		// libbwdpi.so

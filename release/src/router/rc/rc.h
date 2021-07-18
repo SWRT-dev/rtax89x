@@ -86,6 +86,8 @@
 
 #if defined(RTN56UB1) || defined(RTN56UB2) || defined(RTAC1200GA1) || defined(RTAC1200GU) //for MT7621
 #define USB20_MOD	"xhci-hcd"
+#elif defined(RTCONFIG_QCN550X) && LINUX_KERNEL_VERSION >= KERNEL_VERSION(4,4,0)
+#define USB20_MOD	"ehci-ath79"
 #else
 #define USB20_MOD	"ehci-hcd"
 #endif

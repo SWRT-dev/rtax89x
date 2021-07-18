@@ -67,7 +67,11 @@ function getVariable(){
 			_element = ['wl0_nmode_x', 'wl0_auth_mode_x', 'wl0_crypto', 'wl0_wpa_psk', 'wl0_mfp', 'wl0_wep_x', 'wl0_key', 'wl0_key1', 'wl0_key2', 'wl0_key3', 'wl0_key4'];
 			_ssid.push('wl0_ssid');
 			_ssid.push('wl0_wpa_psk');
-		}	
+		}
+
+		if(mbo_support){
+			_element.push('wl0_mbo_enable');
+		}
 		
 		_array.push.apply(_array, _element);
 	}
@@ -85,6 +89,10 @@ function getVariable(){
 			_ssid.push('wl1_wpa_psk');
 		}
 
+		if(mbo_support){
+			_element.push('wl1_mbo_enable');
+		}
+
 		_array.push.apply(_array, _element);
 	}
 
@@ -99,6 +107,10 @@ function getVariable(){
 			_element = ['wl2_nmode_x', 'wl2_auth_mode_x', 'wl2_crypto', 'wl2_wpa_psk', 'wl2_mfp', 'wl2_wep_x', 'wl2_key', 'wl2_key1', 'wl2_key2', 'wl2_key3', 'wl2_key4'];
 			_ssid.push('wl2_ssid');
 			_ssid.push('wl2_wpa_psk');
+		}
+
+		if(mbo_support){
+			_element.push('wl2_mbo_enable');
 		}
 		
 		_array.push.apply(_array, _element);
@@ -592,16 +604,15 @@ function updateVariable(id, value, flag){
 	variable[id] = value;
 	var prefix = id.split('_')[0];
 	var wpsEnable = variable['wps_enable'];
-
 	// variable padding
 	if(value == 'sae'){
 		variable[prefix + '_mfp'] = '2';
 	}
-	else if(value == 'psk2sae'){
+	else if(value == 'psk2sae' && nvram[prefix + '_mfp'] == '0'){	
 		variable[prefix + '_mfp'] = '1';
 	}
-	else if(value == 'psk' || value == 'psk2' || value == 'pskpsk2' || value == 'wpa' || value == 'wpa2'){
-		if(variable[prefix + '_mfp'] == '2'){
+	else if(value == 'psk2' || value == 'pskpsk2' || value == 'wpa' || value == 'wpa2'){
+		if(mbo_support && nvram[prefix + '_mbo_enable'] == '1' && nvram[prefix + '_mfp'] == '0'){
 			variable[prefix + '_mfp'] = '1';
 		}
 	}

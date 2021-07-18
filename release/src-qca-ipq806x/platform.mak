@@ -3,12 +3,12 @@ KERNEL_3_4_X_MODEL_LIST := $(addprefix _,$(addsuffix _,BRT-AC828 RT-AC88N RT-AC8
 # Select QSDK
 IPQ806X_MODEL_LIST := $(addprefix _,$(addsuffix _,BRT-AC828 RT-AC88N RT-AC88S RT-AD7200))
 ifeq ($(MUSL64),y)
-SPF8_MODEL_LIST := $(addprefix _,$(addsuffix _,GT-6000N))
+SPF8_MODEL_LIST := #$(addprefix _,$(addsuffix _,GT-6000N))
 IPQ807X_MODEL_LIST := $(addprefix _,$(addsuffix _,GT-AXY16000 RT-AX89U))
 else
-SPF8_MODEL_LIST := $(addprefix _,$(addsuffix _,GT-6000N))
-SPF11.0_MODEL_LIST := $(addprefix _,$(addsuffix _,RT-AX89U))
-IPQ807X_MODEL_LIST := $(addprefix _,$(addsuffix _,GT-AXY16000))	# SPF11.1
+SPF8_MODEL_LIST := #$(addprefix _,$(addsuffix _,GT-6000N))
+SPF11.0_MODEL_LIST := $(addprefix _,$(addsuffix _,))
+IPQ807X_MODEL_LIST := $(addprefix _,$(addsuffix _,RT-AX89U GT-AXY16000))	# SPF11.1
 endif
 
 # Select IPQ807X SoC
