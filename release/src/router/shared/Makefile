@@ -196,6 +196,8 @@ else ifeq ($(RTCONFIG_SWITCH_QCA8075_QCA8337_PHY_AQR107_AR8035_QCA8033),y)
 OBJS += qca8075_qca8337_phy_aqr107_ar8035_qca8033.o mdio.o ethtool.o
 else ifeq ($(RTCONFIG_QCN550X)$(RTCONFIG_SWITCH_QCA8337N),yy)
 OBJS += qca8337_ssdk_sh.o
+else ifeq ($(RTCONFIG_SOC_IPQ60XX),y)
+OBJS += ipq60xx.o
 else
 OBJS += qca8337.o
 endif
@@ -403,11 +405,15 @@ endif
 sw_auth.o:
 ifeq ($(wildcard $(SRCBASE)/router/sw-hw-auth/*.c),)
 	cp -f $(TOP)/sw-hw-auth/prebuild/sw_auth.o ./
+else
+	cp -f $(TOP)/sw-hw-auth/sw_auth.o ./
 endif
 
 hw_auth.o:
 ifeq ($(wildcard $(SRCBASE)/router/sw-hw-auth/*.c),)
 	cp -f $(TOP)/sw-hw-auth/prebuild/hw_auth.o ./
+else
+	cp -f $(TOP)/sw-hw-auth/hw_auth.o ./
 endif
 
 ifeq ($(RTCONFIG_USB),y)

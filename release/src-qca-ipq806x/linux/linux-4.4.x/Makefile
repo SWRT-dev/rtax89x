@@ -621,6 +621,10 @@ KBUILD_CFLAGS	+= $(call cc-option,-fno-delete-null-pointer-checks,)
 KBUILD_CFLAGS	+= $(call cc-disable-warning,maybe-uninitialized,)
 KBUILD_CFLAGS	+= $(call cc-disable-warning,frame-address,)
 
+MODEL = $(subst -,,$(BUILD_NAME))
+KBUILD_CFLAGS += -D$(MODEL)
+KBUILD_CFLAGS += -D$(SWRT_NAME)
+
 ifdef CONFIG_CC_OPTIMIZE_FOR_SIZE
 KBUILD_CFLAGS	+= -Os $(EXTRA_OPTIMIZATION)
 else

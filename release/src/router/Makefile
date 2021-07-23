@@ -1283,6 +1283,7 @@ obj-$(RTCONFIG_FPROBE) += fprobe-1.1
 obj-$(RTCONFIG_FPROBE) += tcpdump-4.4.0
 
 obj-$(RTCONFIG_BLINK_LED) += bled
+obj-$(RTCONFIG_SWRT_I2CLED) += i2cled
 obj-$(RTCONFIG_BONDING) += ifenslave
 
 obj-$(RTCONFIG_GEOIP) += GeoIP-1.6.2
@@ -3369,7 +3370,7 @@ miniupnpc-install:
 
 # !!TB
 #shared:
-shared: $(if $(RTCONFIG_QTN),libqcsapi_client) $(if $(RTCONFIG_HTTPS),openssl)
+shared: $(if $(RTCONFIG_QTN),libqcsapi_client) $(if $(RTCONFIG_HTTPS),openssl) $(if $(RTCONFIG_SW_HW_AUTH),sw-hw-auth)
 ifeq ($(RTCONFIG_RALINK)$(RTCONFIG_QCA)$(RTCONFIG_ALPINE)$(RTCONFIG_LANTIQ),y)
 	make -C wireless_tools wireless.h
 endif

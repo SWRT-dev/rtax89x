@@ -26,6 +26,9 @@ KERNEL_GCC520_MUSLLIBC32_MODEL_LIST	:=
 KERNEL_GCC520_MUSLLIBC64_MODEL_LIST	:=
 
 BUILD_NAME ?= $(shell echo $(MAKECMDGOALS) | tr a-z A-Z)
+ifeq ($(BUILD_NAME),SWRT-RAX120)
+BUILD_NAME = RT-AX89U
+endif
 export _BUILD_NAME_ := $(addprefix _,$(addsuffix _,$(BUILD_NAME)))
 
 ifeq ($(MUSL32),y)
