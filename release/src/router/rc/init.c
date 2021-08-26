@@ -6333,6 +6333,7 @@ int init_nvram(void)
 		set_basic_ifname_vars(wan_ifaces, lan_ifs, wl_ifaces, "usb", NULL, "vlan2", "vlan3", 0);
 #if defined(RAX120)
 		nvram_set_int("btn_wps_gpio", 57|GPIO_ACTIVE_LOW);
+		nvram_set_int("btn_wltog_gpio", 25|GPIO_ACTIVE_LOW);
 #else
 		nvram_set_int("btn_wps_gpio", 34|GPIO_ACTIVE_LOW);
 #if defined(RTCONFIG_TURBO_BTN)
@@ -10029,6 +10030,12 @@ NO_USB_CAP:
 #if defined(RTCONFIG_SWRT_FULLCONE)
 	add_rc_support("swrt_fullcone");
 #endif
+#if defined(RTCONFIG_ENTWARE)
+	add_rc_support("entware");
+#endif
+#if defined(RTCONFIG_SOFTCENTER)
+	add_rc_support("softcenter");
+#endif
 	return 0;
 }
 
@@ -11100,6 +11107,13 @@ static void sysinit(void)
 	modprobe("bled");
 #endif
 #endif
+#if defined(RTCONFIG_SWRT_I2CLED)
+#if defined(R6800)
+	modprobe("sx150x-leds");
+#else
+	modprobe("i2cleds");
+#endif
+#endif
 #ifdef LINUX26
 	do {
 		r = eval("mdev", "-s");
@@ -11424,7 +11438,9 @@ static void sysinit(void)
 #endif
 
 	init_switch(); // for system dependent part
+#if defined(RAX120)
 	upgrade_bootloader_v2();
+#endif
 
 #if defined(RTCONFIG_SOC_IPQ40XX)
 #if defined(RTCONFIG_BLINK_LED)

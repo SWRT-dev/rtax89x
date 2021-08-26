@@ -406,9 +406,6 @@ function isSupport(_ptn){
 		else if ('<% nvram_get("uu_enable"); %>' == 0)
 			return 0;
 	}
-	else if(_ptn == "swrt_fullcone")
-		if(rc_support.search("swrt_fullcone") != -1)
-			return 1;
 	return (ui_support[_ptn]) ? ui_support[_ptn] : 0;
 }
 
@@ -570,7 +567,11 @@ var movistarTriple_support = isSupport("movistarTriple");
 var utf8_ssid_support = isSupport("utf8_ssid");
 var wpa3_support = isSupport('wpa3');
 var uu_support = isSupport('uu_accel');
+var tencent_qmacc_support = isSupport('tencent_qmacc_support');
 var gameMode_support = isSupport('gameMode');
+var softcenter_support = isSupport('softcenter');
+var entware_support = isSupport('entware');
+var swrt_fullcone_support = isSupport('swrt_fullcone');
 var QISWIZARD = "QIS_wizard.htm";
 
 var wl_version = "<% nvram_get("wl_version"); %>";

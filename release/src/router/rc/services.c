@@ -4860,7 +4860,7 @@ start_smartdns(void)
 	fprintf(fp, "server-name SWRT-smartdns\n");
 	fprintf(fp, "conf-file /etc/blacklist-ip.conf\n");
 	fprintf(fp, "conf-file /etc/whitelist-ip.conf\n");
-	//fprintf(fp, "conf-file /etc/seconddns.conf\n");
+	fprintf(fp, "conf-file /etc/seconddns.conf\n");
 	fprintf(fp, "bind [::]:9053 -group master\n");
 	//fprintf(fp, "bind-tcp [::]:5353\n");
 	fprintf(fp, "cache-size 9999\n");
@@ -4906,7 +4906,7 @@ start_smartdns(void)
 		if (!*wan_dns && !*wan_xdns)
 			continue;
 		foreach(tmp, (*wan_dns ? wan_dns : wan_xdns), next)
-			fprintf(fp, "server %s\n", tmp);
+			fprintf(fp, "server %s -group master\n", tmp);
 	}
 	//fprintf(fp, "server %s\n", nvram_get("wan_dns1_x"));
 	//fprintf(fp, "server %s\n", nvram_get("wan_dns2_x"));
@@ -9092,8 +9092,14 @@ start_services(void)
 	if(nvram_match("tencent_qmacc_enable", "1") && nvram_match("tencent_eula_check", "1"))
 		start_qmacc();
 #endif
+#if defined(RTCONFIG_ENTWARE)
+	init_entware();
+#endif
 	run_custom_script("services-start", 0, NULL, NULL);
-	nvram_set_int("sc_services_sig", 1);
+#if defined(RTCONFIG_SOFTCENTER)
+	nvram_set_int("sc_services_start_sig", 1);
+#endif
+
 	return 0;
 }
 
@@ -9101,8 +9107,11 @@ void
 stop_services(void)
 {
 	run_custom_script("services-stop", 0, NULL, NULL);
-#ifdef RTCONFIG_SOFTCENTER
-	stop_skipd();
+#if defined(RTCONFIG_SOFTCENTER)
+	nvram_set_int("sc_services_stop_sig", 1);
+#endif
+#if defined(RTCONFIG_ENTWARE)
+	nvram_set_int("entware_stop_sig", 1);
 #endif
 #ifdef RTCONFIG_FPROBE
 	stop_fprobe();
@@ -9280,6 +9289,9 @@ stop_services(void)
 	stop_telnetd();
 #ifdef RTCONFIG_SSH
 	stop_sshd();
+#endif
+#ifdef RTCONFIG_SOFTCENTER
+	stop_skipd();
 #endif
 #ifdef RTCONFIG_PROTECTION_SERVER
 	stop_ptcsrv();
@@ -10859,7 +10871,11 @@ again:
 #elif defined(RTCONFIG_ALPINE) || defined(RTCONFIG_LANTIQ)
 					update_trx("/tmp/linux.trx");
 #else
+#if defined(RAX120)
+					eval("mtd-write2", upgrade_file, "firmware");
+#else
 					eval("mtd-write2", upgrade_file, "linux");
+#endif
 #endif
 				}
 				else
@@ -11147,7 +11163,11 @@ again:
 #elif defined(RTCONFIG_ALPINE) || defined(RTCONFIG_LANTIQ)
 					update_trx("/tmp/linux.trx");
 #else
+#if defined(RAX120)
+					eval("mtd-write2", upgrade_file, "firmware");
+#else
 					eval("mtd-write2", upgrade_file, "linux");
+#endif
 #endif
 				}
 				else
@@ -12729,6 +12749,13 @@ check_ddr_done:
 	{
 		if(action & RC_SERVICE_STOP) stop_uu();
 		if(action & RC_SERVICE_START) start_uu();
+	}
+#endif
+#if defined(RTCONFIG_ENTWARE)
+	else if (strcmp(script, "entware") == 0)
+	{
+		if (action & RC_SERVICE_STOP) stop_entware();
+		if (action & RC_SERVICE_START) start_entware();
 	}
 #endif
 #if defined(RTCONFIG_USB) && defined(RTCONFIG_USB_PRINTER)

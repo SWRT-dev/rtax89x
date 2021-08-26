@@ -154,6 +154,14 @@ define(function(){
 				] 
 			},
 			{
+				menuName: "Tencent Game Acceleration",
+				index: "menu_TencentAcceleration",
+				tab: [
+					{url: "GameBoost_Tencent.asp", tabName: "Tencent Game Acceleration"},
+					{url: "NULL", tabName: "__INHERIT__"}
+				]
+			},
+			{
 				menuName: "<#Menu_usb_application#>",
 				index: "menu_APP", 
 				tab: [
@@ -333,6 +341,23 @@ define(function(){
 				]
 			},
 			{
+				menuName: "Entware",
+				index: "menu_Split",
+				tab: [
+					{url: "NULL", tabName: "__HIDE__"}
+				]
+			},
+			{
+				menuName: "Entware",
+				index: "menu_Entware",
+				tab: [
+					{url: "Entware_start.asp", tabName: "<#Entware_home#>"},
+					{url: "Entware_installed.asp", tabName: "<#Entware_installed#>"},
+					{url: "Entware_list.asp", tabName: "<#Entware_list#>"},
+					{url: "NULL", tabName: "__INHERIT__"}
+				]
+			},
+			{
 				menuName: "<#Softcenter#>",
 				index: "menu_Split",
 				tab: [
@@ -493,8 +518,15 @@ define(function(){
 						retArray.push("menu_Alexa_IFTTT");
 					}
 				}
-				else if (<% nvram_get("sc_installed"); %> == "0"){
+				if (!softcenter_support || <% nvram_get("sc_installed"); %> == "0"){
 					retArray.push("menu_Softcenter");
+				}
+				if (!entware_support){
+					retArray.push("menu_Entware");
+					for(i=0; i<menuTree.list.length; i++){
+						if(menuTree.list[i].menuName == 'Entware')
+							menuTree.list.splice(i,1);
+					}
 				}
 
 				return retArray;
@@ -648,6 +680,9 @@ define(function(){
 				if(!wtfast_support && !gameMode_support){
 					retArray.push("GameBoost.asp");
 				}
+
+				if(!tencent_qmacc_support)
+					retArray.push("GameBoost_Tencent.asp");
 
 				if(!alexa_support){
 					retArray.push("Advanced_Smart_Home_Alexa.asp");

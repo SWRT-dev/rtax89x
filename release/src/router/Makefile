@@ -4877,7 +4877,7 @@ mt-daapd-svn-1696-install:
 
 mDNSResponder:
 	@$(SEP)
-	@$(MAKE) $(PARALLEL_BUILD) -C mDNSResponder CC=$(CC) all
+	@$(MAKE) -C mDNSResponder CC=$(CC) all
 
 igmpproxy/Makefile:
 	cd igmpproxy && autoreconf -i -f && CFLAGS="-O2 -Wall $(EXTRACFLAGS) -ffunction-sections -fdata-sections" \

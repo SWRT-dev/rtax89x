@@ -229,7 +229,7 @@ uppercase_B = $(shell echo $(BUILD_NAME) | tr a-z  A-Z)
 lowercase_B = $(shell echo $(BUILD_NAME) | tr A-Z a-z)
 BUILD_TIME := $(shell LC_ALL=C date -u)
 BUILD_USER ?= $(shell whoami)
-ifeq ($(BUILD_USER),paldier)
+ifneq ($(findstring $(BUILD_USER), paldier iss),)
 BUILD_INFO := SWRTdev
 else
 BUILD_INFO := $(shell git log --pretty="%h" -n 1|sed -e "s,\([0-9a-z]\{7\}\)[0-9a-z]*,\1,")
@@ -639,7 +639,7 @@ ifeq ($(and $(LOADADDR),$(ENTRYADDR)),)
 	$(error Unknown load/entry address)
 endif
 	# generate kernel part
-ifeq ($(IPQ40XX),y)
+ifeq ($(or $(IPQ40XX),$(IPQ60XX)),y)
 	@rm -rf $(PLATFORMDIR)/zImage.lzma ; \
 		$(CROSS_COMPILE)objcopy -O binary $(LINUXDIR)/vmlinux $(PLATFORMDIR)/vmlinus ; \
 		asustools/lzma -9 -f -c $(PLATFORMDIR)/vmlinus > $(PLATFORMDIR)/zImage.lzma ;
@@ -648,12 +648,17 @@ ifeq ($(IPQ40XX),y)
 	@SIZE=`wc -c $(PLATFORMDIR)/zImage.img | awk '{print $$1}'`; \
 		PAD=`expr 64 - $${SIZE} % 64` ; \
 		dd if=/dev/zero count=1 bs=$${PAD} 2> /dev/null | tr \\000 \\377 >> $(PLATFORMDIR)/zImage.img
-	asustools/mkits.sh -D qcom-ipq40xx-ap.dkxx -o image/fit-qcom-ipq40xx-ap.dkxx.its -k $(PLATFORMDIR)/zImage.img -r $(PLATFORMDIR)/target.image -d $(LINUXDIR)/arch/arm/boot/dts/qcom-ipq40xx-$(lowercase_B).dtb -C lzma -a 0x$(LOADADDR) -e 0x$(ENTRYADDR) -A $(ARCH) -v $(KERNEL_VER)
+ifeq ($(IPQ60XX),y)
+	asustools/mkits.sh -D qcom-ipq6018-cp03-c1 -o image/fit-qcom-ipq6018-cp03-c1.its -k $(PLATFORMDIR)/zImage.img -r $(PLATFORMDIR)/target.image -d $(LINUXDIR)/arch/arm/boot/dts/qcom-ipq6018-$(lowercase_B).dtb -C lzma -a 0x$(LOADADDR) -e 0x$(ENTRYADDR) -A $(ARCH) -v $(KERNEL_VER)
+	asustools/mkimage -f image/fit-qcom-ipq6018-cp03-c1.its image/$(IMGNAME).img
+else
+	asustools/mkits.sh -D qcom-ipq40xx-ap.dkxx -o image/fit-qcom-ipq40xx-ap.dkxx.its -k $(PLATFORMDIR)/zImage.img -r $(PLATFORMDIR)/target.image -d $(LINUXDIR)/arch/arm/boot/dts/qcom-$(DAKOTA_DTS)-$(lowercase_B).dtb -C lzma -a 0x$(LOADADDR) -e 0x$(ENTRYADDR) -A $(ARCH) -v $(KERNEL_VER)
 	asustools/mkimage -f image/fit-qcom-ipq40xx-ap.dkxx.its image/$(IMGNAME).img
+endif
 	# create empty tail
 	@echo -n "" > image/tail_info
 ifeq ($(TRX_TAIL_INFO),y)
-	asustools/mktail -o image/tail_info -t 1 -f 0 -b $(SERIALNO) -e $(EXTENDNO) -r 0 -r 0
+	asustools/mktail -o image/tail_info -t 1 -f 0 -b $(SERIALNO) -e $(SWRT_CODEBASE) -r 0 -r $(SFINFO)
 	cat image/tail_info >> image/$(IMGNAME).img
 endif
 	#generate ASUS Image
@@ -664,14 +669,41 @@ endif
 		PAD2=`expr $${ISIZE} - $${KSIZE} - $${RSIZE} - $${TSIZE}` ; \
 		RFSOFFSET=`expr 64 + $${KSIZE} + $${PAD2}` ; \
 		echo "PAD2: $${PAD2}" ; \
-	asustools/mkimage -A $(ARCH) -O linux -T kernel -C lzma -a $(LOADADDR) -e $(ENTRYADDR) -r $${RFSOFFSET} \
-			-n $(BUILD_NAME) -V "$(KERNEL_VER)" "$(FS_VER)" "$(SERIALNO)" "$(EXTENDNO)" "0" "0" "0" "0" "0" "0" \
+		asustools/mkimage -A $(ARCH) -O linux -T kernel -C lzma -a $(LOADADDR) -e $(ENTRYADDR) -r $${RFSOFFSET} \
+			-n $(BUILD_NAME) -V "$(KERNEL_VER)" "$(FS_VER)" "$(SERIALNO)" "$(SWRT_CODEBASE)" "0" "0" "0" "0" "0" "0" \
 			-d image/$(IMGNAME).img image/$(IMGNAME).trx
 else
 	@if [ -n "$(DTB)" -a ! -e $(LINUXDIR)/arch/$(ARCH)/boot/dts/$(DTB) ] ; then \
 		echo "$(LINUXDIR)/arch/$(ARCH)/boot/dts/$(DTB) not found!!!" ; \
 		exit 1 ; \
 	fi
+ifeq ($(RAX120),y)
+	# RAX120 kernel.gz rootfs DTB=$(DTB) IMG=$(IMGNAME)
+	gcc asustools/mkdniimg.c -o asustools/mkdniimg
+	@$(CROSS_COMPILE)objcopy -O binary $(LINUXDIR)/vmlinux $(PLATFORMDIR)/vmlinus
+	@gzip -9 -c $(PLATFORMDIR)/vmlinus > $(PLATFORMDIR)/rax120.kernel
+	@cp -f $(PLATFORMDIR)/rax120.kernel $(PLATFORMDIR)/Image.img
+	asustools/mkits.sh -D qcom-ipq807x-rax120 -o image/qcom-ipq807x-rax120.its -k $(PLATFORMDIR)/Image.img -d $(LINUXDIR)/arch/$(ARCH)/boot/dts/$(DTB) -C gzip -a 0x41208000 -e 0x41208000 -A $(ARCH) -v $(KERNEL_VER)
+	@PATH=$(LINUXDIR)/scripts/dtc asustools/mkimage -f image/qcom-ipq807x-rax120.its image/$(IMGNAME).img
+	@SIZE=`wc -c image/$(IMGNAME).img | awk '{print $$1}'` ; \
+		PAD=`expr 64 - $${SIZE} % 64` ; \
+		dd if=/dev/zero count=1 bs=$${PAD} 2> /dev/null | tr \\000 \\377 >> image/$(IMGNAME).img
+	cat $(PLATFORMDIR)/target.image >> image/$(IMGNAME).img
+	# generate NETGEAR Image
+	asustools/mkdniimg -B "RAX120" -v "V1.2.1.22" -r "" -H "29765589+0+512+1024+4x4+8x8" -i image/$(IMGNAME).img -o image/RAX120_OFW2ASUS.img
+	@echo -n "" > image/tail_info
+	# generate ASUS Image
+	@ISIZE=`wc -c image/$(IMGNAME).img | awk '{print $$1}'` ; \
+		TSIZE=`wc -c image/tail_info | awk '{print $$1}'`; \
+		KSIZE=`wc -c $(PLATFORMDIR)/rax120.kernel | awk '{print $$1}'` ; \
+		RSIZE=`wc -c $(PLATFORMDIR)/target.image | awk '{print $$1}'` ; \
+		PAD2=`expr $${ISIZE} - $${KSIZE} - $${RSIZE} - $${TSIZE}` ; \
+		RFSOFFSET=`expr 64 + $${KSIZE} + $${PAD2}` ; \
+		asustools/mkimage -A $(ARCH) -O linux -T kernel -C none \
+			-a $(LOADADDR) -e $(ENTRYADDR) -r $${RFSOFFSET} \
+			-n $(BUILD_NAME) -V "$(KERNEL_VER)" "$(FS_VER)" "$(SERIALNO)" "$(SWRT_CODEBASE)" "0" "0" "0" "0" "0" "0" \
+			-d image/$(IMGNAME).img image/$(IMGNAME).trx
+else
 	# padded kernel image size, DTB=$(DTB)
 	@if [ -z "$(DTB)" ] ; then \
 		$(CROSS_COMPILE)objcopy -O binary $(LINUXDIR)/vmlinux $(PLATFORMDIR)/vmlinus ; \
@@ -715,6 +747,7 @@ endif
 			-a $(LOADADDR) -e $(ENTRYADDR) -r $${RFSOFFSET} \
 			-n $(BUILD_NAME) -V "$(KERNEL_VER)" "$(FS_VER)" "$(SERIALNO)" "$(SWRT_CODEBASE)" "0" "0" "0" "0" "0" "0" \
 			-d $(PLATFORMDIR)/zImage.img image/$(IMGNAME).trx
+endif
 endif
 else ifeq ($(RTCONFIG_REALTEK),y)
 # Realtek platform
@@ -3066,6 +3099,10 @@ define RouterOptions
 	if [ "$(SWRT_I2CLED)" = "y" ]; then \
 	sed -i "/RTCONFIG_SWRT_I2CLED/d" $(1); \
 	echo "RTCONFIG_SWRT_I2CLED=y" >>$(1); \
+	fi; \
+	if [ "$(ENTWARE)" = "y" ]; then \
+	sed -i "/RTCONFIG_ENTWARE/d" $(1); \
+	echo "RTCONFIG_ENTWARE=y" >>$(1); \
 	fi; \
 	)
 	$(call platformRouterOptions, $(1))
