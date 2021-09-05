@@ -130,7 +130,7 @@ function initial(){
 
 function update_coretmp(e){
   $.ajax({
-    url: '/ajax_coretmp.asp',
+    url: '/ajax_fan.asp',
     dataType: 'script', 
 	
     error: function(xhr){

@@ -217,8 +217,6 @@ define platformRouterOptions
 		echo "RTCONFIG_QCA_ARM=y" >>$(1); \
 		sed -i "/RTCONFIG_32BYTES_ODMPID/d" $(1); \
 		echo "RTCONFIG_32BYTES_ODMPID=y" >>$(1); \
-		sed -i "/RTCONFIG_FITFDT/d" $(1); \
-		echo "# RTCONFIG_FITFDT is not set" >>$(1); \
 		if [ "$(WIFI_CHIP)" = "BEELINER" ] ; then \
 			sed -i "/RTCONFIG_WIFI_QCA9990_QCA9990/d" $(1); \
 			echo "RTCONFIG_WIFI_QCA9990_QCA9990=y" >>$(1); \

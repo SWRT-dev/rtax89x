@@ -11438,7 +11438,7 @@ static void sysinit(void)
 #endif
 
 	init_switch(); // for system dependent part
-#if defined(RAX120)
+#if !defined(RAX120)
 	upgrade_bootloader_v2();
 #endif
 
