@@ -682,6 +682,8 @@ else ifeq ($(BUILD_NAME),RT-AC65U)
 	cd $(INSTALLDIR)/www/require && mv menuTrees/menuTree_RT-AC65U.js modules/menuTree.js
 else ifeq ($(BUILD_NAME),GT-AXY16000)
 	cd $(INSTALLDIR)/www/require && mv menuTrees/menuTree_ROG_AXY16000.js modules/menuTree.js
+else ifeq ($(RTCONFIG_ROG_UI)$(RTAX89U),yy)
+	cd $(INSTALLDIR)/www/require && mv menuTrees/menuTree_ROG_AXY16000.js modules/menuTree.js
 else ifeq ($(BUILD_NAME),$(filter $(BUILD_NAME), GT-AC5300 GT-AC9600 GT-AX11000 GT-AC2900))
 	cd $(INSTALLDIR)/www/require && mv menuTrees/menuTree_ROG.js modules/menuTree.js
 else ifeq ($(BUILD_NAME),BRT-AC828)
@@ -717,7 +719,7 @@ ifeq ($(BUILD_NAME),BLUECAVE)
 	rm -rf $(INSTALLDIR)/www/QIS_wizard_m.htm
 endif
 
-ifeq ($(BUILD_NAME),$(filter $(BUILD_NAME), GT-AC5300 GT-AC9600 GT-AXY16000 GT-AX11000))
+ifeq ($(BUILD_NAME),$(filter $(BUILD_NAME), GT-AC5300 GT-AC9600 GT-AXY16000 GT-AX11000 RT-AX89U))
 	rm -rf $(INSTALLDIR)/www/images/New_ui/networkmap/white_04.gif
 endif
 
@@ -889,3 +891,4 @@ ifeq ($(RTCONFIG_ROG_UI),y)
 	cp -rf $(INSTALLDIR)/www/css/ROG/* $(INSTALLDIR)/www/css/
 	rm -rf $(INSTALLDIR)/www/css/ROG
 endif
+

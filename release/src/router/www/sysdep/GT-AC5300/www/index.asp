@@ -2474,7 +2474,7 @@ function notice_apply(){
 			<div style="width:51%;float:left;background:url('images/New_ui/networkmap/networkmap_bg.png') no-repeat rgba(0,0,0,.5);background-position-x: 4px; height:805px;">
 			<table id="_NM_table" border="0" cellpadding="0" cellspacing="0" style="opacity:.95;" >
 				<tr>
-					<td width="40px" rowspan="11" valign="center"></td>
+					<td width="12px" rowspan="11" valign="center"></td>
 					<!--== Dual WAN ==-->
 					<td id="primary_wan_icon" width="160px;" align="center" class="NM_radius" onclick="showstausframe('Internet_primary');" style="display:none;height:180px">
 						<a href="/device-map/internet.asp" target="statusframe"><div id="iconInternet_primary" onclick="clickEvent(this);"></div></a>

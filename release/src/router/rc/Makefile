@@ -1194,6 +1194,7 @@ ifeq ($(or $(RTAC68U),$(RT4GAC68U)),y)
 	@cd $(INSTALLDIR)/sbin && ln -sf rc firmware_enc_crc
 	@cd $(INSTALLDIR)/sbin && ln -sf rc fw_check
 endif
+	@cd $(INSTALLDIR)/sbin && ln -sf rc toolbox
 
 clean:
 	rm -f rc *.o .*.depend *.prep libconn_diag.so

@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml">
 <html xmlns:v>
 <head>
@@ -113,6 +113,8 @@ function initial(){
 		inputCtrl(document.form.dnspriv_enable, 0);
 		change_dnspriv_enable(0);
 	}
+
+	change_nat(<% nvram_get("wan_nat_x"); %>);
 
 	if(yadns_support){
 		if(yadns_enable != 0 && yadns_mode != -1){
@@ -1214,6 +1216,12 @@ function pullDNSList(_this) {
 		$element.hide();
 	}
 }
+
+function change_nat(state) {
+	if (isSupport("bcm_kf_netfilter") || swrt_fullcone_support) {
+		document.getElementById("nat_type_tr").style.display = (state ? "" : "none");
+	}
+}
 </script>
 </head>
 
@@ -1332,6 +1340,16 @@ function pullDNSList(_this) {
 								<td>
 									<input type="radio" name="wan_nat_x" class="input" value="1" <% nvram_match("wan_nat_x", "1", "checked"); %>><#checkbox_Yes#>
 									<input type="radio" name="wan_nat_x" class="input" value="0" <% nvram_match("wan_nat_x", "0", "checked"); %>><#checkbox_No#>
+								</td>
+							</tr>
+
+							<tr id="nat_type_tr" style="display:none;">
+								<th>NAT Type</th>
+								<td>
+									<select name="nat_type" class="input_option">
+										<option value="0" <% nvram_match("nat_type", "0", "selected"); %>>Symmetric</option>
+										<option value="1" <% nvram_match("nat_type", "1", "selected"); %>>Fullcone</option>
+									</select>
 								</td>
 							</tr>				
 
@@ -1691,3 +1709,4 @@ function pullDNSList(_this) {
 
 </body>
 </html>
+
