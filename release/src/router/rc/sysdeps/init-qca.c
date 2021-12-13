@@ -1032,7 +1032,7 @@ static void init_switch_qca(void)
 		"qca-nss-qdisc",
 
 		/* 59-qca-nss-cfi */
-		"qca-nss-cfi-ocf", "qca-nss-cfi-cryptoapi", "qca-nss-ipsec",
+		/*"qca-nss-cfi-ocf",*/ "qca-nss-cfi-cryptoapi", "qca-nss-ipsec",
 
 		"qca-nss-tun6rd",
 		"qca-nss-tunipip6",
@@ -4575,3 +4575,4 @@ void set_tagged_based_vlan_config(char *interface)
 #endif
 
 #endif
+

@@ -137,6 +137,8 @@ int mkdir_if_none(const char *path)
 int init_x_Setting = -1;
 #endif
 
+#include <swrt.h>
+
 extern char *crypt __P((const char *, const char *)); //should be defined in unistd.h with _XOPEN_SOURCE defined
 #define sin_addr(s) (((struct sockaddr_in *)(s))->sin_addr)
 
@@ -3558,6 +3560,10 @@ start_ddns(void)
 		     "-u", usrstr, wild ? "-w" : "", "-e", "/sbin/ddns_updated",
 		     "-b", "/tmp/ddns.cache", NULL };
 		ret = _eval(argv, NULL, 0, &pid);
+	} else {	// Custom DDNS
+		// Block until it completes and updates the DDNS update results in nvram
+		run_custom_script("ddns-start", 120, wan_ip, NULL);
+		return 0;
 	}
 #else
 	if (*service) {
@@ -4836,13 +4842,12 @@ stop_telnetd(void)
 }
 
 #if defined(RTCONFIG_SMARTDNS)
-void
-start_smartdns(void)
+void start_smartdns(void)
 {
 	FILE *fp;
 	char *smartdns_argv[] = { "smartdns", "-c", "/etc/smartdns.conf", "-p", "/tmp/smartdns.pid", "-f", NULL };
 	pid_t pid;
-	int unit;
+	int unit, i;
 	char tmp[100], prefix[sizeof("wanXXXXXXXXXX_")];
 	char wan_dns_buf[INET6_ADDRSTRLEN*3 + 3];
 	char *wan_dns, *next;
@@ -4864,12 +4869,23 @@ start_smartdns(void)
 	fprintf(fp, "bind [::]:9053 -group master\n");
 	//fprintf(fp, "bind-tcp [::]:5353\n");
 	fprintf(fp, "cache-size 9999\n");
-	//fprintf(fp, "prefetch-domain yes\n");
+	if(nvram_match("smartdns_prefetch", "1"))
+		fprintf(fp, "prefetch-domain yes\n");
+	else
+		fprintf(fp, "prefetch-domain no\n");
 	//fprintf(fp, "bogus-nxdomain 1.0.0.0/16\n");
 	//fprintf(fp, "blacklist-ip 1.0.0.0/16\n");
 	//fprintf(fp, "whitelist-ip 1.0.0.0/16\n");
 	//fprintf(fp, "ignore-ip 1.0.0.0/16\n");
-	//fprintf(fp, "force-AAAA-SOA yes\n");
+	if(nvram_match("smartdns_dis_ipv6", "1") && !nvram_match("ipv6_service", "disabled"))
+		fprintf(fp, "force-AAAA-SOA yes\n");
+	else
+		fprintf(fp, "force-AAAA-SOA no\n");
+	//fprintf(fp, "speed-check-mode ping,tcp:443\n");
+	if(nvram_match("smartdns_dualstackip", "1") && !nvram_match("ipv6_service", "disabled"))
+		fprintf(fp, "dualstack-ip-selection yes\n");
+	else
+		fprintf(fp, "dualstack-ip-selection no\n");
 	//fprintf(fp, "edns-client-subnet 1.0.0.0/16\n");
 	//fprintf(fp, "rr-ttl 300\n");
 	//fprintf(fp, "rr-ttl-min 60\n");
@@ -4878,19 +4894,52 @@ start_smartdns(void)
 	//fprintf(fp, "log-file /var/log/smartdns.log\n");
 	//fprintf(fp, "log-size 128k\n");
 	//fprintf(fp, "log-num 2\n");
+	if(nvram_get_int("smartdns_num") == 0){
 #if !defined(K3) && !defined(R8000P) && !defined(R7000P) && !defined(XWR3100)
-	if(!strncmp(nvram_safe_get("territory_code"), "CN",2)){//Only the modified CFE of ac68u does not have this information(to unlock channels) 
+		if(!strncmp(nvram_safe_get("territory_code"), "CN",2)){
 #endif
-		fprintf(fp, "server 114.114.114.114 -group master\n");
-		fprintf(fp, "server 119.29.29.29 -group master\n");
-		fprintf(fp, "server 223.5.5.5 -group master\n");
+			nvram_set("smartdns_num", "3");
+			nvram_set("smartdns_server_1", "114.114.114.114");
+			nvram_set("smartdns_port_1", "53");
+			nvram_set("smartdns_type_1", "UDP");
+			nvram_set("smartdns_server_2", "119.29.29.29");
+			nvram_set("smartdns_port_2", "53");
+			nvram_set("smartdns_type_2", "UDP");
+			nvram_set("smartdns_server_3", "223.5.5.5");
+			nvram_set("smartdns_port_3", "53");
+			nvram_set("smartdns_type_3", "UDP");
 #if !defined(K3) && !defined(R8000P) && !defined(R7000P) && !defined(XWR3100)
-	} else {
-		fprintf(fp, "server 8.8.8.8 -group master\n");
-		fprintf(fp, "server 208.67.222.222 -group master\n");
-		fprintf(fp, "server 1.1.1.1 -group master\n");
+		}else{
+			nvram_set("smartdns_num", "3");
+			nvram_set("smartdns_server_1", "8.8.8.8");
+			nvram_set("smartdns_port_1", "53");
+			nvram_set("smartdns_type_1", "UDP");
+			nvram_set("smartdns_server_2", "208.67.222.222");
+			nvram_set("smartdns_port_2", "53");
+			nvram_set("smartdns_type_2", "UDP");
+			nvram_set("smartdns_server_3", "1.1.1.1");
+			nvram_set("smartdns_port_3", "53");
+			nvram_set("smartdns_type_3", "UDP");
+		}
+#endif
 	}
-#endif
+	for(i = 1; i <= nvram_get_int("smartdns_num"); i++){
+		char *ss = NULL, *sp = NULL, *st = NULL;
+		snprintf(prefix, sizeof(prefix), "_%d", i);
+		ss = nvram_safe_get(strcat_r("smartdns_server", prefix, tmp));
+		sp = nvram_safe_get(strcat_r("smartdns_port", prefix, tmp));
+		st = nvram_safe_get(strcat_r("smartdns_type", prefix, tmp));
+		if(!*ss || !*sp || !*st)
+			continue;
+		if(!strcmp(st, "UDP"))
+			fprintf(fp, "server %s:%s -group master\n", ss, sp);
+		else if(!strcmp(st, "TCP"))
+			fprintf(fp, "server-tcp %s:%s -group master\n", ss, sp);
+		else if(!strcmp(st, "TLS"))
+			fprintf(fp, "server-tls %s:%s -group master -no-check-certificate\n", ss, sp);
+		else if(!strcmp(st, "HTTPS"))
+			fprintf(fp, "server-https %s -group master -no-check-certificate\n", ss);
+	}
 	for (unit = WAN_UNIT_FIRST; unit < WAN_UNIT_MAX; unit++) {
 		char *wan_xdns;
 		char wan_xdns_buf[sizeof("255.255.255.255 ")*2];
@@ -4908,22 +4957,18 @@ start_smartdns(void)
 		foreach(tmp, (*wan_dns ? wan_dns : wan_xdns), next)
 			fprintf(fp, "server %s -group master\n", tmp);
 	}
-	//fprintf(fp, "server %s\n", nvram_get("wan_dns1_x"));
-	//fprintf(fp, "server %s\n", nvram_get("wan_dns2_x"));
 	//fprintf(fp, "server-tcp 8.8.8.8\n");
 	//fprintf(fp, "server-tcp 8.8.4.4\n");
 	//fprintf(fp, "tcp-idle-time 120\n");
 	//fprintf(fp, "server-tls 8.8.8.8:853\n");
 	//fprintf(fp, "server-https https://cloudflare-dns.com/dns-query\n");
-	//fprintf(fp, "speed-check-mode none\n");
-	//fprintf(fp, "dualstack-ip-selection no\n");
+
 	fclose(fp);
 	//logmessage(LOGNAME, "start smartdns:%d", pid);
 	_eval(smartdns_argv, NULL, 0, &pid);
 }
 
-void
-stop_smartdns(void)
+void stop_smartdns(void)
 {
 	if (pids("smartdns"))
 		killall_tk("smartdns");
@@ -9099,7 +9144,9 @@ start_services(void)
 #if defined(RTCONFIG_SOFTCENTER)
 	nvram_set_int("sc_services_start_sig", 1);
 #endif
-
+#if defined(RTCONFIG_SWRT_KVR) && defined(RTCONFIG_RALINK)
+	system("/usr/bin/iappd.sh restart");
+#endif
 	return 0;
 }
 
@@ -10871,11 +10918,7 @@ again:
 #elif defined(RTCONFIG_ALPINE) || defined(RTCONFIG_LANTIQ)
 					update_trx("/tmp/linux.trx");
 #else
-#if defined(RAX120)
-					eval("mtd-write2", upgrade_file, "firmware");
-#else
 					eval("mtd-write2", upgrade_file, "linux");
-#endif
 #endif
 				}
 				else
@@ -11163,11 +11206,7 @@ again:
 #elif defined(RTCONFIG_ALPINE) || defined(RTCONFIG_LANTIQ)
 					update_trx("/tmp/linux.trx");
 #else
-#if defined(RAX120)
-					eval("mtd-write2", upgrade_file, "firmware");
-#else
 					eval("mtd-write2", upgrade_file, "linux");
-#endif
 #endif
 				}
 				else
@@ -11191,7 +11230,11 @@ again:
 					{
 						char header_size[20];
 						snprintf(header_size, sizeof(header_size)-1, "%d", get_imageheader_size());
+#if defined(RAX120)
+						system("dd if=/tmp/linux.trx of=/dev/mtdblock4 skip=1 bs=64 > /dev/null 2>&1");
+#else
 						eval("mtd-write", "-i", upgrade_file, "-d", "linux", "-s", header_size);
+#endif
 					}
 #else
 #ifdef RTCONFIG_MULTIFW

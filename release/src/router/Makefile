@@ -580,6 +580,7 @@ obj-$(or $(MAPAC1750),$(QCN550X)) += libnl-bf
 obj-$(RTCONFIG_SOC_IPQ8064) += devmem2
 obj-$(RTCONFIG_SOC_IPQ8064) += taskset
 obj-$(RTCONFIG_SOC_IPQ8074) += taskset
+obj-$(ART2) += LinuxART2
 
 # IPQ4019 ILQ 1.1
 #obj-$(RTCONFIG_SOC_IPQ40XX) += qca-nss-drv.ipq40xx
@@ -1283,7 +1284,15 @@ obj-$(RTCONFIG_FPROBE) += fprobe-1.1
 obj-$(RTCONFIG_FPROBE) += tcpdump-4.4.0
 
 obj-$(RTCONFIG_BLINK_LED) += bled
-obj-$(RTCONFIG_SWRT_I2CLED) += i2cled
+obj-$(RTCONFIG_SWRT_I2CLED) += i2cled i2c-tools-3.1.2
+ifeq ($(RTCONFIG_SWRT_KVR),y)
+obj-$(RTCONFIG_RALINK) += ralinkiappd
+obj-$(RTCONFIG_LANTIQ) += lantiq_cmd
+endif
+ifeq ($(or $(RTCONFIG_HND_ROUTER),$(RTCONFIG_QCA),$(RTCONFIG_LANTIQ),$(RTCONFIG_RALINK)),y)
+obj-y += cryptodev-linux
+endif
+
 obj-$(RTCONFIG_BONDING) += ifenslave
 
 obj-$(RTCONFIG_GEOIP) += GeoIP-1.6.2

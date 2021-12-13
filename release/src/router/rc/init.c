@@ -6152,8 +6152,12 @@ int init_nvram(void)
 		//nvram_set("vlan1hwname", "et0");  // vlan. used to get "%smacaddr" for compare and find parent interface.
 		//nvram_set("vlan2hwname", "et0");  // vlan. used to get "%smacaddr" for compare and find parent interface.
 		nvram_set("lan_ifname", "br0");
-
+#if defined(RAX120)
+		patch_Factory();
+		wan0 = "eth4";				/*  1G RJ-45 */
+#else
 		wan0 = "eth3";				/*  1G RJ-45 */
+#endif
 		add_rc_support("11AX ofdma wpa3 10GS_LWAN");
 #if defined(RTCONFIG_FANCTRL)
 		add_rc_support("fanctrl");
@@ -6168,7 +6172,7 @@ int init_nvram(void)
 			/* GT-AXY16000/RT-AX89U */
 			wan1 = "eth5";				/* 10G RJ-45 */
 #if defined(RAX120)
-			nvram_set_int("led_r10g_gpio", 1);	/* 5G RJ-45 */
+			nvram_set_int("led_r10g_gpio", 2);	/* 5G RJ-45 */
 #else
 			nvram_set_int("led_r10g_gpio", 20);	/* 10G RJ-45 */
 			config_netdev_bled("led_r10g_gpio", "eth5");
@@ -6205,7 +6209,11 @@ int init_nvram(void)
 			nvram_set("wans_dualwan", new);
 			setFanOnOff(0);
 		}
+#if defined(RAX120)
+		lan_1 = "eth2 eth3";			/* QCA8075 (LAN3,LAN2) */
+#else
 		lan_1 = "eth1 eth2";			/* QCA8075 (LAN2,LAN1) */
+#endif
 
 #if defined(RTCONFIG_LACP)
 #if defined(RTCONFIG_BONDING_WAN)
@@ -6288,6 +6296,9 @@ int init_nvram(void)
 		}
 #endif
 
+#if defined(RAX120)
+		lan_2 = "eth0 eth1";	
+#else
 		/* If IPTV is enabled and out port is IPQ807X port and another ports are QCA8337 ports,
 		 * we have to use VLAN1 to seperate traffic from VLANX.
 		 */
@@ -6295,10 +6306,14 @@ int init_nvram(void)
 			lan_2 = "eth0";			/* QCA8337 + AR8033, no VLAN */
 		else
 			lan_2 = "eth0.1";		/* QCA8337 + AR8033, VLAN1 */
-
+#endif
 		wan_ifaces[WAN_IFACE_ID] = wan0;
 		wan_ifaces[WAN2_IFACE_ID] = wan1;
+#if defined(RAX120)
+		wan_ifaces[SFPP_IFACE_ID] = "";	/* 10G SFP+ */
+#else
 		wan_ifaces[SFPP_IFACE_ID] = "eth4";	/* 10G SFP+ */
+#endif
 		wl_ifaces[WL_2G_BAND] = "ath1";
 		wl_ifaces[WL_5G_BAND] = "ath0";
 #if defined(RTCONFIG_WIGIG)
@@ -6353,7 +6368,7 @@ int init_nvram(void)
 #endif
 		}
 #if defined(RAX120)
-		nvram_set_int("led_wan_gpio", 7);
+		nvram_set_int("led_wan_gpio", 3);
 		nvram_set_int("btn_rst_gpio", 54|GPIO_ACTIVE_LOW);
 #else
 		if (nvram_match("HwId", "A")) {
@@ -6371,15 +6386,16 @@ int init_nvram(void)
 		}
 #endif
 #if defined(RAX120)
-		nvram_set_int("led_2g_gpio", 6);
-		nvram_set_int("led_5g_gpio", 5);
+		nvram_set_int("led_2g_gpio", 7);
+		nvram_set_int("led_5g_gpio", 6);
 		nvram_set_int("led_pwr_gpio", 8);
 		nvram_set_int("led_usb_gpio", 4);
-		nvram_set_int("led_usb3_gpio", 3);
+		nvram_set_int("led_usb3_gpio", 5);
 		nvram_set_int("led_wps_gpio", 40);
-		nvram_set_int("led_lan_gpio", 41);
+		//nvram_set_int("led_lan_gpio", 41); move to i2cled
 		nvram_set_int("pwr_usb_gpio", 31);	/* USB port1 5V */
 		nvram_set_int("pwr_usb_gpio2", 30);	/* USB port2 5V */
+		//config_swports_bled_sleep("led_lan_gpio", 0);
 #else
 		nvram_set_int("led_wan_red_gpio", 44);
 		nvram_set_int("led_2g_gpio", 18);
@@ -9416,7 +9432,9 @@ int init_nvram(void)
 	add_wanscap_support("usb");
 #endif
 #ifdef RTCONFIG_SFPP
+#if !defined(RAX120)
 	add_wanscap_support("sfp+");
+#endif
 #endif
 #if defined(RTCONFIG_SWITCH_QCA8075_PHY_AQR107) \
  || defined(RTCONFIG_SWITCH_QCA8075_QCA8337_PHY_AQR107_AR8035_QCA8033)
@@ -10035,6 +10053,9 @@ NO_USB_CAP:
 #endif
 #if defined(RTCONFIG_SOFTCENTER)
 	add_rc_support("softcenter");
+#endif
+#if defined(RTCONFIG_SMARTDNS)
+	add_rc_support("smartdns");
 #endif
 	return 0;
 }
@@ -10774,7 +10795,7 @@ void Ate_run_in_interrupted_led_fail_loop(void)
 	enum led_id left_leds_gpio[] = {
 #if defined(RTAX89U)
 #if defined(RAX120)
-		LED_R10G,
+		LED_R10G, LED_LAN,
 #else
 		LED_WAN_RED, LED_LAN, LED_R10G, LED_SFPP,
 #endif
@@ -11113,6 +11134,12 @@ static void sysinit(void)
 #else
 	modprobe("i2cleds");
 #endif
+#endif
+#if defined(RTCONFIG_LANTIQ) || defined(RTCONFIG_QCA) || defined(RTCONFIG_RALINK) || defined(RTCONFIG_HND_ROUTER)
+#if defined(RTCONFIG_SOC_IPQ40XX)
+	modprobe("qcrypto");
+#endif
+	modprobe("cryptodev");
 #endif
 #ifdef LINUX26
 	do {
