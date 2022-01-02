@@ -13430,6 +13430,13 @@ check_ddr_done:
 		if(action & RC_SERVICE_START) start_skipd();
 	}
 #endif
+#ifdef RTCONFIG_SMARTDNS
+	else if (strcmp(script, "smartdns") == 0)
+	{
+		if(action & RC_SERVICE_STOP) stop_smartdns();
+		if(action & RC_SERVICE_START) start_smartdns();
+	}
+#endif
 #ifdef RTCONFIG_DNSPRIVACY
 	else if (strcmp(script, "stubby") == 0)
 	{
