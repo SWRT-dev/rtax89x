@@ -380,7 +380,7 @@ ifeq ($(RTCONFIG_DSL),y)
 OBJS += init-ralink-dsl.o
 endif
 else ifeq ($(RTCONFIG_QCA),y)
-OBJS += init-qca.o wps-qca.o qca.o ate-qca.o ctl.obj
+OBJS += init-qca.o wps-qca.o qca.o ate-qca.o ctl.o
 ifeq ($(RTCONFIG_AMAS),y)
 OBJS += obd-qca.o
 ifeq ($(RTCONFIG_BHCOST_OPT),y)

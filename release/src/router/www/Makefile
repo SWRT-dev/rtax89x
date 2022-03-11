@@ -101,6 +101,11 @@ ifeq ($(RTCONFIG_ROG_UI), y)
 	cp -r $(TOP)/www/sysdep/FUNCTION/ROG_UI/* $(INSTALLDIR)/www/
 endif
 endif
+ifeq ($(BUILD_NAME), RT-AX89U)
+ifeq ($(RTCONFIG_ROG_UI), y)
+	cp -r $(TOP)/www/sysdep/FUNCTION/ROG_UI/css/internetSpeed_customize.css $(INSTALLDIR)/www/css/
+endif
+endif
 
 ifeq ($(RTCONFIG_AMAS),y)
 ifneq ($(BUILD_NAME),DSL-AC68U)

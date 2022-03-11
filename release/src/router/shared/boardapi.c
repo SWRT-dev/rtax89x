@@ -571,11 +571,6 @@ int init_gpio(void)
 #endif
 		}
 #endif
-#if defined(RTCONFIG_SWRT_I2CLED)
-#if defined(R6800)
-		if(gpio_pin == 17 || gpio_pin == 5)
-#elif defined(RAX120)
-		if(gpio_pin == 40 || gpio_pin == 41)
 #endif
 
 #if defined(RTCONFIG_SW_CTRL_ALLLED)
@@ -583,7 +578,13 @@ int init_gpio(void)
 		if (inhibit_led_on())
 			disable = (use_gpio & GPIO_ACTIVE_LOW)? 1 : 0;
 #endif
-
+#if defined(RTCONFIG_SWRT_I2CLED)
+#if defined(R6800)
+		if(gpio_pin == 17 || gpio_pin == 5)
+#elif defined(RAX120)
+		if(gpio_pin == 40 || gpio_pin == 41)
+#endif
+#endif
 #if !defined(RTCONFIG_CONCURRENTREPEATER)
 		set_gpio(gpio_pin, disable);
 #endif

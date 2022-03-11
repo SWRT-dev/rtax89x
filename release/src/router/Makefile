@@ -5822,7 +5822,7 @@ $(LIBNL_DIR)/Makefile:
 		--prefix=$(LIBNL_DIR)/install)
 
 libnl: $(LIBNL_DIR)/Makefile
-	+$(MAKE) -C $(LIBNL_DIR)
+	+$(MAKE) $(PARALLEL_BUILD) -C $(LIBNL_DIR)
 	+$(MAKE) -C $(LIBNL_DIR) install
 
 libnl-install:
@@ -5840,12 +5840,14 @@ $(HOSTAPD_DIR)/hostapd/.config: $(HOSTAPD_DIR)/hostapd/brcm.config
 	cp $(HOSTAPD_DIR)/hostapd/brcm.config $(HOSTAPD_DIR)/hostapd/.config;
 
 hostapd: libnl openssl $(HOSTAPD_DIR)/hostapd/.config
-	+$(MAKE) -C $(HOSTAPD_DIR)/hostapd
+	+$(MAKE) $(PARALLEL_BUILD) -C $(HOSTAPD_DIR)/hostapd
 
 hostapd-install:
 	install -d $(INSTALLDIR)/hostapd/usr/sbin
 	cp -rf $(HOSTAPD_DIR)/hostapd/hostapd $(INSTALLDIR)/hostapd/usr/sbin
 	cp -rf $(HOSTAPD_DIR)/hostapd/hostapd_cli $(INSTALLDIR)/hostapd/usr/sbin
+	$(STRIP) $(INSTALLDIR)/hostapd/usr/sbin/hostapd
+	$(STRIP) $(INSTALLDIR)/hostapd/usr/sbin/hostapd_cli
 
 hostapd-clean:
 	+$(MAKE) -C $(HOSTAPD_DIR)/hostapd clean
@@ -5855,13 +5857,15 @@ $(WPA_SUPPLICANT_DIR)/wpa_supplicant/.config: $(WPA_SUPPLICANT_DIR)/wpa_supplica
 	cp $(WPA_SUPPLICANT_DIR)/wpa_supplicant/brcm.config $(WPA_SUPPLICANT_DIR)/wpa_supplicant/.config;
 
 wpa_supplicant-2.7: libnl $(WPA_SUPPLICANT_DIR)/wpa_supplicant/.config $(if $(or $(HND_ROUTER_AX_6756),$(BCM_502L07P2)),cevent_app)
-	+$(MAKE) -C $(WPA_SUPPLICANT_DIR)/wpa_supplicant
+	+$(MAKE) $(PARALLEL_BUILD) -C $(WPA_SUPPLICANT_DIR)/wpa_supplicant
 
 wpa_supplicant-2.7-install:
 	install -d $(INSTALLDIR)/wpa_supplicant-2.7/usr/sbin
 	cp -rf $(WPA_SUPPLICANT_DIR)/wpa_supplicant/wpa_supplicant $(INSTALLDIR)/wpa_supplicant-2.7/usr/sbin/wpa_supplicant-2.7
 	cp -rf $(WPA_SUPPLICANT_DIR)/wpa_supplicant/wpa_cli $(INSTALLDIR)/wpa_supplicant-2.7/usr/sbin/wpa_cli-2.7
 	cp -rf $(WPA_SUPPLICANT_DIR)/wpa_supplicant/libwpa_client.so $(INSTALLDIR)/usr/lib
+	$(STRIP)  $(INSTALLDIR)/wpa_supplicant-2.7/usr/sbin/wpa_supplicant-2.7
+	$(STRIP)  $(INSTALLDIR)/wpa_supplicant-2.7/usr/sbin/wpa_cli-2.7
 
 wpa_supplicant-2.7-clean:
 	+$(MAKE) -C $(WPA_SUPPLICANT_DIR)/wpa_supplicant clean
@@ -8918,6 +8922,93 @@ rsyslog-install:
 	$(STRIP) $(INSTALLDIR)/rsyslog/usr/lib/rsyslog/imtcp.so
 	install -D rsyslog/plugins/fmhttp/.libs/fmhttp.so $(INSTALLDIR)/rsyslog/usr/lib/rsyslog/fmhttp.so
 	$(STRIP) $(INSTALLDIR)/rsyslog/usr/lib/rsyslog/fmhttp.so
+
+wireguard-tools:
+	$(MAKE) -C wireguard-tools/src/
+
+wireguard-tools-install:
+	install -D wireguard-tools/src/wg $(INSTALLDIR)/wireguard-tools/usr/sbin/wg
+	$(STRIP) $(INSTALLDIR)/wireguard-tools/usr/sbin/wg
+
+wireguard-tools-clean:
+	$(MAKE) -C wireguard-tools/src/ clean
+
+libpng/build/Makefile:
+	@rm -rf libpng/build && mkdir -p libpng/build
+	cd libpng/build && \
+	$(call CMAKE_CrossOptions, crosscompiled.cmake) && \
+	cmake -DCMAKE_TOOLCHAIN_FILE=crosscompiled.cmake \
+		-DCMAKE_INSTALL_PREFIX:PATH=/usr \
+		-DCMAKE_BUILD_TYPE=MinSizeRel -DCMAKE_SKIP_RPATH=TRUE \
+		-DCMAKE_C_FLAGS="-Os -DNDEBUG -ffunction-sections -fdata-sections $(EXTRACFLAGS)" \
+		-DCMAKE_EXE_LINKER_FLAGS="-Wl,--gc-sections $(EXTRALDFLAGS) -lm -L$(TOP)/zlib/ -lz" \
+		-DPNG_BUILD_ZLIB=ON \
+		-DZLIB_LIBRARY="$(STAGEDIR)/usr/lib/libz.so" \
+		-DZLIB_INCLUDE_DIR="$(STAGEDIR)/usr/include" \
+		-DM_LIBRARY="" \
+		-DPNG_STATIC=OFF -DPNG_TESTS=OFF \
+		..
+
+libpng: libpng/build/Makefile
+	$(MAKE) -C libpng/build
+	$(MAKE) -C libpng/build install DESTDIR=$(STAGEDIR) INSTALLDIR=$(INSTALLDIR)/$*
+
+libpng-install:
+	install -d $(INSTALLDIR)/libpng/usr/lib
+	install -D libpng/build/libpng16.so.16.37.0 $(INSTALLDIR)/libpng/usr/lib/libpng16.so.16.37.0
+	cd $(INSTALLDIR)/libpng/usr/lib \
+		&& ln -sf libpng16.so.16.37.0 libpng16.so.16 \
+		&& ln -sf libpng16.so.16.37.0 libpng16.so \
+		&& ln -sf libpng16.so.16.37.0 libpng.so
+	$(STRIP) $(INSTALLDIR)/libpng/usr/lib/libpng16.so.16.37.0
+
+libpng-clean:
+	@rm -rf libpng/build
+
+qrencode/build/Makefile:
+	@rm -rf qrencode/build && mkdir -p qrencode/build
+	cd qrencode/build && \
+	$(call CMAKE_CrossOptions, crosscompiled.cmake) && \
+	cmake -DCMAKE_TOOLCHAIN_FILE=crosscompiled.cmake \
+		-DCMAKE_INSTALL_PREFIX:PATH=/usr \
+		-DCMAKE_BUILD_TYPE=MinSizeRel -DCMAKE_SKIP_RPATH=TRUE \
+		-DCMAKE_C_FLAGS="-Os -DNDEBUG -ffunction-sections -fdata-sections $(EXTRACFLAGS)" \
+		-DCMAKE_EXE_LINKER_FLAGS="-Wl,--gc-sections $(EXTRALDFLAGS) -lm" \
+		-DBUILD_SHARED_LIBS=TRUE \
+		-DZLIB_LIBRARY="$(STAGEDIR)/usr/lib/libz.so" \
+		-DZLIB_INCLUDE_DIR="$(STAGEDIR)/usr/include" \
+		-DPNG_LIBRARY=$(STAGEDIR)/usr/lib/libpng.so \
+		-DPNG_PNG_INCLUDE_DIR="$(STAGEDIR)/usr/include" \
+		..
+
+qrencode: qrencode/build/Makefile
+	$(MAKE) -C qrencode/build
+
+qrencode-install:
+	install -d $(INSTALLDIR)/qrencode/usr/sbin
+	install -D qrencode/build/qrencode $(INSTALLDIR)/qrencode/usr/sbin/qrencode
+	install -d $(INSTALLDIR)/qrencode/usr/lib
+	install -D qrencode/build/libqrencode.so.4.1.1 $(INSTALLDIR)/qrencode/usr/lib/libqrencode.so.4.1.1
+	cd $(INSTALLDIR)/qrencode/usr/lib && ln -sf libqrencode.so.4.1.1 libqrencode.so.4 && ln -sf libqrencode.so.4.1.1 libqrencode.so
+	$(STRIP) $(INSTALLDIR)/qrencode/usr/sbin/qrencode
+	$(STRIP) $(INSTALLDIR)/qrencode/usr/lib/libqrencode.so.4.1.1
+
+qrencode-clean:
+	@rm -rf qrencode/build
+
+#
+# include rules for platform specific software packages
+#
+-include $(wildcard mak/*.mak)
+# if router-sysdep exist, move rules to there
+ifeq ($(HND_ROUTER),y)
+define install_sysdep
+        @-mkdir -p $(BCM_FSBUILD_DIR)/public/lib$(BCM_INSTALL_SUFFIX_DIR)
+        @-mkdir -p $(BCM_FSBUILD_DIR)/public/bin$(BCM_INSTALL_SUFFIX_DIR)
+        @-mkdir -p $(BCM_FSBUILD_DIR)/public/sbin$(BCM_INSTALL_SUFFIX_DIR)
+        @[ ! -d $(TOP_PLATFORM)/$* ] || $(MAKE) -C $(TOP_PLATFORM)/$* install INSTALLDIR=$(BCM_FSBUILD_DIR)/public
+endef
+endif
 
 #
 # lite-auth

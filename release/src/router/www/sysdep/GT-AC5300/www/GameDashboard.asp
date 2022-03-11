@@ -362,7 +362,7 @@ function initial(){
 	if($("#aura_field").css("display") == "none")
 		$('#pingMap').height('430px');
 
-	if(uu_support && (based_modelid == 'GT-AC5300' || modelname == 'RAX120')){
+	if(uu_support && (based_modelid == 'GT-AC5300' || based_modelid == 'RT-AX89U')){
 		$('#uu_field').show();
 	}
 

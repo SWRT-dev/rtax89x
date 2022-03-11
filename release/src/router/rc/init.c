@@ -17472,7 +17472,7 @@ static void sysinit(void)
 #endif
 
 #ifdef RTCONFIG_ASD
-	nvram_set("3rd-party", "swrt");
+	nvram_set("3rd-party", "merlin");
 #endif
 
 #ifdef DSL_AX82U
@@ -17485,6 +17485,7 @@ static void sysinit(void)
 #ifdef HND_ROUTER
 	/* add war for 2500BaseX speed issue */
 	GPY211_INIT_SPEED();
+#endif
 }
 
 #if defined(RTCONFIG_TEMPROOTFS)

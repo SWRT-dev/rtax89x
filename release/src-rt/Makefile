@@ -2021,7 +2021,7 @@ define RouterOptions
 			fi; \
 		fi; \
 		if [ "$(NTFS)" != "" ]; then \
-			sed -i "/RTCONFIG_NTFS/d" $(1); \
+			sed -i "/RTCONFIG_NTFS\>/d" $(1); \
 			echo "RTCONFIG_NTFS=y" >>$(1); \
 			if [ "$(findstring open, $(NTFS))" = "open" ]; then \
 				sed -i "/RTCONFIG_OPEN_NTFS3G/d" $(1); \
@@ -3915,9 +3915,17 @@ define RouterOptions
 	sed -i "/RTCONFIG_SWRT_KVR/d" $(1); \
 	echo "RTCONFIG_SWRT_KVR=y" >>$(1); \
 	fi;
+	if [ "$(SWRT_LED_RGB)" = "y" ]; then \
+	sed -i "/RTCONFIG_SWRT_LED_RGB/d" $(1); \
+	echo "RTCONFIG_SWRT_LED_RGB=y" >>$(1); \
+	fi;
 	if [ "$(ENTWARE)" = "y" ]; then \
 	sed -i "/RTCONFIG_ENTWARE/d" $(1); \
 	echo "RTCONFIG_ENTWARE=y" >>$(1); \
+	fi;
+	if [ "$(EASYMESH)" = "y" ]; then \
+	sed -i "/RTCONFIG_EASYMESH/d" $(1); \
+	echo "RTCONFIG_EASYMESH=y" >>$(1); \
 	fi;
 	if [ "$(FITFDT)" = "y" ]; then \
 	sed -i "/RTCONFIG_FITFDT/d" $(1); \

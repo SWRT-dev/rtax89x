@@ -14672,6 +14672,7 @@ do_upgrade_post(char *url, FILE *stream, int len, char *boundary)
 #endif
 		if (!strncasecmp(buf, "Content-Disposition:", 20) && strstr(buf, "name=\"file\"")) {
 			break;
+		}
 	}
 #if defined(K3) || defined(K3C) || defined(SBRAC1900P) || defined(SBRAC3200P) || defined(R8000P) || defined(R8500) || defined(RAX20) || defined(XWR3100) || defined(R7000P) || defined(EA6700) || defined(F9K1118) || defined(TY6201_RTK) || defined(TY6201_BCM) || defined(DIR868L) || defined(R6300V2) || defined(RAX120)
 	if(checkname==0)
@@ -16114,7 +16115,6 @@ do_dbupload_cgi(char *url, FILE *stream)
 		websWrite(stream,"<script>parent.upload_ok(0);</script>\n" );
 }
 #endif
-
 
 // Viz 2010.08
 static void
