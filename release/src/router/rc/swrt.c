@@ -14,8 +14,9 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston,
  * MA 02111-1307 USA
  *
- * Copyright 2019-2021, paldier <paldier@hotmail.com>.
- * Copyright 2019-2021, lostlonger<lostlonger.g@gmail.com>.
+ * Copyright 2018-2022, SWRT.
+ * Copyright 2018-2022, paldier <paldier@hotmail.com>.
+ * Copyright 2018-2022, lostlonger<lostlonger.g@gmail.com>.
  * All Rights Reserved.
  *
  */
@@ -307,10 +308,14 @@ void swrt_init_done(){
 		nvram_set("modelname", "TY6201_BCM");
 #elif defined(TY6201_RTK)
 		nvram_set("modelname", "TY6201_RTK");
+#elif defined(TY6202)
+		nvram_set("modelname", "TY6202");
 #elif defined(K3C)
 		nvram_set("modelname", "K3C");
-#elif defined(MR62)
-		nvram_set("modelname", "MR62");
+#elif defined(MR60)
+		nvram_set("modelname", "MR60");
+#elif defined(MS60)
+		nvram_set("modelname", "MS60");
 #elif defined(SWRT360V6)
 		nvram_set("modelname", "360V6");
 #elif defined(GLAX1800)
@@ -572,7 +577,6 @@ int swrt_firmware_check_update_main(int argc, char *argv[])
 	char releasenote[]="/tmp/release_note0.txt";
 	char model[20], modelname[20], fsver[10], fwver[10], tag[10];
 	char cur_fwver[10];
-	char *tmp_fwver=nvram_get("extendno");
 	char info[100];
 	nvram_set("webs_state_update", "0");
 	nvram_set("webs_state_flag", "0");
@@ -586,7 +590,8 @@ int swrt_firmware_check_update_main(int argc, char *argv[])
 	unlink("/tmp/webs_upgrade.log");
 	unlink("/tmp/wlan_update.txt");
 	unlink("/tmp/release_note0.txt");
-	sscanf(tmp_fwver, "%*[A-Z0-9]_%[A-Z0-9.]-%*[a-z0-9]", cur_fwver);
+	memset(cur_fwver, 0, sizeof(cur_fwver));
+    strncpy(cur_fwver, RT_FWVER, 5);//5.x.x[beta]
 
 	snprintf(url, sizeof(url), "%s/%s", serverurl, serverupdate);
 
@@ -599,21 +604,20 @@ int swrt_firmware_check_update_main(int argc, char *argv[])
 			goto GODONE;
 		//BLUECAVE#K3C#3004384#R7.0#g13e704e
 		char buffer[1024];
-		while(NULL!=fgets(buffer,sizeof(buffer),fpupdate)){
-			sscanf(buffer,"%[A-Z0-9-]#%[A-Z0-9]#%[0-9]#%[A-Z0-9.]#%[a-z0-9]",model,modelname,fsver,fwver,tag);
-			_dprintf("%s#%s#%s#%s\n",model,modelname,fsver,fwver);
+		while(NULL != fgets(buffer, sizeof(buffer), fpupdate)){
+			sscanf(buffer, "%[A-Z0-9-]#%[A-Z0-9]#%[0-9]#%[A-Z0-9.]#%[a-z0-9]", model, modelname, fsver, fwver, tag);
+			_dprintf("%s#%s#%s#%s\n", model, modelname, fsver, fwver);
 			if(!strcmp(model, nvram_get("productid")) && !strcmp(modelname, nvram_safe_get("modelname"))){
-				if((strstr(cur_fwver, "B") && strstr(fwver, "B"))||(strstr(cur_fwver, "R") && strstr(fwver, "R"))||(strstr(cur_fwver, "X") && strstr(fwver, "X"))){
-					//_dprintf("%s#%s\n",fwver,cur_fwver);
-					if(versioncmp((cur_fwver+1),(fwver+1))==1){
+				if(strstr(fwver, "B") || strstr(fwver, "R") || strstr(fwver, "X")){
+					_dprintf("%s#%s\n",fwver,cur_fwver);
+					if(versioncmp((cur_fwver),(fwver+1)) == 1){
 						nvram_set("webs_state_url", "");
-#if (defined(RTAC82U) && !defined(RTCONFIG_AMAS)) || defined(RTAC3200) || defined(RTAC85P) || defined(RMAC2100) || defined(R6800)
-						snprintf(info,sizeof(info),"3004_382_%s_%s-%s",modelname,fwver,tag);
-#elif defined(BLUECAVE)
-						snprintf(info,sizeof(info),"3004_384_%s_%s-%s",modelname,fwver,tag);
-#else
-						snprintf(info,sizeof(info),"3004_386_%s_%s-%s",modelname,fwver,tag);
-#endif
+						if(!strcmp(nvram_get("firmver"), "3.0.0.4"))
+							snprintf(info, sizeof(info), "3004_%s_%s_%s-%s", nvram_get("buildno"), modelname, fwver, tag);
+						else if(!strcmp(nvram_get("firmver"), "4.0.0.4"))
+							snprintf(info, sizeof(info), "4004_%s_%s_%s-%s", nvram_get("buildno"), modelname, fwver, tag);
+						else
+							snprintf(info, sizeof(info), "5004_%s_%s_%s-%s", nvram_get("buildno"), modelname, fwver, tag);
 						FWUPDATE_DBG("---- current version : %s ----", nvram_get("extendno"));
 						FWUPDATE_DBG("---- productid : %s_%s-%s ----", modelname, fwver, tag);
 						nvram_set("webs_state_info", info);
@@ -659,13 +663,12 @@ int swrt_firmware_check_update_main(int argc, char *argv[])
 	}
 
 GODONE:
-#if (defined(RTAC82U) && !defined(RTCONFIG_AMAS)) || defined(RTAC3200) || defined(RTAC85P) || defined(RMAC2100) || defined(R6800)
-	snprintf(info,sizeof(info),"3004_382_%s",nvram_get("extendno"));
-#elif defined(BLUECAVE)
-	snprintf(info,sizeof(info),"3004_384_%s",nvram_get("extendno"));
-#else
-	snprintf(info,sizeof(info),"3004_386_%s",nvram_get("extendno"));
-#endif
+	if(!strcmp(nvram_get("firmver"), "3.0.0.4"))
+		snprintf(info, sizeof(info), "3004_%s_%s_%s-%s", nvram_get("buildno"), modelname, fwver, tag);
+	else if(!strcmp(nvram_get("firmver"), "4.0.0.4"))
+		snprintf(info, sizeof(info), "4004_%s_%s_%s-%s", nvram_get("buildno"), modelname, fwver, tag);
+	else
+		snprintf(info, sizeof(info), "5004_%s_%s_%s-%s", nvram_get("buildno"), modelname, fwver, tag);
 	nvram_set("webs_state_url", "");
 	nvram_set("webs_state_flag", "0");
 	nvram_set("webs_state_error", "1");

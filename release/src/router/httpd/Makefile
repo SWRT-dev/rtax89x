@@ -61,8 +61,6 @@ CFLAGS += -DLANTIQ_WPS
 CFLAGS += -I$(TOP)/shared/sysdeps/lantiq -I$(TOP)/wireless_tools
 endif
 
-include $(SRCBASE)/.config
-
 ifeq ($(RTN11P)$(RTN300),y)
 CFLAGS += -DBAND_2G_ONLY
 endif
@@ -108,6 +106,10 @@ ifeq ($(RTCONFIG_CAPTCHA),y)
 CFLAGS += -DCAPTCHA
 endif
 
+ifneq ($(findstring CONFIG_BCM_KF_NETFILTER=, $(shell cat $(LINUXDIR)/.config)),)
+export CFLAGS += -DBCM_KF_NETFILTER
+endif
+
 OBJS = httpd.o cgi.o ej.o 
 OBJS += web.o common.o nvram_f.o 
 OBJS += aspbw.o initial_web_hook.o
@@ -124,6 +126,9 @@ OBJS += web-alpine.o
 else ifeq ($(CONFIG_LANTIQ),y)
 OBJS += $(if $(wildcard sysdeps/web-lantiq.c),web-lantiq.o,prebuild/web-lantiq.o)
 else
+ifeq ($(or $(RTCONFIG_HND_ROUTER_AX_675X),$(RTCONFIG_HND_ROUTER_AX_6756),$(RTCONFIG_HND_ROUTER_AX_6710),$(RTCONFIG_BCM_502L07P2)),y)
+OBJS += $(if $(wildcard sysdeps/web-broadcom_private.c),web-broadcom_private.o,prebuild/web-broadcom_private.o)
+endif
 OBJS += web-broadcom.o
 ifeq ($(RTCONFIG_QTN),y)
 OBJS += find_host_addr.o
@@ -164,9 +169,16 @@ endif
 
 OBJS += $(if $(wildcard web_hook.c), web_hook.o, prebuild/web_hook.o)
 
-LIBS = -L$(TOP)/nvram${BCMEX}$(EX7) -lnvram -L$(TOP)/shared -lshared
+LIBS = -L$(TOP_PLATFORM)/nvram${BCMEX}$(EX7) -lnvram -L$(TOP)/shared -lshared
+ifeq ($(RTCONFIG_BCM_502L07P2),y)
+LIBS += -L$(TOP_PLATFORM)/ethctl_lib -lethctl
+endif
 ifeq ($(HND_ROUTER),y)
-LIBS += -L$(TOP)/wlcsm -lwlcsm
+LIBS += -L$(TOP_PLATFORM)/wlcsm -lwlcsm
+endif
+
+ifeq ($(or $(RTCONFIG_HND_ROUTER_AX_6756),$(RTCONFIG_BCM_502L07P2)),y)
+LIBS += -L$(TOP_PLATFORM)/bcm_flashutil -lbcm_flashutil -L$(TOP_PLATFORM)/gen_util -lgen_util -L$(TOP_PLATFORM)/sys_util -lsys_util -L$(TOP_PLATFORM)/bcm_util -lbcm_util -L$(TOP_PLATFORM)/bcm_boardctl -lbcm_boardctl
 endif
 
 # for ceil()
@@ -180,7 +192,16 @@ endif
 ifeq ($(RTCONFIG_BCMARM),y)
 CFLAGS += -I$(SRCBASE)/shared/bcmwifi/include -DTYPEDEF_FLOAT_T
 CFLAGS += -I$(SRCBASE)/common/include
+ifeq ($(HND_ROUTER_AX),y)
+CFLAGS += -DWL11AC_80P80 -DWL11AC_160
+CFLAGS += -I$(SRCBASE)/../components/wlioctl/include -I$(SRCBASE)/../components/proto/include
+CFLAGS += -I$(SRCBASE)/wl/sys
+CFLAGS += -I$(SRCBASE)/../../43684/src/wl/sys
+endif
 LIBS += -lgcc_s
+ifeq ($(or $(RTCONFIG_HND_ROUTER_AX_6756),$(RTCONFIG_BCM_502L07P2)),y)
+CFLAGS += -I$(TOP_PLATFORM)/bcm_flashutil -I$(HND_SRC)/userspace/public/include -I$(HND_SRC)/userspace/public/include/linux 
+endif
 ifeq ($(RTCONFIG_QTN),y)
 CFLAGS += -I$(TOP)/libqcsapi_client -I$(TOP)/shared/sysdeps/qtn
 LIBS += -L$(TOP)/libqcsapi_client -lqcsapi_client
@@ -208,7 +229,6 @@ LIBS += -L$(TOP)/openssl -lssl -lcrypto -ldl
 endif
 
 ifeq ($(RTCONFIG_OPENVPN),y)
-OBJS += openvpn_options.o
 CFLAGS += -I$(TOP)/libvpn
 LIBS += -L$(TOP)/libvpn -lvpn
 LIBS += -L$(TOP)/openssl -lssl -lcrypto -ldl
@@ -271,6 +291,7 @@ LIBS += -L $(TOP)/sqlCipher/.libs -lsqlcipher
 endif
 
 ifeq ($(RTCONFIG_CFGSYNC),y)
+CFLAGS += -I$(TOP)/shared/sysdeps/amas
 CFLAGS += -I$(TOP)/cfg_mnt
 LIBS += -L$(TOP)/cfg_mnt -lcfgmnt
 endif
@@ -311,7 +332,7 @@ all: httpd #test_apps
 
 httpd: $(OBJS)
 	@echo " [httpd] CC $@"
-	@$(CC) -o $@ $(OBJS) $(LIBS) $(EXTRALDFLAGS)
+	$(CC) -o $@ $(OBJS) $(LIBS) $(EXTRALDFLAGS)
 
 	$(SIZECHECK)
 	$(CPTMP)

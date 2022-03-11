@@ -44,6 +44,91 @@ a{
 .headerBar{
 	margin: 30px 0 0 30px;
 }
+.navigation {
+	width:100px;
+	list-style-type:none;
+	font:12px Arial, Helvetica, sans-serif;
+	position:absolute;
+	z-index:80;
+	color: #FFFFFF;
+}
+.navigation li {
+	width:145px;
+	*width:145px;
+}
+.navigation li dl {
+    margin:0;
+	padding:0;
+}
+.navigation li dl a{
+	text-decoration: none;
+}
+.navigation li dt a , .navigation li dd a{
+	display:block;
+}
+.navigation li dt {
+	background:url('/images/New_ui/dropdown_bt.png') no-repeat;
+	padding:8px 8px 0 0;
+	text-align:center;
+	font-size: 14px;
+	height: 40px;
+	overflow:hidden;
+	width: 152px;
+	color: #FFFFFF !important;
+}
+.navigation li dt:hover{
+	color:#CF0A2C;
+}
+.navigation li dt a ,.navigation  li dt a:visited {
+	display:block;
+	color:#fff;
+}
+.navigation li dd {
+	margin-left:3px;
+	color: #fff;
+	background-color:#0F0201;
+	border-bottom:solid 1px #666;
+	width:145px;
+	text-align: center;
+}
+.navigation li dd.last {
+	border-bottom:0;
+}
+.navigation li dd a, .navigation  li dd a:visited {
+	display:block;
+	color:#fff;
+	padding:4px 5px 4px 5px;
+	color: #FFFFFF !important;
+}
+.navigation li dd {
+	display:none;
+}
+.navigation li:hover dd, .navigation li a:hover dd {
+	cursor:pointer;
+	display:block;
+}
+.navigation li dd:hover{
+	text-decoration:underline;
+	background-color: #007AFF;
+}
+#selected_lang{
+	margin-bottom: -15px;
+}
+@media screen and (max-width: 1000px){
+	.navigation {
+		font-size: 14px;
+	}
+	.navigation li dt {
+		padding:4px 8px 0 0;
+		font-size: 18px;
+	}
+	.navigation li dd a, .navigation  li dd a:visited {
+		padding:6px 5px 6px 5px;
+	}
+	#selected_lang{
+		margin-bottom: -10px;
+	}
+}
 .tableContainer{
 	display: table;
 	width: 100%;
@@ -122,13 +207,28 @@ a{
 	left: .6em !important;
 }
 .inputTitleContainer{
-	 display:table;
-	 margin:18px 0 19px 30px;
-	 width:100%;
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	margin:50px 0 19px 30px;
+	width:100%;
 }
 .textInput{
 	width: 98%;
 	max-width: 100%;
+	padding-left: 18px;
+	margin-bottom: 10px;
+	font-family: HelveticaNeueW10-45Ligh, Helvetica, Arial;
+	font-size:1.875em;
+	height: 65px;
+	background: rgba(48,48,48,0.2);
+	border: 1px solid #DBDBDB;
+	color: #CCC;
+	border-radius: 5px;
+}
+.textInput_DE{
+	width: 70%;
+	max-width: 78%;
 	padding-left: 18px;
 	margin-bottom: 35px;
 	font-family: HelveticaNeueW10-45Ligh, Helvetica, Arial;
@@ -256,15 +356,13 @@ a{
 	display:table-cell;
 }
 .icon_eye_open{
-	width:32px;
-	height:32px;
-	display:table-cell;
+	width:40px;
+	height:30px;
 	padding-right:110px;	
 }
 .icon_eye_close{
-	width:32px;
-	height:32px;
-	display:table-cell;
+	width:40px;
+	height:35px;
 	padding-right:110px;	
 }
 .qisBackgroundIndex{
@@ -384,12 +482,17 @@ a{
 .plug{
 	background: url('../../images/modem_plug.png') no-repeat, url('../../images/modem_background.png') no-repeat;
 }
+.plug-ax86s{
+	background: url('../../images/modem_plug_rt-ax86s.png') no-repeat, url('../../images/modem_background.png') no-repeat;
+}
 .unplug{
 	background: url('../../images/modem_unplug.png') no-repeat, url('../../images/modem_background.png') no-repeat;
 }
+.unplug-ax86s{
+	background: url('../../images/modem_unplug_rt-ax86s.png') no-repeat, url('../../images/modem_background.png') no-repeat;
+}
 .hint{
 	color: #F00;
-	margin-top: -25px;
 	font-size: 1.4em;
 	font-style: italic;
 }
@@ -442,6 +545,10 @@ a{
 #noWanPic{
 	position: absolute;
 }
+#noWanDsl{
+	position: absolute;
+	display: none;
+}
 #noWanEth{
 	position: absolute;
 	display: none;
@@ -481,6 +588,11 @@ a{
 }
 .mobileApply{
 	width: 50%;
+	background: #007AFF;
+}
+.macCloneBtn{
+	height: 70px;
+	color: white;
 	background: #007AFF;
 }
 .footerPadding{
@@ -1407,4 +1519,27 @@ a{
 }
 #wireless_setting{
 	min-height: 800px;
+}
+.scorebar {
+	color: #222;
+	font-weight: bold;
+	font-size: 1.2em;
+	text-align: center;
+	background-image: url(/images/pwd_strength_gradient.jpg);
+	background-repeat: repeat;
+	background-position: 0 0;
+	background-size: 500%;
+	position: relative;
+	width: 100%;
+	height: 30px;
+	line-height: 30px;
+	box-shadow: inset 1px 1px 1px 0px rgba(20%, 20%, 20%, 1);
+}
+.scorebarBorder {
+	background: #333;
+	border: 1px #999 solid;
+	height: 30px;
+	margin-bottom: 5px;
+	width: 100%;
+	display:none;
 }

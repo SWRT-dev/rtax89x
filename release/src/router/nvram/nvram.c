@@ -230,7 +230,7 @@ static int _secure_conf(char* buf)
 
 	//name is token
 	const char *token1[] = {"wan_pppoe_passwd", "modem_pass", "modem_pincode",
-		"http_passwd", "wan0_pppoe_passwd", "dslx_pppoe_passwd", "ddns_passwd_x",
+		"http_passwd", "wan0_pppoe_passwd", "wan1_pppoe_passwd", "dslx_pppoe_passwd", "ddns_passwd_x",
 		"wl_wpa_psk",	"wlc_wpa_psk",  "wlc_wep_key",
 		"wl0_wpa_psk", "wl0.1_wpa_psk", "wl0.2_wpa_psk", "wl0.3_wpa_psk",
 		"wl1_wpa_psk", "wl1.1_wpa_psk", "wl1.2_wpa_psk", "wl1.3_wpa_psk",
@@ -247,6 +247,7 @@ static int _secure_conf(char* buf)
 		"wl1_phrase_x", "wl1.1_phrase_x", "wl1.2_phrase_x", "wl1.3_phrase_x",
 		"wl_phrase_x", "vpnc_openvpn_pwd", "PM_SMTP_AUTH_USER", "PM_MY_EMAIL",
 		"PM_SMTP_AUTH_PASS", "wtf_username", "ddns_hostname_x", "ddns_username_x",
+		"shell_username", "shell_passwd",
 		NULL};
 
 	//name is token
@@ -341,10 +342,11 @@ static int _convert_data(const char *name, char *value, size_t value_len)
 	//name contains token
 	const char *http_token[] = {"http_username", "http_passwd", NULL};
 	const char password_token[] = "password";
+	const char acclist_token[] = "acc_list";
 
 	//name is token
 	const char *token1[] = {"wan_pppoe_passwd", "modem_pass", "modem_pincode",
-		"http_passwd", "wan0_pppoe_passwd", "dslx_pppoe_passwd", "ddns_passwd_x",
+		"http_passwd", "wan0_pppoe_passwd", "wan1_pppoe_passwd","dslx_pppoe_passwd", "ddns_passwd_x",
 		"wl_wpa_psk",	"wlc_wpa_psk",  "wlc_wep_key",
 		"wl0_wpa_psk", "wl0.1_wpa_psk", "wl0.2_wpa_psk", "wl0.3_wpa_psk",
 		"wl1_wpa_psk", "wl1.1_wpa_psk", "wl1.2_wpa_psk", "wl1.3_wpa_psk",
@@ -367,12 +369,12 @@ static int _convert_data(const char *name, char *value, size_t value_len)
 		"wl2_phrase_x", "wl2.1_phrase_x", "wl2.2_phrase_x", "wl2.3_phrase_x",
 		"wl_phrase_x", "vpnc_openvpn_pwd", "PM_SMTP_AUTH_USER", "PM_MY_EMAIL",
 		"PM_SMTP_AUTH_PASS", "wtf_username", "ddns_hostname_x", "ddns_username_x",
+		"shell_username", "shell_passwd",
 		NULL};
 
 	//name is token
 	//value is [<]username>password<username...
-	const char *token2[] = {"acc_list", "pptpd_clientlist", "vpn_serverx_clientlist",
-		NULL};
+	const char *token2[] = {"pptpd_clientlist", "vpn_serverx_clientlist",	NULL};
 
 	//name is token
 	//valus is [<]desc>type>index>username>password<desc...
@@ -449,6 +451,12 @@ static int _convert_data(const char *name, char *value, size_t value_len)
 	{
 		char *e = strchr(value, '@') ? : strchr(value, 0);
 		memset(value, PROTECT_CHAR, e - value);
+		return 1;
+	}
+	//convert acc_list as DEFAULT_LOGIN_DATA>DEFAULT_LOGIN_DATA
+	if(strcmp(name, acclist_token) == 0)
+	{
+		snprintf(value, value_len, "%s>%s", DEFAULT_LOGIN_DATA, DEFAULT_LOGIN_DATA);
 		return 1;
 	}
 

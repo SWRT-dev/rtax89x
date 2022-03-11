@@ -50,6 +50,8 @@ var info = {
 //var radius_client = "1>Client_1>123456>192.168.1.100<1>Client_2>1234567>192.168.1.200";
 var radius_client =  decodeURIComponent('<% nvram_char_to_ascii("","radius_serv_list"); %>').replace(/&#62/g, ">");
 
+var faq_href = "https://nw-dlcdnet.asus.com/support/forward.html?model=&type=Faq&lang="+ui_lang+"&kw=&num=155";
+
 function client_object(active, name, password, ipaddr){
 	this.active = (active == 1) ? true : false;
 	this.name = name;
@@ -63,7 +65,7 @@ $(document).ready(function (){
 	generate_client_table();
 	var series = productid.split("-")[0].toUpperCase();
 	if(series == "BRT")
-		httpApi.faqURL("1034970", function(url){document.getElementById("faq").href=url;});
+		document.getElementById("faq").href=faq_href;
 	else
 		$(".brt_series").remove();
 });

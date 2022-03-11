@@ -21,6 +21,10 @@
 #define E_ETHER_LIST	"ether_list"
 #define E_OB_PATH	"ob_path"
 #define MAC_LIST	"mac_list"
+#define DATA		"data"
+#define STA		"sta"
+#define BLOCK_TIME	"block_time"
+#define TARGET_AP	"target_ap"
 #define WEVENT_GENERIC_MSG	 "{\""WEVENT_PREFIX"\":{\""EVENT_ID"\":\"%d\"}}"
 #define WEVENT_MAC_IFNAME_MSG	 "{\""WEVENT_PREFIX"\":{\""EVENT_ID"\":\"%d\",\""MAC_ADDR"\":\"%s\",\""IF_NAME"\":\"%s\"}}"
 #define WEVENT_VSIE_MSG	 "{\""WEVENT_PREFIX"\":{\""EVENT_ID"\":\"%d\",\""VSIE"\":\"%s\"}}"
@@ -32,6 +36,7 @@
 #define HTTPD_OB_SELECTION_MSG	"{\""HTTPD_PREFIX"\":{\""EVENT_ID"\":\"%d\",\""OB_STATUS"\":%d,\""NEW_RE_MAC"\":\"%s\",\""E_OB_PATH"\":%d}}"
 #define HTTPD_CONFIG_CHANGED_MSG	"{\""HTTPD_PREFIX"\":{\""EVENT_ID"\":\"%d\",\""RE_MAC"\":\"%s\",\""CONFIG"\":%s}}"
 #define HTTPD_REBOOT_MSG	"{\""HTTPD_PREFIX"\":{\""EVENT_ID"\":\"%d\",\""MAC_LIST"\":%s}}"
+#define HTTPD_ACTION_MSG	"{\""HTTPD_PREFIX"\":{\""EVENT_ID"\":\"%d\",\""MAC_LIST"\":%s,\""DATA"\":%s}}"
 #define RC_GENERIC_MSG	 	"{\""RC_PREFIX"\":{\""EVENT_ID"\":\"%d\"}}"
 #define RC_CONFIG_CHANGED_MSG	"{\""RC_PREFIX"\":{\""EVENT_ID"\":\"%d\",\""CONFIG"\":%s}}"
 #define ETHEVENT_PROBE_MSG	 "{\""ETHEVENT_PREFIX"\":{\""EVENT_ID"\":\"%d\",\""E_ETHER_LIST"\":%s}}"
@@ -43,6 +48,7 @@
 #define FROM_ETHERNET	0x2
 
 enum httpdEventType {
+	EID_HTTPD_NONE = 0,
 	EID_HTTPD_FW_CHECK = 1,
 	EID_HTTPD_FW_UPGRADE,
 	EID_HTTPD_REMOVE_SLAVE,
@@ -53,7 +59,10 @@ enum httpdEventType {
 #ifdef RTCONFIG_BHCOST_OPT
 	EID_HTTPD_SELF_OPTIMIZE,
 #endif
-	EID_HTTPD_REBOOT
+	EID_HTTPD_REBOOT,
+	EID_HTTPD_RE_RECONNECT,
+	EID_HTTPD_FORCE_ROAMING,
+	EID_HTTPD_MAX
 };
 
 enum wEventType {

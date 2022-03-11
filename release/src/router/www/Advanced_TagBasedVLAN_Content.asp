@@ -152,8 +152,18 @@ function applyRule(){
 		save_LanToLanRoute();
 		document.form.subnet_rulelist_ext.value = subnet_rulelist_ext;
 		set_pvid_list();
-		showLoading();
-		document.form.submit();
+		if(document.form.action_script.value == "reboot"){
+			
+			if(confirm("<#AiMesh_Node_Reboot#>")){
+				showLoading();
+				document.form.submit();
+			}
+		}
+		else{
+
+			showLoading();
+			document.form.submit();
+		}
 	}
 	else
 		return;
@@ -1973,7 +1983,8 @@ function del_LanToLanRoute(r){
 										<script type="text/javascript">
 											$('#vlan_enable').iphoneSwitch('<% nvram_get("vlan_enable"); %>',
 												function() {
-													if(orig_lan_trunk_type != "0"){
+													var wans_dualwan_array = '<% nvram_get("wans_dualwan"); %>'.split(" ");
+													if(wans_dualwan_array.indexOf("lan") == -1 && orig_lan_trunk_type != "0"){
 														if(!confirm("Enable VLAN feature will disable bonding function in \'LAN > Switch Control\' page, Are you sure to continue?")){//untranslated
 															curState = "0";
 															$('#vlan_enable').find('.iphone_switch').animate({backgroundPosition: -37}, "slow");

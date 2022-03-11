@@ -24,6 +24,7 @@
 <script type="text/javascript" src="/js/jquery.js"></script>
 <script type="text/javascript" src="/calendar/jquery-ui.js"></script> 
 <script type="text/javascript" src="/switcherplugin/jquery.iphone-switch.js"></script>
+<script type="text/javascript" src="/js/httpApi.js"></script>
 <style>
   #selectable .ui-selecting { background: #FECA40; }
   #selectable .ui-selected { background: #F39814; color: white; }
@@ -219,6 +220,9 @@ info.group = new Array();
 
 function initial(){
 	show_menu();
+	if(hnd_support || based_modelid == "RT-AC1200" || based_modelid == "RT-AC1200_V2" || based_modelid == "RT-AC1200GU" || based_modelid == "RT-N19"){
+		$("#nat_desc").hide();
+	}
 	if(bwdpi_support){
 		//show_inner_tab();
 		document.getElementById('guest_image').style.background = "url(images/New_ui/TimeLimits.png)";
@@ -264,6 +268,8 @@ function initial(){
 		}
 		cookie.unset("time_scheduling_mac");
 	}
+	if(isSupport("PC_SCHED_V3") == "2")
+		$("#block_all_device").show();
 }
 
 function device_object(name, mac, type, type_name, description, group_array){
@@ -1098,6 +1104,41 @@ function setGroup(name){
 				</tr>
 			</table>
 			<div style="margin: 0 0 10px 5px" class="splitLine"></div>
+			<div id="block_all_device" style="margin-bottom:6px;display:none;">
+				<div style="font-size:14px;margin-left:6px;margin-bottom:6px;">By enabling Block All Devices, all of the connected devices will be blocked from Internet access.</div>
+				<table width="100%" border="1" align="center" cellpadding="4" cellspacing="0" bordercolor="#6b8fa3" class="FormTable">
+					<tr>
+						<th>Enable block all device</th>
+						<td>
+							<div align="center" class="left" style="width:94px; float:left; cursor:pointer;" id="radio_block_all"></div>
+							<div class="iphone_switch_container" style="height:32px; width:74px; position: relative; overflow: hidden">
+								<script type="text/javascript">
+									$('#radio_block_all').iphoneSwitch('<% nvram_get("MULTIFILTER_BLOCK_ALL"); %>',
+										function(){
+											httpApi.nvramSet({
+												"action_mode": "apply",
+												"rc_service": "restart_firewall",
+												"MULTIFILTER_BLOCK_ALL": "1"
+											}, function(){
+												showLoading(3);
+											});
+										},
+										function(){
+											httpApi.nvramSet({
+												"action_mode": "apply",
+												"rc_service": "restart_firewall",
+												"MULTIFILTER_BLOCK_ALL": "0"
+											}, function(){
+												showLoading(3);
+											});
+										}
+									);
+								</script>
+							</div>
+						</td>
+					</tr>
+				</table>
+			</div>
 		</div>
 		<div id="PC_desc">
 			<table width="700px" style="margin-left:25px;">
@@ -1118,7 +1159,7 @@ function setGroup(name){
 						<span id="desc_note" style="color:#FC0;"><#ADSL_FW_note#></span>
 						<ol style="color:#FC0;margin:-5px 0px 3px -18px;*margin-left:18px;">
 							<li><#ParentalCtrl_default#></li>
-							<li><#ParentalCtrl_disable_NAT#></li>
+							<li id="nat_desc"><#ParentalCtrl_disable_NAT#></li>
 						</ol>	
 					</td>
 				</tr>

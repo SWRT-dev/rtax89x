@@ -1,6 +1,6 @@
 ﻿var Untranslated = {
 	fw_size_higher_mem : 'Memory space is NOT enough to upgrade on internet. Please wait for rebooting.',
-	ASUSGATE_note9 : "Your DSL (Digital Suscriber Line) seems unstable. DLA (Dynamic Line Adjustment) enabled by default has modified the necessary setting to improve the network stability. If failed, please submit feedback to our support team.",
+	ASUSGATE_note9 : 'Your DSL line appears to be unstable. DLA (Dynamic Line Adjustment) which enabled by default already adopted necessary changes and ensure stability. However, if interruption continues please submit a Feedback form with "Enable DSL Line Diagnostic" option set as "Yes" and "Diagnostic debug log capture duration" set as 24 hours for our analysis(no need to enable System diagnostic).',
 	ASUSGATE_note6 : "Your DSL (Digital Suscriber Line) seems unstable. We strongly recommend that you submit feedback to our support team.",
 	ASUSGATE_note7 : "If you are experiencing any DSL related issues or you have any comments, please feel free to inform our support team.",
 	ASUSGATE_act_feedback : "Feedback now",
@@ -235,12 +235,10 @@ function overHint(itemNum){
 		statusmenu ="<span><#Adaptive_Custom_desc#></span>";
 	}
 	else if(itemNum == 86){
-		//statusmenu ="<span><#Adaptive_Game_desc#><br><#Adaptive_Category1#></span>";
-		statusmenu ="<span>For optimize online gaming process bandwidth including  Diablo, WOW, Steam games and XBOX, ect.<br><#Adaptive_Category1#></span>";		/* untranslated */
+		statusmenu ="<span><#Adaptive_Game_desc#><br><#Adaptive_Category1#></span>";
 	}
 	else if(itemNum == 87){
-		//statusmenu ="<span><#Adaptive_Stream_desc#><br><#Adaptive_Category2#></span>";
-		statusmenu ="<span>For faster video streaming experience including Youtube, Netflix and Spotify, ect.<br><#Adaptive_Category2#></span>";	/* untranslated */
+		statusmenu ="<span><#Adaptive_Stream_desc#><br><#Adaptive_Category2#></span>";
 	}
 	else if(itemNum == 88){
 		statusmenu ="<span><#Adaptive_WebSurf_desc#><br><#Adaptive_Category4#></span>";
@@ -394,7 +392,7 @@ function overHint(itemNum){
 
 			var transform_dblog_service = function() {
 				var dblog_service = parseInt('<% nvram_get("dblog_service"); %>');
-				var dblog_service_mapping = ["", "Wi-Fi", "<#DM_title#>", "<#UPnPMediaServer#>", "AiMesh"];/* untranslated */
+				var dblog_service_mapping = ["", "WiFi", "<#DM_title#>", "<#UPnPMediaServer#>", "AiMesh"];/* untranslated */
 				var dblog_service_text = "";
 				for(var i = 1; dblog_service != 0 && i <= 4; i++) {
 					if(dblog_service & 1) {
@@ -462,7 +460,7 @@ function overHint(itemNum){
 	}
 	// wifi hw switch
 	if(itemNum == 8){
-		statusmenu = "<div class='StatusHint'>Wi-Fi :</div>";
+		statusmenu = "<div class='StatusHint'>WiFi :</div>";
 		
 		if(wl_info.band5g_2_support){
 				if(wlan0_radio_flag == "0")
@@ -619,11 +617,17 @@ function overHint(itemNum){
 				}
 			}
 		}
-		if(wl_info.band5g_2_support){
+		if(wl_info.band5g_2_support || wl_info.band6g_support){
 			for(var i=0; i<gn_array_5g_2.length; i++){
 				if(gn_array_5g_2[i][0] == 1){
 					if(title5_2 == 0){
-						statusmenu += "<div class='StatusHint' style='margin-top:15px;'>5GHz-2 Network:</div>";				
+						if(band6g_support){
+							statusmenu += "<div class='StatusHint' style='margin-top:15px;'>6 GHz Network:</div>";
+						}
+						else{
+							statusmenu += "<div class='StatusHint' style='margin-top:15px;'>5 GHz-2 Network:</div>";
+						}
+						
 						title5_2 = 1;
 					}
 	
@@ -929,7 +933,7 @@ function openHint(hint_array_id, hint_show_id, flag){
 			_caption = "DSL Log";
 		}		
 		else if(hint_show_id == 5){
-			statusmenu = "<span class='StatusClickHint' onclick='gotocooler();' onmouseout='this.className=\"StatusClickHint\"' onmouseover='this.className=\"StatusClickHint_mouseover\"'>Go to Fan tuning</span>";
+			statusmenu = "<span class='StatusClickHint' onclick='gotocooler();' onmouseout='this.className=\"StatusClickHint\"' onmouseover='this.className=\"StatusClickHint_mouseover\"'><#fan_tuning#></span>";
 			_caption = "Perfomance Tuning";
 		}
 		else if(hint_show_id == 4){
@@ -1062,7 +1066,7 @@ function openHint(hint_array_id, hint_show_id, flag){
 		statusmenu = "<div>";
 		statusmenu += "<#WANAggregation_help_desc#>";
 		statusmenu += "<ol>";
-		statusmenu += "<li><#WANAggregation_help_step1#></li>".replace(/LAN-*\D* 4/, wanAggr_p2_name(orig_wnaports_bond));
+		statusmenu += "<li><#WANAggregation_help_step1#></li>".replace("LAN 4", wanAggr_p2_name(orig_wnaports_bond));
 		statusmenu += "<li><#WANAggregation_help_step2#></li>";
 		statusmenu += "<li><#WANAggregation_help_step3#></li>";
 		statusmenu += "<li><#WANAggregation_help_step4#></li>";
@@ -2614,10 +2618,23 @@ function check_common_string(pwd, flag){
 
 // ---------- Viz add for pwd strength check [Start] 2012.12 -----
 
-function chkPass(pwd, flag) {
+function chkPass(pwd, flag, obj, id) {
 	var orig_pwd = "";
-	var oScorebar = document.getElementById("scorebar");
-	var oScore = document.getElementById("score");
+	var postfix = (id == undefined)? "": ("_" + id);
+	var oScorebarBorder = document.getElementById("scorebarBorder"+postfix);
+	var oScorebar = document.getElementById("scorebar"+postfix);
+	var oScore = document.getElementById("score"+postfix);
+
+	if(obj != undefined){
+		oScorebarBorder = $(obj)[0];
+		oScorebar = $(obj).find(".strength_color")[0];
+		oScore =$(obj).find(".strength_text")[0];
+	}
+
+	if(flag == 'http_passwd' && (is_KR_sku || is_SG_sku || is_AA_sku)){
+		oScorebar.style.display = "none";
+		return;
+	}
 
 	// Simultaneous variable declaration and value assignment aren't supported in IE apparently
 	// so I'm forced to assign the same value individually per var to support a crappy browser *sigh* 
@@ -2780,8 +2797,8 @@ function chkPass(pwd, flag) {
 		
 		/* Determine complexity based on overall score */
 		if (nScore > 100) { nScore = 100; } else if (nScore < 0) { nScore = 0; }
-		if(document.form.current_page.value != "AiProtection_HomeProtection.asp"){	
-			if (nScore >= 0 && nScore < 20) { sComplexity = "<#PASS_score0#>"; }
+		if(typeof document.forms[0] == "undefined" || (typeof document.forms[0] != "undefined" && document.form.current_page.value != "AiProtection_HomeProtection.asp")){
+			if (nScore >= 0 && nScore < 20) { sComplexity = "<#AiProtection_scan_rDanger#>"; }
 			else if (nScore >= 20 && nScore < 40) { sComplexity = "<#PASS_score1#>"; }
 			else if (nScore >= 40 && nScore < 60) { sComplexity = "<#PASS_score2#>"; }
 			else if (nScore >= 60 && nScore < 80) { sComplexity = "<#PASS_score3#>"; }
@@ -2796,16 +2813,16 @@ function chkPass(pwd, flag) {
 		}
 		
 		/* Display updated score criteria to client */
-		if(document.form.current_page.value != "AiProtection_HomeProtection.asp"){		//for Router weakness status, Jimeing added at 2014/06/07
-			document.getElementById('scorebarBorder').style.display = "";
+		if(typeof document.forms[0] == "undefined" || (typeof document.forms[0] != "undefined" && document.form.current_page.value != "AiProtection_HomeProtection.asp")){		//for Router weakness status, Jimeing added at 2014/06/07
+			oScorebarBorder.style.display = "flex";
 			oScorebar.style.backgroundPosition = "-" + parseInt(nScore * 4) + "px";
 		}
 		else{
 			if(nScore >= 0 && nScore < 40){
-				document.getElementById('score').className = "status_no";			
+				oScore.className = "status_no";
 			}
 			else if(nScore >= 40 && nScore <= 100){
-				document.getElementById('score').className = "status_yes";		
+				oScore.className = "status_yes";
 			}
 		}
 		
@@ -2816,6 +2833,8 @@ function chkPass(pwd, flag) {
 		if(flag == 'http_passwd'){
 			chkPass(" ", 'http_passwd');
 		}
+		else
+			chkPass(" ", "", obj, id);
 	}
 }
 

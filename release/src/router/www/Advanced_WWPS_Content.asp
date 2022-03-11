@@ -44,15 +44,18 @@ function reject_wps(auth_mode, wep){
 
 function get_band_str(band){
 	if(band == 0)
-		return "2.4GHz";
+		return "2.4 GHz";
 	else if(band == 1){
 		if(!wl_info.band5g_2_support)
-			return "5GHz";	
-		else
-			return "5GHz-1";	
+			return "5 GHz";	
+		else{
+			return (band6g_support) ? '5 GHz' : '5 GHz-1';
+		}
 	}
-	else if(band == 2)
-		return "5GHz-2";
+	else if(band == 2){
+		return (band6g_support) ? '6 GHz' : '5 GHz-2';
+	}
+		
 	return "";
 }
 
@@ -61,7 +64,12 @@ function initial(){
 	if(!band5g_support){
 		document.getElementById("wps_band_tr").style.display = "none";		
 	}else{		
-		if(wl_info.band5g_2_support){	//Tri-band, RT-AC3200
+		if(wl_info.band5g_2_support || wl_info.band6g_support){	//Tri-band, RT-AC3200
+			if(band6g_support){
+				document.getElementById("wps_opt1").innerHTML = '5 GHz';
+				document.getElementById("wps_opt2").innerHTML = '6 GHz';
+			}
+			
 			document.getElementById("wps_switch").style.display = "none";	
 			document.getElementById("wps_select").style.display = "";
 		}								
@@ -198,7 +206,10 @@ function applyRule(){
 }
 
 function enableWPS(){
-	document.form.action_script.value = "restart_wireless";
+	if(Qcawifi_support && amesh_support)
+		document.form.action_script.value = "restart_wpsie";
+	else
+		document.form.action_script.value = "restart_wireless";
 	document.form.action_mode.value = "apply_new";
 	document.form.action_wait.value = "3";
 	applyRule();
@@ -388,7 +399,7 @@ function show_wsc_status(wps_infos){
 		document.getElementById("wps_enable_word").innerHTML = "<#btn_Enabled#>";
 		document.getElementById("enableWPSbtn").value = "<#btn_disable#>";
 		document.getElementById("switchWPSbtn").style.display = "none";
-		if(wl_info.band5g_2_support){
+		if(wl_info.band5g_2_support || wl_info.band6g_support){
 			document.getElementById("wps_switch").style.display = "";	
 			document.getElementById("wps_select").style.display = "none";
 		}
@@ -403,24 +414,38 @@ function show_wsc_status(wps_infos){
 		document.getElementById("switchWPSbtn").style.display = "none";
 	}
 	else if(wps_infos[12].firstChild.nodeValue == 0){
-			document.getElementById("wps_band_word").innerHTML = "2.4GHz";
-			band_string = "2.4GHz";
+			document.getElementById("wps_band_word").innerHTML = "2.4 GHz";
+			band_string = "2.4 GHz";
 			currentBand = 0;
 	}
 	else if(wps_infos[12].firstChild.nodeValue == 1){
-		if(!wl_info.band5g_2_support){
-			document.getElementById("wps_band_word").innerHTML = "5GHz";
-				band_string = "5GHz";
+		if(!wl_info.band5g_2_support && !wl_info.band6g_support){
+			document.getElementById("wps_band_word").innerHTML = "5 GHz";
+			band_string = "5 GHz";
 		}else{
-			document.getElementById("wps_band_word").innerHTML = "5GHz-1";
-			band_string = "5GHz-1";
+			if(band6g_support){
+				document.getElementById("wps_band_word").innerHTML = "6 GHz";
+				band_string = "6 GHz";
+			}
+			else{
+				document.getElementById("wps_band_word").innerHTML = "5 GHz-1";
+				band_string = "5 GHz-1";
+			}			
 		}
-			currentBand = 1;
+			
+		currentBand = 1;
 	}	
 	else if(wps_infos[12].firstChild.nodeValue == 2){
-			document.getElementById("wps_band_word").innerHTML = "5GHz-2";
-			band_string = "5GHz-2";
-			currentBand = 1;
+		if(band6g_support){
+			document.getElementById("wps_band_word").innerHTML = "6 GHz";
+			band_string = "6 GHz";
+		}
+		else{
+			document.getElementById("wps_band_word").innerHTML = "5 GHz-2";
+			band_string = "5 GHz-2";
+		}
+
+		currentBand = 1;
 	}
 
 	
@@ -526,9 +551,9 @@ function show_wsc_status(wps_infos){
 	
 
 	if(wps_infos[1].firstChild.nodeValue == "No")
-		document.getElementById("wps_config_td").innerHTML = "<#checkbox_No#>";
+		document.getElementById("wps_config_td").innerHTML = "<#btn_Disabled#>";
 	else
-		document.getElementById("wps_config_td").innerHTML = "<#checkbox_Yes#>";
+		document.getElementById("wps_config_td").innerHTML = "<#btn_Enabled#>";
 }
 
 function show_wsc_status2(wps_infos0, wps_infos1){
@@ -844,8 +869,14 @@ function checkWLReady(){
 										}					
 									}
 									
-									document.form.wps_enable.value = "1";
-									enableWPS();
+									if( !SG_mode || (SG_mode && confirm('Enabling WPS may result in the leak of your WiFi network password. Do you still want to proceed?'))){
+										document.form.wps_enable.value = "1";
+										enableWPS();
+									}
+									else{
+										$('#iphone_switch').animate({backgroundPosition: -37}, "slow", function() {});
+										return false;
+									}
 								 },
 								 function() {
 									document.form.wps_enable.value = "0";
@@ -854,7 +885,7 @@ function checkWLReady(){
 							);
 						</script>
 						<span id="wps_enable_hint"></span>
-		  	  </td>
+				</td>
 			</tr>
 			<tr id="wps_band_tr">
 				<th width="30%"><a class="hintstyle" href="javascript:void(0);" onclick="openHint(13,5);"><#Current_band#></th>
@@ -866,9 +897,9 @@ function checkWLReady(){
 		  	</td>
 				<td  id="wps_select" style="display:none">
 						<select name="wps_unit" class="input_option" onChange="SelectBand();">
-							<option id="wps_opt0" class="content_input_fd" value="0" <% nvram_match("wps_band_x", "0","selected"); %>>2.4GHz</option>
-							<option id="wps_opt1" class="content_input_fd" value="1" <% nvram_match("wps_band_x", "1","selected"); %>>5GHz-1</option>
-							<option id="wps_opt2" class="content_input_fd" value="2" <% nvram_match("wps_band_x", "2","selected"); %>>5GHz-2</option>
+							<option id="wps_opt0" class="content_input_fd" value="0" <% nvram_match("wps_band_x", "0","selected"); %>>2.4 GHz</option>
+							<option id="wps_opt1" class="content_input_fd" value="1" <% nvram_match("wps_band_x", "1","selected"); %>>5 GHz-1</option>
+							<option id="wps_opt2" class="content_input_fd" value="2" <% nvram_match("wps_band_x", "2","selected"); %>>5 GHz-2</option>
 						</select>			
 				</td>
 			</tr>

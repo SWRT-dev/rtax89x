@@ -405,6 +405,30 @@ var tableApi = {
 					var scrollTop = $(document).scrollTop();
 					$(".createNewRule").css({ top: (scrollTop + 200) + "px" });
 					//$(".createNewRule").children().find(".inputText").first().focus();
+
+
+					if(wan_proto=="v6plus" && array_ipv6_s46_ports.length > 1){
+						if($(".setup_info_icon").length >= 1){
+							$(".setup_info_icon").show();
+							$(".setup_info_icon").click(
+								function() {				
+									if($("#s46_ports_content").is(':visible'))
+										$("#s46_ports_content").fadeOut();
+									else{
+										var position = $(".setup_info_icon").position();
+										pop_s46_ports(position, "table");
+									}
+								}
+							);
+							$(".setup_info_icon").parent().siblings().focus(
+								function() {
+									var position_text = $(".setup_info_icon").parent().siblings().position();
+									pop_s46_ports(position_text, "game");
+								}
+							);
+						}
+					}
+
 				}
 			);
 		}
@@ -440,7 +464,7 @@ var tableApi = {
 		//title
 		var $titleHtml = $("<div>");
 		$titleHtml.addClass("pureText");
-		$titleHtml.html("Create New Policy");/*untranslated*/
+		$titleHtml.html("<#JS_create_policy#>");/*untranslated*/
 		$titleHtml.appendTo($divHtml);
 
 		//close icon
@@ -578,6 +602,7 @@ var tableApi = {
 	},
 
 	closeRuleFrame : function() {
+		$("body").find("#s46_ports_content").fadeOut();
 		$("body").find(".fullScreen").fadeOut(function() { tableApi.removeElement("fullScreen"); });
 		$("body").find(".createNewRule").fadeOut(function() { tableApi.removeElement("createNewRule"); });
 	},
@@ -835,9 +860,9 @@ var tableApi = {
 			.append(
 				tableApi.genTable_frame(tableApi._attr)
 					// thead
-					//.append(
-					//	tableApi.genThead_frame(tableApi._attr.title, tableApi._privateAttr.header_item_num)
-					//)
+					.append(
+						((tableApi._attr.capability.add) ? "" : tableApi.genThead_frame(tableApi._attr.title, tableApi._privateAttr.header_item_num))
+					)
 					// title
 					.append(
 						tableApi.genTitle_frame(tableApi._attr.header, tableApi._privateAttr.header_item_width)
@@ -977,7 +1002,7 @@ var tableApi = {
 							.css(dataRawStyleListJson)
 							.addClass(dataRawClass)
 							.attr("row_td_idx", k)
-							.attr("width", _headerWidthArray[k])
+							//.attr("width", _headerWidthArray[k])
 							.attr({"title" : textHint})
 							.html(
 								$("<div>")
@@ -1091,18 +1116,12 @@ var tableApi = {
 								else {
 									id = $(this).find($(".dataEdit"))[0].id;
 								}
-
-								if($('body').find('.row_tr').hasClass("data_raw_editing")) {	
-									$('body').find('.row_tr').removeClass("data_raw_editing");
-									$('body').find('.row_tr').find('.edit-mode').css({"display":'none'});
-									$('body').find('.row_tr').find('.static-text').css({"display":''});
-
+								if(!$('body').find('.row_tr').hasClass("data_raw_editing")) {
+									$("#" + id).closest(".row_tr").addClass("data_raw_editing");
+									$("#" + id).closest(".row_tr").find('.edit-mode').css({"display":''});
+									$("#" + id).closest(".row_tr").find('.static-text').css({"display":'none'});
 								}
-								$("#" + id).closest(".row_tr").addClass("data_raw_editing");
-								$("#" + id).closest(".row_tr").find('.edit-mode').css({"display":''});
-								$("#" + id).closest(".row_tr").find('.static-text').css({"display":'none'});
 								$("#" + id).focus();
-
 							}
 						);
 						break;

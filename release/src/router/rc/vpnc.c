@@ -85,6 +85,10 @@ start_vpnc(void)
 	else
 		return 0;
 
+	/* shut down previous instance if any */
+	stop_vpnc();
+
+#if !defined(DSL_AX82U) ///TODO: !defined(RTCONFIG_HND_ROUTER_AX_675X)
 #ifdef HND_ROUTER
 	/* workaround for ppp packets are dropped by fc GRE learning when pptp server / client enabled */
 	if (nvram_match("fc_disable", "0") &&
@@ -95,9 +99,7 @@ start_vpnc(void)
 		eval("fc", "config", "--gre", "0");
 	}
 #endif
-
-	/* shut down previous instance if any */
-	stop_vpnc();
+#endif
 
 	/* unset vpnc_dut_disc */
 	nvram_unset(strcat_r(prefix, "dut_disc", tmp));
@@ -315,9 +317,11 @@ stop_vpnc(void)
 		kill_pidfile_tk(pidfile);
 	}
 
+#if !defined(DSL_AX82U) ///TODO: !defined(RTCONFIG_HND_ROUTER_AX_675X)
 #ifdef HND_ROUTER
 	/* workaround for ppp packets are dropped by fc GRE learning when pptp server / client enabled */
 	if (nvram_match("fc_disable", "0")) eval("fc", "config", "--gre", "1");
+#endif
 #endif
 }
 

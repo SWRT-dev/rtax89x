@@ -280,9 +280,10 @@ var validator = {
 
 	eachPort: function(o, num, min, max) {	
 		if(num<min || num>max) {
-			alert("<#JS_validport#>");
+			alert(num + " <#JS_validport#>");
 			return false;
-		}else {
+		}
+		else {
 			//o.value = str2val(o.value);
 			if(o.value=="")
 				o.value="0";
@@ -345,7 +346,7 @@ var validator = {
 		if(re.test(obj.value))
 			return "";
 		else
-			return "<#JS_valid_host_name#> <#JS_valid_host_name_first_char#>";
+			return "<#Login_Name_Rule#>";
 	},
 
 	samba_name: function(obj){
@@ -843,77 +844,20 @@ var validator = {
 		}	
 	},
 
-	isLegal_ipv6: function(obj) {
-		// check whether every char of the str is a Hex char(0~9,a~f,A~F)
-		var isHex = function(str) {
-			if(str.length == 0 || str.length > 4) {
-				return false;
-			}
-			str = str.toLowerCase();
-			var ch;
-			for(var i=0; i< str.length; i++) {
-				ch = str.charAt(i);
-				if(!(ch >= '0' && ch <= '9') && !(ch >= 'a' && ch <= 'f')) {
-					return false;
-				}
-			}
+	isLegal_ipv6: function(obj, flag) {
+		
+		var rangere=new RegExp("^((([0-9A-Fa-f]{1,4}:){7}[0-9A-Fa-f]{1,4})|(([0-9A-Fa-f]{1,4}:){6}:[0-9A-Fa-f]{1,4})|(([0-9A-Fa-f]{1,4}:){5}:([0-9A-Fa-f]{1,4}:)?[0-9A-Fa-f]{1,4})|(([0-9A-Fa-f]{1,4}:){4}:([0-9A-Fa-f]{1,4}:){0,2}[0-9A-Fa-f]{1,4})|(([0-9A-Fa-f]{1,4}:){3}:([0-9A-Fa-f]{1,4}:){0,3}[0-9A-Fa-f]{1,4})|(([0-9A-Fa-f]{1,4}:){2}:([0-9A-Fa-f]{1,4}:){0,4}[0-9A-Fa-f]{1,4})|(([0-9A-Fa-f]{1,4}:){6}((\\b((25[0-5])|(1\\d{2})|(2[0-4]\\d)|(\\d{1,2}))\\b)\\.){3}(\\b((25[0-5])|(1\\d{2})|(2[0-4]\\d)|(\\d{1,2}))\\b))|(([0-9A-Fa-f]{1,4}:){0,5}:((\\b((25[0-5])|(1\\d{2})|(2[0-4]\\d)|(\\d{1,2}))\\b)\\.){3}(\\b((25[0-5])|(1\\d{2})|(2[0-4]\\d)|(\\d{1,2}))\\b))|(::([0-9A-Fa-f]{1,4}:){0,5}((\\b((25[0-5])|(1\\d{2})|(2[0-4]\\d)|(\\d{1,2}))\\b)\\.){3}(\\b((25[0-5])|(1\\d{2})|(2[0-4]\\d)|(\\d{1,2}))\\b))|([0-9A-Fa-f]{1,4}::([0-9A-Fa-f]{1,4}:){0,5}[0-9A-Fa-f]{1,4})|(::([0-9A-Fa-f]{1,4}:){0,6}[0-9A-Fa-f]{1,4})|(([0-9A-Fa-f]{1,4}:){1,7}:))$", "gi");
+
+		if(rangere.test(obj.value)){
 			return true;
 		}
-
-		var idx = obj.value.indexOf("::");
-		// there is no "::" in the ip address
-		if (idx == -1) {
-			var items = obj.value.split(":");
-			if (items.length != 8) {
-				alert(obj.value + " <#JS_validip#>");
+		else{
+			if(flag != 1){	//1: mute
+				alert(obj.value+" <#JS_validip#>");
 				obj.focus();
-				return false;
+				obj.select();
 			}
-			else {
-				for (var key = 0; key < items.length; key += 1) {
-					if (!isHex(items[key])) {
-						alert(obj.value + " <#JS_validip#>");
-						obj.focus();
-						return false;
-					}
-				}
-				return true;
-			}
-		}
-		else {
-			// at least, there are two "::" in the ip address
-			if (idx != obj.value.lastIndexOf("::")) {
-				alert(obj.value + " <#JS_validip#>");
-				obj.focus();
-				return false;
-			}
-			else {
-				var items = obj.value.split("::");
-				var items0 = items[0].split(":");
-				var items1 = items[1].split(":");
-				if ((items0.length + items1.length) > 7) {
-					alert(obj.value + " <#JS_validip#>");
-					obj.focus();
-					return false;
-				}
-				else {
-					for (var key = 0; key < items0.length; key += 1) {
-						if (!isHex(items0[key])) {
-							alert(obj.value + " <#JS_validip#>");
-							obj.focus();
-							return false;
-						}
-					}
-					for (var key = 0; key < items1.length; key += 1) {
-						if (!isHex(items1[key])) {
-							alert(obj.value + " <#JS_validip#>");
-							obj.focus();
-							return false;
-						}
-					}
-					return true;
-				}
-			}
+			return false;
 		}
 	},
 
@@ -1013,6 +957,16 @@ var validator = {
 		alert("It is invalid URL."); /*untranslated*/
 		return false;
 	},
+
+	isValidHost: function(value) {
+        var urlregex = new RegExp("^([a-zA-Z0-9\.\-]+(\:[a-zA-Z0-9\.&amp;%\$\-]+)*@)*((25[0-5]|2[0-4][0-9]|[0-1]{1}[0-9]{2}|[1-9]{1}[0-9]{1}|[1-9])\.(25[0-5]|2[0-4][0-9]|[0-1]{1}[0-9]{2}|[1-9]{1}[0-9]{1}|[1-9]|0)\.(25[0-5]|2[0-4][0-9]|[0-1]{1}[0-9]{2}|[1-9]{1}[0-9]{1}|[1-9]|0)\.(25[0-5]|2[0-4][0-9]|[0-1]{1}[0-9]{2}|[1-9]{1}[0-9]{1}|[0-9])|([a-zA-Z0-9\-]+\.)*[a-zA-Z0-9\-]+\.(com|edu|gov|int|mil|net|org|biz|arpa|info|name|pro|aero|coop|museum|[a-zA-Z]{2}))$");
+        if(urlregex.test(value)){
+			return true;
+		}
+		alert("It is invalid URL."); /*untranslated*/
+		return false;
+		
+	},	
 
 	// 2010.07 James. {
 	inet_network: function(ip_str){
@@ -1136,11 +1090,12 @@ var validator = {
 						return false;
 					}
 					else{
-						alert(o.value+" <#JS_validip#>");
-						
-						o.value = "";
-						o.focus();
-						o.select();
+						if(noAlert != 1){
+							alert(o.value+" <#JS_validip#>");
+							o.value = "";
+							o.focus();
+							o.select();
+						}
 						return false;
 					}
 				}
@@ -1162,10 +1117,12 @@ var validator = {
 				return false;
 			}
 			else{
-				alert(o.value + " <#JS_validip#>");
-				o.value = "";
-				o.focus();
-				o.select();
+				if(noAlert != 1){
+					alert(o.value + " <#JS_validip#>");
+					o.value = "";
+					o.focus();
+					o.select();
+				}
 				return false;
 			}
 		}
@@ -1670,6 +1627,7 @@ var validator = {
 
 	psk: function(psk_obj, wl_unit){
 		var psk_length = psk_obj.value.length;
+		var psk_length_trim = psk_obj.value.trim().length;
 		
 		if(psk_length < 8){
 			alert("<#JS_passzero#>");
@@ -1686,6 +1644,13 @@ var validator = {
 			psk_obj.select();
 			return false;
 		}
+
+		if(psk_length != psk_length_trim){
+			alert("<#JS_PSK64Hex_whiteSpace#>");
+			psk_obj.focus();
+			psk_obj.select();				
+			return false;
+		}
 				
 		if(psk_length >= 8 && psk_length <= 63 && !this.string(psk_obj)){
 			alert("<#JS_PSK64Hex#>");
@@ -1700,7 +1665,7 @@ var validator = {
 			psk_obj.select();				
 			return false;
 		}
-		
+
 		return true;
 	},
 
@@ -1765,6 +1730,34 @@ var validator = {
 		}
 	},
 
+	range_s46_ports: function(obj, port) {
+		//e.g. ipv6_s46_ports="6448-6463 10544-10559 14640-14655 18736-18751 22832-22847 26928-26943 31024-31039 35120-35135 39216-39231 43312-43327 47408-47423 51504-51519 55600-55615 59696-59711 63792-63807"
+		var inAvailable=false;
+		var array_each_s46_ports = new Array("");
+		value_comp = parseInt(obj.value); 
+		port_comp = parseInt(port);
+		for(var x=0;x<array_ipv6_s46_ports.length;x++){
+			array_each_s46_ports=array_ipv6_s46_ports[x].split("-");
+			if(port != "none"){
+				if(port_comp >= parseInt(array_each_s46_ports[0]) && port_comp <= parseInt(array_each_s46_ports[1])) {
+					//console.log("[port]"+port_comp+" : "+array_each_s46_ports[0]+"-"+array_each_s46_ports[1]);
+					inAvailable=true;
+				}
+			}
+			else{
+				if(value_comp >= parseInt(array_each_s46_ports[0]) && value_comp <= parseInt(array_each_s46_ports[1])) {
+					//console.log("[obj.value]"+value_comp+" : "+array_each_s46_ports[0]+"-"+array_each_s46_ports[1]);
+					inAvailable=true;
+				}
+			}
+		}
+
+		if(!inAvailable)
+			return false;
+		else
+			return true;
+	},
+
 	rangeNull: function(o, min, max, def) {		//Viz add 2013.03 allow to set null
 		if (o.value=="") return true;
 		
@@ -1807,7 +1800,7 @@ var validator = {
 
 	rangeFloat: function(o, _min, _max, def){
         if(isNaN(o.value) || o.value <= _min || o.value > _max) {
-            alert('<#JS_validrange#> ' + min + ' <#JS_validrange_to#> ' + max + '.');
+            alert('<#JS_validrange#> ' + _min + ' <#JS_validrange_to#> ' + _max + '.');
 			o.value = def;
 			o.focus();
 			o.select();
@@ -1840,6 +1833,16 @@ var validator = {
 
 			return false;
 		}
+		else if(string_obj.value.charAt(string_obj.value.length - 1) == '"'){
+			if(flag != "noalert"){
+				alert('<#JS_validstr3#> ["]');
+			}
+			
+			string_obj.value = "";
+			string_obj.focus();
+
+			return false;
+		}
 		else{
 			var invalid_char = "";
 			for(var i = 0; i < string_obj.value.length; ++i){
@@ -1862,15 +1865,19 @@ var validator = {
 		return true;
 	},
 	
-	string_KR: function(string_obj, flag){		//Alphabets, numbers, specialcharacters mixed
+	string_KR: function(string_obj, flag){		//KR: Alphabets, numbers, specialcharacters mixed. 8 chars at least.
+							//S2: Mixed 2 out of Alphabets(Upper/Lower case), numbers, specialcharacters.
+							//	  10 chars at least. Not have consecutive identical characters.
 		var string_length = string_obj.value.length;
-		if(!/[A-Za-z]/.test(string_obj.value) || !/[0-9]/.test(string_obj.value) || string_length < 8
-				|| !/[\!\"\#\$\%\&\'\(\)\*\+\,\-\.\/\:\;\<\=\>\?\@\[\\\]\^\_\`\{\|\}\~]/.test(string_obj.value)){
+		if(!/[A-Za-z]/.test(string_obj.value) || !/[0-9]/.test(string_obj.value) || string_length < 10
+				|| !/[\!\"\#\$\%\&\'\(\)\*\+\,\-\.\/\:\;\<\=\>\?\@\[\\\]\^\_\`\{\|\}\~]/.test(string_obj.value)
+				|| /([A-Za-z0-9\!\"\#\$\%\&\'\(\)\*\+\,\-\.\/\:\;\<\=\>\?\@\[\\\]\^\_\`\{\|\}\~])\1/.test(string_obj.value) 
+		){
 				
-				alert("<#JS_validPWD#>");
+				alert("<#JS_validLoginPWD#>");
 				string_obj.value = "";
 				string_obj.focus();
-				return false;	
+				return false;
 		}	
 		
 		var invalid_char = "";
@@ -1891,7 +1898,40 @@ var validator = {
 		}
 
 		return true;
-	},	
+	},
+
+	phone_CN: function(string_obj, flag){
+		var mobile = /^1[0-9]{10}$/;
+		var phone = /(^0\d{2,3}?-?\d{7,8}$)/;
+		var result = "";
+
+		switch(flag){
+			case "both":
+						result = mobile.test(string_obj.value) || phone.test(string_obj.value);
+						break;
+
+			case "mobile":
+						result = mobile.test(string_obj.value);
+						break;
+
+			case "phone":
+						result = phone.test(string_obj.value);
+						break;
+
+			default:
+						result = mobile.test(string_obj.value) || phone.test(string_obj.value);
+						break;
+		}
+
+		return result;
+	},
+
+	qq: function(string_obj){
+		var id_number = /^[0-9]{5,32}$/;
+		var result = id_number.test(string_obj.value);
+
+		return result;
+	},
 
 	//validate SSID string
 	stringGroup: function(o){
@@ -1931,7 +1971,7 @@ var validator = {
 		len = this.lengthInUtf8(o.value);
 
 		if(len > 32){
-			alert("SSID length is over 32 characters");
+			alert("<#JS_max_ssid#>");
 			o.value = "";
 			o.focus();
 			o.select();
@@ -1961,6 +2001,46 @@ var validator = {
 		}
 		
 		return true;
+	},
+
+	ssidCheck: function(ssid_obj){
+		var rc_support = '<% nvram_get("rc_support"); %>';
+		var utf8_ssid_support = (rc_support.split(" ").indexOf("utf8_ssid") == -1) ? false : true;
+		var c;
+		var ssid = ssid_obj.val();
+		var showHint = 0;
+		var hintStr = "";
+
+		ssid_obj.parent().children().remove(".hint");
+		len = this.lengthInUtf8(ssid);
+		if(len > 32){
+			hintStr = "<#JS_max_ssid#>";
+			showHint = 1;
+		}
+
+		for(var i = 0; i < len; ++i){
+			c = ssid.charCodeAt(i);
+			if(!utf8_ssid_support){
+				if(this.ssidChar(c)){
+					hintStr = '<#JS_validSSID1#> ' + ssid.charAt(i) + ' <#JS_validSSID2#>';
+					showHint = 1;
+				}
+			}
+		}
+
+		if(showHint){
+			$("<div>")
+				.html(hintStr)
+				.addClass("hint")
+				.css("color", "#FC0")
+				.css("margin", "2px 0 0 5px")
+				.appendTo(ssid_obj.parent());
+
+			ssid_obj.focus();
+			return false;
+		}
+		else
+			return true;
 	},
 
 	subnetAndMaskCombination: function (subnet, mask) { //ex. 10.66.77.6/255.255.255.248 is invalid, 10.66.77.8/255.255.255.248 is valid
@@ -2033,11 +2113,16 @@ var validator = {
 	validIPForm: function(obj, flag){
 		if(obj.value == ""){
 			return true;
-		}else if(flag==0){	//without netMask
+		}else if(flag==0){	//0:without netMask
 			if(!this.ipAddrFinal(obj, obj.name)){
 				obj.focus();
-				obj.select();		
-				return false;	
+				obj.select();
+				return false;
+			}else
+				return true;
+		}else if(flag==3){	//3:mute
+			if(!this.ipAddrFinal(obj, obj.name, 1)){
+				return false;
 			}else
 				return true;
 		}else if(flag==1){	//with netMask and generate netmask

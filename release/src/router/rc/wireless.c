@@ -67,7 +67,15 @@ start_nas(void)
 	stop_nas();
 
 	if (!restore_defaults_g)
+	{
+#ifdef RTCONFIG_BRCM_HOSTAPD
+		if (!nvram_match("hapd_enable", "0")) {
+			start_hapd_wpasupp(0);
+			return 0;
+		} else
+#endif
 		return _eval(nas_argv, NULL, 0, &pid);
+	}
 
 	return 0;
 }
@@ -75,8 +83,14 @@ start_nas(void)
 void
 stop_nas(void)
 {
+#ifdef RTCONFIG_BRCM_HOSTAPD
+        if (!nvram_match("hapd_enable", "0")) {
+		stop_hapd_wpasupp();
+        } else
+#endif
 	killall_tk("nas");
 }
+
 #ifdef REMOVE
 void notify_nas(const char *ifname)
 {
@@ -155,6 +169,8 @@ int wlcscan_main(void)
 	char word[256]={0}, *next = NULL;
 #if defined(RTCONFIG_CONCURRENTREPEATER) && defined(RTCONFIG_MTK_REP)		
 	char wl_ifs[256]={0};
+#else
+	char wl_ifnames[32] = { 0 };
 #endif
 	int i = 0;
 #ifdef RTCONFIG_QSR10G
@@ -202,7 +218,8 @@ int wlcscan_main(void)
 		strncpy(wl_ifs,nvram_safe_get("wl_ifnames"), sizeof(wl_ifs));
 	foreach (word, wl_ifs, next)
 #else
-	foreach (word, nvram_safe_get("wl_ifnames"), next)
+	strlcpy(wl_ifnames, nvram_safe_get("wl_ifnames"), sizeof(wl_ifnames));
+	foreach (word, wl_ifnames, next)
 #endif
 	{	
 		SKIP_ABSENT_BAND_AND_INC_UNIT(i);
@@ -405,7 +422,9 @@ void repeater_pap_disable(void)
 void update_wifi_led_state_in_wlcmode(void)
 {
 	int band, wlc_state = nvram_get_int("wlc_state"), wlc_band = nvram_get_int("wlc_band");
+#if !defined(RAX120)
 	char *led_gpio;
+#endif
 	enum led_id id;
 
 	if (!repeater_mode() && !mediabridge_mode())
@@ -419,7 +438,9 @@ void update_wifi_led_state_in_wlcmode(void)
 			continue;
 		}
 		id = get_wl_led_id(band);
+#if !defined(RAX120)
 		led_gpio = get_wl_led_gpio_nv(band);
+#endif
 		if (band != wlc_band) {
 			if (mediabridge_mode())
 				led_control(id, LED_OFF);
@@ -427,12 +448,16 @@ void update_wifi_led_state_in_wlcmode(void)
 		}
 
 		if (wlc_state == WLC_STATE_CONNECTED) {
+#if !defined(RAX120)
 			set_bled_normal_mode(led_gpio);
-			led_control(id, LED_ON);
+#endif
+			led_control(id, inhibit_led_on()? LED_OFF : LED_ON);
 		} else {
+#if !defined(RAX120)
 			set_bled_udef_pattern(led_gpio, 700, "0 1");
 			set_bled_udef_pattern_mode(led_gpio);
-			led_control(id, LED_ON);
+#endif
+			led_control(id, inhibit_led_on()? LED_OFF : LED_ON);
 		}
 	}
 }
@@ -454,3 +479,4 @@ int dump_txbftable(void)
 	return 0;
 }
 #endif
+

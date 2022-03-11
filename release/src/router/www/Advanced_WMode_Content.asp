@@ -12,16 +12,9 @@
 <link rel="stylesheet" type="text/css" href="index_style.css"> 
 <link rel="stylesheet" type="text/css" href="form_style.css">
 <style>
-#pull_arrow{
- 	float:center;
- 	cursor:pointer;
- 	border:2px outset #EFEFEF;
- 	background-color:#CCC;
- 	padding:3px 2px 4px 0px;
-}
 #WDSAPList{
-	border:1px outset #999;
-	background-color:#576D73;
+	border:1px solid rgb(76,76,76);
+	background-color:rgb(55,55,55);
 	position:absolute;
 	margin-top:24px;
 	margin-left:220px;
@@ -36,7 +29,7 @@
 	display:none;
 }
 #WDSAPList div{
-	background-color:#576D73;
+	background-color:rgb(55,55,55);
 	height:20px;
 	line-height:20px;
 	text-decoration:none;
@@ -68,6 +61,7 @@
 var wl_wdslist_array = '<% nvram_get("wl_wdslist"); %>';
 var wds_aplist = "";
 
+var faq_href = "https://nw-dlcdnet.asus.com/support/forward.html?model=&type=Faq&lang="+ui_lang+"&kw=&num=128";
 
 function initial(){
 	show_menu();
@@ -119,9 +113,13 @@ function initial(){
 		document.getElementById("wl_unit_field").style.display = "none";
 	}
 	
-	if(wl_info.band5g_2_support){
+	if(wl_info.band5g_2_support || wl_info.band6g_support){
+		if(band6g_support){
+			document.getElementById("5g2_title").innerHTML = "6 GHz MAC";
+		}
+
 		document.getElementById("wl_5g_mac_2").style.display = "";
-		document.getElementById("wl_5g_mac_th1").innerHTML = "5GHz-1 MAC";
+		document.getElementById("wl_5g_mac_th1").innerHTML = "5 GHz-1 MAC";
 	}
 
 	$("#redirect_to_setup")
@@ -131,7 +129,7 @@ function initial(){
 	$("#redirect_to_FAQ")
 		.attr('target','_blank')
 		.attr("style", "text-decoration:underline;color:#FFCC00;cursor: pointer;");
-	httpApi.faqURL("1039910", function(url){document.getElementById("redirect_to_FAQ").href=url;});
+	document.getElementById("redirect_to_FAQ").href=faq_href;
 
 	wl_bwch_hint();
 	setTimeout("wds_scan();", 500);
@@ -441,8 +439,8 @@ function checkWLReady(){
 									<div class="formfonttitle"><#menu5_1#> - <#menu5_1_3#></div>
 									<div style="margin:10px 0 10px 5px;" class="splitLine"></div>
 									<div class="formfontdesc"><#WLANConfig11b_display1_sectiondesc#></div>
-									<div class="formfontdesc" style="color:#FFCC00;"><#ADSL_FW_note#></div>
-									<div class="formfontdesc" style="color:#FFCC00;margin-left:28px;">
+									<div class="formfontdesc hint-color"><#ADSL_FW_note#></div>
+									<div class="formfontdesc hint-color" style="margin-left:28px;">
 										<#WLANConfig11b_display2_sectiondesc#>&nbsp;<#WLANConfig11b_display21_sectiondesc#><br><#Setup_note#>
 									</div>
 									<div class="formfontdesc"><#WLANConfig11b_display3_sectiondesc#>
@@ -453,9 +451,9 @@ function checkWLReady(){
 											<li><#WLANConfig11b_display34_sectiondesc#></li>					
 										</ol>					
 									</div>
-									<div id="wl_bw_hint" style="font-size:13px;font-family: Arial, Helvetica, sans-serif;color:#FC0;margin-left:28px;"><#WLANConfig11b_display41_sectiondesc#></div>
-									<div id="wl_ch_hint" style="font-size:13px;font-family: Arial, Helvetica, sans-serif;color:#FC0;margin-left:28px;"><#WLANConfig11b_display42_sectiondesc#></div>
-									<div id="lantiq_ready" style="display:none;color:#FC0;margin-left:5px;font-size:13px;">Wireless is setting...</div>
+									<div id="wl_bw_hint" class="hint-color" style="font-size:13px;margin-left:28px;"><#WLANConfig11b_display41_sectiondesc#></div>
+									<div id="wl_ch_hint" class="hint-color" style="font-size:13px;margin-left:28px;"><#WLANConfig11b_display42_sectiondesc#></div>
+									<div id="lantiq_ready" style="display:none;margin-left:5px;font-size:13px;">Wireless is setting...</div>
 									<table id="MainTable1" width="100%" border="1" align="center" cellpadding="4" cellspacing="0" bordercolor="#6b8fa3"  class="FormTable">
 										<thead>
 										<tr>
@@ -463,19 +461,19 @@ function checkWLReady(){
 										</tr>
 										</thead>		  
 										<tr id="wl_2g_mac">
-											<th>2.4GHz MAC</th>
+											<th>2.4 GHz MAC</th>
 											<td>
 												<input type="text" maxlength="17" class="input_20_table" id="wl0_hwaddr" name="wl0_hwaddr" value="<% nvram_get("wl0_hwaddr"); %>" readonly autocorrect="off" autocapitalize="off">
 											</td>		
 										</tr>					
 										<tr id="wl_5g_mac">
-											<th id="wl_5g_mac_th1">5GHz MAC</th>
+											<th id="wl_5g_mac_th1">5 GHz MAC</th>
 											<td>
 												<input type="text" maxlength="17" class="input_20_table" id="wl1_hwaddr" name="wl1_hwaddr" value="<% nvram_get("wl1_hwaddr"); %>" readonly autocorrect="off" autocapitalize="off">
 											</td>		
 										</tr>	
 										<tr id="wl_5g_mac_2" style="display:none">
-											<th>5GHz-2 MAC</th>
+											<th id="5g2_title">5 GHz-2 MAC</th>
 											<td>
 												<input type="text" maxlength="17" class="input_20_table" id="wl2_hwaddr" name="wl2_hwaddr" value="<% nvram_get("wl2_hwaddr"); %>" readonly autocorrect="off" autocapitalize="off">
 											</td>		
@@ -483,14 +481,11 @@ function checkWLReady(){
 										<tr id="wl_unit_field">
 											<th><#Interface#></th>
 											<td>
-												<select name="wl_unit" class="input_option" onChange="change_wl_unit();">
-													<option class="content_input_fd" value="0" <% nvram_match("wl_unit", "0","selected"); %>>2.4GHz</option>
-													<option class="content_input_fd" value="1"<% nvram_match("wl_unit", "1","selected"); %>>5GHz</option>
-												</select>			
+												<select name="wl_unit" class="input_option" onChange="change_wl_unit();"></select>			
 											</td>
 										</tr>
 										<tr id="repeaterModeHint" style="display:none;">
-											<td id="repeaterModeHint_desc" colspan="2" style="color:#FFCC00;height:30px;" align="center"><#page_not_support_mode_hint#></td>
+											<td id="repeaterModeHint_desc" colspan="2" class="hint-color" style="height:30px;" align="center"><#page_not_support_mode_hint#></td>
 										</tr>			
 										<tr id="wds_mode_field">
 											<th align="right">

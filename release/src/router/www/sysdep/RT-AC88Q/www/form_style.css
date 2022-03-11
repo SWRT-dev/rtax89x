@@ -1160,35 +1160,29 @@ padding-top:1px;
 
 #bwdpi_status{	
 	cursor: pointer;
+	height: 24px;
+	width: 30px;
 }
 
 .bwdpistatus_game{
-	height:20px;
-	width:22px;
 	background-image:url(images/New_ui/QoS_quick/game_icon.svg);
 	background-repeat:no-repeat;	
 	background-position:0px 2px;
 }
 
 .bwdpistatus_media{
-	height:20px;
-	width:21px;
 	background-image:url(images/New_ui/QoS_quick/media_icon.svg);
 	background-repeat:no-repeat;
 	background-position:0px 2px;
 }
 
 .bwdpistatus_web{
-	height:20px;
-	width:22px;
 	background-image:url(images/New_ui/QoS_quick/web_icon.svg);
 	background-repeat:no-repeat;
 	background-position:2px 0px;
 }
 
 .bwdpistatus_customize{
-	height:21px;
-	width:23px;
 	background-image:url(images/New_ui/QoS_quick/customize_icon.svg);
 	background-repeat:no-repeat;	
 	background-position:2px 2px;
@@ -2101,7 +2095,13 @@ padding-top:1px;
 	width: 740px;
 	margin: 1px 0;
 }
-
+.MainContent{
+	background-color: #4D595D;
+	width: 99%;
+	-webkit-border-radius: 3px;
+	-moz-border-radius: 3px;
+	border-radius:3px;
+}
 .dns_server_list_dropdown {
 	border:1px outset #999;
 	background-color:#576D73;
@@ -2147,4 +2147,7 @@ padding-top:1px;
 	height: 16px;
 	width: 14px;
 	display: none;
+}
+.hint-color{
+	color: #FFCC00;
 }

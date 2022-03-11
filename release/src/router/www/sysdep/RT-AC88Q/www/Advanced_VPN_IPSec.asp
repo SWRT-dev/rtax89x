@@ -150,14 +150,17 @@ var ipsec_ca_3 = decodeURIComponent('<% nvram_char_to_ascii("","ipsec_ca_3"); %>
 var ipsec_ca_4 = decodeURIComponent('<% nvram_char_to_ascii("","ipsec_ca_4"); %>');
 var ipsec_ca_5 = decodeURIComponent('<% nvram_char_to_ascii("","ipsec_ca_5"); %>');
 
+var faq_href1 = "https://nw-dlcdnet.asus.com/support/forward.html?model=&type=Faq&lang="+ui_lang+"&kw=&num=154";
+var faq_href2 = "https://nw-dlcdnet.asus.com/support/forward.html?model=&type=Faq&lang="+ui_lang+"&kw=&num=123";
+
 var ipsec_client_list_array = "";
 var control_profile_flag = true;
 var all_profile_subnet_list = "";
 var ipsec_server_enable = 0;
 var ipsec_type_array = new Array();
 var ipsec_vpn_type_faq_array = new Array();
-ipsec_vpn_type_faq_array["4"] = ["IPSec Host-to-Net FAQ", "1033577"];/*untranslated*/
-ipsec_vpn_type_faq_array["1"] = ["IPSec Net-to-Net FAQ", "1033578"];/*untranslated*/
+ipsec_vpn_type_faq_array["4"] = ["IPSec Host-to-Net FAQ", faq_href1];/*untranslated*/
+ipsec_vpn_type_faq_array["1"] = ["IPSec Net-to-Net FAQ", faq_href2];/*untranslated*/
 window.onresize = function() {
 	if(document.getElementById("edit_ipsec_profile_panel").style.display == "block") {
 		cal_panel_block("edit_ipsec_profile_panel", 0.25);
@@ -1580,9 +1583,8 @@ function switchMode(mode) {
 
 	//set FAQ URL
 	var faq_text = ipsec_vpn_type_faq_array[$("select[name=ipsec_vpn_type]").val()][0];
-	var faq_num = ipsec_vpn_type_faq_array[$("select[name=ipsec_vpn_type]").val()][1];
-	$("#ipsec_vpn_type_faq").html(faq_text);
-	httpApi.faqURL(faq_num, function(url){document.getElementById("ipsec_vpn_type_faq").href=url;});
+	var faq_URL = ipsec_vpn_type_faq_array[$("select[name=ipsec_vpn_type]").val()][1];
+        $("#ipsec_vpn_type_faq").html(faq_text).attr("href", faq_URL);
 
 	showhide("tr_SettingsMode", 1);
 	document.getElementById("selSwitchMode").value = "1";

@@ -35,4 +35,6 @@
 #define SERVICE_TYPE_NVGFN "urn:nvidia-com:service:GeForceNow:1"
 #define SERVICE_ID_NVGFN   "urn:nvidia-com:serviceId:GeForceNow1"
 #endif
+
 #endif
+

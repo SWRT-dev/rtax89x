@@ -38,16 +38,35 @@
 #include <shutils.h>
 #include <shared.h>
 
+#ifdef TRANSLATE_ON_FLY
+#include <json_object.h>
+
+extern char *get_cgi_json(char *name, json_object *root);
+extern void do_json_decode(struct json_object **root);
+#endif
+
 struct REPLACE_PRODUCTID_S replace_productid_t[] =
 {
-	{"LYRA_VOICE", "LYRA VOICE"},
-	{"RT-AC57U_V2", "RT-AC57U V2"},
-	{"RT-AC58U_V2", "RT-AC58U V2"},
-	{"RT-AC1300G_PLUS_V2", "RT-AC1300G PLUS V2"},
-	{"RT-AC1500G_PLUS", "RT-AC1500G PLUS"},
-	{"ZenWiFi_CT8", "ZenWiFi AC"},
-	{"ZenWiFi_XT8", "ZenWiFi AX"},
-	{NULL, NULL}
+	{"LYRA_VOICE", "LYRA VOICE", "global"},
+	{"RT-AC57U_V2", "RT-AC57U V2", "global"},
+	{"RT-AC58U_V2", "RT-AC58U V2", "global"},
+	{"RT-AC1300G_PLUS_V2", "RT-AC1300G PLUS V2", "global"},
+	{"RT-AC1500G_PLUS", "RT-AC1500G PLUS", "global"},
+	{"ZenWiFi_CT8", "ZenWiFi AC", "global"},
+	{"ZenWiFi_CT8", "灵耀AC3000", "CN"},
+	{"ZenWiFi_XT8", "ZenWiFi AX", "global"},
+	{"ZenWiFi_XT8", "灵耀AX6600", "CN"},
+	{"ZenWiFi_XD4", "ZenWiFi AX Mini", "global"},
+	{"ZenWiFi_XD4", "灵耀AX魔方", "CN"},
+	{"ZenWiFi_CD6R", "ZenWiFi AC Mini", "global"},
+	{"ZenWiFi_CD6N", "ZenWiFi AC Mini", "global"},
+	{"ZenWiFi_XP4", "ZenWiFi AX Hybrid", "global"},
+	{"ZenWiFi_CV4", "ZenWiFi Voice", "global"},
+	{"ZenWiFi_Pro_XT12", "灵耀Pro AX11000", "CN"},
+	{"ZenWiFi_XD5", "灵耀AX魔方 Pro", "CN"},
+	{"ZenWiFi_XT9", "灵耀AX7800", "CN"},
+	{"ZenWiFi_XD6", "灵耀AX5400", "CN"},
+	{NULL, NULL, NULL}
 };
 
 struct REPLACE_MODELNAME_S replace_modelname_t[] = {
@@ -171,16 +190,30 @@ process_asp (char *s, char *e, FILE *f)
 extern void replace_productid(char *GET_PID_STR, char *RP_PID_STR, int len){
 
 	struct REPLACE_PRODUCTID_S *p;
+	char *p_temp;
 
 	for(p = &replace_productid_t[0]; p->org_name; p++){
 		if(!strcmp(GET_PID_STR, p->org_name)){
-			strlcpy(RP_PID_STR, p->replace_name, len);
-			return;
+			if(!strncmp(nvram_safe_get("preferred_lang"), p->p_lang, 2))
+				strlcpy(RP_PID_STR, p->replace_name, len);
+
+			if(!strcmp("global", p->p_lang) && !strlen(RP_PID_STR))
+				strlcpy(RP_PID_STR, p->replace_name, len);
 		}
 	}
 
+	if(strlen(RP_PID_STR))
+		return;
+
+	if ((p_temp = strstr(GET_PID_STR, "ZenWiFi_")) && !strncmp(nvram_safe_get("preferred_lang"), "CN", 2)) {
+		p_temp += strlen("ZenWiFi_");
+		snprintf(RP_PID_STR, len, "灵耀%s", p_temp);
+	}
+	else{
+		strlcpy(RP_PID_STR, GET_PID_STR, len);
+	}
+
 	/* general  replace underscore with space */
-	strlcpy(RP_PID_STR, GET_PID_STR, len);
 	for (; *RP_PID_STR; ++RP_PID_STR)
 	{
 		if (*RP_PID_STR == '_')

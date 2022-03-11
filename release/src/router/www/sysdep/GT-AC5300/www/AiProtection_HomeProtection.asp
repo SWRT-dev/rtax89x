@@ -101,11 +101,15 @@
 <script>
 if(usb_support) addNewScript("/disk_functions.js");
 window.onresize = function() {
-	if(document.getElementById("weakness_div").style.display == "block") {
-		cal_panel_block("weakness_div", 0.25);
+	if(document.getElementById("weakness_div") != null){
+		if(document.getElementById("weakness_div").style.display == "block") {
+			cal_panel_block("weakness_div", 0.25);
+		}
 	}
-	if(document.getElementById("alert_preference").style.display == "block") {
-		cal_panel_block("alert_preference", 0.25);
+	if(document.getElementById("alert_preference") != null){
+		if(document.getElementById("alert_preference").style.display == "block") {
+			cal_panel_block("alert_preference", 0.25);
+		}
 	}
 }
 
@@ -117,6 +121,9 @@ var safe_count = 0;
 
 function initial(){
 	show_menu();
+	var faq_href = "https://nw-dlcdnet.asus.com/support/forward.html?model=&type=Faq&lang="+ui_lang+"&kw=&num=139";
+	$("#faq").attr("href", faq_href);	
+
 	if(document.form.wrs_protect_enable.value == '1'){
 		shadeHandle('1');
 	}
@@ -523,8 +530,25 @@ function check_upnp(){
 			document.getElementById('upnp_service').className = "status_yes";
 		}
 		else{
-			risk_count++
-			document.getElementById('upnp_service').innerHTML = "<a href='Advanced_WAN_Content.asp' target='_blank'><#checkbox_No#></a>";
+			risk_count++;
+
+			document.getElementById('upnp_service').onclick = function(){
+				function change_wan_unit(unit){
+					FormActions("apply.cgi", "change_wan_unit", "", "");
+					document.form.wan_unit.value = unit;
+					document.form.wan_unit.disabled = false;
+					document.form.current_page.value="Advanced_WAN_Content.asp";
+					document.form.target = "";
+					document.form.submit();
+				}
+
+				if(wan0_upnp_enable == "1")
+					change_wan_unit(0);
+				else
+					change_wan_unit(1);
+			}
+
+			document.getElementById('upnp_service').innerHTML = "<a><#checkbox_No#></a>";
 			document.getElementById('upnp_service').className = "status_no_risk";
 			document.getElementById('upnp_service').onmouseover = function(){overHint(13);}
 			document.getElementById('upnp_service').onmouseout = function(){nd();}
@@ -1095,6 +1119,7 @@ function shadeHandle(flag){
 <input type="hidden" name="wrs_vp_enable" value="<% nvram_get("wrs_vp_enable"); %>">
 <input type="hidden" name="wan0_upnp_enable" value="<% nvram_get("wan0_upnp_enable"); %>" disabled>
 <input type="hidden" name="wan1_upnp_enable" value="<% nvram_get("wan1_upnp_enable"); %>" disabled>
+<input type="hidden" name="wan_unit" value="<% nvram_get("wan_unit"); %>" disabled>
 <input type="hidden" name="misc_http_x" value="<% nvram_get("misc_http_x"); %>" disabled>
 <input type="hidden" name="misc_ping_x" value="<% nvram_get("misc_ping_x"); %>" disabled>
 <input type="hidden" name="dmz_ip" value="<% nvram_get("dmz_ip"); %>" disabled>
@@ -1158,7 +1183,7 @@ function shadeHandle(flag){
 														<tr>
 															<td>
 																<div style="width:430px"><#AiProtection_HomeDesc2#></div>
-																<div style="width:430px"><a style="text-decoration:underline;" href="https://www.asus.com/support/FAQ/1008719/" target="_blank"><#AiProtection_title#> FAQ</a></div>
+																<div style="width:430px"><a id="faq" style="text-decoration:underline;" href="" target="_blank"><#AiProtection_title#> FAQ</a></div>
 															</td>
 															<td>
 																<div style="width:100px;height:48px;margin-left:-40px;background-image:url('images/New_ui/tm_logo.png');"></div>
@@ -1391,7 +1416,7 @@ function shadeHandle(flag){
 											<input class="button_gen" type="button" onclick="show_alert_preference();" value="<#AiProtection_alert_pref#>">
 										</div>
 									</div>
-									<div style="width:135px;height:55px;margin: -10px 0 0 600px;background-image:url('images/New_ui/tm_logo_power.png');"></div>
+									<div style="width:96px;height:44px;margin: 10px 0 0 600px;background-image:url('images/New_ui/TrendMirco_logo.svg');background-size: 100%;"></div>
 								</td>
 							</tr>
 							</tbody>

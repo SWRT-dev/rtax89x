@@ -12,7 +12,9 @@
 <link rel="stylesheet" type="text/css" href="/index_style.css">
 <link rel="stylesheet" type="text/css" href="/form_style.css">
 <link rel="stylesheet" type="text/css" href="/other.css">
+<link rel="stylesheet" type="text/css" href="/device-map/device-map.css" />
 <link rel="stylesheet" type="text/css" href="/aimesh/aimesh_topology.css" />
+<link rel="stylesheet" type="text/css" href="/aimesh/aimesh_system_settings.css" />
 <script type="text/javascript" src="/js/jquery.js"></script>
 <script type="text/javascript" src="/js/jstree/jstree.js"></script>
 <script type="text/javascript" src="/state.js"></script>
@@ -82,14 +84,16 @@ function change_tab(_index){
 										<!--div class="formfonttitle">AiMesh</div>
 										<div style="margin:5px;" class="splitLine"></div-->
 										<div class="aimesh_tab">
-											<span onclick="change_tab(1);">Topology</span><!-- untranslated -->
-											<span style="display:none;" onclick="change_tab(2);">System Setting</span><!-- untranslated -->
-											<span style="display:none;" onclick="change_tab(3);">History Statics</span><!-- untranslated -->
+											<span onclick="change_tab(1);"><#AiMesh_Topology#></span>
+											<span onclick="change_tab(2);"><#AiMesh_System_Settings#></span>
+											<span style="display:none;" onclick="change_tab(3);"><#AiMesh_Statistics#></span>
 										</div>
-										<div style="margin:5px;" class="splitLine"></div>
+										<div class="splitLine"></div>
 										<div id="AiMesh_Topology" class="aimesh_tab_content idx1"></div>
+										<div id="AiMesh_System_Settings" class="aimesh_tab_content idx2"></div>
 										<script>
 											$("#AiMesh_Topology").load("/aimesh/aimesh_topology.html");
+											$("#AiMesh_System_Settings").load("/aimesh/aimesh_system_settings.html");
 										</script>
 									</td>
 								</tr>

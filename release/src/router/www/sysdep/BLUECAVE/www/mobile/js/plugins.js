@@ -24,6 +24,20 @@ jQuery.fn.enableCheckBox = function(checked){
 		.checkboxradio('refresh')
 }
 
+jQuery.fn.showPasswordScore = function(id){
+	var postfix = (id == undefined)? "": ("_"+id);
+	$("<div>")
+		.attr("id", "scorebarBorder"+postfix)
+		.attr("title", "<#LANHostConfig_x_Password_itemSecur#>")
+		.addClass("scorebarBorder")
+		.appendTo(this.parent());
+
+	$("<div>")
+		.attr("id", "scorebar"+postfix)
+		.addClass("scorebar")
+		.appendTo($("#scorebarBorder"+postfix));
+}
+
 var htmlEnDeCode = (function() {
 	var charToEntityRegex,
 		entityToCharRegex,
@@ -82,21 +96,81 @@ var htmlEnDeCode = (function() {
 	};
 })();
 
-function getAllWlArray(){
-	var wlArrayRet = [{"title":"2.4GHz", "ifname":"0", "suffix": ""}];
-	var amas_bdlkey = httpApi.nvramGet(["amas_bdlkey"]).amas_bdlkey;
-	
-	if(isSupport("triband")){
-		wlArrayRet.push({"title":"5GHz-1", "ifname":"1", "suffix": "_5G-1"});
-		if(amas_bdlkey.length == 0 || (!isSwMode("RT") && !isSwMode("AP")))
-			wlArrayRet.push({"title":"5GHz-2", "ifname":"2", "suffix": "_5G-2"});
-	}
-	else if(isSupport("dualband") || isSupport('5G')){
-		wlArrayRet.push({"title":"5GHz", "ifname":"1", "suffix": "_5G"})
+function getScArray(mode){
+	var smartConnectTable = {
+		"SC_2g5g": {
+			"wlArray": (function(){
+				if(isSupport("quadband"))
+					return [{"title":"2.4 GHz / 5 GHz-1 / 5 GHz-2", "ifname":get_wl_unit_by_band("2G")}, {"title":"6 GHz", "ifname":get_wl_unit_by_band("6G")}];
+				else
+					return [{"title":"2.4 GHz / 5 GHz", "ifname":"0"}, {"title":"6 GHz", "ifname":"2"}];
+			})(),
+			"value": (function(){
+				if(isSupport("quadband"))
+					return 1;
+				else
+					return 3;
+			})()
+		},
+		"SC_5g5g": {
+			"wlArray": [{"title":"2.4 GHz", "ifname":"0"}, {"title":"5 GHz", "ifname":"1"}],
+			"value": 2
+		},
+		"SC_dwb_mode": {
+			"wlArray": [{"title":"2.4 GHz / 5 GHz-1", "ifname":"0"}, {"title":"5 GHz-2", "ifname":"2"}],
+			"value": 1
+		},
+		"SC_all": {
+			"wlArray": [{"title":"", "ifname":"0"}],
+			"value": 1
+		}
 	}
 
-	if(isSupport('wigig')){
-		wlArrayRet.push({"title":"60GHz", "ifname":"3", "suffix": "_60G"});
+	return smartConnectTable[mode] ||  smartConnectTable["SC_all"];
+}
+
+function getAllWlArray(){
+	if(isSupport("quadband")){
+		var wlArrayRet = [
+			{"title":"2.4 GHz", "ifname":get_wl_unit_by_band("2G"), "suffix": ""},
+			{"title":"5 GHz-1", "ifname":get_wl_unit_by_band("5G"), "suffix": "_5G-1"},
+			{"title":"5 GHz-2", "ifname":get_wl_unit_by_band("5G2"), "suffix": "_5G-2"},
+			{"title":"6 GHz", "ifname":get_wl_unit_by_band("6G"), "suffix": "_6G"},
+		];
+		document.querySelector('label[for="wireless_checkbox"]').innerHTML = 'Separate 2.4 GHz, 5 GHz-1, 5 GHz-2 and 6 GHz';
+	}
+	else{
+		var wlArrayRet = [{"title":"2.4 GHz", "ifname":"0", "suffix": ""}];
+		var amas_bdlkey = httpApi.nvramGet(["amas_bdlkey"]).amas_bdlkey;
+
+		if(isSupport("triband")){
+			if(isSupport('wifi6e')){
+				document.querySelector('label[for="wireless_checkbox"]').innerHTML = '<#qis_wireless_setting_separate1#>';
+				wlArrayRet.push({"title":"5 GHz", "ifname":"1", "suffix": "_5G"});
+				wlArrayRet.push({"title":"6 GHz", "ifname":"2", "suffix": "_6G"});
+			}
+			else{
+				wlArrayRet.push({"title":"5 GHz-1", "ifname":"1", "suffix": "_5G-1"});
+				wlArrayRet.push({"title":"5 GHz-2", "ifname":"2", "suffix": "_5G-2"});
+			}
+
+			if(isSupport("prelink") && amas_bdlkey.length > 0){
+				if(!isSupport("prelink_mssid")){
+					if(isSwMode("RT") || isSwMode("AP")){
+						var prelink_unit = isSupport("prelink_unit");
+						if(prelink_unit >= 0)
+							wlArrayRet.splice(prelink_unit, 1);
+					}
+				}
+			}
+		}
+		else if(isSupport("dualband") || isSupport('5G')){
+			wlArrayRet.push({"title":"5 GHz", "ifname":"1", "suffix": "_5G"})
+		}
+
+		if(isSupport('wigig')){
+			wlArrayRet.push({"title":"60 GHz", "ifname":"3", "suffix": "_60G"});
+		}
 	}
 
 	return wlArrayRet;
@@ -127,8 +201,31 @@ function getPAPList(siteSurveyAPList, filterType, filterValue) {
 		if(_profile == null || _profile.length == 0)
 			_profile = ["", "", "", "", "", "", "", "", "", ""];
 
-		this.band = getBandWidthName(_profile[2]).name;
-		this.unit = getBandWidthName(_profile[2]).unit;
+		this.band = (function(){
+			if(isSupport('wifi6e') && _profile[0] === '6G'){
+				return "6GHz";
+				//return {name: "6GHz", unit: 2};
+			}
+			else if(isSupport('wifi6e') && _profile[0] === '5G'){
+				return "5GHz";
+			}
+			else{
+				return getBandWidthName(_profile[2]).name;
+			}
+			
+		})();
+		this.unit = (function(){
+			if(isSupport('wifi6e') && _profile[0] === '6G'){
+				return 2;
+				//return {name: "6GHz", unit: 2};
+			}
+			else if(isSupport('wifi6e') && _profile[0] === '5G'){
+				return 1;
+			}
+			else{
+				return getBandWidthName(_profile[2]).unit;
+			}		
+		})();
 		this.ssid = htmlEnDeCode.htmlEncode(decodeURIComponent(_profile[1]));
 		this.channel = _profile[2];
 		this.authentication = _profile[3];
@@ -168,6 +265,9 @@ function getAiMeshOnboardinglist(_onboardingList){
 		this.mac = "";
 		this.pap_mac = "";
 		this.id = "";
+		this.tcode = "";
+		this.type = "";
+		this.cobrand = "";
 	};
 	var convRSSI = function(val) {
 		var result = 1;
@@ -195,6 +295,9 @@ function getAiMeshOnboardinglist(_onboardingList){
 			node_info.mac = newReMac;
 			node_info.pap_mac = papMac;
 			node_info.id = newReMac.replace(/:/g, "");
+			node_info.tcode = newReMacArray[newReMac].tcode;
+			node_info.type = newReMacArray[newReMac].type;
+			node_info.cobrand = httpApi.aimesh_get_misc_info(newReMacArray[newReMac]).cobrand;
 			jsonArray.push(node_info);
 		});
 	});
@@ -212,6 +315,50 @@ function getProcessPercentage(_start, _current, _timeout, _percentage){
 	return percentage;
 }
 
+function get_wl_unit_by_band(_band){
+	if(_band == undefined)
+		return "";
+
+	_band = (_band).toString().toUpperCase();
+	var wl_nband = "";
+	switch(_band){
+		case "2G":
+			wl_nband = "2";
+			break;
+		case "5G":
+		case "5G1":
+		case "5G2":
+			wl_nband = "1";
+			break;
+		case "6G":
+			wl_nband = "4";
+			break;
+		case "60G":
+			wl_nband = "6";
+			break;
+	}
+	if(wl_nband == "")
+		return "";
+
+	var wl_unit = "";
+	var suffix_num = _band.substr(_band.indexOf("G") + 1);
+	var ordinal_num = (suffix_num == "") ? 1 : parseInt(suffix_num);
+	var count = 1;
+	var wl_nband_array = httpApi.hookGet("wl_nband_info");
+	$.each(wl_nband_array, function(wlx, value){
+		if(value == wl_nband){
+			if(count == ordinal_num){
+				wl_unit = wlx;
+				return false;
+			}
+			else{
+				count+=1;
+			}
+		}
+	});
+	return wl_unit.toString();
+}
+
 function checkPasswd($obj){
 	var targetObj = $(this);
 	targetObj.toggleClass("icon_eye_close").toggleClass("icon_eye_open");
@@ -219,6 +366,218 @@ function checkPasswd($obj){
 	$.each( targetObj.attr("for").split(" "), function(i, val){
 		$("#"+val).prop("type", (function(){return targetObj.hasClass("icon_eye_close") ? "password" : "text";}()));
 	});
+}
+
+String.prototype.strReverse = function() {
+	var newstring = "";
+	for (var s=0; s < this.length; s++) {
+		newstring = this.charAt(s) + newstring;
+	}
+	return newstring;
+};
+
+function chkPass(flag, pwd, idx) {
+	var orig_pwd = "";
+	var postfix = (idx == undefined)? "": ("_" + idx);
+	var oScorebar = document.getElementById("scorebar"+postfix);
+
+	if(flag == "httpd" && (isSku("KR") || isSku("SG") || isSku("AA"))){
+		oScorebar.style.display = "none";
+		return;
+	}
+
+	// Simultaneous variable declaration and value assignment aren't supported in IE apparently
+	// so I'm forced to assign the same value individually per var to support a crappy browser *sigh*
+	var nScore=0, nLength=0, nAlphaUC=0, nAlphaLC=0, nNumber=0, nSymbol=0, nMidChar=0, nRequirements=0, nAlphasOnly=0, nNumbersOnly=0, nUnqChar=0, nRepChar=0, nRepInc=0, nConsecAlphaUC=0, nConsecAlphaLC=0, nConsecNumber=0, nConsecSymbol=0, nConsecCharType=0, nSeqAlpha=0, nSeqNumber=0, nSeqSymbol=0, nSeqChar=0, nReqChar=0, nMultConsecCharType=0;
+	var nMultRepChar=1, nMultConsecSymbol=1;
+	var nMultMidChar=2, nMultRequirements=2, nMultConsecAlphaUC=2, nMultConsecAlphaLC=2, nMultConsecNumber=2;
+	var nReqCharType=3, nMultAlphaUC=3, nMultAlphaLC=3, nMultSeqAlpha=3, nMultSeqNumber=3, nMultSeqSymbol=3;
+	var nMultLength=4, nMultNumber=4;
+	var nMultSymbol=6;
+	var nTmpAlphaUC="", nTmpAlphaLC="", nTmpNumber="", nTmpSymbol="";
+	var sAlphaUC="0", sAlphaLC="0", sNumber="0", sSymbol="0", sMidChar="0", sRequirements="0", sAlphasOnly="0", sNumbersOnly="0", sRepChar="0", sConsecAlphaUC="0", sConsecAlphaLC="0", sConsecNumber="0", sSeqAlpha="0", sSeqNumber="0", sSeqSymbol="0";
+	var sAlphas = "abcdefghijklmnopqrstuvwxyz";
+	var sNumerics = "01234567890";
+	var sSymbols = "~!@#$%^&*()_+";
+	var sComplexity = "";
+	var nMinPwdLen = 8;
+	if (document.all) { var nd = 0; } else { var nd = 1; }
+	if (pwd) {
+		nScore = parseInt(pwd.length * nMultLength);
+		nLength = pwd.length;
+		var arrPwd = pwd.replace(/\s+/g,"").split(/\s*/);
+		var arrPwdLen = arrPwd.length;
+
+		/* Main calculation for strength:
+				Loop through password to check for Symbol, Numeric, Lowercase and Uppercase pattern matches */
+		for (var a=0; a < arrPwdLen; a++) {
+			if (arrPwd[a].match(/[A-Z]/g)) {
+				if (nTmpAlphaUC !== "") { if ((nTmpAlphaUC + 1) == a) { nConsecAlphaUC++; nConsecCharType++; } }
+				nTmpAlphaUC = a;
+				nAlphaUC++;
+			}
+			else if (arrPwd[a].match(/[a-z]/g)) {
+				if (nTmpAlphaLC !== "") { if ((nTmpAlphaLC + 1) == a) { nConsecAlphaLC++; nConsecCharType++; } }
+				nTmpAlphaLC = a;
+				nAlphaLC++;
+			}
+			else if (arrPwd[a].match(/[0-9]/g)) {
+				if (a > 0 && a < (arrPwdLen - 1)) { nMidChar++; }
+				if (nTmpNumber !== "") { if ((nTmpNumber + 1) == a) { nConsecNumber++; nConsecCharType++; } }
+				nTmpNumber = a;
+				nNumber++;
+			}
+			else if (arrPwd[a].match(/[^a-zA-Z0-9_]/g)) {
+				if (a > 0 && a < (arrPwdLen - 1)) { nMidChar++; }
+				if (nTmpSymbol !== "") { if ((nTmpSymbol + 1) == a) { nConsecSymbol++; nConsecCharType++; } }
+				nTmpSymbol = a;
+				nSymbol++;
+			}
+			/* Internal loop through password to check for repeat characters */
+			var bCharExists = false;
+			for (var b=0; b < arrPwdLen; b++) {
+				if (arrPwd[a] == arrPwd[b] && a != b) { /* repeat character exists */
+					bCharExists = true;
+					/*
+					Calculate icrement deduction based on proximity to identical characters
+					Deduction is incremented each time a new match is discovered
+					Deduction amount is based on total password length divided by the
+					difference of distance between currently selected match
+					*/
+					nRepInc += Math.abs(arrPwdLen/(b-a));
+				}
+			}
+			if (bCharExists) {
+				nRepChar++;
+				nUnqChar = arrPwdLen-nRepChar;
+				nRepInc = (nUnqChar) ? Math.ceil(nRepInc/nUnqChar) : Math.ceil(nRepInc);
+			}
+		}
+
+		/* Check for sequential alpha string patterns (forward and reverse) */
+		for (var s=0; s < 23; s++) {
+			var sFwd = sAlphas.substring(s,parseInt(s+3));
+			var sRev = sFwd.strReverse();
+			if (pwd.toLowerCase().indexOf(sFwd) != -1 || pwd.toLowerCase().indexOf(sRev) != -1) { nSeqAlpha++; nSeqChar++;}
+		}
+
+		/* Check for sequential numeric string patterns (forward and reverse) */
+		for (var s=0; s < 8; s++) {
+			var sFwd = sNumerics.substring(s,parseInt(s+3));
+			var sRev = sFwd.strReverse();
+			if (pwd.toLowerCase().indexOf(sFwd) != -1 || pwd.toLowerCase().indexOf(sRev) != -1) { nSeqNumber++; nSeqChar++;}
+		}
+
+		/* Check for sequential symbol string patterns (forward and reverse) */
+		for (var s=0; s < 8; s++) {
+			var sFwd = sSymbols.substring(s,parseInt(s+3));
+			var sRev = sFwd.strReverse();
+			if (pwd.toLowerCase().indexOf(sFwd) != -1 || pwd.toLowerCase().indexOf(sRev) != -1) { nSeqSymbol++; nSeqChar++;}
+		}
+
+		/* Modify overall score value based on usage vs requirements */
+
+		/* General point assignment */
+		if (nAlphaUC > 0 && nAlphaUC < nLength) {
+			nScore = parseInt(nScore + ((nLength - nAlphaUC) * 2));
+			sAlphaUC = "+ " + parseInt((nLength - nAlphaUC) * 2);
+		}
+		if (nAlphaLC > 0 && nAlphaLC < nLength) {
+			nScore = parseInt(nScore + ((nLength - nAlphaLC) * 2));
+			sAlphaLC = "+ " + parseInt((nLength - nAlphaLC) * 2);
+		}
+		if (nNumber > 0 && nNumber < nLength) {
+			nScore = parseInt(nScore + (nNumber * nMultNumber));
+			sNumber = "+ " + parseInt(nNumber * nMultNumber);
+		}
+		if (nSymbol > 0) {
+			nScore = parseInt(nScore + (nSymbol * nMultSymbol));
+			sSymbol = "+ " + parseInt(nSymbol * nMultSymbol);
+		}
+		if (nMidChar > 0) {
+			nScore = parseInt(nScore + (nMidChar * nMultMidChar));
+			sMidChar = "+ " + parseInt(nMidChar * nMultMidChar);
+		}
+
+		/* Point deductions for poor practices */
+		if ((nAlphaLC > 0 || nAlphaUC > 0) && nSymbol === 0 && nNumber === 0) {  // Only Letters
+			nScore = parseInt(nScore - nLength);
+			nAlphasOnly = nLength;
+			sAlphasOnly = "- " + nLength;
+		}
+		if (nAlphaLC === 0 && nAlphaUC === 0 && nSymbol === 0 && nNumber > 0) {  // Only Numbers
+			nScore = parseInt(nScore - nLength);
+			nNumbersOnly = nLength;
+			sNumbersOnly = "- " + nLength;
+		}
+		if (nRepChar > 0) {  // Same character exists more than once
+			nScore = parseInt(nScore - nRepInc);
+			sRepChar = "- " + nRepInc;
+		}
+		if (nConsecAlphaUC > 0) {  // Consecutive Uppercase Letters exist
+			nScore = parseInt(nScore - (nConsecAlphaUC * nMultConsecAlphaUC));
+			sConsecAlphaUC = "- " + parseInt(nConsecAlphaUC * nMultConsecAlphaUC);
+		}
+		if (nConsecAlphaLC > 0) {  // Consecutive Lowercase Letters exist
+			nScore = parseInt(nScore - (nConsecAlphaLC * nMultConsecAlphaLC));
+			sConsecAlphaLC = "- " + parseInt(nConsecAlphaLC * nMultConsecAlphaLC);
+		}
+		if (nConsecNumber > 0) {  // Consecutive Numbers exist
+			nScore = parseInt(nScore - (nConsecNumber * nMultConsecNumber));
+			sConsecNumber = "- " + parseInt(nConsecNumber * nMultConsecNumber);
+		}
+		if (nSeqAlpha > 0) {  // Sequential alpha strings exist (3 characters or more)
+			nScore = parseInt(nScore - (nSeqAlpha * nMultSeqAlpha));
+			sSeqAlpha = "- " + parseInt(nSeqAlpha * nMultSeqAlpha);
+		}
+		if (nSeqNumber > 0) {  // Sequential numeric strings exist (3 characters or more)
+			nScore = parseInt(nScore - (nSeqNumber * nMultSeqNumber));
+			sSeqNumber = "- " + parseInt(nSeqNumber * nMultSeqNumber);
+		}
+		if (nSeqSymbol > 0) {  // Sequential symbol strings exist (3 characters or more)
+			nScore = parseInt(nScore - (nSeqSymbol * nMultSeqSymbol));
+			sSeqSymbol = "- " + parseInt(nSeqSymbol * nMultSeqSymbol);
+		}
+
+		/* Determine complexity based on overall score */
+		if (nScore > 100) { nScore = 100; } else if (nScore < 0) { nScore = 0; }
+		if (nScore >= 0 && nScore < 20) { sComplexity = "<#AiProtection_scan_rDanger#>"; }
+		else if (nScore >= 20 && nScore < 40) { sComplexity = "<#PASS_score1#>"; }
+		else if (nScore >= 40 && nScore < 60) { sComplexity = "<#PASS_score2#>"; }
+		else if (nScore >= 60 && nScore < 80) { sComplexity = "<#PASS_score3#>"; }
+		else if (nScore >= 80 && nScore <= 100) { sComplexity = "<#PASS_score4#>"; }
+
+		/* Display updated score criteria to client */
+		$('#scorebarBorder'+postfix).css("display", "block");
+		oScorebar.style.backgroundPosition = parseInt(nScore) + "%";
+		oScorebar.innerHTML = sComplexity;
+	}
+	else{
+		chkPass("", " ", idx);
+	}
+}
+
+function check_password_length(obj){
+
+	var password = obj.value;
+	var httpPassInput = $("#http_passwd");
+
+        if(isSku("KR") || isSku("SG") || isSku("AA")){     /* MODELDEP by Territory Code */
+		httpPassInput.showTextHint("");
+		return;
+	}
+
+	if(password.length > systemVariable.maxPasswordLen){
+		httpPassInput.showTextHint("<#JS_max_password#>");
+		obj.focus();
+	}
+	else if(password.length > 0 && password.length < 5){
+		httpPassInput.showTextHint("<#JS_short_password#> <#JS_password_length#>");
+		obj.focus();
+	}
+	else{
+		httpPassInput.showTextHint("");
+	}
 }
 
 function checkWepKey($obj, wepType){
@@ -241,6 +600,32 @@ function checkWepKey($obj, wepType){
 		}
 	}
 	return status;
+}
+
+function check_dwb_ssid(){
+	var confilct_flag = false;
+	var dwb_band = httpApi.nvramGet(["dwb_band"]).dwb_band;
+	var $dwbObj = $("#wireless_ssid_" + dwb_band + "");
+	if($dwbObj.length == "1"){
+		var backhaul_ssid = $dwbObj.val();
+		if(backhaul_ssid != ""){
+			var confilct_flag = false;
+			$(".wlInput").each(function(index, item) {
+				var item_id = $(item).attr("id");
+				if(item_id.indexOf("wireless_ssid_") >= 0 && item_id != $dwbObj.attr("id")){
+					if($(item).val() == backhaul_ssid){
+						var band_info = getAllWlArray().filter(function(item, index, array){return (item.ifname == dwb_band);})[0];
+						var band_text = (band_info != undefined) ? band_info.title : "";
+						var hint = "Use a different Network Name (SSID) for your #WIRELESSBAND band.".replace("#WIRELESSBAND", band_text);
+						$dwbObj.showTextHint(hint);
+						confilct_flag = true;
+						return false;
+					}
+				}
+			});
+		}
+	}
+	return confilct_flag;
 }
 
 function hasBlank(objArray){
@@ -269,6 +654,45 @@ function hadPlugged(deviceType){
 	var usbDeviceList = httpApi.hookGet("show_usb_path") || [];
 	return (usbDeviceList.join().search(deviceType) != -1)
 }
+
+function showDiableDHCPclientID(clientid_enable){
+	if(clientid_enable.checked) {
+		$('#wan_clientid').val("")
+						  .attr('disabled', true)
+						  .hide();
+	}
+	else {
+		$('#wan_clientid').val("")
+		                  .attr('disabled', false)
+		                  .show();
+	}
+}
+
+function set_state_info(state){
+	        switch(state) {
+                case "down":
+                        $("#LED_state").html("<#adsl_link_sts_itemname#> : Link down (DSL LED Off)<br>");
+                        $("#LED_state").show();
+                        break;
+                case "wait":
+                case "wait for init":
+                        $("#LED_state").html("<#adsl_link_sts_itemname#> : Wait for init (DSL LED Flashing)<br>");
+                        $("#LED_state").show();
+                        break;
+                case "init":
+                case "initializing":
+                        $("#LED_state").html("<#adsl_link_sts_itemname#> : Initializing (DSL LED Flashing)<br>");
+                        $("#LED_state").show();
+                        break;
+                case "up":
+                        $("#LED_state").html("<#adsl_link_sts_itemname#> : Link up (DSL LED On)<br>");
+                        $("#LED_state").show();
+                        break;
+                default:
+                        $("#LED_state").hide();
+                        break;
+        	}
+	}
 
 var Get_Component_Header = function(){
 	var tableTr = $("<tr>");
@@ -354,13 +778,15 @@ var Get_Component_AiMeshOnboarding_List = function(nodeInfo) {
 	var nodeContainer = $("<div>").attr({"id" : nodeInfo.id}).addClass("apListContainer apProfile");
 	var nodeDiv = $("<div>").addClass("apListDiv");
 	nodeContainer.append(nodeDiv);
+	var model_info = {"model_name": nodeInfo.name, "tcode": nodeInfo.tcode, "cobrand": nodeInfo.cobrand, "icon_model_name": ""};
+	var cloudModelName = httpApi.transformCloudModelName(model_info);
 
 	var model_icon_container = $("<div>").addClass("ap_icon_container middle");
 	nodeDiv.append(model_icon_container);
 
-	var model_icon = $("<div>").addClass("aimesh_icon").attr("model_name", nodeInfo.name);
-	if(systemVariable.modelCloudIcon[nodeInfo.name])
-		model_icon.css("background-image", "url(" + systemVariable.modelCloudIcon[nodeInfo.name] + ")");
+	var model_icon = $("<div>").addClass("aimesh_icon").attr("model_name", cloudModelName);
+	if(systemVariable.modelCloudIcon[cloudModelName])
+		model_icon.css("background-image", "url(" + systemVariable.modelCloudIcon[cloudModelName] + ")");
 	model_icon.appendTo(model_icon_container);
 
 	var node_name_container = $("<div>").addClass("ap_ssid");
@@ -387,8 +813,12 @@ var Get_Component_AiMeshOnboarding_List = function(nodeInfo) {
 	var band_icon_container = $("<div>").addClass("ap_icon_container middle");
 	nodeDiv.append(band_icon_container);
 	var band_icon = $("<div>");
-	if(nodeInfo.source == "2")
-		band_icon.addClass("aimesh_band_icon icon_wired");
+	if(nodeInfo.source == "2"){
+		if(nodeInfo.type != undefined && nodeInfo.type == "65536")
+			band_icon.addClass("aimesh_band_icon icon_plc");
+		else
+			band_icon.addClass("aimesh_band_icon icon_wired");
+	}
 	else
 		band_icon.addClass("icon_wifi_" + nodeInfo.signal + " aimesh_band_icon");
 	band_icon.appendTo(band_icon_container);
@@ -417,10 +847,6 @@ var Get_Component_WirelessInput = function(wlArray){
 		if(systemVariable.isDefault){
 			wirelessAP["wl" + wl.ifname + "_ssid"] = "";
 			wirelessAP["wl" + wl.ifname + "_wpa_psk"] = "";
-		}
-		else{
-			if(wirelessAP["wl" + wl.ifname + "_auth_mode_x"] != "psk2")
-				wirelessAP["wl" + wl.ifname + "_wpa_psk"] = "";
 		}
 
 		if(systemVariable.multiPAP.wlcOrder.length > 0){
@@ -469,7 +895,7 @@ var Get_Component_WirelessInput = function(wlArray){
 				.attr({
 					"id": "wireless_ssid_" + wl.ifname,
 					"type": "text",
-					"maxlength": "32",
+					"maxlength": "33",
 					"class": "textInput wlInput",
 					"autocomplete": "off",
 					"autocorrect": "off",
@@ -479,13 +905,15 @@ var Get_Component_WirelessInput = function(wlArray){
 					"data-clear-btn": "true"
 				})
 				.keyup(function(e){
-					if($(e.currentTarget).attr("id").indexOf("0") == -1){
+					if($(e.currentTarget).attr("id").indexOf(get_wl_unit_by_band("2G")) == -1){
 						$("#wireless_sync_checkbox").enableCheckBox(false);
 					}
 
 					if(e.keyCode == 13){
 						$(".wlInput")[idx*2+1].focus();
 					}
+
+					validator.ssidCheck($("#"+this.id));
 				})
 				.val(decodeURIComponent(wirelessAP["wl" + wl.ifname + "_ssid"]))
 			)
@@ -513,7 +941,7 @@ var Get_Component_WirelessInput = function(wlArray){
 					"data-clear-btn": "true"
 				})
 				.keyup(function(e){
-					if($(e.currentTarget).attr("id").indexOf("0") == -1){
+					if($(e.currentTarget).attr("id").indexOf(get_wl_unit_by_band("2G")) == -1){
 						$("#wireless_sync_checkbox").enableCheckBox(false);
 					}
 
@@ -525,6 +953,7 @@ var Get_Component_WirelessInput = function(wlArray){
 							apply.wireless();
 						}
 					}
+					chkPass("WiFi", this.value, wl.ifname);
 				})
 				.val(decodeURIComponent(wirelessAP["wl" + wl.ifname + "_wpa_psk"]))
 			)
@@ -576,49 +1005,106 @@ function installPages(flag){
 }
 
 function handleSysDep(){
-	var isNoWAN = (httpApi.detwanGetRet().wanType == 'NOWAN');
+	var isNoWAN = (isSupport("dsl"))?(httpApi.detDSLwanGetRet().wanType == 'NOWAN'):(httpApi.detwanGetRet().wanType == 'NOWAN');
+	var amas_bdl_num = parseInt(httpApi.nvramGet(["amas_bdl"]).amas_bdl);
 
 	$(".amasSupport").toggle(isSupport("amas"));
 	$(".noAmasSupport").toggle(!isSupport("amas"));
 	$(".tosSupport").toggle(systemVariable.isDefault && isSupport("QISBWDPI"));
 	$(".repeaterSupport").toggle(isSupport("repeater"));
 	$(".pstaSupport").toggle(isSupport("psta"));
-	$(".dualbandSupport").toggle(isSupport("dualband") || isSupport("triband"));
+	$(".dualbandSupport").toggle(isSupport("dualband") || isSupport("triband") || isSupport("quadband"));
+	$(".v6plus").toggle(isSupport("s46"));
 	$(".vpnClient").toggle(isSupport("VPNCLIENT"));
 	$(".iptv").toggle(isSupport("IPTV"));
 	$(".defaultSupport").toggle(systemVariable.isDefault);
 	$(".configuredSupport").toggle(!systemVariable.isDefault);
 	//$(".forceUpgrade").toggle(isSupport("fupgrade")); 
 	$(".routerSupport").toggle(!isSupport("noRouter"));
+	$(".apSupport").toggle(!isSupport("noAP"));
 
 	if(systemVariable.forceChangePw){
 		systemVariable.forceChangePw = false;
 		systemVariable.forceChangePwInTheEnd = true;
 	}
 
-	if(!isNoWAN) $(".amasNoWAN").remove();
+	if(!isNoWAN || !isSupport("amasNode")) $(".amasNoWAN").remove();
 	if(!isSupport("amas")) $(".amasSupport").remove();
 	if(isSupport("amas") && isSupport("amas_bdl")){
 		$("#amassearch_page").load("/mobile/pages/amassearch_page.html");
 		$("#amasonboarding_page").load("/mobile/pages/amasonboarding_page.html");
 	}
+
+	if(isSupport("prelink") && amas_bdl_num > 2){
+		if(amas_bdl_num == 3)
+			$("#product_location").attr("src", "/images/product_location_3pack.png")
+	}
+
+	if((isGundam() || isKimetsu()) && !$('.GD-head').length){
+		if(isGundam()){
+			$('head').append('<link rel="stylesheet" type="text/css" href="/css/gundam.css">');
+		}
+		else if(isKimetsu()){
+			$('head').append('<link rel="stylesheet" type="text/css" href="/css/kimetsu.css">');
+		}
+		
+		$("#summary_page").append($("<div>").attr({"id": "gdContainer", "class": "gundam-footer-field"}).hide())
+		$("#summary_page").append($("<div>").attr({"id": "gd-logo", "class": "icon_logo-1"}).show())
+		$("#gdContainer").html('');
+		if(systemVariable.productid == 'GT-AX11000'){
+			$("#gdContainer").append($("<div>").attr({"class": "GD-head-1"}))
+		}
+		else{
+			$("#gdContainer").append($("<div>").attr({"class": "GD-head"}))
+		}
+		
+		$("#gdContainer").append($("<div>").attr({"class": "GD-wait"}).append($("<div>").attr({"id": "GD-status"}).html("Installing..")))
+		$("#gdContainer").append($("<div>").attr({"class": "GD-footer-left"}))
+		$("#gdContainer").append($("<div>").attr({"class": "GD-footer-extend"}))
+		$("#gdContainer").append($("<div>").attr({"class": "GD-footer-center"}))
+		$("#gdContainer").append($("<div>").attr({"class": "GD-footer-extend"}))
+		$("#gdContainer").append($("<div>").attr({"class": "GD-footer-right"}))
+		$("#gdContainer").append($("<div>").attr({"class": "GD-law-label"}))
+		// systemVariable.imgContainer = [];
+
+		if(isGundam()){
+			var gdImagesList = ["-head", "_bg", "_bg_bottom01", "_bg_bottom02", "_bg_bottom03", "_bg_bottom04", "_lawlabel", "-logo", "-waiting"]
+			gdImagesList.forEach(function(imageUrl){
+				var tmpObj = new Image();
+				tmpObj.src = "/images/gundam" + imageUrl + ".png";
+				// systemVariable.imgContainer.push(tmpObj)
+			})
+		}
+		else if(isKimetsu()){
+			var gdImagesList = ["-head", "_bg", "_bg_bottom02", "_lawlabel", "-logo", "-waiting"]
+			gdImagesList.forEach(function(imageUrl){
+				var tmpObj = new Image();
+				tmpObj.src = "/images/kimetsu_no_yaiba" + imageUrl + ".png";
+				// systemVariable.imgContainer.push(tmpObj)
+			})
+		}
+		
+	}
 }
 
 function handleModelIcon() {
-	$('#ModelPid_img').css('background-image', 'url(' + function() {
-		var modelInfo = httpApi.nvramGet(["territory_code", "productid", "odmpid", "color"], true);
-		var ttc = modelInfo.territory_code;
-		var based_modelid = modelInfo.productid;
-		var odmpid = modelInfo.odmpid;
-		var color = modelInfo.color;
-		color = color.toUpperCase();
+	var modelInfo = httpApi.nvramGet(["territory_code", "productid", "odmpid", "color", "rc_support", "CoBrand"], true);
+	var ttc = modelInfo.territory_code;
+	var CoBrand = modelInfo.CoBrand;
+	var isGundam = (CoBrand == 1 || ttc.search('GD') == '0');
+	var isKimetsu = (CoBrand == 2);
+	var based_modelid = modelInfo.productid;
+	var odmpid = modelInfo.odmpid;
+	var color = modelInfo.color.toUpperCase();
+	var odm_support = isSupport("odm");
+	$('#ModelPid_img').css('background-image', 'url(' + function() {	
 		var LinkCheck = function(url) {
 			var http = new XMLHttpRequest();
 			http.open('HEAD', url, false);
 			http.send();
 			return http.status!="404";
 		};
-
+	
 		var update_color = function() {
 			if(based_modelid == "RT-AC87U") { //MODELDEP: RT-AC87U
 				/* MODELDEP by Territory Code */
@@ -640,32 +1126,44 @@ function handleModelIcon() {
 			}
 		};
 		var default_png_path = "/images/Model_product.png";
-		var MP_png_path = "";
+		var MP_png_path = default_png_path;
 		if(update_color().length > 0) {
 			MP_png_path = "/images/Model_product_"+ update_color() +".png";
-			if(LinkCheck(MP_png_path))
-				return MP_png_path;
-			else
-				return default_png_path;
 		}
 		else if(odmpid.length > 0 && odmpid != based_modelid) {
+			
 			if(odmpid == "RT-AC66U_B1" || odmpid == "RT-AC1750_B1" || odmpid == "RT-N66U_C1" || odmpid == "RT-AC1900U" || odmpid == "RT-AC67U")
 				MP_png_path = "/images/RT-AC66U_V2/Model_product.png";
 			else if(odmpid == "RP-AC1900")
 				MP_png_path = "/images/RP-AC1900/Model_product.png";
-
-			if(MP_png_path == "")
-				return default_png_path;
-			else{
-				if(LinkCheck(MP_png_path))
-					return MP_png_path;
-				else
-					return default_png_path;
-			}
+			else if(odmpid == "RT-AX86S")
+				MP_png_path = "/images/Model_product_rt-ax86s.png";
 		}
+		
+		if(isGundam){
+			MP_png_path = "/images/Model_product_GD.png";
+		}
+		else if(isKimetsu){
+			MP_png_path = "/images/Model_product_KNY.png";
+		}
+
+		if(odm_support){
+			MP_png_path = "/images/Model_product_COD.png";
+		}
+
+		if(LinkCheck(MP_png_path))
+			return MP_png_path;
 		else
 			return default_png_path;
+		
 	}() + ')');
+
+	if(odmpid == 'RT-AX86S'){
+		$("#resetModem").removeClass('unplug').addClass("unplug-ax86s");
+		$("#noWanPic").attr("src", "/images/WANunplug_rt-ax86s.png");
+		$("#noWanEth").attr("src", "/images/WANunplug_eth_rt-ax86s.png");
+		$("#noWanUsb").attr("src", "/images/WANunplug_usb_rt-ax86s.png");
+	}
 }
 
 function handleSortField(){
@@ -775,6 +1273,22 @@ function setupWLCNvram(apProfileID) {
 	}
 }
 
+function setupFronthaulNetwork(_smart_connect){
+	if(isSupport("FRONTHAUL_NETWORK")){
+		postDataModel.insert(fronthaulNetworkObj);
+		switch(parseInt(_smart_connect)){
+			case 0:
+			case 2:
+			case 3:
+				qisPostData.fh_ap_enabled = "0";
+				break;
+			case 1:
+				qisPostData.fh_ap_enabled = httpApi.nvramDefaultGet(["fh_ap_enabled"]).fh_ap_enabled;
+				break;
+		}
+	}
+}
+
 function sortAP(kind, sequence){
 	var array_tmp = new Array();
 	array_tmp = httpApi.hookGet("get_ap_info", false).sort(function(a,b){
@@ -832,9 +1346,11 @@ function updateSubnet(ipAddr){
 var getRestartService = function(){
 	var actionScript = [];
 	var original_switch_wantag = httpApi.nvramGet(["switch_wantag"]).switch_wantag;
+	var current_webs_chg_sku = (httpApi.nvramGet(["webs_chg_sku"], true).webs_chg_sku=="1")? true:false;
+	var current_webs_SG_mode = (httpApi.nvramGet(["webs_SG_mode"], true).webs_SG_mode=="1")? true:false;
 
 	if(isWANChanged()){
-		actionScript.push("restart_wan_if 0");
+		actionScript.push("restart_wan_if " + systemVariable.ethWanIf);
 	}
 
 	if(systemVariable.detwanResult.isIPConflict){
@@ -851,6 +1367,10 @@ var getRestartService = function(){
 
 	if(qisPostData.hasOwnProperty("yadns_enable_x")){
 		actionScript.push("restart_yadns");
+	}
+
+	if(qisPostData.hasOwnProperty("ipv6_service")){
+		actionScript.push("restart_net");	
 	}
 
 	if(
@@ -876,15 +1396,11 @@ var getRestartService = function(){
 		actionScript.push("restart_cfgsync");
 	}
 
-	if(isSupport("2p5G_LWAN")) {
-		actionScript.push("start_br_addif");
-	}
-
 	if(isSwModeChanged() && isSwMode("RT")){
 		return "restart_all";
 	}
 
-	if(isSupport("2p5G_LWAN") || isSupport("10G_LWAN") || isSupport("10GS_LWAN")){
+	if(isSupport("2p5G_LWAN") || isSupport("10G_LWAN") || isSupport("10GS_LWAN") || Object.keys(systemVariable.eth_wan_list).length > 1){
 		if(isWANLANChange())
 			return "reboot";
 	}
@@ -895,6 +1411,10 @@ var getRestartService = function(){
 		qisPostData.hasOwnProperty("wans_dualwan") ||
 		isSwModeChanged()
 	){
+		return "reboot";
+	}
+
+	if(current_webs_chg_sku){
 		return "reboot";
 	}
 
@@ -921,11 +1441,16 @@ var postDataModel = {
 	"insert": function(obj){
 		if(obj){
 			var queryArray = [];
-			Object.keys(obj).forEach(function(key){
-				if(obj[key] === "")
+			Object.keys(obj).every(function(key){
+				if(qisPostData.hasOwnProperty(key)){
+					return false;
+				}
+				else if(obj[key] === "")
 					queryArray.push(key);
 				else
 					qisPostData[key] = obj[key];
+
+				return true;
 			});
 
 			var retData = httpApi.nvramGet(queryArray);
@@ -979,6 +1504,21 @@ var isWANLANChange = function(){
 		if(qisPostData.wans_dualwan != systemVariable.originWansDualwan) isChanged = true;
 	}
 
+	if(Object.keys(systemVariable.eth_wan_list).length > 1){
+		Object.keys(systemVariable.eth_wan_list).forEach(function(eth_wan){
+			var wan_obj = systemVariable.eth_wan_list[eth_wan];
+			if(wan_obj.hasOwnProperty("extra_settings")){
+				var extra_settings = wan_obj.extra_settings;
+				$.each(extra_settings, function(key) {
+					if(qisPostData.hasOwnProperty(key)){
+						if(qisPostData[key] != httpApi.nvramGet([key], true)[key]){
+							isChanged = true;
+						}
+					}
+				});
+			}
+		});
+	}
 	return isChanged;
 };
 
@@ -988,11 +1528,21 @@ var isPage = function(page){
 
 var isSupport = function(_ptn){
 	var ui_support = JSON.parse(JSON.stringify(httpApi.hookGet("get_ui_support")));
-	var modelInfo = httpApi.nvramGet(["productid"]);
+	var modelInfo = httpApi.nvramGet(["productid", "odmpid"]);
 	var based_modelid = modelInfo.productid;
+	var odmpid = modelInfo.odmpid;
 	var matchingResult = false;
 	var amas_bdlkey = httpApi.nvramGet(["amas_bdlkey"]).amas_bdlkey;
-	var odmpid = httpApi.nvramGet(["odmpid"]).odmpid;
+
+	if(ui_support["triband"] && ui_support["concurrep"] && (isSwMode("RP") || isSwMode("MB"))){
+		/* setup as dualband models, will copy wlc1 to wlc2 in apply.submitQIS */
+		ui_support["SMARTREP"] = 1;
+		ui_support["triband"] = 0;
+		ui_support["dualband"] = 1;
+	}
+	else{
+		ui_support = httpApi.hookGet("get_ui_support");
+	}
 
 	switch(_ptn){
 		case "ForceBWDPI":
@@ -1002,21 +1552,25 @@ var isSupport = function(_ptn){
 			matchingResult = false;
 			break;
 		case "VPNCLIENT":
-			matchingResult = (isSku("US") || isSku("CA") || isSku("TW") || isSku("CN")) ? false : true;
+			matchingResult = (isSku("US") || isSku("CA") || isSku("TW") || isSku("CN") || isSku("CT") || isSku("GD") || isSku("TC")) ? false : true;
 			break;
 		case "IPTV":
-			matchingResult = (isSku("US") || isSku("CN") || isSku("CA")) ? false : true;
+			matchingResult = (isSku("US") || isSku("CN") || isSku("CT") || isSku("GD") || isSku("TC") || isSku("CA")|| isSku("U2") || isSku("TW")) ? false : true;
 			break;
 		case "SMARTCONNECT":
-			matchingResult = (ui_support["smart_connect"] == 1 || ui_support["bandstr"] == 1) ? true : false;
+			matchingResult = (ui_support["smart_connect"] == "1" || ui_support["smart_connect"] == "2" || ui_support["bandstr"] == "1") ? true : false;
+			break;
+		case "GUNDAM_UI":
+			matchingResult = ((isGundam() || isKimetsu()) && $(".desktop_left_field").is(":visible")) ? true : false;
 			break;
 		case "amas_bdl":
-			matchingResult = (ui_support["amas_bdl"] == 1 && amas_bdlkey.length == 0) ? true : false;
-		case "GUNDAM_UI":
-			matchingResult = (isSku("GD") && $(".desktop_left_field").is(":visible")) ? true : false;
+			matchingResult = (ui_support["amas_bdl"] == 1 && amas_bdlkey.length != 0) ? true : false;
+			break;
+		case "FRONTHAUL_NETWORK":
+			matchingResult = ui_support["amas_fronthaul_network"] || false;
 			break;
 		case "MB_mode_concurrep":
-			if(isSwMode("MB") && isSupport("concurrep") && odmpid != "RP-AC1900")
+			if(isSwMode("MB") && (ui_support["concurrep"] == 1) && odmpid != "RP-AC1900" && based_modelid != 'RP-AX56' && based_modelid != 'RP-AX58')
 				matchingResult = true;
 			else
 				matchingResult = false;
@@ -1029,6 +1583,17 @@ var isSupport = function(_ptn){
 	return matchingResult;
 }
 
+var getSupportNum = function(_ptn){
+	var ui_support = httpApi.hookGet("get_ui_support");
+	return ui_support[_ptn];
+}
+
+var isGundam = function(){
+	return (isSku("GD") || systemVariable.CoBrand == "1");
+}
+var isKimetsu = function(){
+	return (systemVariable.CoBrand == "2");
+}
 var isSku = function(_ptn){
 	return (systemVariable.territoryCode.search(_ptn) == -1) ? false : true;
 }
@@ -1144,13 +1709,18 @@ function startDetectLinkInternet(){
 }
 
 function startLiveUpdate(){
+	var CheckTime = "";
+	var TimeDiff = "";
 	if(!systemVariable.linkInternet){
 		setTimeout(arguments.callee, 1000);
 	}
 	else{
+		var NowTime = Math.ceil(Date.now() / 1000);
 		httpApi.nvramSet({"action_mode":"apply", "webs_update_trigger":"QIS", "rc_service":"start_webs_update"}, function(){
 			setTimeout(function(){
-				var fwInfo = httpApi.nvramGet(["webs_state_update", "webs_state_info", "webs_state_flag", "webs_state_level"], true);
+				var fwInfo = httpApi.nvramGet(["webs_state_update", "webs_state_info", "webs_state_flag", "webs_state_level", "webs_update_ts"], true);
+				CheckTime = (fwInfo.webs_update_ts == "")? 0:fwInfo.webs_update_ts.split("&#62")[0];
+				TimeDiff = NowTime-CheckTime;
 				
 				if(fwInfo.webs_state_flag == "1" || fwInfo.webs_state_flag == "2"){
 					systemVariable.isNewFw = fwInfo.webs_state_flag;
@@ -1158,10 +1728,10 @@ function startLiveUpdate(){
 					systemVariable.forceLevel = fwInfo.webs_state_level;
 				}
 
-				if(fwInfo.webs_state_update == "0" || fwInfo.webs_state_update == ""){
+				if(TimeDiff > 1800 || fwInfo.webs_state_update != "1"){
 					setTimeout(arguments.callee, 1000);
 				}
-			}, 1000);
+			}, 2000);
 		});
 	}
 }
@@ -1207,11 +1777,12 @@ validator.KRSkuPwd = function(str){
 		'errReason': ''
 	}
 
-	if( !/[A-Za-z]/.test(str) || !/[0-9]/.test(str) || str.length < 8 
+	if( !/[A-Za-z]/.test(str) || !/[0-9]/.test(str) || str.length < 10
 		|| !/[\!\"\#\$\%\&\'\(\)\*\+\,\-\.\/\:\;\<\=\>\?\@\[\\\]\^\_\`\{\|\}\~]/.test(str)
+		|| /([A-Za-z0-9\!\"\#\$\%\&\'\(\)\*\+\,\-\.\/\:\;\<\=\>\?\@\[\\\]\^\_\`\{\|\}\~])\1/.test(str)
 	){
 		testResult.isError = true;
-		testResult.errReason = "<#JS_validPWD#>";
+		testResult.errReason = "<#JS_validLoginPWD#>";
 	}
 
 	var invalid_char = [];
@@ -1240,8 +1811,8 @@ var transformWLCObj = function(){
 var copyWLCObj_wlc1ToWlc2 = function(){
 	var wlcPostData = wlcMultiObj.wlc2;
 	$.each(wlcPostData, function(item){wlcPostData[item] = qisPostData[item.replace("2", "1")];});
-	qisPostData.wlc2_band = 2;
 	postDataModel.insert(wlcPostData);
+	qisPostData.wlc2_band = 2;
 };
 
 var transformWLToGuest = function(){
@@ -1292,6 +1863,7 @@ var handleWirelessClientSSID = function(_wlArray, _autoStr){
 					break;
 			}
 		}
+
 		$("#wireless_ssid_" + wl.ifname).val(ssid_tmp);
 		if(wpa_psk_tmp != "")
 			$("#wireless_key_" + wl.ifname).val(wpa_psk_tmp);

@@ -530,7 +530,8 @@ function edit_guest_unit(_unit, _subunit) {
 		}
 	}
 
-	if(amesh_support && amesh_wgn_support){
+	var interface_support =  decodeURIComponent(gn_array[idx][24]);
+	if(amesh_support && ameshRouter_support && amesh_wgn_support && interface_support == "1"){
 		$("#gnset_aimesh_sync").show();
 		$("#gnset_aimesh_sync select[name='wl_sync_node']").attr("disabled", false);
 		if(gn_array[idx][23] == undefined || gn_array[idx][23] == "")
@@ -734,7 +735,7 @@ function gen_gntable(){
 				_enable_flag = '<% nvram_get("captive_portal_enable"); %>';
 				if(_enable_flag == "on") {
 					_profile_list = decodeURIComponent('<% nvram_char_to_ascii("","captive_portal"); %>');
-					parse_wl_list(_profile_list, 5, "Free Wi-Fi", captive_portal_used_wl_array);
+					parse_wl_list(_profile_list, 5, "Free WiFi", captive_portal_used_wl_array);
 				}
 			}
 			//check captive portal adv
@@ -742,7 +743,7 @@ function gen_gntable(){
 				_enable_flag = '<% nvram_get("captive_portal_adv_enable"); %>';
 				if(_enable_flag == "on") {
 					_profile_list = decodeURIComponent('<% nvram_char_to_ascii("","captive_portal_adv_profile"); %>');
-					parse_wl_list(_profile_list, 5, "Captive Portal Wi-Fi", captive_portal_used_wl_array);
+					parse_wl_list(_profile_list, 5, "Captive Portal WiFi", captive_portal_used_wl_array);
 				}
 			}
 		}
@@ -753,18 +754,18 @@ function gen_gntable(){
 			if(_enable_flag == "on") {
 				var fbwifi_2g = '<% nvram_get("fbwifi_2g"); %>';
 				if(fbwifi_2g != "off") {
-					captive_portal_used_wl_array[fbwifi_2g] = "Facebook Wi-Fi";
+					captive_portal_used_wl_array[fbwifi_2g] = "Facebook WiFi";
 				}
 				if(wl_info.band5g_support) {
 					var fbwifi_5g = '<% nvram_get("fbwifi_5g"); %>';
 					if(fbwifi_5g != "off") {
-						captive_portal_used_wl_array[fbwifi_5g] = "Facebook Wi-Fi";
+						captive_portal_used_wl_array[fbwifi_5g] = "Facebook WiFi";
 					}
 				}
 				if(wl_info.band5g_2_support) {
 					var fbwifi_5g_2 = '<% nvram_get("fbwifi_5g_2"); %>';
 					if(fbwifi_5g_2 != "off") {
-						captive_portal_used_wl_array[fbwifi_5g_2] = "Facebook Wi-Fi";
+						captive_portal_used_wl_array[fbwifi_5g_2] = "Facebook WiFi";
 					}
 				}
 			}
@@ -776,7 +777,7 @@ function gen_gntable(){
 	//short term solution for only router mode support Captive Portal
 	if(isSwMode("rt")) {
 		if(fbwifi_support)
-			captive_portal_used_interface_array[get_captive_portal_wl_idx("facebookWiFi")] = "Facebook Wi-Fi";/*untranslated*/
+			captive_portal_used_interface_array[get_captive_portal_wl_idx("facebookWiFi")] = "Facebook WiFi";/*untranslated*/
 		if(captivePortal_support) {
 			if(cp_advanced_support)
 				captive_portal_used_interface_array[get_captive_portal_wl_idx("captivePortal")] = "Captive Portal";/*untranslated*/
@@ -1000,13 +1001,13 @@ function applyRule(){
 			document.form.wl_bw_dl.disabled = true;
 			document.form.wl_bw_ul.disabled = true;	
 			switch(captive_portal_used_wl_array[_unit_subunit]) {
-				case "Facebook Wi-Fi" :
+				case "Facebook WiFi" :
 					document.form.action_script.value = "overwrite_fbwifi_ssid;" + document.form.action_script.value;
 					break;
-				case "Free Wi-Fi" :
+				case "Free WiFi" :
 					document.form.action_script.value = "overwrite_captive_portal_ssid;" + document.form.action_script.value;
 					break;
-				case "Captive Portal Wi-Fi" :
+				case "Captive Portal WiFi" :
 					document.form.action_script.value = "overwrite_captive_portal_adv_ssid;" + document.form.action_script.value;
 					break;
 			}
@@ -1365,10 +1366,10 @@ function show_bandwidth(flag){
 		}
 
 		if(QoS_enable_orig == "0"){
-			show_hint_content += "<br>QoS function of traffic manager will be enable and set as Bandwidth Limiter mode by default.";	/* untranslated */
+			show_hint_content += "<br><#Bandwidth_Limiter_NAT_hint#>";
 		}
 		else if(QoS_type_orig != "2"){
-			show_hint_content += "<br>QoS function of traffic manager will set as Bandwidth Limiter mode.";	/* untranslated */
+			show_hint_content += "<br><#Bandwidth_Limiter_set_hint#>";
 		}
 
 		if(show_hint_content.length <= 0){
@@ -1487,7 +1488,7 @@ function dis_qos_enable(_wl_idx, _form_obj, _control_item){
 <input type="hidden" name="gwlu" value="" disabled>
 <input type="hidden" name="modified" value="0">
 <input type="hidden" name="action_mode" value="apply_new">
-<input type="hidden" name="action_script" value="restart_wireless">
+<input type="hidden" name="action_script" value="restart_wireless;restart_firewall;">
 <input type="hidden" name="action_wait" value="15">
 <input type="hidden" name="preferred_lang" id="preferred_lang" value="<% nvram_get("preferred_lang"); %>">
 <input type="hidden" name="wl_country_code" value="<% nvram_get("wl0_country_code"); %>" disabled>
@@ -1728,12 +1729,12 @@ function dis_qos_enable(_wl_idx, _form_obj, _control_item){
 		</div>
 		<div id="gnset_aimesh_sync" class="gnset_setting_item_bg">
 			<div class='gnset_setting_item_titleName'>
-				Sync to AiMesh Node<!-- untranslated -->
+			<#Guest_Network_On_AiMesh#>
 			</div>
 			<div class='gnset_setting_item_content'>
 				<select name="wl_sync_node" class="gnset_setting_input_text_autoWidth">
-					<option class="content_input_fd" value="0" <% nvram_match("wl_sync_node", "0","selected"); %>>Router only</option><!-- untranslated -->
-					<option class="content_input_fd" value="1" <% nvram_match("wl_sync_node", "1","selected"); %>><#All#></option>
+					<option class="content_input_fd" value="0" <% nvram_match("wl_sync_node", "0","selected"); %>><#Router_only#></option>
+					<option class="content_input_fd" value="1" <% nvram_match("wl_sync_node", "1","selected"); %>><#All_AiMesh_nodes#></option>
 				</select>
 			</div>
 		</div>

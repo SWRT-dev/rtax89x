@@ -29,7 +29,11 @@
 
 #ifdef RTCONFIG_BRCM_NAND_JFFS2
 #ifdef HND_ROUTER
+#ifdef RTCONFIG_HND_ROUTER_AX_6756
+#define JFFS2_PARTITION "jffs"
+#else
 #define JFFS2_PARTITION	"misc2"
+#endif
 #else
 #define JFFS2_PARTITION	"brcmnand"
 #endif
@@ -86,6 +90,7 @@ unsigned int get_root_type(void)
 		case MODEL_RTN11P_B1:
 		case MODEL_RPAC53:
 		case MODEL_RPAC55:
+		case MODEL_RPAC92:
 		case MODEL_RTN19:
 		case MODEL_RTAC59U:
 		case MODEL_MAPAC1750:
@@ -94,7 +99,36 @@ unsigned int get_root_type(void)
 			return 0x73717368;      /* squashfs */
 		case MODEL_GTAC5300:
 		case MODEL_RTAC86U:
+		case MODEL_RTAX88U:
+		case MODEL_GTAX11000:
+		case MODEL_RTAX92U:
+		case MODEL_RTAX95Q:
+		case MODEL_XT8PRO:
+		case MODEL_RTAXE95Q:
+		case MODEL_ET8PRO:
+		case MODEL_RTAX56_XD4:
+		case MODEL_XD4PRO:
+		case MODEL_CTAX56_XD4:
+		case MODEL_RTAX58U:
+		case MODEL_RTAX82_XD6S:
+		case MODEL_RTAX58U_V2:
+		case MODEL_RTAX55:
+		case MODEL_RTAX56U:
+		case MODEL_RPAX56:
+		case MODEL_RPAX58:	// need to chk if still ubifs
+		case MODEL_GTAXE11000:
+		case MODEL_GTAX6000:
+		case MODEL_GTAX11000_PRO:
+		case MODEL_GTAXE16000:
+		case MODEL_ET12:
+		case MODEL_XT12:
 			return 0x24051905;      /* ubifs */
+		case MODEL_DSLAX82U:
+		{
+			struct statfs sf;
+			statfs("/", &sf);
+			return sf.f_type;
+		}
 	}
 #ifdef HND_ROUTER
 	return 0x24051905;      /* ubifs */
@@ -106,6 +140,9 @@ unsigned int get_root_type(void)
 int check_in_rootfs(const char *mount_point, const char *msg_title, int format)
 {
 	struct statfs sf;
+
+	if (!check_mountpoint((char *)mount_point)) return 1;
+
 	if (statfs(mount_point, &sf) == 0) {
 		if (sf.f_type != get_root_type()) {
 			// already mounted
@@ -222,6 +259,13 @@ void format_mount_2nd_jffs2(void)
 }
 #endif
 
+enum {
+	JFFS2_NO = 0,
+	JFFS2_BEGIN,
+	JFFS2_MOUNT,
+	JFFS2_END
+};
+
 void start_jffs2(void)
 {
 	if (!nvram_match("jffs2_on", "1")) {
@@ -237,6 +281,44 @@ void start_jffs2(void)
 
 	if (!wait_action_idle(10)) return;
 
+#ifdef RTCONFIG_BCMARM
+	int jffs2_state = nvram_get_int("jffs2_state");
+#define JFFS2_AUTO_ERASE_MAX 1
+	int jffs2_auto_erase_max = nvram_get_int("jffs2_auto_erase_max");
+	int jffs2_auto_erase = nvram_get_int("jffs2_auto_erase");
+	int jffs2_ever_erase = nvram_get_int("jffs2_ever_erase");
+
+	if(jffs2_auto_erase_max == 0)
+		jffs2_auto_erase_max = JFFS2_AUTO_ERASE_MAX;
+
+	if(jffs2_auto_erase < jffs2_auto_erase_max && (jffs2_state != JFFS2_NO && jffs2_state != JFFS2_END)){ // ever fail to start jffs2
+		_dprintf("%s: erase the jffs2 partition because it ever failed to be started\n", __func__);
+		logmessage("jffs2", "erase the jffs2 partition because it ever failed to be started");
+		nvram_set_int("jffs2_state", JFFS2_NO);
+		++jffs2_auto_erase;
+		nvram_set_int("jffs2_auto_erase", jffs2_auto_erase);
+		++jffs2_ever_erase;
+		nvram_set_int("jffs2_ever_erase", jffs2_ever_erase);
+		nvram_commit();
+#ifdef RTCONFIG_HND_ROUTER
+		mtd_erase_misc2();
+#else
+		system("mtd-erase2 brcmnand");
+#endif
+		_dprintf("%s: rebooting because DUT had ever erased jffs2 %d times (ever %d times)\n", __func__, jffs2_auto_erase, jffs2_ever_erase);
+		logmessage("jffs2", "rebooting because DUT had ever erased jffs2 %d times (ever %d times)", jffs2_auto_erase, jffs2_ever_erase);
+		reboot(RB_AUTOBOOT);
+		return;
+	}
+	else
+#endif
+	{
+		nvram_set_int("jffs2_state", JFFS2_BEGIN);
+		nvram_commit();
+	}
+
+	_dprintf("%s: getting the information of jffs2\n", __func__);
+	logmessage("jffs2", "getting the information of jffs2");
 	if (!mtd_getinfo(JFFS2_PARTITION, &part, &size)) return;
 
 	jffs2_fail = 0;
@@ -277,6 +359,10 @@ void start_jffs2(void)
 	modprobe(JFFS_NAME);
 	sprintf(s, MTD_BLKDEV(%d), part);
 
+	_dprintf("%s: mounting jffs2\n", __func__);
+	logmessage("jffs2", "mounting jffs2");
+	nvram_set_int("jffs2_state", JFFS2_MOUNT);
+	nvram_commit();
 	if (mount(s, "/jffs", JFFS_NAME, MS_NOATIME, "") != 0) {
 		if (mtd_erase(JFFS2_MTD_NAME)){
 			jffs2_fail = 1;
@@ -330,9 +416,9 @@ void start_jffs2(void)
 	if (nvram_get_int("jffs2_clean_fs")) {
 		if((0 == nvram_get_int("x_Setting")) && (check_if_file_exist("/jffs/remove_hidden_flag")))
 		{
-#ifdef RTCONFIG_ISP_CUSTOMIZE
-			// Remove hidden folder but excluding /jffs/.package.
-			system("find /jffs/ -name '.*' -a ! -name '.package' -a ! -name '.package.tar.gz' -a ! -name 'package.tar.gz' -exec rm -rf {} \\;");
+#if defined(RTCONFIG_ISP_CUSTOMIZE_TOOL) || defined(RTCONFIG_ISP_CUSTOMIZE)
+			// Remove hidden folder but excluding /jffs/.ac and /jffs/.package.
+			system("find /jffs/ -name '.*' -a ! -name '.ict' -a ! -name '.package' -a ! -name '.package.tar.gz' -a ! -name 'package.tar.gz' -exec rm -rf {} \\;");
 #else
 			system("rm -rf /jffs/.*");
 #endif
@@ -349,7 +435,7 @@ void start_jffs2(void)
 	notice_set("jffs", format ? "Formatted" : "Loaded");
 	jffs2_fail = 0;
 
-#ifdef HND_ROUTER
+#if defined(HND_ROUTER) || defined(DSL_AC68U)
 #ifdef RTCONFIG_JFFS_NVRAM
 	system("rm -rf /jffs/nvram_war");
 	jffs_nvram_init();
@@ -369,6 +455,14 @@ void start_jffs2(void)
 #ifdef CONFIG_BCMWL5
 	check_asus_jffs();
 #endif
+
+	_dprintf("%s: create jffs2 successfully\n", __func__);
+	logmessage("jffs2", "create jffs2 successfully");
+	nvram_set_int("jffs2_state", JFFS2_END);
+#ifdef RTCONFIG_BCMARM
+	nvram_set_int("jffs2_auto_erase", 0);
+#endif
+	nvram_commit();
 }
 
 void stop_jffs2(int stop)

@@ -91,8 +91,10 @@
 </style>
 <script>
 window.onresize = function() {
-	if(document.getElementById("erase_confirm").style.display == "block") {
-		cal_panel_block("erase_confirm", 0.25);
+	if(document.getElementById("erase_confirm") != null){
+		if(document.getElementById("erase_confirm").style.display == "block") {
+			cal_panel_block("erase_confirm", 0.25);
+		}
 	}
 }
 
@@ -476,19 +478,30 @@ function recount(){
 	}
 }
 
+var reboot_confirm=0;
 function applyRule(){
 	if(ctf_disable == 0 && ctf_fa_mode == 2){
 		if(!confirm(Untranslated.ctf_fa_hint)){
 			return false;
 		}	
 		else{
-			document.form.action_script.value = "reboot";
-			document.form.action_wait.value = "<% nvram_get("reboot_time"); %>";
+			reboot_confirm=1;
 		}	
 	}
 
-	showLoading();	
-	document.form.submit();
+	if(reboot_confirm==1){
+        	
+		if(confirm("<#AiMesh_Node_Reboot#>")){
+			FormActions("start_apply.htm", "apply", "reboot", "<% get_default_reboot_time(); %>");
+			showLoading();
+			document.form.submit();
+		}
+	}
+	else{
+
+		showLoading();
+		document.form.submit();
+	}
 }
 
 function cc_check(active){
@@ -516,6 +529,12 @@ function recountHover(flag){
 function eraseDatabase(){
 	document.form.action_script.value = 'reset_cc_db';
 	document.form.action_wait.value = "1";
+
+	/* update current timestamp when delete database */
+	var t = new Date();
+	var timestamp = t.getTime();
+	document.form.wrs_cc_t.value = timestamp.toString().substring(0, 10);
+
 	applyRule();
 }
 
@@ -566,11 +585,11 @@ var download = function(content, fileName, mimeType) {
 <div id="TopBanner"></div>
 <div id="Loading" class="popup_bg"></div>
 <div id="erase_confirm" class="confirm">
-	<div style="margin: 16px 24px;font-size:24px;"><span id="model_name"></span> says</div>
-	<div style="margin: 16px 24px;font-size:16px;">Are you sure want to permanently delete events.</div>
+	<div style="margin: 16px 24px;font-size:24px;"><span id="model_name"></span> : </div>
+	<div style="margin: 16px 24px;font-size:16px;"><#AiProtection_event_del_confirm#></div>
 	<div style="display:flex;justify-content: flex-end;margin: 36px 24px;">
-		<div class="confirm-button" onclick="hideConfirm();">Cancel</div>
-		<div class="confirm-button" onclick="eraseDatabase();">OK</div>
+		<div class="confirm-button" onclick="hideConfirm();"><#CTL_Cancel#></div>
+		<div class="confirm-button" onclick="eraseDatabase();"><#CTL_ok#></div>
 	</div>
 </div>
 <div id="hiddenMask" class="popup_bg" style="z-index:999;">
@@ -642,7 +661,7 @@ var download = function(content, fileName, mimeType) {
 													<div id="bar_shade" style="position:absolute;width:330px;height:330px;background-color:#505050;opacity:0.6;margin:5px;display:none"></div>
 													<div>
 														<div style="display:table-cell;width:50px;padding: 10px;">
-															<div style="width:35px;height:35px;background:url('images/New_ui/infected.svg');margin: 0 auto;"></div>
+															<div style="width:35px;height:35px;background:url('images/New_ui/infected.svg');margin: 0 auto;background-size: 100%;"></div>
 
 														</div>	
 														<div style="display:table-cell;width:200px;padding: 10px;vertical-align:middle;text-align:center;">
@@ -709,7 +728,7 @@ var download = function(content, fileName, mimeType) {
 											</div>
 										</div>
 									</div>
-									<div style="width:135px;height:55px;margin: 10px 0 0 600px;background-image:url('images/New_ui/tm_logo_power.png');"></div>
+									<div style="width:96px;height:44px;margin: 10px 0 0 600px;background-image:url('images/New_ui/TrendMirco_logo.svg');background-size: 100%;"></div>
 								</td>
 							</tr>
 							</tbody>	

@@ -1,0 +1,1 @@
+../../../src-qca-dakota/ipq40xx/qca-hostap/qca_hostapd_event_handler.sh

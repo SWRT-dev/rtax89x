@@ -152,6 +152,8 @@ void dbg(const char * format, ...)
 }
 
 /* XXX - this should be in a common file */
+#define MAX_RADIOS 4
+#define MAX_BSS_PER_RADIO 32
 #define WLMBSS_DEV_NAME        "wlmbss"
 #define WL_DEV_NAME "wl"
 #define WDS_DEV_NAME   "wds"
@@ -397,7 +399,7 @@ EXIT:
 	_exit(errno);
 }
 
-static int get_cmds_size(char **cmds)
+static int get_cmds_size(char *const *cmds)
 {
         int i=0;
         for(; cmds[i]; ++i);
@@ -407,13 +409,16 @@ static int get_cmds_size(char **cmds)
 int _cpu_eval(int *ppid, char *cmds[])
 {
         int ncmds=0, n=0, i;
+	int ret;
         int maxn = get_cmds_size(cmds)
 #if defined (SMP) || defined(RTCONFIG_ALPINE) || defined(RTCONFIG_LANTIQ)
                 + 4;
 #else
                 +1;
 #endif
-        char *cpucmd[maxn];
+        char **cpucmd = (char **)malloc(maxn * sizeof(char *));
+	if (!cpucmd)
+		return -ENOMEM;
 
         for(i=0; i<maxn; ++i)
                 cpucmd[i]=NULL;
@@ -437,7 +442,37 @@ int _cpu_eval(int *ppid, char *cmds[])
 #endif
         for(; cmds[n]; cpucmd[ncmds++]=cmds[n++]);
 
-        return _eval(cpucmd, NULL, 0, ppid);;
+	ret = _eval(cpucmd, NULL, 0, ppid);;
+	free(cpucmd);
+	return ret;
+}
+
+int _cpu_mask_eval(char *const argv[], const char *path, int timeout, int *ppid, unsigned int mask)
+{
+	int maxn = get_cmds_size(argv) + 3;
+	char **cpuargv;
+	int ret;
+	int argc = 0;
+	int i;
+	char mask_str[16] = {0};
+
+	cpuargv = (char **)malloc(maxn * sizeof(char *));
+	if (!cpuargv)
+		return -ENOMEM;
+
+	for (i = 0;i < maxn; i++)
+		cpuargv[i] = NULL;
+
+	cpuargv[argc++] = "taskset";
+	snprintf(mask_str, sizeof(mask_str), "0x%x", mask);
+	cpuargv[argc++] = mask_str;
+	for(i = 0; argv[i]; i++)
+		cpuargv[argc++] = argv[i];
+
+	//_dprintf("\n=====\n"); for(i = 0; cpuargv[i]; i++) _dprintf("%s ", cpuargv[i]); _dprintf("\n=====\n");
+	ret = _eval(cpuargv, path, timeout, ppid);
+	free(cpuargv);
+	return ret;
 }
 
 /*
@@ -571,6 +606,45 @@ get_pid_by_name(char *name)
 	return pid;
 }
 
+pid_t
+get_pid_by_thrd_name(char *name)
+{
+        pid_t           pid = -1;
+        DIR             *dir;
+        struct dirent   *next;
+        int cmp = 0;
+        if ((dir = opendir("/proc")) == NULL) {
+                perror("Cannot open /proc");
+                return -1;
+        }
+
+        while ((next = readdir(dir)) != NULL) {
+                FILE *fp;
+                char filename[256];
+                char buffer[256];
+
+                /* If it isn't a number, we don't want it */
+                if (!isdigit(*next->d_name))
+                        continue;
+                sprintf(filename, "/proc/%s/comm", next->d_name);
+                fp = fopen(filename, "r");
+                if (!fp) {
+                        continue;
+                }
+                buffer[0] = '\0';
+                fgets(buffer, 256, fp);
+                fclose(fp);
+
+                if (!(cmp = strncmp(name, buffer, strlen(name)))) {
+                        pid = strtol(next->d_name, NULL, 0);
+                        break;
+                }
+        }
+
+        closedir(dir);
+        return pid;
+}
+
 /*
  * Convert Ethernet address string representation to binary data
  * @param	a	string in xx:xx:xx:xx:xx:xx notation
@@ -640,6 +714,57 @@ int ether_inc(unsigned char *e, const unsigned char n)
 	}
 
 	return (ret);
+}
+
+/* 
+ * Calculate Ethernet address
+ * @param	e	string in xx:xx:xx:xx:xx:xx notation
+ * @param	a	string in xx:xx:xx:xx:xx:xx notation
+ * @return	a
+ */
+char *
+ether_cal(const char *e, char *a, int i)
+{
+	unsigned char binary[6];
+	unsigned long long macvalue;
+	char buf[13];
+	memset(binary, 0, sizeof(binary));
+	memset(buf, 0, sizeof(buf));
+	ether_atoe(e, binary);
+	snprintf(buf, sizeof(buf), "%02X%02X%02X%02X%02X%02X",
+		binary[0], binary[1], binary[2], binary[3], binary[4],	binary[5]);
+	macvalue = strtoll(buf, (char **) NULL, 16) + i;
+	for(i=0; i<sizeof(binary); i++)
+	{
+		binary[i] = (macvalue >> ((5-i)*8)) & 0xff;
+	}
+	ether_etoa(binary, a);
+	return a;
+}
+
+/*
+ * Calculate Ethernet address
+ * @param	e	binary data
+ * @param	a	string in xx:xx:xx:xx:xx:xx notation
+ * @return	a
+ */
+char *
+ether_cal_b(const unsigned char *e, char *a, int i)
+{
+	unsigned char binary[6];
+	unsigned long long macvalue;
+	char buf[13];
+	memset(buf, 0, sizeof(buf));
+	memcpy(binary, e, sizeof(binary));
+	snprintf(buf, sizeof(buf), "%02X%02X%02X%02X%02X%02X",
+		binary[0], binary[1], binary[2], binary[3], binary[4],	binary[5]);
+	macvalue = strtoll(buf, (char **) NULL, 16) + i;
+	for(i=0; i<sizeof(binary); i++)
+	{
+		binary[i] = (macvalue >> ((5-i)*8)) & 0xff;
+	}
+	ether_etoa(binary, a);
+	return a;
 }
 
 #ifdef GTAC5300
@@ -1398,7 +1523,7 @@ osifname_to_nvifname(const char *osifname, char *nvifname_buf,
 	}
 
 	/* look for interface name on the primary interfaces first */
-	for (pri = 0; pri < MAX_NVPARSE; pri++) {
+	for (pri = 0; pri < MAX_RADIOS; pri++) {
 		snprintf(varname, sizeof(varname),
 					"wl%d_ifname", pri);
 		if (nvram_match(varname, (char *)osifname)) {
@@ -1408,8 +1533,8 @@ osifname_to_nvifname(const char *osifname, char *nvifname_buf,
 	}
 
 	/* look for interface name on the multi-instance interfaces */
-	for (pri = 0; pri < MAX_NVPARSE; pri++)
-		for (sec = 0; sec < MAX_NVPARSE; sec++) {
+	for (pri = 0; pri < MAX_RADIOS; pri++)
+		for (sec = 0; sec < MAX_BSS_PER_RADIO; sec++) {
 			snprintf(varname, sizeof(varname),
 					"wl%d.%d_ifname", pri, sec);
 			if (nvram_match(varname, (char *)osifname)) {
@@ -2095,6 +2220,66 @@ char *trimNL(char *str)
 	return str;
 }
 
+/*******************************************************************
+* NAME: trimWS
+* AUTHOR: Renjie Lee
+* CREATE DATE: 2021/05/20
+* DESCRIPTION: remove leading and tailing white space(s)
+* INPUT:  str: the string to be procesed
+* OUTPUT:  None
+* RETURN: the string which has neither leading nor tailing white space(s)
+* NOTE:
+*******************************************************************/
+char *trimWS(char *str)
+{
+	char *end;
+
+	while(*str == ' ')
+	{
+		str++;
+	}
+
+	if(*str == 0)
+	{
+		return str;
+	}
+
+	end = str + strlen(str) - 1;
+	while((end > str) && (*end == ' '))
+	{
+		end--;
+	}
+
+	*(end+1) = '\0';
+
+	return str;
+}
+
+/**
+** get_char_count()
+** return the number of occurrence of character 'ch' in the C string 'str'.
+** The terminating null-character is considered part of the C string.
+** Therefore, it can also be located in order to retrieve a pointer to the end of a string.
+**/
+int get_char_count(char *str, int ch)
+{
+	int count = 0;
+	char *pch = NULL;
+
+	if(!str)
+	{
+		return 0;
+	}
+
+	pch = strchr(str, ch);
+	while(pch != NULL)
+	{
+		count++;
+		pch = strchr(pch+1, ch);
+	}
+	return count;
+}
+
 char *get_process_name_by_pid(const int pid)
 {
 	static char name[1024];
@@ -2263,8 +2448,53 @@ int num_of_wl_if()
 {
 	char word[256], *next;
 	int count = 0;
+	char wl_ifnames[32] = { 0 };
 
-	foreach (word, nvram_safe_get("wl_ifnames"), next)
+	strlcpy(wl_ifnames, nvram_safe_get("wl_ifnames"), sizeof(wl_ifnames));
+	foreach (word, wl_ifnames, next)
+		count++;
+
+	return count;
+}
+
+int num_of_5g_if()
+{
+#if defined(RTCONFIG_QCA)
+	char prefix[] = "wlXXXXXXXXXXXX_";
+	int band, count = 0;
+
+	for (band = WL_2G_BAND; band < MAX_NR_WL_IF; band++) {
+		SKIP_ABSENT_BAND(band);
+		snprintf(prefix, sizeof(prefix), "wl%d_", band);
+		if (nvram_pf_match(prefix, "nband", "1"))
+			count++;
+	}
+
+#else
+	char word[256], *next;
+	int count = 0;
+	char wl_ifnames[32] = { 0 };
+	int band;
+
+	strlcpy(wl_ifnames, nvram_safe_get("wl_ifnames"), sizeof(wl_ifnames));
+	foreach (word, wl_ifnames, next) {
+		wl_ioctl(word, WLC_GET_BAND, &band, sizeof(band));
+		if(band == WLC_BAND_5G)
+			count++;
+	}
+
+#endif
+	return count;
+}
+
+int num_of_wan_if()
+{
+	char word[256], *next;
+	int count = 0;
+	char wan_ifnames[32] = { 0 };
+
+	strlcpy(wan_ifnames, nvram_safe_get("wan_ifnames"), sizeof(wan_ifnames));
+	foreach (word, wan_ifnames, next)
 		count++;
 
 	return count;
@@ -2371,5 +2601,226 @@ int arpcache(char *tgmac, char *tgip)
 
 	fclose(arpCache);
 	return 0;
+}
+
+/* In the space-separated/null-terminated list(haystack), try to
+ * locate the string "needle" and get the next string from it
+ * if required, do a circular search as well
+ * if "needle" is NULL, get the first string in the list
+ */
+char *
+find_next_in_list(const char *haystack, const char *needle, char *nextstr, int nextstrlen)
+{
+        const char *ptr = haystack;
+        int needle_len = 0;
+        int haystack_len = 0;
+        int len = 0;
+
+        if (!haystack || !needle || !nextstr || !*haystack)
+                return NULL;
+
+        if (!*needle) {
+                goto found_next;
+        }
+
+        needle_len = strlen(needle);
+        haystack_len = strlen(haystack);
+
+        while (*ptr != 0 && ptr < &haystack[haystack_len])
+        {
+                /* consume leading spaces */
+                ptr += strspn(ptr, " ");
+
+                /* what's the length of the next word */
+                len = strcspn(ptr, " ");
+
+                if ((needle_len == len) && (!strncmp(needle, ptr, len))) {
+
+                        ptr += len;
+
+                        if (!(*ptr != 0 && ptr < &haystack[haystack_len])) {
+                                ptr = haystack;
+                        } else {
+                                /* consume leading spaces */
+                                ptr += strspn(ptr, " ");
+                        }
+
+found_next:
+                        /* what's the length of the next word */
+                        len = strcspn(ptr, " ");
+
+                        /* copy next value in nextstr */
+                        memset(nextstr, 0, nextstrlen);
+                        strncpy(nextstr, ptr, len);
+
+                        return (char*) ptr;
+                }
+
+                ptr += len;
+        }
+        return NULL;
+}
+
+#ifdef CONFIG_BCMWL5
+void retrieve_static_maclist_from_nvram(int idx,struct maclist *maclist,int maclist_buf_size)
+{
+	char prefix[16]={0};
+	struct ether_addr *ea;
+	char *buf = maclist;
+	char tmp[100];
+	char var[80], *next;
+	unsigned char sta_ea[6] = {0};
+	char *nv, *nvp, *b;
+#ifdef RTCONFIG_AMAS
+	char mac2g[32], mac5g[32], *next_mac;
+	char *reMac, *maclist2g, *maclist5g, *timestamp;
+	char stamac2g[18] = {0};
+	char stamac5g[18] = {0};
+#endif
+
+	if(!maclist) return;
+
+#ifdef RTCONFIG_AMAS
+	if (nvram_get_int("re_mode") == 1)
+		snprintf(prefix, sizeof(prefix), "wl%d.1_", idx);
+	else
+#endif
+	snprintf(prefix,16,"wl%d_",idx);
+
+#ifdef RTCONFIG_AMAS
+	if (is_cfg_relist_exist())
+	{
+		if (nvram_get_int("re_mode") == 1) {
+			nv = nvp = get_cfg_relist(0);
+			if (nv) {
+				while ((b = strsep(&nvp, "<")) != NULL) {
+					if ((vstrsep(b, ">", &reMac, &maclist2g, &maclist5g, &timestamp) != 4))
+						continue;
+					/* first mac for sta 2g of dut */
+					foreach_44 (mac2g, maclist2g, next_mac)
+						break;
+					/* first mac for sta 5g of dut */
+					foreach_44 (mac5g, maclist5g, next_mac)
+						break;
+
+					if (strcmp(reMac, get_lan_hwaddr()) == 0) {
+						snprintf(stamac2g, sizeof(stamac2g), "%s", mac2g);
+						//dbg("dut 2g sta (%s)\n", stamac2g);
+						snprintf(stamac5g, sizeof(stamac5g), "%s", mac5g);
+						//dbg("dut 5g sta (%s)\n", stamac5g);
+						break;
+					}
+				}
+				free(nv);
+			}
+		}
+	}
+#endif
+
+	maclist->count = 0;
+	if (!nvram_match(strcat_r(prefix, "macmode", tmp), "disabled")) {
+		memset(maclist, 0, sizeof(maclist_buf_size));
+		ea = &(maclist->ea[0]);
+
+		nv = nvp = strdup(nvram_safe_get(strcat_r(prefix, "maclist_x", tmp)));
+		if (nv) {
+			while ((b = strsep(&nvp, "<")) != NULL) {
+				if (strlen(b) == 0) continue;
+
+#ifdef RTCONFIG_AMAS
+				if(nvram_match(strcat_r(prefix, "macmode", tmp), "allow")){
+					if (nvram_get_int("re_mode") == 1) {
+						if (strcmp(b, stamac2g) == 0 ||
+							strcmp(b, stamac5g) == 0)
+							continue;
+					}
+				}
+#endif
+				//dbg("maclist sta (%s) in %s\n", b, wlif_name);
+				ether_atoe(b, sta_ea);
+				memcpy(ea, sta_ea, sizeof(struct ether_addr));
+				maclist->count++;
+				ea++;
+			}
+			free(nv);
+		}
+#ifdef RTCONFIG_AMAS
+		if (nvram_match(strcat_r(prefix, "macmode", tmp), "allow"))
+		{
+			nv = nvp = get_cfg_relist(0);
+			if (nv) {
+				while ((b = strsep(&nvp, "<")) != NULL) {
+					if ((vstrsep(b, ">", &reMac, &maclist2g, &maclist5g, &timestamp) != 4))
+						continue;
+
+					if (strcmp(reMac, get_lan_hwaddr()) == 0)
+						continue;
+
+					if (idx == 0) {
+						foreach_44 (mac2g, maclist2g, next_mac) {
+							if (check_re_in_macfilter(idx, mac2g))
+								continue;
+							//dbg("relist sta (%s) in %s\n", mac2g, wlif_name);
+							ether_atoe(mac2g, sta_ea);
+							memcpy(ea, sta_ea, sizeof(struct ether_addr));
+							maclist->count++;
+							ea++;
+						}
+					}
+					else
+					{
+						foreach_44 (mac5g, maclist5g, next_mac) {
+							if (check_re_in_macfilter(idx, mac5g))
+								continue;
+							//dbg("relist sta (%s) in %s\n", mac5g, wlif_name);
+							ether_atoe(mac5g, sta_ea);
+							memcpy(ea, sta_ea, sizeof(struct ether_addr));
+							maclist->count++;
+							ea++;
+						}
+					}
+				}
+				free(nv);
+			}
+		}
+#endif
+
+	}
+}
+#endif
+
+/* Compare two space-separated/null-terminated lists(str1 and str2)
+ * NOTE : The individual names in the list should not exceed NVRAM_MAX_VALUE_LEN
+ *
+ * @param      str1    space-separated/null-terminated list
+ * @param      str2    space-separated/null-terminated list
+ *
+ * @return     0 if both strings are same else return -1
+ */
+int
+compare_lists(char *str1, char *str2)
+{
+       char name[NVRAM_MAX_VALUE_LEN + 1], *next_str;
+
+       /* Check for arg and len */
+       if (!str1 || !str2 || (strlen(str1) != strlen(str2))) {
+               return -1;
+       }
+
+       /* First check whether each element in str1 list is present in str2's list */
+       foreach(name, str1, next_str) {
+               if (find_in_list(str2, name) == NULL) {
+                       return -1;
+               }
+       }
+
+       /* Now check whether each element in str2 list is present in str1's list */
+       foreach(name, str2, next_str) {
+               if (find_in_list(str1, name) == NULL) {
+                       return -1;
+               }
+       }
+
+       return 0;
 }
 

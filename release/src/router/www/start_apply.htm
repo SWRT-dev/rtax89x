@@ -21,6 +21,9 @@ var action_wait = '<% get_parameter("action_wait"); %>';
 var group_id = '<% get_parameter("group_id"); %>';
 var getflag = '<% get_parameter("flag"); %>';
 var lan_proto = '<% get_parameter("lan_proto"); %>';
+var dsl_unit = '<% get_parameter("dsl_unit"); %>';
+var dsl_subunit = '<% get_parameter("dsl_subunit"); %>';
+var wan_unit = '<% get_parameter("wan_unit"); %>';
 
 if(tmo_support)
 	var theUrl = "cellspot.router"; 
@@ -248,7 +251,17 @@ function showWlHint(){
 			}
 			else if(wl_nband_array[j] == '1'){
 				band5g_count++;
-				wl_nband_title.push("5 GHz-" + band5g_count);
+				if(parent.band6g_support){
+					if(band5g_count == '1'){
+						wl_nband_title.push("5 GHz");
+					}
+					else{
+						wl_nband_title.push("6 GHz");
+					}
+				}
+				else{					
+					wl_nband_title.push("5 GHz-" + band5g_count);
+				}
 			}
 		}
 		if(wl_nband_title.indexOf("2.4 GHz-2") == -1) wl_nband_title[wl_nband_title.indexOf("2.4 GHz-1")] = "2.4 GHz";
@@ -309,10 +322,10 @@ function showWlHint(){
 				wlObj.length = 1;
 				if(parent.smart_connect_support){
 					if(parent.band5g2_support){
-						wlObj[0].band = "Tri-Band Smart Connect";
+						wlObj[0].band = "<#smart_connect_tri#>";
 					}
 					else{
-						wlObj[0].band = "Dual-Band Smart Connect";
+						wlObj[0].band = "<#smart_connect_dual#>";
 					}
 				}
 			}
@@ -327,10 +340,10 @@ function showWlHint(){
 			wlObj.length = 1;
 			if(parent.smart_connect_support){
 				if(parent.band5g2_support){
-					wlObj[0].band = "Tri-Band Smart Connect";
+					wlObj[0].band = "<#smart_connect_tri#>";
 				}
 				else{
-					wlObj[0].band = "Dual-Band Smart Connect";
+					wlObj[0].band = "<#smart_connect_dual#>";
 				}
 			}
 		}
@@ -606,7 +619,7 @@ function initial(){
 						setTimeout("delay_redirect('/qis/QIS_verify_detect.htm');", restart_time*1000);
 					return;
 				}
-				else{			
+				else{
 					parent.showLoading(restart_time, "waiting");
 					if(isWLclient()) {
 							setTimeout(getXMLAndRedirect, restart_time*1000);
@@ -625,11 +638,20 @@ function initial(){
 		parent.showLoading(restart_time, "waiting");
 		setTimeout(getXMLAndRedirect, restart_time*1000);
 	}
+	else if(current_page.indexOf("Advanced_DSL_Content") != -1 && getflag == "chg_pvc"){
+		setTimeout("top_delay_redirect('"+current_page+"?chg_pvc="+dsl_unit+"');", action_wait*1000);
+	}
+	else if(current_page.indexOf("Advanced_VDSL_Content") != -1 && getflag == "chg_pvc"){
+		setTimeout("top_delay_redirect('"+current_page+"?chg_pvc="+dsl_subunit+"');", action_wait*1000);
+	}
+	else if(current_page.indexOf("Advanced_WAN_Content") != -1 && getflag == "chg_pvc"){
+		setTimeout("top_delay_redirect('"+current_page+"?chg_pvc="+wan_unit+"');", action_wait*1000);
+	}
 	else if(current_page.indexOf("Feedback") != -1){
 		if(action_script == "stop_dblog")
 			setTimeout("top_delay_redirect('"+current_page+"');", restart_time*1000);
 		else
-			setTimeout("parent.CheckFBSize();", 15000);
+			setTimeout("top.location.href='Feedback_Info.asp';", 3000);
 	}	
 	else if(getflag == "ddnscheck"){
 		setTimeout("parent.go_index_page();", 2000);
@@ -641,7 +663,7 @@ function initial(){
 	else if(action_script.indexOf("aidisk_asusddns_register") != -1){
 		setTimeout("parent.checkDDNSReturnCode();", 1000);
 	}
-	else if(action_script.indexOf("restart_ddns") != -1 && action_script.indexOf("restart_httpd") == -1 && action_script.indexOf("restart_ddns_le") == -1) {
+	else if(action_script.indexOf("restart_ddns") != -1 && action_script.indexOf("restart_httpd") == -1) {
   		setTimeout("parent.parent.checkDDNSReturnCode();", 1000);
 	}
 	else if(action_script.indexOf("start_webs_upgrade") != -1) {
@@ -679,6 +701,10 @@ function initial(){
 	}
 	else if(getflag == "apply_routersync"){
 		parent.show_block();
+	}
+	else if(action_script.indexOf("ipsec_") != -1 && (current_page.indexOf("Advanced_VPN_IPSec") != -1) && parent.based_modelid != "BRT-AC828"){
+		parent.showLoading(restart_time, "waiting");
+		setTimeout(getXMLAndRedirect, restart_time*1000);
 	}
 	else if(page_modified == 1){
 		if(amesh_support && current_page == "device-map/amesh.asp") {

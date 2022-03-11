@@ -6,9 +6,6 @@
 #include <time.h>
 #include "rc.h"
 
-#define iptables_chk_mac " -m mac --mac-source"
-#define iptables_chk_ip " -s"
-
 static void retreive_daytime_from_ts(const char *s_ts, ic_event_s *ic_event) {
 	char *ptr;
 	struct tm *ptm;
@@ -226,7 +223,8 @@ static int is_valid_pair_ic_event(const ic_event_s *start_ic_event, const ic_eve
 	if (!start_ic_event || !end_ic_event)
 		return -1;
 
-	start_ts = start_ic_event->utc ? start_ic_event->ts : convert_to_utc(start_ic_event->ts); 
+	start_ts = start_ic_event->utc ? start_ic_event->ts : convert_to_utc(start_ic_event->ts);
+	(void) start_ts;
 	end_ts = end_ic_event->utc ? end_ic_event->ts : convert_to_utc(end_ic_event->ts);
 	//_dprintf("     is_valid_pair_ic_event now=%ld\n", now);
 
@@ -358,7 +356,7 @@ ic_s *cp_ic(ic_s **dest, const ic_s *src){
 ic_s *get_all_ic_list(ic_s **ic_list){
 	char word[1024], *next_word;
 	ic_s *follow_ic, **follow_ic_list;
-	int i;
+	int i, count;
 	char buf[4096];
 
 
@@ -367,7 +365,7 @@ ic_s *get_all_ic_list(ic_s **ic_list){
 
 	follow_ic_list = ic_list;
 	snprintf(buf, sizeof(buf), "%s", nvram_safe_get("ICFILTER_MAC"));
-	foreach_62(word, buf, next_word){
+	foreach_62_keep_empty_string(count, word, buf, next_word){
 		if(initial_ic(follow_ic_list) == NULL){
 			_dprintf("No memory!!(follow_ic_list)\n");
 			continue;
@@ -383,7 +381,7 @@ ic_s *get_all_ic_list(ic_s **ic_list){
 	follow_ic = *ic_list;
 	i = 0;
 	snprintf(buf, sizeof(buf), "%s", nvram_safe_get("ICFILTER_MACFILTER_DAYTIME"));
-	foreach_62(word, buf, next_word){
+	foreach_62_keep_empty_string(count, word, buf, next_word){
 		++i;
 		if(follow_ic == NULL){
 			_dprintf("*** %3dth Internet Control rule(DAYTIME) had something wrong!\n", i);
@@ -465,8 +463,8 @@ void config_ic_rule_string(ic_s *ic_list, FILE *fp, char *logaccept, char *logdr
 #ifdef BLOCKLOCAL
 	ftype = logaccept;
 #endif
-	fftype_accept = "ICAccept";
-	fftype_drop = "ICDrop";
+	fftype_accept = "RETURN";
+	fftype_drop = logdrop;
 
 	follow_ic = ic_list;
 	if(follow_ic == NULL){
@@ -483,14 +481,16 @@ void config_ic_rule_string(ic_s *ic_list, FILE *fp, char *logaccept, char *logdr
 #ifdef RTCONFIG_AMAS
 		if (strlen(follow_ic->mac) && amas_lib_device_ip_query(follow_ic->mac, follow_addr)) {
 			chk_type = iptables_chk_ip;
+			if (illegal_ipv4_address(follow_addr))
+				continue;
 		} else
 #endif
 		{
 			chk_type = iptables_chk_mac;
 			snprintf(follow_addr, sizeof(follow_addr), "%s", follow_ic->mac);
+			if (!isValidMacAddress(follow_addr))
+				continue;
 		}
-		if(!follow_addr[0])
-			chk_type = "";
 
 //_dprintf("[PC] mac=%s\n", follow_ic->mac);
 #ifdef RTCONFIG_PERMISSION_MANAGEMENT
@@ -512,7 +512,7 @@ void config_ic_rule_string(ic_s *ic_list, FILE *fp, char *logaccept, char *logdr
 					continue;
 				}
 
-				fprintf(fp, "-A FORWARD -i %s -m time", lan_if);
+				fprintf(fp, "-A IControls -i %s -m time", lan_if);
 				if(follow_e->start_year > 0 || follow_e->start_mon > 0 || follow_e->start_day > 0)
 					fprintf(fp, " --kerneltz --datestart %d-%d-%dT%d:%d", follow_e->start_year, follow_e->start_mon, follow_e->start_day, follow_e->start_hour, follow_e->start_min);
 
@@ -523,17 +523,18 @@ void config_ic_rule_string(ic_s *ic_list, FILE *fp, char *logaccept, char *logdr
 					fprintf(fp, " %s %s -j %s\n", chk_type, follow_addr, fftype);
 
 					// Write the reverse rule for the unmatched time.
-					fprintf(fp, "-A FORWARD -i %s %s %s -j %s\n", lan_if, chk_type, follow_addr, fftype_reverse);
+					fprintf(fp, "-A IControls -i %s %s %s -j %s\n", lan_if, chk_type, follow_addr, fftype_reverse);
 				} else {
 					fprintf(fp, " %s %s -j %s\n", chk_type, follow_addr, fftype);
 				}
 			} else if (follow_e->type == IC_TYPE_WEEK) {
-				fprintf(fp, "-A FORWARD -i %s -m time", lan_if);
+				fprintf(fp, "-A IControls -i %s -m time", lan_if);
 				if(follow_e->start_hour > 0 || follow_e->start_min > 0)
 					fprintf(fp, " --timestart %d:%d", follow_e->start_hour, follow_e->start_min);
 				fprintf(fp, DAYS_PARAM "%s %s %s -j %s\n", datestr[follow_e->start_day], chk_type, follow_addr, fftype);
 			}
 		}
+		fprintf(fp, "-A FORWARD -i %s %s %s -j IControls\n", lan_if, chk_type, follow_addr);
 	}
 
 	clean_invalid_config(ic_list);

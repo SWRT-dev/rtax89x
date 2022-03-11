@@ -27,6 +27,9 @@
 <script type="text/javascript" src="/js/httpApi.js"></script>
 <script language="JavaScript" type="text/javascript" src="/js/asus_eula.js"></script>
 <style>
+*{
+	box-sizing: content-box;
+}
 .QISform_wireless{
 	width:600px;
 	font-size:12px;
@@ -255,21 +258,38 @@
 // WAN
 <% wanlink(); %>
 <% first_wanlink(); %>
-var wans_dualwan_orig = '<% nvram_get("wans_dualwan"); %>';
-var dualwan_type = wans_dualwan_orig.split(" ");
-var wans_flag = (wans_dualwan_orig.search("none") != -1 || !parent.dualWAN_support) ? 0 : 1;
-var dsllink_statusstr = "";
-if(wans_flag == 1)	//dual_wan enabled
-	dsllink_statusstr = first_wanlink_statusstr();
-else
-	dsllink_statusstr = wanlink_statusstr();
-var dsl_DataRateDown = parseInt("<% nvram_get("dsllog_dataratedown"); %>");
-var dsl_DataRateUp = parseInt("<% nvram_get("dsllog_datarateup"); %>");
+<% secondary_wanlink(); %>
+
+	var wans_dualwan_orig = '<% nvram_get("wans_dualwan"); %>';
+	var dualwan_type = wans_dualwan_orig.split(" ");
+	var wans_flag = (wans_dualwan_orig.search("none") != -1 || !parent.dualWAN_support) ? 0 : 1;
+if(dualwan_type.length == 2){	
+	var dualwan_primary = dualwan_type[0].toUpperCase();
+	var dualwan_primary_display = (dualwan_primary=="LAN") ? "Ethernet LAN":dualwan_primary;	
+	var dualwan_secondary = dualwan_type[1].toUpperCase();
+	var dualwan_secondary_display = (dualwan_secondary=="LAN") ? "Ethernet LAN":dualwan_secondary;
+	var dw_primary = dualwan_type[0].toLowerCase();
+	var dw_secondary = dualwan_type[1].toLowerCase();
+}
+	var wans_lanport_orig = httpApi.nvramGet(["wans_lanport"]).wans_lanport;
+	var dsllink_statusstr = "";
+	var dsllink_statusstr_secondary = "";
+	if(wans_flag == 1){	//dual_wan enabled
+		dsllink_statusstr = first_wanlink_statusstr();
+		dsllink_statusstr_secondary = secondary_wanlink_statusstr();
+	}
+	else
+		dsllink_statusstr = wanlink_statusstr();
+
+var dsl_DataRateUp = parseInt("<% nvram_get("dsllog_datarateup"); %>");			//connection UL speed
+var dsl_DataRateDown = parseInt("<% nvram_get("dsllog_dataratedown"); %>");		//connection DL speed
 
 //HND_ROUTER HW NAT (fc_disable/runner_disable) ON: 0/0 ; OFF: 1/1
 var fc_disable_orig = '<% nvram_get("fc_disable"); %>';
 var runner_disable_orig = '<% nvram_get("runner_disable"); %>';
 
+var qos_xobw_orig = parseInt(httpApi.nvramGet(["qos_xobw"], true).qos_xobw);	//shapping UL speed /PrimaryWAN
+var qos_xobw1_orig = parseInt(httpApi.nvramGet(["qos_xobw1"], true).qos_xobw1);	//shapping UL speed /SecondaryWAN
 
 var bwdpi_app_rulelist = "<% nvram_get("bwdpi_app_rulelist"); %>".replace(/&#60/g, "<");
 var category_title = ["", "<#Adaptive_Game#>", "<#Adaptive_Stream#>", "<#Adaptive_Message#>", "<#Adaptive_WebSurf#>","<#Adaptive_FileTransfer#>", "<#Adaptive_Others#>", "<#Adaptive_eLearning#>"];
@@ -280,7 +300,7 @@ var ctf_fa_mode = '<% nvram_get("ctf_fa_mode"); %>';
 var qos_bw_rulelist = "<% nvram_get("qos_bw_rulelist"); %>".replace(/&#62/g, ">").replace(/&#60/g, "<");
 var select_all_checked = 0;
 
-var adaptiveqos_support = isSupport("adaptive_qos");
+var faq_href = "https://nw-dlcdnet.asus.com/support/forward.html?model=&type=Faq&lang="+ui_lang+"&kw=&num=110";
 
 if(geforceNow_support){
 	var orig_nvgfn_enable = httpApi.nvramGet(["nvgfn_enable"], true).nvgfn_enable;
@@ -292,12 +312,24 @@ function show_up_down(value){
 		document.getElementById('download_tr').style.display = "";
 		if(mtwancfg_support){
 			document.getElementById('wan_1_tr').style.display = "";
-			if(dualwan_type[1].toLowerCase() == "none"){
+			if(dualwan_primary_display=="Ethernet LAN"){
+				$("#dualwan_primary_title").html("<#dualwan_primary#> - "+dualwan_primary_display+" (LAN Port "+wans_lanport_orig+")");
+			}
+			else{
+				$("#dualwan_primary_title").html("<#dualwan_primary#> - "+dualwan_primary_display);
+			}
+			if(dw_secondary == "none"){
 				document.getElementById('wan_2_tr').style.display = "none";
 				document.getElementById('upload2_tr').style.display = "none";
 				document.getElementById('download2_tr').style.display = "none";
 			}else{
 				document.getElementById('wan_2_tr').style.display = "";
+				if(dualwan_secondary_display=="Ethernet LAN"){
+					$("#dualwan_secondary_title").html("<#dualwan_secondary#> - "+dualwan_secondary_display+" (LAN Port "+wans_lanport_orig+")");
+				}
+				else{
+					$("#dualwan_secondary_title").html("<#dualwan_secondary#> - "+dualwan_secondary_display);
+				}
 				document.getElementById('upload2_tr').style.display = "";
 				document.getElementById('download2_tr').style.display = "";
 			}
@@ -332,7 +364,7 @@ if(wl_info.band5g_support != '-1'){
 		}
 	}
 }
-if(wl_info.band5g_2_support != '-1'){
+if(wl_info.band5g_2_support != '-1' || wl_info.band6g_support != '-1'){
 	var gn_array_5g_2_length = gn_array_5g_2.length;
 	for(var k=0;k<gn_array_5g_2_length;k++){
 		if(gn_array_5g_2[k][18] == "1"){	//GN with Bandwidth Limiter
@@ -368,8 +400,7 @@ if(pm_support) {
 
 function initial(){
 	show_menu();
-	// https://www.asus.com/support/FAQ/1010951/
-	httpApi.faqURL("1010951", function(url){document.getElementById("faq").href=url;});
+	document.getElementById("faq").href=faq_href;
 
 	if(downsize_4m_support || downsize_8m_support)
 		document.getElementById("guest_image").parentNode.style.display = "none";
@@ -460,6 +491,12 @@ function initial(){
 
 	if((isFirefox || isOpera) && document.getElementById("FormTitle"))
 		document.getElementById("FormTitle").className = "FormTitle";
+
+	if(!adaptiveqos_support){
+		$('#qos_desc').html('<#EzQoS_desc_QoS#>');
+		$('label[for="trad_type"]').html('<#EzQoS_type_QoS#>')
+		$('#bandwidth_setting_tr').hide();
+	}
 }
 
 function device_object(name, mac, type, type_name, description, group_array){
@@ -517,22 +554,57 @@ function init_changeScale(){
 	var upload = document.form.qos_obw.value;
 	var download = document.form.qos_ibw.value;
 
-	if(based_modelid == "DSL-AC68U"		//MODELDEP: DSL-AC68U
-	&& wans_dualwan_orig.search("dsl") >= 0 && dsllink_statusstr == "Connected"
-	&& ((upload == "" || upload == "0") && (download == "" || download == "0"))){
+	if(mtwancfg_support){
+		if(dw_primary == "dsl"
+		&& ((upload == "" || upload == "0") && (download == "" || download == "0"))
+		&& qos_xobw_orig > 0
+		){
+			document.form.obw.value = (qos_xobw_orig/1024).toFixed(2);
+			document.form.ibw.value = (dsl_DataRateDown/1024).toFixed(2);
+		}
+		else if(dw_primary == "dsl" && dsllink_statusstr == "Connected"
+		&& ((upload == "" || upload == "0") && (download == "" || download == "0"))
+		&& dsl_DataRateUp > 0
+		){
 
-		document.form.obw.value = dsl_DataRateUp/1024;
-		document.form.ibw.value = dsl_DataRateDown/1024;
+			document.form.obw.value = (dsl_DataRateUp/1024).toFixed(2);
+			document.form.ibw.value = (dsl_DataRateDown/1024).toFixed(2);
+		}
+		else{
+	
+			document.form.obw.value = (upload/1024).toFixed(2);
+			document.form.ibw.value = (download/1024).toFixed(2);
+		}
 	}
 	else{
-		document.form.obw.value = upload/1024;
-		document.form.ibw.value = download/1024;
+
+		document.form.obw.value = (upload/1024).toFixed(2);
+		document.form.ibw.value = (download/1024).toFixed(2);
 	}
-	if(mtwancfg_support) {
+
+	if(mtwancfg_support &&  wans_flag == "1") {
 		var upload1 = document.form.qos_obw1.value;
 		var download1 = document.form.qos_ibw1.value;
-		document.form.obw1.value = upload1/1024;
-		document.form.ibw1.value = download1/1024;
+
+		if(dw_secondary == "dsl"
+		&& ((upload1 == "" || upload1 == "0") && (download1 == "" || download1 == "0"))
+		&& qos_xobw1_orig > 0
+		){
+			document.form.obw1.value = (qos_xobw1_orig/1024).toFixed(2);
+			document.form.ibw1.value = (dsl_DataRateDown/1024).toFixed(2);
+		}
+		else if(dw_secondary == "dsl" && dsllink_statusstr_secondary == "Connected"
+		&& ((upload1 == "" || upload1 == "0") && (download1 == "" || download1 == "0"))
+		&& dsl_DataRateUp > 0
+		){
+
+			document.form.obw1.value = (dsl_DataRateUp/1024).toFixed(2);
+			document.form.ibw1.value = (dsl_DataRateDown/1024).toFixed(2);
+		}
+		else{
+			document.form.obw1.value = (upload1/1024).toFixed(2);
+			document.form.ibw1.value = (download1/1024).toFixed(2);
+		}
 	}
 }
 
@@ -550,6 +622,10 @@ function switchPage(page){
 }
 
 function validForm(){
+	var error_obw=0;
+	var error_obw1=0;
+	var error_ibw=0;
+	var error_ibw1=0;
 	if(document.form.qos_enable.value == 0 && document.form.qos_enable_orig.value == 0){
 		if(geforceNow_support){
 			if(document.form.nvgfn_enable.value == orig_nvgfn_enable){
@@ -567,49 +643,69 @@ function validForm(){
 			if(!reset_wan_to_fo.check_status())
 				return false;
 		}
+
 		if(qos_type != 2){	//not Bandwidth Limiter
-			if( ((qos_type == 1 && document.form.bw_setting_name[1].checked == true ) || qos_type == 0 || qos_type == 3) && document.form.obw.value.length == 0){	//To check field is empty
-				alert("<#JS_fieldblank#>");
-				document.form.obw.focus();
-				document.form.obw.select();
-				return false;
-			}
-			if( ((qos_type == 1 && document.form.bw_setting_name[1].checked == true ) || qos_type == 0 || qos_type == 3) && document.form.obw.value == 0){		// To check field is 0 && Traditional QoS
-				alert("Upload Bandwidth can not be 0");	/* untranslated */
-				document.form.obw.focus();
-				document.form.obw.select();
-				return false;
+
+			if( ((qos_type == 1 && document.form.bw_setting_name[1].checked == true ) || qos_type == 0 || qos_type == 3) && (document.form.obw.value.length == 0 || document.form.obw.value == 0)){		// To check field is 0 && Traditional QoS
+				alert("<#QoS_invalid_zero#>");
+				error_obw++;
 
 			}
-			if( ((qos_type == 1 && document.form.bw_setting_name[1].checked == true ) || qos_type == 0 || qos_type == 3) && document.form.obw.value.split(".").length > 2){		//To check more than two point symbol
-				alert("The format of field of upload bandwidth is invalid"); /* untranslated */
-				document.form.obw.focus();
-				document.form.obw.select();
-				return false;
+			else if( ((qos_type == 1 && document.form.bw_setting_name[1].checked == true ) || qos_type == 0 || qos_type == 3) && !validator.rangeFloat(document.form.obw, 0, 9999999999, "")){
+				error_obw++;
 			}
-			if( ((qos_type == 1 && document.form.bw_setting_name[1].checked == true ) || qos_type == 0 || qos_type == 3) && !validator.rangeFloat(document.form.obw, 0, 9999999999, "")){
+
+			if(error_obw > 0){
+				if(mtwancfg_support){
+					if(qos_xobw_orig > 0){
+						document.form.obw.value = (qos_xobw_orig/1024).toFixed(2);
+					}
+					else if(dw_primary == "dsl" && dsllink_statusstr == "Connected" && dsl_DataRateUp > 0){
+						document.form.obw.value = (dsl_DataRateUp/1024).toFixed(2);
+					}
+					else if(dw_primary == "dsl"){
+						document.form.obw.value = "100";
+					}
+					else{
+						document.form.obw.value = "1000";	
+					}
+				}
+				else{
+
+					if(qos_xobw_orig > 0){
+						document.form.obw.value = (qos_xobw_orig/1024).toFixed(2);
+					}
+					else{
+						document.form.obw.value = "1000";       
+					}
+				}
 				return false;
 			}
 
-			if( ((qos_type == 1 && document.form.bw_setting_name[1].checked == true ) || qos_type == 0 || qos_type == 3) && document.form.ibw.value.length == 0){
-				alert("<#JS_fieldblank#>");
-				document.form.ibw.focus();
-				document.form.ibw.select();
-				return false;
+			if( ((qos_type == 1 && document.form.bw_setting_name[1].checked == true ) || qos_type == 0 || qos_type == 3) && (document.form.ibw.value.length == 0 || document.form.ibw.value == 0)){		// To check field is 0 && Traditional QoS
+				alert("<#QoS_invalid_zero#>");
+				error_ibw++;
 			}
-			if( ((qos_type == 1 && document.form.bw_setting_name[1].checked == true ) || qos_type == 0 || qos_type == 3) && document.form.ibw.value == 0){		// To check field is 0 && Traditional QoS
-				alert("Download Bandwidth can not be 0");	/* untranslated */
-				document.form.ibw.focus();
-				document.form.ibw.select();
-				return false;
+			else if( ((qos_type == 1 && document.form.bw_setting_name[1].checked == true ) || qos_type == 0 || qos_type == 3) && !validator.rangeFloat(document.form.ibw, 0, 9999999999, "")){
+				error_ibw++;
 			}
-			if(((qos_type == 1 && document.form.bw_setting_name[1].checked == true ) || qos_type == 0 || qos_type == 3) && document.form.ibw.value.split(".").length > 2){
-				alert("The format of field of download bandwidth is invalid");	/* untranslated */
-				document.form.ibw.focus();
-				document.form.ibw.select();
-				return false;
-			}
-			if( ((qos_type == 1 && document.form.bw_setting_name[1].checked == true ) || qos_type == 0 || qos_type == 3) && !validator.rangeFloat(document.form.ibw, 0, 9999999999, "")){
+
+			if(error_ibw > 0){
+				if(mtwancfg_support){
+					if(dw_primary == "dsl"  && dsllink_statusstr == "Connected" && dsl_DataRateDown > 0){
+						document.form.ibw.value = (dsl_DataRateDown/1024).toFixed(2);
+					}
+					else if(dw_primary == "dsl"){
+						document.form.ibw.value = "300";
+					}
+					else{
+						document.form.ibw.value = "1000";
+					}
+				}
+				else{
+
+					document.form.ibw.value = "1000";
+				}
 				return false;
 			}
 
@@ -618,11 +714,86 @@ function validForm(){
 				document.form.ibw.value = 0;
 			}
 
+			if(qos_xobw_orig > 0){
+				if((qos_xobw_orig/1024).toFixed(2) < parseFloat(document.form.obw.value)){
+					alert("<#value_lower_than#> "+ (qos_xobw_orig/1024).toFixed(2));
+					document.form.obw.focus();
+					document.form.obw.select();
+					return false;
+				}
+			}
 			document.form.qos_obw.disabled = false;
 			document.form.qos_ibw.disabled = false;
 			document.form.qos_obw.value = document.form.obw.value*1024;
 			document.form.qos_ibw.value = document.form.ibw.value*1024;
-			if(mtwancfg_support) {
+
+
+
+			if(mtwancfg_support && wans_flag == "1") {
+
+				if( ((qos_type == 1 && document.form.bw_setting_name[1].checked == true ) || qos_type == 0 || qos_type == 3) && (document.form.obw1.value.length == 0 || document.form.obw1.value == 0)){		// To check field is 0 && Traditional QoS
+					alert("<#QoS_invalid_zero#>");
+					error_obw1++;
+
+				}
+				else if( ((qos_type == 1 && document.form.bw_setting_name[1].checked == true ) || qos_type == 0 || qos_type == 3) && !validator.rangeFloat(document.form.obw1, 0, 9999999999, "")){
+					error_obw1++;
+				}
+
+				if(error_obw1 > 0){
+				
+					if(qos_xobw1_orig > 0){
+						document.form.obw1.value = (qos_xobw1_orig/1024).toFixed(2);
+					}
+					else if(dw_secondary == "dsl" && dsllink_statusstr_secondary == "Connected" && dsl_DataRateUp > 0){
+						document.form.obw1.value = (dsl_DataRateUp/1024).toFixed(2);
+					}
+					else if(dw_secondary == "dsl"){
+						document.form.obw1.value = "100";
+					}
+					else{
+						document.form.obw1.value = "1000";	
+					}
+					
+					return false;
+				}
+
+				if( ((qos_type == 1 && document.form.bw_setting_name[1].checked == true ) || qos_type == 0 || qos_type == 3) && (document.form.ibw1.value.length == 0 || document.form.ibw1.value == 0)){		// To check field is 0 && Traditional QoS
+					alert("<#QoS_invalid_zero#>");
+					error_ibw1++;
+				}
+				else if( ((qos_type == 1 && document.form.bw_setting_name[1].checked == true ) || qos_type == 0 || qos_type == 3) && !validator.rangeFloat(document.form.ibw1, 0, 9999999999, "")){
+					error_ibw1++;
+				}
+
+				if(error_ibw1 > 0){
+					if(dw_secondary == "dsl"  && dsllink_statusstr_secondary == "Connected" && dsl_DataRateDown > 0){
+						document.form.ibw1.value = (dsl_DataRateDown/1024).toFixed(2);
+					}
+					else if(dw_secondary == "dsl"){
+						document.form.ibw1.value = "300";
+					}
+					else{
+						document.form.ibw1.value = "1000";	
+					}
+					
+					return false;
+				}
+
+				if(qos_type == 1 && document.getElementById('auto').checked){
+					document.form.obw1.value = 0;
+					document.form.ibw1.value = 0;
+				}
+
+				if(qos_xobw1_orig > 0){
+					if((qos_xobw1_orig/1024).toFixed(2) < parseFloat(document.form.obw1.value)){
+						alert("<#value_lower_than#> "+(qos_xobw1_orig/1024).toFixed(2));
+						document.form.obw1.focus();
+						document.form.obw1.select();
+						return false;
+					}
+				}
+
 				document.form.qos_obw1.disabled = false;
 				document.form.qos_ibw1.disabled = false;
 				document.form.qos_obw1.value = document.form.obw1.value*1024;
@@ -751,8 +922,17 @@ function submitQoS(){
 			}
 
 			determineActionScript();
-			showLoading();
-			document.form.submit();
+
+			if(document.form.action_script.value=="reboot"){
+				if(confirm("<#AiMesh_Node_Reboot#>")){
+					showLoading();
+					document.form.submit();
+				}
+			}
+			else{
+				showLoading();
+				document.form.submit();
+			}
 		}
 	}
 	else
@@ -829,7 +1009,7 @@ function change_qos_type(value){
 		if(GN_with_Amazon_WSS_enabled){
 			if(alert_hint != "")
 				alert_hint += "\n";
-			alert_hint += "Amazon Wi-Fi Simple Setup will be disabled. "/* Untranslated */
+			alert_hint += "Amazon WiFi Simple Setup will be disabled."/* Untranslated */
 		}
 		if(alert_hint != "")
 			alert(alert_hint);
@@ -1600,7 +1780,7 @@ function setGroup(name){
 														<#EzQoS_desc#>
 														<ul>
 															<li id="function_int_desc"><#EzQoS_desc_Adaptive#></li>
-															<li><#EzQoS_desc_Traditional#></li>
+															<li id="qos_desc"><#EzQoS_desc_Traditional#></li>
 															<li><#EzQoS_desc_Bandwidth_Limiter#></li>
 														</ul>
 														<#EzQoS_desc_note#>
@@ -1618,7 +1798,7 @@ function setGroup(name){
 								<td valign="top">
 									<table style="margin-left:3px;" width="95%" border="1" align="center" cellpadding="4" cellspacing="0" bordercolor="#6b8fa3" class="FormTable">
 										<tr id="GeForce_upnp" style="display: none;">
-											<th>Enable GeForce NOW QoS UPnP control</th>
+											<th><#GeForce_NOW_itemname#></th>
 											<td colspan="2">
 												<input type="radio" name="nvgfn_enable" class="input" value="1" <% nvram_match("nvgfn_enable", "1", "checked"); %>><#checkbox_Yes#>
 												<input type="radio" name="nvgfn_enable" class="input" value="0" <% nvram_match("nvgfn_enable", "0", "checked"); %>><#checkbox_No#>
@@ -1665,7 +1845,7 @@ function setGroup(name){
 																if(GN_with_Amazon_WSS_enabled){
 																	if(alert_hint != "")
 																	alert_hint += "\n";
-																	alert_hint += "Amazon Wi-Fi Simple Setup will be disabled. "/* Untranslated */
+																	alert_hint += "Amazon WiFi Simple Setup will be disabled."/* Untranslated */
 																}
 																if(alert_hint != "")
 																	alert(alert_hint);
@@ -1698,7 +1878,7 @@ function setGroup(name){
 											</td>
 										</tr>
 										<tr id="wan_1_tr" style="display:none">
-											<th colspan=3><#dualwan_primary#></th>
+											<th colspan=3 id="dualwan_primary_title"></th>
 										</tr>
 										<tr id="upload_tr">
 											<th><a class="hintstyle" href="javascript:void(0);" onClick="openHint(20, 2);"><#upload_bandwidth#></a></th>
@@ -1723,7 +1903,7 @@ function setGroup(name){
 											</td>
 										</tr>
 										<tr id="wan_2_tr" style="display:none">
-											<th colspan=3><#dualwan_secondary#></th>
+											<th colspan=3 id="dualwan_secondary_title"></th>
 										</tr>
 										<tr id="upload2_tr" style="display:none">
 											<th><a class="hintstyle" href="javascript:void(0);" onClick="openHint(20, 2);"><#upload_bandwidth#></a></th>

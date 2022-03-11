@@ -40,20 +40,51 @@ static struct time_mapping_s time_mapping_list[] = {
 	{ "RT-AX89X",	80,	120,	60},
 	{ "Lyra",	80,	60,	60},
 	{ "Lyra_Mini",	80,	60,	60},
-	{ "Lyra_Trio",	80,	120,	60},
-#ifdef RTAC59U
-	{ "RT-AC59U_V2",	80,	120,	60},
-	{ "RT-AC58U_V3",	80,	120,	60},
-	{ "RT-AC57U_V3",	80,	120,	60},
-	{ "RT-AC1300G_PLUS_V3",	80,	120,	60},
-#endif
-	{ "RT-AX88U",	50,     60,     60},
-	{ "RT-AX92U",	50,     60,     60},
-	{ "GT-AX11000",	50,     60,     60},
+	{ "Lyra_Trio",		80,	120,	120},
+	{ "RT-AC59U_V2",	80,	120,	120},
+	{ "RT-AC58U_V3",	80,	120,	120},
+	{ "RT-AC57U_V3",	80,	120,	120},
+	{ "RT-AC1300G_PLUS_V3",	80,	120,	120},
+	{ "ZenWiFi_CD6R",	80,	120,	120},
+	{ "ZenWiFi_CD6N",	80,	120,	120},
+	{ "RT-AX88U",	50,     120,     60},
+	{ "RT-AX92U",	50,     120,     60},
+	{ "RT-AX95Q",   50,     120,     60},
+	{ "XT8PRO",   50,     120,     60},
+	{ "RT-AXE95Q",   50,     120,     60},
+	{ "ET8PRO",   50,     120,     60},
+	{ "ZenWiFi_XD4",   50,     120,     60},
+	{ "ZenWiFi_XD4PRO",   50,     120,     60},
+	{ "RT-AX56_XD4",   50,     120,     60},
+	{ "CT-AX56_XD4",   50,     60,     60},
+	{ "RT-AX55",    50,     120,     60},
+	{ "RT-AX58U",   50,     120,     60},
+	{ "RT-AX58U_V2",50,     120,     60},
+	{ "TUF-AX3000", 50,     120,     60},
+	{ "TUF-AX3000_V2",50,   120,     60},
+	{ "TUF-AX5400", 50,     120,     60},
+	{ "RT-AX82U",   50,     120,     60},
+	{ "GS-AX3000",  50,     60,     60},
+	{ "GS-AX5400",  50,     60,     60},
+	{ "RT-AX56U",   50,     120,     60},
+	{ "RP-AX56",   50,     120,     60},
+	{ "RP-AX58",   50,     120,     60},
+	{ "GT-AX11000",	50,     120,     60},
 	{ "RT-AC85P",	120,	60,	60},
-	{ "GT-AXY16000",80,     120,    60},
+	{ "GT-AXY16000",80,    120,     60},
+	{ "GT-AXE11000", 50,    120,     60},
+	{ "RT-AX86U",    50,   120,     60},
+	{ "RT-AX86S",    50,   100,     60},
+	{ "RT-AX68U",    50,   100,     60},
+	{ "RT-AC68U_V4", 50,    60,     60},
+	{ "GT-AX6000", 50,    120,     60},
+	{ "GT-AX11000_PRO", 50,    120,     60},
+	{ "GT-AXE16000", 50,    120,     60},
+	{ "ET12", 50,    120,     60},
+	{ "XT12", 50,    120,     60},
+	{ "RT-AXE7800",	50,     120,     60},
 	/* END */
-	{ NULL, 0, 0, 0}
+	{ NULL, 0, 0, 0 }
 };
 
 static void
@@ -95,6 +126,11 @@ time_mapping_get(char *model_name, struct time_mapping_s *time_mapping)
 			}
 		}
 	}
+
+#ifdef RTCONFIG_HND_ROUTER_AX
+	time_mapping->connection_timeout = CONNECTION_DEF_TIMEOUT * 2;
+#endif	/* RTCONFIG_HND_ROUTER_AX */
+
 #ifdef RTCONFIG_PRELINK
 #if defined(RTCONFIG_QCA)
 	if (has_dfs_channel())

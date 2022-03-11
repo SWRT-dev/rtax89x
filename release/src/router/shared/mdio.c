@@ -175,6 +175,9 @@ int mdio_phy_speed(char *ifname)
 /**
  * Parse ssdk_sh result.
  * NOTE:	Caller have to specify switch id in command-line.
+ * @cmd:	pointer to command
+ * @fmt:	sscanf format string, ignored if cnt == 0
+ * @cnt:	number of parameters that is expected to be parsed by sscanf()
  * @return:
  * 	0:	success
  *  otherwise:	fail
@@ -186,7 +189,7 @@ int parse_ssdk_sh(const char *cmd, const char *fmt, int cnt, ...)
 	FILE *fp;
 	va_list args;
 
-	if (!cmd || cnt <= 0 || !fmt)
+	if (!cmd || (cnt > 0 && !fmt) || cnt < 0)
 		return -1;
 
 	if (!(fp = popen(cmd, "r"))) {
@@ -194,18 +197,26 @@ int parse_ssdk_sh(const char *cmd, const char *fmt, int cnt, ...)
 		return -2;
 	}
 
-	va_start(args, cnt);
-	while (ret && fgets(line, sizeof(line), fp)) {
-		if (!strstr(line, "SSDK Init OK!["))
-			continue;
-		if ((r = vsscanf(line, fmt, args)) != cnt) {
-			dbg("%s: Unknown output: [%s] of cmd [%s], fmt [%s], cnt %d, r %d\n",
-				__func__, line, cmd, fmt, cnt, r);
-			continue;
+	if (cnt > 0) {
+		va_start(args, cnt);
+		while (ret && fgets(line, sizeof(line), fp)) {
+			if (!strstr(line, "SSDK Init OK!["))
+				continue;
+			if ((r = vsscanf(line, fmt, args)) != cnt) {
+				dbg("%s: Unknown output: [%s] of cmd [%s], fmt [%s], cnt %d, r %d\n",
+					__func__, line, cmd, fmt, cnt, r);
+				continue;
+			}
+			ret = 0;
 		}
-		ret = 0;
+		va_end(args);
+	} else if (cnt == 0) {
+		while (ret && fgets(line, sizeof(line), fp)) {
+			if (!strstr(line, "SSDK Init OK!"))
+				continue;
+			ret = 0;
+		}
 	}
-	va_end(args);
 	pclose(fp);
 
 	return ret;
@@ -416,7 +427,7 @@ static int __ssdk_sh_port_speed(const char *swid, unsigned int port)
  */
 int ipq8074_port_speed(unsigned int port)
 {
-#if defined(RTCONFIG_SWITCH_QCA8075_QCA8337_PHY_AQR107_AR8035_QCA8033)
+#if defined(RTCONFIG_SWITCH_QCA8075_QCA8337_PHY_AQR107_AR8035_QCA8033) && !defined(RAX120)
 	const int min_port_nr = 2, max_port_nr = 4;
 #else
 	const int min_port_nr = 1, max_port_nr = 5;
@@ -450,7 +461,9 @@ int qca8337_port_speed(unsigned int port)
 #else
 	const int max_port_nr = 6;
 #endif
-
+#if defined(RAX120)
+	return 0;
+#endif
 	if (!port || port > max_port_nr) {
 		dbg("%s: invalid port %d\n", __func__, port);
 		return 0;
@@ -530,3 +543,4 @@ int aqr_phy_speed(unsigned int phy)
 	return ret;
 }
 #endif	/* RTCONFIG_QCA && RTCONFIG_SWITCH_QCA8075_QCA8337_PHY_AQR107_AR8035_QCA8033 */
+

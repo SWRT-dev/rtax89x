@@ -5,6 +5,7 @@
 #define ONBOARDING_LIST_JSON_PATH	"/tmp/onboarding.json"
 #define ONBOARDING_STATUS_PATH	"/tmp/obstatus"
 #define ONBOARDING_VSIE_PATH	"/tmp/obvsie"
+#define GUEST_VSIE_PATH	"/tmp/guest_vsie"
 #define WPS_CHECK_TIME		5
 #define WPS_TIMEOUT		120		//  minutes
 #define WPS_WAIT_TIMEOUT		150		// 3 minutes
@@ -17,12 +18,20 @@
 #define UNDEF_RE_MAC	"FF:FF:FF:FF:FF:FF"
 #define PRELINK_FILE_LOCK	"prelink"
 #define PRELINK_LIST_JSON_PATH	"/tmp/prelink.json"
+#ifdef ONBOARDING_VIA_VIF
+#define TIMEOUT_FOR_VIF_CHECK		60	//sec
+#define TIMEOUT_CONFIG_SYNC		60	//sec
+#endif
 
 enum onboardingType {
 	OB_TYPE_OFF = 1,
 	OB_TYPE_AVAILABLE,
 	OB_TYPE_REQ,
-	OB_TYPE_LOCKED
+	OB_TYPE_LOCKED,
+#ifdef ONBOARDING_VIA_VIF
+	OB_TYPE_VIF_CHECK = 5,
+#endif
+	OB_TYPE_MAX
 };
 
 enum onboardingStatus {
@@ -33,7 +42,11 @@ enum onboardingStatus {
 	OB_STATUS_WPS_FAIL,
 	OB_STATUS_TERMINATE,
 	OB_STATUS_AVALIABLE_TIMEOUT,
-	OB_STATUS_CANCEL_SELECTION
+	OB_STATUS_CANCEL_SELECTION,
+#ifdef ONBOARDING_VIA_VIF
+	OB_STATUS_REPORT_VIF_STATUS = 8,
+#endif
+	OB_STATUS_MAX
 };
 
 enum onboardingFailResult {
@@ -45,7 +58,11 @@ enum onboardingFailResult {
 	OB_WPS_UNKNOWN_FAIL,	/* fail for wps unknow */
 	OB_WPS_TIMEOUT_FAIL,		/* fail for wps timeout */
 	OB_WPS_OVERLAP_FAIL,		/* fail for wps overlapping */
-	OB_SELECT_RE_FAIL	/* fail for no RE be selected */
+	OB_SELECT_RE_FAIL,	/* fail for no RE be selected */
+#ifdef ONBOARDING_VIA_VIF
+	OB_VIF_CHECK_FAIL = 9,		/* fail for vif check */
+#endif
+	OB_FAIL_MAX
 };
 
 enum onboardingStage {
@@ -68,7 +85,14 @@ enum vsieType {
 	VSIE_TYPE_TRAFFIC_TIMEOUT = 17,
     VSIE_TYPE_AP_LAST_BYTE = 18,
     VSIE_TYPE_CAP_ROLE = 19,
-	VSIE_TYPE_BUNDLE_KEY = 20
+	VSIE_TYPE_BUNDLE_KEY = 20,
+	VSIE_TYPE_INF_TYPE = 21,
+	VSIE_TYPE_TCODE = 22,
+#if defined(RTCONFIG_AMAS_QCA_WDS) && defined(RTCONFIG_BHCOST_OPT)
+	VSIE_TYPE_WDS =23,
+#endif
+	VSIE_TYPE_MISC_INFO = 27,
+	VSIE_TYPE_MAX
 };
 
 enum prelinkStage {
@@ -77,6 +101,11 @@ enum prelinkStage {
 	PRELINK_GID_RESPONSE,
 	PRELINK_GID_ACK,
 	PRELINK_JOIN
+};
+
+enum obVifAction {
+	OB_VIF_DOWN = 0,
+	OB_VIF_UP
 };
 
 
@@ -104,6 +133,14 @@ extern void cm_updateOnboardingStage(int stage);
 extern void cm_updatePrelinkStatus(char *reMac, int status);
 #endif
 extern void update_vsie_info();
+#ifdef ONBOARDING_VIA_VIF
+extern int cm_checkOnboardingViaVif(char *mac);
+extern int cm_waitOnboardingVifReady(char *mac);
+extern void *cm_upOnboardingVif(void *args);
+extern void cm_computeVifDownTimeout(int rTime, int cTimeout, int tTimeout);
+extern void cm_updateVifUpStatus(int status);
+extern int cm_obVifDownUp(int action);
+#endif
 
 #endif /* __CFG_ONBOARDING_H__ */
 /* End of cfg_onboarding.h */

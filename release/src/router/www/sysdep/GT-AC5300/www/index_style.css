@@ -815,8 +815,8 @@ width:122px;
 	background-position: -0px -90px;
 }
 .menu_ParentalControl{
-	background-image: url(images/New_ui/icon_indexes.png);
-	background-position: -0px -90px;
+	background: url(images/New_ui/icon_ParentalControl.png);
+	background-size: cover;
 }
 .menu_APP{
 	background-image: url(images/New_ui/icon_indexes.png);
@@ -1010,5 +1010,8 @@ width:122px;
 ._index{
   background: url(images/New_ui/icon_indexes.png);
   background-position: -0px -40px; width: 43px; height: 43px;
+}
+.radio_hint{
+    background-color: #FA9100;
 }
 

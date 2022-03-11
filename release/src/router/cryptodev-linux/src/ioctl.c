@@ -147,6 +147,12 @@ crypto_create_session(struct fcrypt *fcr, struct session_op *sop)
 	case CRYPTO_AES_ECB:
 		alg_name = "ecb(aes)";
 		break;
+	case CRYPTO_AES_CFB:
+		alg_name = "cfb(aes)";
+		break;
+	case CRYPTO_AES_OFB:
+		alg_name = "ofb(aes)";
+		break;
 	case CRYPTO_AES_XTS:
 		alg_name = "xts(aes)";
 		break;
@@ -159,6 +165,11 @@ crypto_create_session(struct fcrypt *fcr, struct session_op *sop)
 		break;
 	case CRYPTO_AES_GCM:
 		alg_name = "gcm(aes)";
+		stream = 1;
+		aead = 1;
+		break;
+	case CRYPTO_AES_CCM:
+		alg_name = "ccm(aes)";
 		stream = 1;
 		aead = 1;
 		break;
@@ -838,10 +849,10 @@ static unsigned int is_known_accelerated(struct crypto_tfm *tfm)
 	if (!strncmp(name, "qcrypto", 7))
 		return 1;
 #elif defined(MT7621)
-	if (strstr(name, "-eip93"))
+	if (strstr(name, "eip93"))
 		return 1;
 #elif defined(MT7622)
-	if (strstr(name, "-eip97"))
+	if (strstr(name, "mtk"))
 		return 1;
 #elif defined(LANTIQ)
 	if (strstr(name, "ltq-crypto"))

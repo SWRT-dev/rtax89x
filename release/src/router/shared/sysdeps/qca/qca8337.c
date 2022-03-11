@@ -762,6 +762,41 @@ static void config_qca8337_LANWANPartition(int type)
 	eval("swconfig", "dev", MII_IFNAME, "set", "apply"); // apply changes
 }
 
+static void get_qca8337_Port_Speed(unsigned int port_mask, unsigned int *speed)
+{
+	int i, v = -1, t;
+	unsigned int m;
+
+	if(speed == NULL)
+		return;
+
+	m = port_mask & WANLANPORTS_MASK;
+	for (i = 0; m; ++i, m >>= 1) {
+		if (!(m & 1))
+			continue;
+
+		get_qca8337_port_info(i, NULL, (unsigned int*) &t);
+		t &= 0x3;
+		if (t > v)
+			v = t;
+	}
+
+	switch (v) {
+	case 0x0:
+		*speed = 10;
+		break;
+	case 0x1:
+		*speed = 100;
+		break;
+	case 0x2:
+		*speed = 1000;
+		break;
+	default:
+		*speed = 0;
+		_dprintf("%s: invalid speed!\n", __func__);
+	}
+}
+
 static void get_qca8337_WAN_Speed(unsigned int *speed)
 {
 	int i, v = -1, t;
@@ -1223,7 +1258,7 @@ rtkswitch_Reset_Storm_Control(void)
 	return 0;
 }
 
-void ATE_port_status(void)
+void ATE_port_status(phy_info_list *list)
 {
 	int i;
 	char buf[512];
@@ -1347,3 +1382,13 @@ void usage(char *cmd)
 	exit(0);
 }
 #endif
+
+unsigned int
+rtkswitch_Port_phyLinkRate(unsigned int port_mask)
+{
+	unsigned int speed = 0;
+
+	get_qca8337_Port_Speed(port_mask, &speed);
+
+	return speed;
+}

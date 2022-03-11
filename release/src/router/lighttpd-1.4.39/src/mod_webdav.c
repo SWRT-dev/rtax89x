@@ -3560,7 +3560,7 @@ propmatch_cleanup:
 		if (NULL != (ds = (data_string *)array_get_element(con->request.headers, "FILENAME"))) {
 			buffer_filename = ds->value;
 
-			if (buffer_filename->used> 255) {
+			if (buffer_filename->used> 512) {
 				con->http_status = 400;
 				return HANDLER_FINISHED;
 			}
@@ -3597,9 +3597,13 @@ propmatch_cleanup:
 			return HANDLER_FINISHED;
 		}
 		
-		char auth[100]="\0";		
+		char auth[100]="\0";	
 		if(con->aidisk_username->used && con->aidisk_passwd->used) {
-			snprintf(auth, sizeof(auth), "%s:%s", con->aidisk_username->ptr, con->aidisk_passwd->ptr);
+			#if NVRAM_ENCRYPT_ENABLE
+				snprintf(auth, sizeof(auth), "%s:%s", con->aidisk_username->ptr, nvram_get_http_passwd());
+			#else	
+				snprintf(auth, sizeof(auth), "%s:%s", con->aidisk_username->ptr, con->aidisk_passwd->ptr);
+			#endif
 		} else {
 			con->http_status = 400;
 			return HANDLER_FINISHED;

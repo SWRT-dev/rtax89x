@@ -149,7 +149,7 @@ int config_netdev_bled(const char *led_gpio, const char *ifname)
 int set_bled_udef_pattern(const char *led_gpio, unsigned int interval, const char *pattern)
 {
 	int gpio_nr, fd, r, ret = 0;
-	char *str, *p, *token;
+	char *str = NULL, *p, *token;
 	struct bled_common bl_common, *bl = &bl_common;
 	unsigned int curr, *patt = &bl->pattern[0];
 
@@ -197,9 +197,10 @@ int set_bled_udef_pattern(const char *led_gpio, unsigned int interval, const cha
 	}
 
 	close(fd);
-	free(str);
 
 exit_set_bled_udef_pattern:
+	if (str)
+		free(str);
 
 	return ret;
 }
@@ -216,7 +217,7 @@ exit_set_bled_udef_pattern:
 int set_bled_udef_trigger(const char *main_led_gpio, const char *trigger)
 {
 	int gpio_nr, fd, r, ret = 0;
-	char *str, *p, *token;
+	char *str = NULL, *p, *token;
 	struct bled_common bl_common, *bl = &bl_common;
 	unsigned int curr, *m = &bl->trigger[0];
 
@@ -259,11 +260,11 @@ int set_bled_udef_trigger(const char *main_led_gpio, const char *trigger)
 		ret = -6;
 		goto exit_set_bled_udef_trigger;
 	}
-
 	close(fd);
-	free(str);
 
 exit_set_bled_udef_trigger:
+	if (str)
+		free(str);
 
 	return ret;
 }
@@ -984,7 +985,7 @@ void set_wifiled(int mode)
 #define ARRAY_SIZE(ary) (sizeof(ary) / sizeof((ary)[0]))
 #endif
 
-unsigned int rgbled_udef_mode = 0;
+static unsigned int rgbled_udef_mode = 0;
 
 void set_rgbled(unsigned int mode)
 {
@@ -1004,24 +1005,28 @@ void set_rgbled(unsigned int mode)
 	};
 	int uidx = 0;
 	char *led_color[] = {
-		"0 0 0",		/* off: B G R */
-		"1 0 0",		/* RGBLED_BLUE */
-		"0 1 0",		/* RGBLED_GREEN */
-		"0 0 1",		/* RGBLED_RED */
-		"1 1 0",		/* RGBLED_NIAGARA_BLUE */
-		"0 1 1",		/* RGBLED_YELLOW */
-		"1 0 1",		/* RGBLED_PURPLE */
-		"1 1 1"			/* RGBLED_WHITE */
+		"0 0 0 0",		/* off: B G R W */
+		"1 0 0 0",		/* RGBLED_BLUE */
+		"0 1 0 0",		/* RGBLED_GREEN */
+		"0 0 1 0",		/* RGBLED_RED */
+		"1 1 0 0",		/* RGBLED_NIAGARA_BLUE */
+		"0 1 1 0",		/* RGBLED_YELLOW */
+		"1 0 1 0",		/* RGBLED_PURPLE */
+		"1 1 1 1"		/* RGBLED_WHITE */
 	};
 	char *udef_trigger = led_color[0];
 #ifdef RTCONFIG_SW_CTRL_ALLLED
-	int ctrl_led_off = nvram_match("wifison_ready", "1") ? nvram_get_int("lp55xx_lp5523_user_enable") : (1 - nvram_get_int("AllLED"));
+	int ctrl_led_off = nvram_match("lp55xx_lp5523_user_enable", "1") | nvram_match("AllLED", "0");
 #endif
 
 	if (rgbled_udef_mode == 0) {
 		led_control(LED_BLUE, LED_ON);
 		led_control(LED_GREEN, LED_ON);
 		led_control(LED_RED, LED_ON);
+#if defined(RTAC59_CD6R) || defined(RTAC59_CD6N) || defined(PLAX56_XP4)
+		if (RGBLED_WHITE & RGBLED_WLED)
+			led_control(LED_WHITE, LED_ON);
+#endif		
 		rgbled_udef_mode = 1;
 	}
 
@@ -1030,24 +1035,12 @@ void set_rgbled(unsigned int mode)
 		udef_trigger = led_color[1];
 		break;
 	case RGBLED_GREEN:
-#ifdef RTCONFIG_SW_CTRL_ALLLED
-		if (ctrl_led_off && b == 0)
-#else
-		if (nvram_match("lp55xx_lp5523_user_enable", "1") && b == 0)
-#endif
-			break;
 		udef_trigger = led_color[2];
 		break;
 	case RGBLED_RED:
 		udef_trigger = led_color[3];
 		break;
 	case RGBLED_NIAGARA_BLUE:
-#ifdef RTCONFIG_SW_CTRL_ALLLED
-		if (ctrl_led_off && b == 0)
-#else
-		if (nvram_match("lp55xx_lp5523_user_enable", "1") && b == 0)
-#endif
-			break;
 		udef_trigger = led_color[4];
 		break;
 	case RGBLED_YELLOW:
@@ -1062,6 +1055,15 @@ void set_rgbled(unsigned int mode)
 	default:
 		;
 	}
+	if ((c == RGBLED_CONNECTED || c == RGBLED_ETH_BACKHAUL)
+	  && b == 0
+#ifdef RTCONFIG_SW_CTRL_ALLLED
+	  && ctrl_led_off
+#else
+	  && nvram_match("lp55xx_lp5523_user_enable", "1")
+#endif
+	)
+		udef_trigger = led_color[0];
 
 	switch (b) {
 	case RGBLED_SBLINK:

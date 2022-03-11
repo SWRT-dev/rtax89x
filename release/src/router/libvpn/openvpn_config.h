@@ -137,8 +137,6 @@ typedef struct ovpn_cconf {
 	char progname[16];
 // Tunnel options
 	char addr[128];	//remote server address
-	int did_resolv_addr;
-	char resolv_addr[1024];
 	int retry;	//retry resolve hostname
 	char proto[16];
 	int port;
@@ -224,12 +222,13 @@ extern int ovpn_key_exists(ovpn_type_t type, int unit, ovpn_key_t key_type);
 
 extern int need_dnsmasq_serverfile();
 extern char* get_lan_cidr(char* buf, size_t len);
+extern char* get_lan_cidr6(char* buf, size_t len);
 extern char* get_ovpn_sconf_remote(char* buf, size_t len);
 extern void update_ovpn_status(ovpn_type_t type, int unit, ovpn_status_t status_type, ovpn_errno_t err_no);
 extern ovpn_status_t get_ovpn_status(ovpn_type_t type, int unit);
 extern ovpn_errno_t get_ovpn_errno(ovpn_type_t type, int unit);
-extern void wait_time_sync(int max);
-extern char* adjust_smp_affinity(ovpn_type_t type, int unit);
+extern int wait_time_sync(int max);
+extern unsigned int adjust_smp_affinity(ovpn_type_t type, int unit);
 
 extern ovpn_accnt_info_t* get_ovpn_accnt(ovpn_accnt_info_t *accnt_info);
 

@@ -1,4 +1,4 @@
-/* menuTree_ROG.js */
+﻿/* menuTree_ROG.js */
 define(function(){
 	var menuTree = {
 		list: [
@@ -54,15 +54,22 @@ define(function(){
 				menuName: "<#AiProtection_title#>",
 				index: "menu_AiProtection", 
 				tab: [
-					{url: "AiProtection_HomeSecurity.asp", tabName: "__HIDE__"},
 					{url: "AiProtection_HomeProtection.asp", tabName: "<#AiProtection_Home#>"},
 					{url: "AiProtection_MaliciousSitesBlocking.asp", tabName: "<#AiProtection_sites_blocking#>"},
 					{url: "AiProtection_IntrusionPreventionSystem.asp", tabName: "<#AiProtection_two-way_IPS#>"},
 					{url: "AiProtection_InfectedDevicePreventBlock.asp", tabName: "<#AiProtection_detection_blocking#>"},
-					{url: "AiProtection_WebProtector.asp", tabName: "<#Parental_Control#>"},
-					{url: "ParentalControl.asp", tabName: "__INHERIT__"},
 					{url: "AiProtection_AdBlock.asp", tabName: "Ad Blocking"},
 					{url: "AiProtection_Key_Guard.asp", tabName: "Key Guard"},
+					{url: "NULL", tabName: "__INHERIT__"}
+				] 
+			},
+			{
+				menuName: "<#Parental_Control#>",
+				index: "menu_ParentalControl", 
+				tab: [
+					{url: "AiProtection_WebProtector.asp", tabName: "<#AiProtection_filter#>"},
+					{url: "ParentalControl.asp", tabName: "<#Time_Scheduling#>"},
+					{url: "YandexDNS.asp", tabName: "<#YandexDNS#>"},
 					{url: "NULL", tabName: "__INHERIT__"}
 				] 
 			},
@@ -120,6 +127,7 @@ define(function(){
 					{url: "Advanced_VPN_IPSec.asp", tabName: "__INHERIT__"},
 					{url: "Advanced_VPNClient_Content.asp", tabName: (vpn_fusion_support) ? "<#VPN_Fusion#>" : "<#vpnc_title#>"},
 					{url: "Advanced_TOR_Content.asp", tabName: "TOR"},
+					{url: "Advanced_Instant_Guard.asp", tabName: "<#Instant_Guard_title#>"},
 					{url: "NULL", tabName: "__INHERIT__"}
 				]
 			},
@@ -163,7 +171,7 @@ define(function(){
 					{url: "Advanced_ACL_Content.asp", tabName: "<#menu5_1_4#>"},
 					{url: "Advanced_WSecurity_Content.asp", tabName: "<#menu5_1_5#>"},
 					{url: "Advanced_WAdvanced_Content.asp", tabName: "<#menu5_1_6#>"},
-					{url: "Advanced_WProxy_Content.asp", tabName: "Wi-Fi Proxy"},
+					{url: "Advanced_WProxy_Content.asp", tabName: "WiFi Proxy"},
 					{url: "NULL", tabName: "__INHERIT__"}
 				] 
 			},
@@ -172,9 +180,9 @@ define(function(){
 				index: "menu_GuestNetwork",
 				tab: [
 					{url: "Guest_network.asp", tabName: "<#Guest_Network#>"},
-					{url: "Captive_Portal.asp", tabName: "Free Wi-Fi"},
+					{url: "Captive_Portal.asp", tabName: "Free WiFi"},
 					{url: "Captive_Portal_Advanced.asp", tabName: "<#Captive_Portal#>"},
-					{url: "Guest_network_fbwifi.asp", tabName: "Facebook Wi-Fi"},
+					{url: "Guest_network_fbwifi.asp", tabName: "Facebook WiFi"},
 					{url: "NULL", tabName: "__INHERIT__"}
 				]
 			},
@@ -184,11 +192,11 @@ define(function(){
 				tab: [
 					{url: "Advanced_LAN_Content.asp", tabName: "<#menu5_2_1#>"},
 					{url: "Advanced_DHCP_Content.asp", tabName: "<#menu5_2_2#>"},
+					//{url: "DNSFilter.asp", tabName: "DNSFilter"},
 					{url: "Advanced_MultiSubnet_Content.asp", tabName: "<#menu5_2_2#>"},
 					{url: "Advanced_GWStaticRoute_Content.asp", tabName: "<#menu5_2_3#>"},
 					{url: "Advanced_IPTV_Content.asp", tabName: "IPTV"},
 					{url: "Advanced_SwitchCtrl_Content.asp", tabName: "<#Switch_itemname#>"},
-					{url: "Advanced_SmartDNS_Content.asp", tabName: "SmartDNS"},
 					{url: "NULL", tabName: "__INHERIT__"}
 				] 
 			},
@@ -238,15 +246,6 @@ define(function(){
 				] 
 			},
 			{
-				menuName: "<#Softcenter_tool#>",
-				index: "menu_Tools",
-				tab: [
-					{url: "Tools_Sysinfo.asp", tabName: "Sysinfo"},
-					{url: "Softcenter.asp", tabName: "<#Softcenter_tool#>"},
-					{url: "NULL", tabName: "__INHERIT__"}
-				] 
-			},
-			{
 				menuName: "Alexa & IFTTT",
 				index: "menu_Alexa_IFTTT",
 				tab: [
@@ -283,7 +282,7 @@ define(function(){
 					{url: "Advanced_System_Content.asp", tabName: "<#menu5_6_2#>"},
 					{url: "Advanced_FirmwareUpgrade_Content.asp", tabName: "<#menu5_6_3#>"},
 					{url: "Advanced_SettingBackup_Content.asp", tabName: "<#menu5_6_4#>"},
-					{url: "Advanced_PerformanceTuning_Content.asp", tabName: "Fan tuning"},
+					{url: "Advanced_PerformanceTuning_Content.asp", tabName: "<#fan_tuning#>"},
 					{url: "Advanced_ADSL_Content.asp", tabName: "<#menu_dsl_setting#>"},
 					{url: "Advanced_Feedback.asp", tabName: "<#menu_feedback#>"},
 					{url: "Feedback_Info.asp", tabName: "__INHERIT__"},
@@ -319,45 +318,16 @@ define(function(){
 					{url: "Advanced_Smart_Connect.asp", tabName: "<#smart_connect_rule#>"},
 					{url: "NULL", tabName: "__INHERIT__"}
 				]
-			},
-			{
-				menuName: "Entware",
-				index: "menu_Split",
-				tab: [
-					{url: "NULL", tabName: "__HIDE__"}
-				]
-			},
-			{
-				menuName: "Entware",
-				index: "menu_Entware",
-				tab: [
-					{url: "Entware_start.asp", tabName: "<#Entware_home#>"},
-					{url: "Entware_installed.asp", tabName: "<#Entware_installed#>"},
-					{url: "Entware_list.asp", tabName: "<#Entware_list#>"},
-					{url: "NULL", tabName: "__INHERIT__"}
-				] 
-			},
-			{
-				menuName: "<#Softcenter#>",
-				index: "menu_Split",
-				tab: [
-					{url: "NULL", tabName: "__HIDE__"}
-				]
-			},
-			{
-				menuName: "<#Softcenter#>",
-				index: "menu_Softcenter",
-				tab: [
-					{url: "Main_Soft_center.asp", tabName: "<#Softcenter#>"},
-					{url: "Main_Soft_setting.asp", tabName: "ManualInstall"},
-					{url: "NULL", tabName: "__INHERIT__"}
-				]
 			}
 		],
 
 		exclude: {
 			menus: function(){
 				var retArray = [];
+
+				if(!wifiRadar_support){
+					retArray.push("menu_WifiRadar");
+				}
 
 				if(!multissid_support){
 					retArray.push("menu_GuestNetwork");
@@ -373,7 +343,7 @@ define(function(){
 					retArray.push("menu_APP");
 				}
 
-				if(!cloudsync_support && !aicloudipk_support){
+				if((!cloudsync_support && !aicloudipk_support) || nocloudsync_support){
 					retArray.push("menu_AiCloud");
 				}
 
@@ -428,14 +398,8 @@ define(function(){
 					retArray.push("menu_VPN");
 					retArray.push("menu_VLAN");
 					retArray.push("menu_Firewall");
-
-					if(!userRSSI_support){
-						retArray.push("menu_Wireless");
-					}
-
-					if(wlc_express != 0){
-						retArray.push("menu_Wireless");
-					}
+					retArray.push("menu_ParentalControl");
+					retArray.push("menu_Wireless");
 				}
 				else if(isSwMode("ap")){
 					retArray.push("menu_GameBoost");
@@ -451,6 +415,7 @@ define(function(){
 					retArray.push("menu_VPN");
 					retArray.push("menu_VLAN");
 					retArray.push("menu_Firewall");
+					retArray.push("menu_ParentalControl");
 				}
 				else if(isSwMode("mb")){
 					retArray.push("menu_GameBoost");
@@ -468,17 +433,9 @@ define(function(){
 					retArray.push("menu_VPN");
 					retArray.push("menu_VLAN");
 					retArray.push("menu_Firewall");
+					retArray.push("menu_ParentalControl");
 				}
-				if (!softcenter_support || '<% nvram_get("sc_installed"); %>' != '1'){
-					retArray.push("menu_Softcenter");
-				}
-				if (!entware_support){
-					retArray.push("menu_Entware");
-					for(i=0; i<menuTree.list.length; i++){
-						if(menuTree.list[i].menuName == 'Entware')
-							menuTree.list.splice(i,1);
-					}
-				}
+
 				/*MODEL DEPENDENT*/
 				if(based_modelid == "GT-AXY16000" || based_modelid == "RT-AX89U"){
 					retArray.push("menu_WifiRadar");
@@ -491,9 +448,6 @@ define(function(){
 				var retArray = [];
 
 				/* By RC Support */
-				if (!smartdns_support){
-					retArray.push("Advanced_SmartDNS_Content.asp");
-				}
 				if(!bwdpi_support){
 					retArray.push("AdaptiveQoS_Bandwidth_Monitor.asp");
 					retArray.push("AdaptiveQoS_WebHistory.asp");
@@ -535,6 +489,9 @@ define(function(){
 				if(!vpnc_support){
 					retArray.push("Advanced_VPNClient_Content.asp");
 				}
+
+				if(!isSupport("Instant_Guard"))
+					retArray.push("Advanced_Instant_Guard.asp");
 
 				if(!ParentalCtrl2_support){
 					retArray.push("ParentalControl.asp");
@@ -681,6 +638,9 @@ define(function(){
 				if(!fileflex_support)
 					retArray.push("fileflex.asp");
 
+				if(!dnsfilter_support)
+					retArray.push("DNSFilter.asp");
+
 				/* Operation Mode */
 				if(isSwMode("re")){
 					retArray.push("GameBoost_ROG.asp");
@@ -695,6 +655,7 @@ define(function(){
 					retArray.push("Main_IPTStatus_Content.asp");
 					retArray.push("Main_ConnStatus_Content.asp");
 					retArray.push("Advanced_Smart_Connect.asp");
+					retArray.push("DNSFilter.asp");
 
 					if(userRSSI_support){
 						retArray.push("Advanced_ACL_Content.asp");
@@ -725,6 +686,7 @@ define(function(){
 					retArray.push("Captive_Portal_Advanced.asp");
 					//short term solution for only router mode support Facebook Wi-Fi
 					retArray.push("Guest_network_fbwifi.asp");
+					retArray.push("DNSFilter.asp");
 				}
 				else if(isSwMode("mb")){
 					retArray.push("GameBoost_ROG.asp");
@@ -739,6 +701,7 @@ define(function(){
 					retArray.push("Main_IPTStatus_Content.asp");
 					retArray.push("Main_ConnStatus_Content.asp");
 					retArray.push("Advanced_Smart_Connect.asp");
+					retArray.push("DNSFilter.asp");
 				}
 
 				/* System Status Changed */
@@ -773,4 +736,3 @@ define(function(){
 
 	return menuTree;
 });
-

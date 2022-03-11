@@ -8,7 +8,7 @@
 <meta name="svg.render.forceflash" content="false" />	
 <link rel="shortcut icon" href="images/favicon.png">
 <link rel="icon" href="images/favicon.png">
-<title><#Web_Title#> - Fan tuning</title><!-- untranslated -->
+<title><#Web_Title#> - <#fan_tuning#></title>
 <link rel="stylesheet" type="text/css" href="index_style.css"> 
 <link rel="stylesheet" type="text/css" href="form_style.css">
 <style type="text/css">
@@ -309,9 +309,9 @@ function getCookie(c_name)
                 <tr bgcolor="#4D595D" style="height:10px">
 	                <td valign="top">
 									  <div>&nbsp;</div>
-									  <div class="formfonttitle"><#menu5_6#> - Fan tuning</div><!-- untranslated -->
-									 <div style="margin:10px 0 10px 5px;" class="splitLine"></div>
-									  <div class="formfontdesc" id="formDesc">Fine tune the radio power to enhance/decrease the coverage and change the cooler spin mode.Please note: If the output power is increased for long distance signal transmission, the client also need to use high power card to get the best performance.</div>
+									  <div class="formfonttitle"><#menu5_6#> - <#fan_tuning#></div>
+									  <div style="margin:10px 0 10px 5px;" class="splitLine"></div>
+									  <div class="formfontdesc" id="formDesc"><#fan_tuning_desc#></div>
 									</td>
 					  		</tr>
 
@@ -320,7 +320,7 @@ function getCookie(c_name)
 										<table width="99%" border="0" align="center" cellpadding="0" cellspacing="0" bordercolor="#6b8fa3" class="FormTable">
 											<thead>
 											<tr>
-												<td colspan="2">System Temperature</td><!-- untranslated -->
+												<td colspan="2"><#fan_tuning_temperature#></td>
 											</tr>
 											</thead>
 											
@@ -373,7 +373,7 @@ function getCookie(c_name)
 										<table width="99%" border="1" align="center" cellpadding="4" cellspacing="0" bordercolor="#6b8fa3" class="FormTable">
 											<thead>
 											<tr>
-												<td colspan="2">System adjustment</td>
+												<td colspan="2"><#sys_adjustment#></td>
 											</tr>
 											</thead>
 											
@@ -404,7 +404,7 @@ function getCookie(c_name)
 											</tr>
 
 											<tr>
-												<th>Temperature unit</th>
+												<th><#sys_temp_unit#></th>
 												<td>
 													<select name="fanctrl_fullspeed_temp_unit" class="input_option" onchange="changeTempUnit(this.value)">
 														<option class="content_input_fd" value="0">°C</option>
@@ -430,7 +430,7 @@ function getCookie(c_name)
 											</tr>
 				            
 											<tr>
-												<th>Fan speed</th><!-- untranslated -->
+												<th><#sys_fan_speed#></th>
 												<td> 
 													<select name="fanctrl_dutycycle" class="input_option">
 														<option class="content_input_fd" value="0" <% nvram_match("fanctrl_dutycycle", "1", "selected"); %>><#Auto#></option>

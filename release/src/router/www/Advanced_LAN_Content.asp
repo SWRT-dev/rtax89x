@@ -12,6 +12,7 @@
 <link rel="stylesheet" type="text/css" href="index_style.css"> 
 <link rel="stylesheet" type="text/css" href="form_style.css">
 <link rel="stylesheet" type="text/css" href="other.css">
+<script type="text/javascript" src="/js/jquery.js"></script>
 <script type="text/javascript" src="/state.js"></script>
 <script type="text/javascript" src="/general.js"></script>
 <script type="text/javascript" src="/popup.js"></script>
@@ -72,6 +73,7 @@ function initial(){
 		document.getElementById("redirect_dname_tr").style.display = "";
 }
 
+var reboot_confirm=0;
 function applyRule(){
 	if(validForm()){
 		if(based_modelid == "MAP-AC1300" || based_modelid == "MAP-AC2200" || based_modelid == "VZW-AC1300" || based_modelid == "MAP-AC1750")
@@ -87,12 +89,22 @@ function applyRule(){
 		}
 
 		if(document.form.redirect_dname.value != "<% nvram_get("redirect_dname"); %>"){
-			document.form.action_wait.value = "<% get_default_reboot_time(); %>";
-			document.form.action_script.value = "reboot";
+			reboot_confirm=1;
 		}
 
-		showLoading();
-		document.form.submit();
+		if(reboot_confirm==1){
+        	
+	        	if(confirm("<#AiMesh_Node_Reboot#>")){
+        			FormActions("start_apply.htm", "apply", "reboot", "<% get_default_reboot_time(); %>");
+        			showLoading();
+				document.form.submit();
+	        	}
+        	}
+	        else{
+
+			showLoading();
+			document.form.submit();
+		}
 	}
 }
 

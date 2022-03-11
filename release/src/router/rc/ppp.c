@@ -47,6 +47,13 @@ ppp_ifunit(char *ifname)
 		if (nvram_match(strcat_r(prefix, "pppoe_ifname", tmp), ifname))
 			return unit;
 	}
+#ifdef RTCONFIG_MULTISERVICE_WAN
+	for (unit = WAN_UNIT_FIRST_MULTISRV_START; unit < WAN_UNIT_MULTISRV_MAX; unit++) {
+		snprintf(prefix, sizeof(prefix), "wan%d_", unit);
+		if (nvram_match(strcat_r(prefix, "pppoe_ifname", tmp), ifname))
+			return unit;
+	}
+#endif
 
 	return -1;
 }
@@ -93,6 +100,9 @@ ipup_main(int argc, char **argv)
 		}
 	}
 #endif
+
+	snprintf(tmp, sizeof(tmp), "/tmp/%sppp.env", prefix);
+	envsave(tmp);
 
 	/* Stop triggering demand connection */
 	if (nvram_get_int(strcat_r(prefix, "pppoe_demand", tmp)))
@@ -243,6 +253,9 @@ int ip6up_main(int argc, char **argv)
 		}
 	}
 	snprintf(prefix, sizeof(prefix), "wan%d_", unit);
+
+	snprintf(tmp, sizeof(tmp), "/tmp/%sppp6.env", prefix);
+	envsave(tmp);
 
 	/* share the same interface with pppoe ipv4 connection */
 	nvram_set(strcat_r(prefix, "pppoe_ifname", tmp), wan_ifname);

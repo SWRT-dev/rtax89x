@@ -41,6 +41,7 @@
 
 #include <json.h>
 #include <rtconfig.h>
+#include <shared.h>
 
 #if defined(linux)
 /* Use SVID search */
@@ -62,6 +63,7 @@ static struct hsearch_data htab;
 void
 unescape(char *s)
 {
+	char s_tmp[65535];
 	unsigned int c;
 
 	while ((s = strpbrk(s, "%+"))) {
@@ -69,7 +71,8 @@ unescape(char *s)
 		if (*s == '%') {
 			sscanf(s + 1, "%02x", &c);
 			*s++ = (char) c;
-			strncpy(s, s + 2, strlen(s) + 1);
+			strlcpy(s_tmp, s + 2, sizeof(s_tmp));
+			strncpy(s, s_tmp, strlen(s) + 1);
 		}
 		/* Space is special */
 		else if (*s == '+')
@@ -270,7 +273,7 @@ void webcgi_init(char *query)
        }
 }
 
-FILE *connfp = NULL;
+static FILE *connfp = NULL;
 int web_read(void *buffer, int len)
 {
        int r;

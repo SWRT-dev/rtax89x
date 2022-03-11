@@ -13,7 +13,7 @@
 <style>
 body{
 	color:#FFF;
-	font-family: Arial;
+	font-family: Arial, MS UI Gothic, MS P Gothic, Microsoft Yahei UI, sans-serif;
 }
 .wrapper{
 	background:url(images/New_ui/login_bg.png) #1F1F1F no-repeat;
@@ -218,8 +218,22 @@ li{
 	50% {
 		left: 220px;
 	}
-		100% {
-	left: 30px;
+	100% {
+		left: 30px;
+	}
+}
+
+.model_img{
+	width: 120px;
+	height: 142px;
+	background: url('images/Model_product.png') no-repeat;
+	background-size: 100%;
+}
+.mode_img_COD{
+	width: 120px;
+	height: 142px;
+	background: url('images/Model_product_COD.png') no-repeat;
+	background-size: 100%;
 }
 </style>
 <script type="text/javascript">
@@ -239,10 +253,16 @@ var wansbstate = -1;
 var wanauxstate = -1;
 <% wanstate(); %>
 //2014.05 Viz add for T-MOBILE 
-var isSupport = function(_ptn){return ('<% nvram_get("rc_support"); %>'.search(_ptn) == -1) ? false : true;}
-var tmo_support = isSupport("tmo");
+var isRCSupport = function(_ptn){return ('<% nvram_get("rc_support"); %>'.search(_ptn) == -1) ? false : true;}
+var tmo_support = isRCSupport("tmo");
+
+function isSupport(_ptn){
+	var ui_support = [<% get_ui_support(); %>][0];
+	return (ui_support[_ptn]) ? ui_support[_ptn] : 0;
+}
 var dsl_support = isSupport("dsl");
 var gobi_support = isSupport("gobi");
+var odm_support = isSupport("odm");
 
 //Dual WAN unit
 var wans_dualwan_orig = '<% nvram_get("wans_dualwan"); %>';
@@ -260,6 +280,9 @@ function initial(){
 	var url_flag = "";
 	var html_code_notlogin = "<ul><li><#web_redirect_suggestion_admin#></li></ul>";	
 	var showtext = function(obj, str){if(obj)obj.innerHTML=str;}
+	if(odm_support){
+		$('.model_img').attr('class', 'mode_img_COD');
+	}
 
 	if(casenum == 1){
 		$("#page_title").html("<#web_redirect_reason1#>");
@@ -589,7 +612,7 @@ function detect_ppp_connect(){
 					<div style="display:table">
 						<div style="display:table-row">
 							<div style="display:table-cell">
-								<div style="width:120px;height:142px;background:url('images/Model_product.png') no-repeat;background-size:100%;"></div>
+								<div class="model_img"></div>
 							</div>
 							<div style="display:table-cell;width:300px;vertical-align:middle;position:relative">
 								<div style="width:200px;height:3px;background:#279FD9;margin-left:30px;"></div>

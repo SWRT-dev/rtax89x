@@ -14,6 +14,7 @@
 		<script type="text/javascript" src="/require/require.min.js"></script>
 		<script type="text/javascript" src="/validator.js"></script>
 		<script type="text/javascript" src="/js/httpApi.js"></script>
+		<script type="text/javascript" src="/js/https_redirect/https_redirect.js"></script>
 		<script>
 			if(location.hash != "")	location.href = "QIS_wizard.htm";
 			
@@ -192,6 +193,10 @@
 			}
 
 			$(document).ready(function(){
+				if(Check_Https_Redirect_Status()){
+					Initial_Https_Redirect();
+					return;
+				}
 				document.querySelector("meta[name=viewport]").setAttribute(
 					'content', 'width=' + verge.viewportW() + ', target-densitydpi=device-dpi, initial-scale=' + (0.5*verge.viewportW())/375 + ', maximum-scale=1, user-scalable=no'
 				);
@@ -566,7 +571,7 @@
 							return false;
 						}
 						else{
-							var alert_str = validator.account_name(document.getElementById("http_username"));
+							var alert_str = validator.host_name(document.getElementById("http_username"));
 			
 							if(alert_str != ""){
 								$("#http_username").showTextHint(alert_str);
@@ -2414,7 +2419,7 @@
 								<option value="tpg">TPG</option>
 								<option value="iinet">iiNET</option>
 								<option value="aapt">AAPT</option>
-								<option value="intronode">Intronode</option>
+								<option value="intronode">Internode</option>
 								<option value="amaysim">Amaysim</option>
 								<option value="dodo">Dodo</option>
 								<option value="iprimus">Iprimus</option>

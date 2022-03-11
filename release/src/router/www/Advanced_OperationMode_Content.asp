@@ -103,10 +103,12 @@ if( ((sw_mode_orig == 2 || sw_mode_orig == 3) && '<% nvram_get("wlc_psta"); %>' 
 }
 
 var tcode = '<% nvram_get("territory_code"); %>';
-	
+
 window.onresize = function() {
-	if(document.getElementById("routerSSID").style.display == "block") {
-		cal_panel_block("routerSSID", 0.25);
+	if(document.getElementById("routerSSID") != null){
+		if(document.getElementById("routerSSID").style.display == "block") {
+			cal_panel_block("routerSSID", 0.25);
+		}
 	}
 } 
 if(sw_mode_orig == 3 && '<% nvram_get("wlc_psta"); %>' == 2)
@@ -286,6 +288,11 @@ function initial(){
 		document.getElementById("mbMode").style.display = "none";
 		document.getElementById("sw_mode4_radio").disabled = true;
 	}
+
+	if(isSupport("noAP")){
+		$("#apMode").hide();
+		$("#sw_mode3_radio").attr("disabled", true);
+	}
 }
 
 function restore_wl_config(prefix){
@@ -404,7 +411,7 @@ function saveMode(){
 					restore_wl_config_wep("wl1_");
 					restore_wl_config("wl1.1_");
 				}
-				if(wl_info.band5g_2_support){
+				if(wl_info.band5g_2_support || wl_info.band6g_support){
 					restore_wl_config_wep("wl2_");
 					restore_wl_config("wl2.1_");
 				}
@@ -420,7 +427,7 @@ function saveMode(){
 				close_guest_unit(1,1);
 			}
 			
-			if(wl_info.band5g_2_support){
+			if(wl_info.band5g_2_support || wl_info.band6g_support){
 				inputCtrl(document.form.wl2_ssid,1);
 				inputCtrl(document.form.wl2_crypto,1);
 				inputCtrl(document.form.wl2_wpa_psk,1);
@@ -435,7 +442,11 @@ function saveMode(){
 				document.getElementById('routerSSID').style.height="370px";				
 			}
 
-			if(wl_info.band5g_2_support){
+			if(wl_info.band5g_2_support || wl_info.band6g_support){
+				if(band6g_support){
+					document.getElementById("5g2_title").innerHTML = '6 GHz - <#Security#>';
+				}
+				
 				document.getElementById("wl_unit_field_4").style.display = "";
 				document.getElementById("wl_unit_field_5").style.display = "";
 				document.getElementById("wl_unit_field_6").style.display = "";	
@@ -516,7 +527,7 @@ function applyRule(){
 					document.form.wl1_auth_mode_x.value = "open";
 			}
 
-			if(wl_info.band5g_2_support){
+			if(wl_info.band5g_2_support || wl_info.band6g_support){
 				inputCtrl(document.form.wl2_ssid,1);
 				inputCtrl(document.form.wl2_crypto,1);
 				inputCtrl(document.form.wl2_wpa_psk,1);
@@ -885,7 +896,7 @@ function change_smart_con(v){
 			</td>
 		</tr>
 		<tr id="wl_unit_field_4" style="display:none;">
-			<th width="180">5 GHz-2 - <#Security#> </th>
+			<th id="5g2_title" width="180">5 GHz-2 - <#Security#> </th>
 			<td class="QISformtd" id="wl_unit_field_4_2">
 				<input type="checkbox" id="sync_with_5ghz" name="sync_with_5ghz" tabindex="8" class="input" onclick="setTimeout('Sync_5ghz(2);',0);" checked="checked"><span id="syncCheckbox_5_2"><#qis_ssid_desc#></span>
 			</td>

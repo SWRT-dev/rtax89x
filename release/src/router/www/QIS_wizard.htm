@@ -81,6 +81,7 @@
 <script type="text/JavaScript" src="/state.js"></script>
 <script type="text/javascript" src="/popup.js"></script>
 <script language="JavaScript" type="text/javascript" src="/js/jquery.js"></script>
+<script type="text/javascript" src="/js/https_redirect/https_redirect.js"></script>
 <script>
 var isFirst = ('<% nvram_get("x_Setting"); %>' == '1') ? false : true;
 var header_info = [<% get_header_info(); %>][0];
@@ -138,6 +139,7 @@ var webs_state_update = '<% nvram_get("webs_state_update"); %>';
 var webs_state_upgrade = '<% nvram_get("webs_state_upgrade"); %>';
 var webs_state_error = '<% nvram_get("webs_state_error"); %>';
 var webs_state_info = '<% nvram_get("webs_state_info"); %>';
+var webs_state_flag = '<% nvram_get("webs_state_flag"); %>';
 var webs_state_level = '<% nvram_get("webs_state_level"); %>';
 var exist_firmver = "<% nvram_get("firmver"); %>";
 var Latest_firmver = "";
@@ -346,6 +348,10 @@ $.ajax({
 
 
 function QIS_load_body(){
+	if(Check_Https_Redirect_Status()){
+		Initial_Https_Redirect();
+		return;
+	}
 	var showCase;
 
 	var getDefaultCase = function(){

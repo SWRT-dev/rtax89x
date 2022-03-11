@@ -24,7 +24,6 @@
 <script type="text/javascript" src="js/httpApi.js"></script>
 <style>
 .noUSBHint, .storeUSBHint {
-	color: #FC0;
 	margin-left: 10px;
 	display: none;
 }
@@ -38,6 +37,13 @@
 	cursor: pointer;
 	text-decoration: underline;
 }
+.loadingIcon {
+	background: url('/images/InternetScan.gif') center no-repeat;
+	width: 33px;
+	height: 33px;
+	background-size: contain;
+	display: inline-block;
+}
 </style>
 <script>
 var usb_status_last_time = false;
@@ -48,6 +54,20 @@ var reload_data = parseInt('<% get_parameter("reload"); %>');
 var dblog_trans_id = '<% generate_trans_id(); %>';
 var fb_total_size;
 var is_CN_sku = in_territory_code("CN");
+var reboot_schedule_enable_orig = httpApi.nvramGet(["reboot_schedule_enable"], true).reboot_schedule_enable;
+var wl0_radio_orig = httpApi.nvramGet(["wl0_radio"], true).wl0_radio;
+var wl1_radio_orig = httpApi.nvramGet(["wl1_radio"], true).wl1_radio;
+var wl2_radio_orig = httpApi.nvramGet(["wl2_radio"], true).wl2_radio;
+var wl0_timesched_orig = httpApi.nvramGet(["wl0_timesched"], true).wl0_timesched;
+var wl1_timesched_orig = httpApi.nvramGet(["wl1_timesched"], true).wl1_timesched;
+var wl2_timesched_orig = httpApi.nvramGet(["wl2_timesched"], true).wl2_timesched;
+var within_hour = "<#feedback_when_withinhour#>";
+var updated_within_hour = within_hour.replace('%@', '1');	//<1
+var several_hour = "<#feedback_when_hour#>";
+var updated_several_hour = several_hour.replace('%2$@', '3');	//1-3
+var several_hours = "<#feedback_when_hours#>";
+var updated_several_hours = several_hour.replace('%1$@', '3').replace('%2$@', '12');	//3-12
+var fb_state = httpApi.nvramGet(["fb_state"], true).fb_state;
 
 function initial(){
 	show_menu();
@@ -76,8 +96,9 @@ function initial(){
 	gen_ptype_list(orig_page);
 	Reload_pdesc(document.form.fb_ptype,orig_page);
 
-	if(is_CN_sku && support_site_modelid == "RT-AX89X"){
+	if(is_CN_sku){
 		inputCtrl(document.form.fb_phone, 1);
+		gen_contact_sel();
 	}
 	else{
 		inputCtrl(document.form.fb_phone, 0);
@@ -95,6 +116,15 @@ function initial(){
 		init_diag_feature();
 	else {
 		$(".dblog_support_class").remove();
+	}
+
+	if(fb_state == "2"){
+		$('html, body').hide();
+		redirect();
+	}
+	else if(fb_state == "0"){
+		disbled_feedback_filed(0);
+		detect_fb_state();
 	}
 
 	if(false){
@@ -140,60 +170,66 @@ function initial(){
 		document.form.fb_comment.value = decodeURIComponent('<% nvram_char_to_ascii("", "fb_comment"); %>');
 	}
 
-	httpApi.nvramGetAsync({
-		data: ["preferred_lang"],
-		success: function(resp){
-			var preferredLang = resp.preferred_lang;
-			lang_str = (preferredLang == "EN" || preferredLang == "SL") ? "" : (preferredLang.toLowerCase() + '/');
+	var policy_href = "https://nw-dlcdnet.asus.com/support/forward.html?model=&type=Policy&lang="+ui_lang+"&kw=&num=";
+	$("#eula_content").find($("a")).attr({"href": policy_href});
+	var call_href = "https://nw-dlcdnet.asus.com/support/forward.html?model=&type=Call&lang="+ui_lang+"&kw=&num=";
+	$("#call_link").attr({"href": call_href});
+}
 
-			if(preferredLang == "CN")
-				url = "https://www.asus.com.cn/Terms_of_Use_Notice_Privacy_Policy/Privacy_Policy";
-			else{
-				if(preferredLang == "SV")
-					lang_str = "se/";
-				else if(preferredLang == "UK")
-					lang_str = "ua-ua/";
-				else if(preferredLang == "MS")
-					lang_str = "my/";
-				else if(preferredLang == "DA")
-					lang_str = "dk/";
+function gen_contact_sel(){
+	infolist = new Array();
+	infolist.push(["<#Select_menu_default#> ...","No_selected"]);
+	infolist.push(["<#feedback_phone#>","phone"]);
+	infolist.push(["QQ","qq"]);
+	infolist.push(["<#wechat#>","wechat"]);
 
-				url = "https://www.asus.com/" + lang_str +"Terms_of_Use_Notice_Privacy_Policy/Privacy_Policy";
-			}
+	for(var i = 0; i < infolist.length; i++){
+		document.form.fb_contact_type.options[i] = new Option(infolist[i][0], infolist[i][1]);
+	}
+}
 
-			$("#eula_content").find($("a")).attr({
-				"href": url
-			})
-		}
-	})
+/*
+ * option status:
+ * 0: feedback proceeding
+ * 1: wan disconnect
+ */
+function disbled_feedback_filed(status){
+	document.form.eula_checkbox.disabled = true;
+	document.form.fb_country.disabled = true;
+	document.form.fb_email.disabled = true;
+	document.form.fb_serviceno.disabled = true;
+	document.form.attach_syslog.disabled = true;
+	document.form.attach_cfgfile.disabled = true;
+	document.form.attach_modemlog.disabled = true;
+	document.form.attach_wlanlog.disabled = true;
+	document.form.fb_ptype.disabled = true;
+	document.form.fb_pdesc.disabled = true;
+	document.form.fb_comment.disabled = true;
+	document.form.btn_send.disabled = true;
+	if(status == 0){
+		$(".dblog_disabled_status").find("input, textarea, button, select").attr("disabled", true);
+		$("#apply_button").css("display", "none");
+		$("#loadingIcon").css("display", "");
+	}
+	else if(status == 1){
+		document.getElementById("fb_desc_disconnect").style.display = "";
+	}
 }
 
 function check_wan_state(){
 	
 	if(sw_mode != 3 && document.getElementById("connect_status").className == "connectstatusoff"){
-		document.getElementById("fb_desc_disconnect").style.display = "";
-		document.form.fb_country.disabled = "true";
-		document.form.fb_email.disabled = "true";
-		document.form.fb_serviceno.disabled = "true";
-		document.form.attach_syslog.disabled = "true";
-		document.form.attach_cfgfile.disabled = "true";
-		document.form.attach_modemlog.disabled = "true";
-		document.form.attach_wlanlog.disabled = "true";
-		document.form.fb_ptype.disabled = "true";
-		document.form.fb_pdesc.disabled = "true";
-		document.form.fb_comment.disabled = "true";
-		document.form.btn_send.disabled = "true";
+		disbled_feedback_filed(1);
 		if(dsl_support){
-			document.form.fb_ISP.disabled = "true";
-			document.form.fb_Subscribed_Info.disabled = "true";
-			document.form.attach_iptables.disabled = "true";
-			document.form.dslx_diag_enable[0].disabled = "true";
-			document.form.dslx_diag_enable[1].disabled = "true";
-			document.form.dslx_diag_duration.disabled = "true";
-			document.form.fb_availability.disabled = "true";
+			document.form.fb_ISP.disabled = true;
+			document.form.fb_Subscribed_Info.disabled = true;
+			document.form.attach_iptables.disabled = true;
+			document.form.dslx_diag_enable[0].disabled = true;
+			document.form.dslx_diag_enable[1].disabled = true;
+			document.form.dslx_diag_duration.disabled = true;
+			document.form.fb_availability.disabled = true;
 			
 		}
-
 	}
 	else{
 		document.getElementById("fb_desc_disconnect").style.display = "none";
@@ -247,6 +283,7 @@ function Reload_pdesc(obj, url){
 	var ptype = obj.value;
 	desclist = new Array();
 	url_group = new Array();
+	timelist = new Array();
 	desclist.push(["<#Select_menu_default#> ...","No_selected"]);
 	url_group.push(["select"]);//false value
 	if(ptype == "Setting_Problem"){
@@ -284,7 +321,7 @@ function Reload_pdesc(obj, url){
 		url_group.push(["cloud"]);
 
 		desclist.push(["AiMesh","AiMesh"]);
-        url_group.push(["AiMesh"]);
+		url_group.push(["AiMesh"]);
 
 		desclist.push(["<#menu5_1#>","Wireless"]);
 		url_group.push(["ACL", "WAdvanced", "Wireless", "WMode", "WSecurity", "WWPS"]);
@@ -298,7 +335,7 @@ function Reload_pdesc(obj, url){
 		desclist.push(["<#menu5_2#>","LAN"]);
 		url_group.push(["LAN", "DHCP", "GWStaticRoute", "IPTV", "SwitchCtrl"]);
 
-		desclist.push(["<#menu5_4_4#>","USB dongle"]);
+		desclist.push(["<#menu5_4_4#>/<#usb_tethering#>","USB dongle"]);
 		url_group.push(["Modem"]);
 
 		desclist.push(["<#DM_title#>","DM"]);
@@ -320,7 +357,7 @@ function Reload_pdesc(obj, url){
 		url_group.push(["OperationMode", "System", "SettingBackup"]);
 
 		desclist.push(["<#System_Log#>","System Log"]);
-		url_group.push(["VPN"]);
+		url_group.push(["System"]);
 
 		desclist.push(["<#Network_Tools#>","Network Tools"]);		//25
 		url_group.push(["Status_"]);
@@ -336,6 +373,11 @@ function Reload_pdesc(obj, url){
 
 		desclist.push(["<#menu5_6_3#>","FW update"]);
 		url_group.push(["FirmwareUpgrade"]);
+
+		if(isSupport("Instant_Guard")){
+			desclist.push(["<#Instant_Guard_title#>","Instant Guard"]);	//30
+			url_group.push(["Instant_Guard"]);
+		}
 
 	}
 	else if(ptype == "Connection_or_Speed_Problem"){
@@ -372,7 +414,7 @@ function Reload_pdesc(obj, url){
 		desclist.push(["<#feedback_tech_asus#>","tech_ASUS"]);
 		desclist.push(["<#feedback_tech_amazon#>","tech_Amazon"]);
 		desclist.push(["<#feedback_tech_iOS#>","tech_iOS"]);
-		desclist.push(["<#feedback_tech_Android#>","tech_Android"]);		
+		desclist.push(["<#feedback_tech_Android#>","tech_Android"]);
 	}
 	else{	//Other_Problem
 		
@@ -380,8 +422,7 @@ function Reload_pdesc(obj, url){
 		desclist.push(["<#Adaptive_Others#>","others"]);
 	}
 
-	document.form.fb_pdesc.options.length = desclist.length;
-	if(obj.value == "Setting_Problem" && url){
+	if(ptype == "Setting_Problem" && url){
 		for(var i = 0; i < url_group.length; i++){	
 			document.form.fb_pdesc.options[i] = new Option(desclist[i][0], desclist[i][1]);
 			//with url : Find pdesc in Setting Problem
@@ -395,13 +436,127 @@ function Reload_pdesc(obj, url){
 	else{
 		for(var i = 0; i < desclist.length; i++){
 			document.form.fb_pdesc.options[i] = new Option(desclist[i][0], desclist[i][1]);
-		}	
+		}
 	}
-
 	Change_pdesc(document.form.fb_pdesc);
+
+
+	free_options(document.form.fb_when_occur);
+	$(".when_occur_tr").css("display", "none");
+	if(ptype == "Setting_Problem" || ptype == "Compatibility_Problem"){
+		$(".when_occur_tr").css("display", "");
+		timelist.push(["<#Select_menu_default#> ...","No_selected"]);
+		timelist.push(["<#feedback_when_now#>","Just Now"]);
+		timelist.push([updated_within_hour,"Within 1 hour"]);
+		timelist.push([updated_several_hour,"1 - 3 hour(s) ago"]);
+		timelist.push([updated_several_hours,"3 - 12 hours ago"]);
+		timelist.push(["<#feedback_when_today#>","Today"]);
+		timelist.push(["<#feedback_when_recent#>","Recently"]);
+		timelist.push(["<#feedback_when_notrecall#>","I don’t recall"]);
+
+		for(var i = 0; i < timelist.length; i++){
+			document.form.fb_when_occur.options[i] = new Option(timelist[i][0], timelist[i][1]);
+		}
+	}
 }
 
 function Change_pdesc(obj){
+	timelist = new Array();
+	bandlist = new Array();
+	unstablelist = new Array();
+
+	if(document.form.fb_ptype.value != "Setting_Problem" && document.form.fb_ptype.value != "Compatibility_Problem"){
+		free_options(document.form.fb_when_occur);
+		$(".when_occur_tr").css("display", "none");
+		if(obj.value == "Wireless speed" || obj.value == "Wired speed" || obj.value == "Unstable connection" || obj.value == "Router reboot" || obj.value == "Wireless disconnected"){
+			$(".when_occur_tr").css("display", "");
+			timelist.push(["<#Select_menu_default#> ...","No_selected"]);
+			timelist.push(["<#feedback_when_now#>","Just Now"]);
+			timelist.push([updated_within_hour,"Within 1 hour"]);
+			timelist.push([updated_several_hour,"1 - 3 hour(s) ago"]);
+			timelist.push([updated_several_hours,"3 - 12 hours ago"]);
+			timelist.push(["<#feedback_when_today#>","Today"]);
+			timelist.push(["<#feedback_when_recent#>","Recently"]);
+			timelist.push(["<#feedback_when_notrecall#>","I don’t recall."]);
+
+			for(var i = 0; i < timelist.length; i++){
+				document.form.fb_when_occur.options[i] = new Option(timelist[i][0], timelist[i][1]);
+			}
+		}
+	}
+
+	free_options(document.form.fb_which_band);
+	$(".which_band_tr").css("display", "none");
+	if(obj.value == "Wireless speed" || obj.value == "Wireless disconnected"){
+		$(".which_band_tr").css("display", "");
+		bandlist.push(["<#Select_menu_default#> ...","No_selected"]);
+		bandlist.push(["2.4GHz","2.4GHz"]);
+		bandlist.push(["5GHz","5GHz"]);
+		bandlist.push(["5GHz-1","5GHz-1"]);
+		bandlist.push(["5GHz-2","5GHz-2"]);
+		bandlist.push(["6GHz","6GHz"]);
+		bandlist.push(["<#All#>","All"]);
+		bandlist.push(["<#feedback_issue_notsure#>","I am not sure"]);
+		bandlist.push(["<#feedback_issue_CAP#>","Issue with the main router"]);
+		bandlist.push(["<#feedback_issue_Node#>","Issue with node(s)"]);
+
+		for(var i = 0; i < bandlist.length; i++){
+			document.form.fb_which_band.options[i] = new Option(bandlist[i][0], bandlist[i][1]);
+		}
+	}
+
+	free_options(document.form.fb_unstable_conn);
+	$(".unstable_conn_tr").css("display", "none");
+	if(obj.value == "Unstable connection"){
+		$(".unstable_conn_tr").css("display", "");
+		unstablelist.push(["<#Select_menu_default#> ...","No_selected"]);
+		unstablelist.push(["<#feedback_issue_WiFi#>","All WiFi"]);
+		unstablelist.push(["2.4GHz","2.4GHz"]);
+		unstablelist.push(["5GHz","5GHz"]);
+		unstablelist.push(["5GHz-1","5GHz-1"]);
+		unstablelist.push(["5GHz-2","5GHz-2"]);
+		unstablelist.push(["6GHz","6GHz"]);
+		unstablelist.push(["WAN","WAN"]);
+		unstablelist.push(["<#feedback_issue_WiFinWAN#>","Both WiFi and WAN"]);
+		unstablelist.push(["<#feedback_issue_notsure#>","I am not sure"]);
+		unstablelist.push(["<#feedback_issue_CAP#>","Issue with the main router"]);
+		unstablelist.push(["<#feedback_issue_Node#>","Issue with node(s)"]);
+
+		for(var j = 0; j < unstablelist.length; j++){
+			document.form.fb_unstable_conn.options[j] = new Option(unstablelist[j][0], unstablelist[j][1]);
+		}
+	}
+
+	if(obj.value == "Router reboot" && reboot_schedule_enable_orig == 1){
+		$("#occur_hint").show()
+						.css("text-decoration", "underline")
+						.css("cursor", "pointer")
+						.html("<br>- Reboot Scheduler currently enabled, please check scheduler setting.")	//Untranslated
+						.click( function(){ redirect_page("reboot_schedule_enable_x"); } );
+		$("#occur_hint2").hide();
+	}
+	else if(obj.value == "Wireless disconnected"){
+
+		if(wl0_timesched_orig == 1 || wl1_timesched_orig == 1 || wl2_timesched_orig == 1){
+			$("#occur_hint").show()
+							.css("text-decoration", "underline")
+							.css("cursor", "pointer")
+							.html("<br>- Wireless Scheduler currently enabled, please check scheduler setting.")	//Untranslated
+							.click( function(){ redirect_page("wl_timesched"); } );
+		}
+		if(wl0_radio_orig == 0 || wl1_radio_orig == 0 || wl2_radio_orig == 0){
+			$("#occur_hint2").show()
+							.css("text-decoration", "underline")
+							.css("cursor", "pointer")
+							.html("<br>- 2.4GHz or 5GHz or 5GHz-1 or 5GHz-2(or 2.4GHz and 5GHz-2 and so on) or All bands currently disabled, please check WiFi radio setting.")	//Untranslated
+							.click( function(){ redirect_page("wl_radio"); } );	
+		}
+	}
+	else{
+		$("#occur_hint").hide();
+		$("#occur_hint2").hide();
+	}
+
 	if(obj.value == "tech_ASUS"){
 		inputCtrl(document.form.fb_serviceno, 1);
 		inputCtrl(document.form.fb_tech_account, 0);
@@ -426,6 +581,21 @@ function updateUSBStatus(){
 	else{		
 		document.getElementById("storage_ready").style.display = "";
 		document.getElementById("be_lack_storage").style.display = "none";
+	}
+}
+
+function redirect_page(flag){
+
+	switch(flag) {
+		case "reboot_schedule_enable_x" :
+			document.location.href = "Advanced_System_Content.asp?af=reboot_schedule_enable_x";
+			break;
+		case "wl_radio" :
+			document.location.href = "Advanced_WAdvanced_Content.asp?af=wl_radio";
+			break;
+		case "wl_timesched" :
+			document.location.href = "Advanced_WAdvanced_Content.asp?af=wl_timesched";
+			break;
 	}
 }
 
@@ -468,7 +638,9 @@ function applyRule(){
 				document.form.fb_attach_iptables.value = 1;
 			else
 				document.form.fb_attach_iptables.value = 0;
-		}	
+
+			document.form.fb_availability.value = (document.form.fb_availability.value=="No_selected")?"":document.form.fb_availability.value;
+		}
                 
 		if(document.form.fb_email.value == ""){
 			if(!confirm("<#feedback_email_confirm#>")){
@@ -484,16 +656,42 @@ function applyRule(){
 			}
 		}
 		
-		//validate phone
-		if(document.form.fb_phone.value.length > 0 && (document.form.fb_phone.value.length < 9 || !validator.integer(document.form.fb_phone.value)) ){
-			alert("<#feedback_phone_alert#>");		
-			document.form.fb_phone.focus();
-			return false;
+		//validate contact info
+		if(is_CN_sku){
+			if(document.form.fb_contact_type.value != "No_selected" && document.form.fb_phone.value.length == 0){
+				alert("<#JS_fieldblank#>");
+				document.form.fb_phone.focus();
+				return false;
+			}
+
+			if(document.form.fb_contact_type.value == "phone"){
+				if(!validator.phone_CN(document.form.fb_phone, "both"))
+				{
+					alert("<#feedback_phone_alert#>");
+					document.form.fb_phone.focus();
+					return false;
+				}
+			}
+			else if(document.form.fb_contact_type.value == "qq"){
+				if(!validator.qq(document.form.fb_phone))
+				{
+					alert("<#feedback_format_alert#>");
+					document.form.fb_phone.focus();
+					return false;
+				}
+			}
+			else{
+				if(!validator.string(document.form.fb_phone)){
+					document.form.fb_phone.focus();
+					return false;
+				}
+			}
+			document.form.fb_contact_type.value = (document.form.fb_contact_type.value=="No_selected")?"":document.form.fb_contact_type.value;
 		}
 
 		if(document.form.fb_pdesc.value == "tech_ASUS"){
 
-			var re_asus = new RegExp("^[a-zA-Z][0-9]{8,11}","gi");
+			var re_asus = new RegExp(/^[A-Za-z][A-Za-z0-9\-]+$/i);
 			var re_crs = new RegExp("^[0-9]{5}","gi");
 			var re_valid = 0;
 			document.form.fb_tech_account.disabled = "";
@@ -541,6 +739,12 @@ function applyRule(){
 			document.form.fb_transid.value = fb_trans_id;
 		}
 
+		document.form.fb_ptype.value = (document.form.fb_ptype.value=="No_selected")?"":document.form.fb_ptype.value;
+		document.form.fb_pdesc.value = (document.form.fb_pdesc.value=="No_selected")?"":document.form.fb_pdesc.value;	
+		document.form.fb_which_band.value = (document.form.fb_which_band.value=="No_selected")?"":document.form.fb_which_band.value;
+		document.form.fb_when_occur.value = (document.form.fb_when_occur.value=="No_selected")?"":document.form.fb_when_occur.value;
+		document.form.fb_unstable_conn.value = (document.form.fb_unstable_conn.value=="No_selected")?"":document.form.fb_unstable_conn.value;
+
 		//check Diagnostic
 		if(dblog_support) {
 			document.form.dblog_tousb.disabled = true;
@@ -585,9 +789,7 @@ function applyRule(){
 			httpApi.update_wlanlog();
 
 		document.form.fb_browserInfo.value = navigator.userAgent;
-
 		startLogPrep();
-
 		document.form.submit();
 }
 
@@ -664,7 +866,7 @@ function init_diag_feature() {
 		}, 1000);
 
 		var dblog_service = parseInt('<% nvram_get("dblog_service"); %>');
-		var dblog_service_mapping = ["", "Wi-Fi", "<#DM_title#>", "<#UPnPMediaServer#>", "AiMesh"];
+		var dblog_service_mapping = ["", "WiFi", "<#DM_title#>", "<#UPnPMediaServer#>", "AiMesh"];
 		var dblog_service_text = "";
 		for(var i = 1; dblog_service != 0 && i <= 4; i++) {
 			if(dblog_service & 1) {
@@ -768,13 +970,19 @@ function diag_create_duration_option() {
 		sec = _hours*60*60;
 		return sec;
 	};
-	var selectOption = "";
+	var selectOption = {};
+	var baseOption = {};
+	if(hnd_ax_675x_support) {
+		selectOption = {"1 <#Hour#>" : hour_to_sec(1)};
+	}
 	if(usb_support && $("input[name=dblog_tousb_cb]").prop("checked")) {
-		selectOption = { "12 <#Hour#>" : hour_to_sec(12), "1 <#Day#>" : hour_to_sec(24), "2 <#Day#>" : hour_to_sec(48), "3 <#Day#>" : hour_to_sec(72) };
+		baseOption = { "12 <#Hour#>" : hour_to_sec(12), "1 <#Day#>" : hour_to_sec(24), "2 <#Day#>" : hour_to_sec(48), "3 <#Day#>" : hour_to_sec(72) };
 	}
 	else {
-		selectOption = { "6 <#Hour#>" : hour_to_sec(6), "12 <#Hour#>" : hour_to_sec(12), "24 <#Hour#>" : hour_to_sec(24) };
+		baseOption = { "6 <#Hour#>" : hour_to_sec(6), "12 <#Hour#>" : hour_to_sec(12), "24 <#Hour#>" : hour_to_sec(24) };
 	}
+
+	Object.assign(selectOption, baseOption);
 
 	$.each(selectOption, function(item, value) {
 		$("select[name=dblog_duration]")
@@ -784,11 +992,48 @@ function diag_create_duration_option() {
 	});
 }
 function diag_change_service_list_all() {
+	var gen_appendix_option = function(_value, _text, _class) {
+		var $labelHtml2 = $("<label>");
+		$labelHtml2.addClass("dblog_service_item");
+		$labelHtml2.addClass(_class);
+
+		var $inputHtml2 = $('<input/>');
+		$inputHtml2.attr({"type" : "checkbox"});
+		$inputHtml2.attr({"name" : "dblog_service_list"});
+		$inputHtml2.val(_value);
+		$inputHtml2.click(function() {
+			if(this.checked) {
+				if(!confirm("This WiFi DHD Log capture requires system reboot after the feedback is sent, would you like to continue?")){	//Untranslated
+					$(".dblog_service_item.dhd").children().prop("checked", false);
+				}
+				diag_change_service_list();
+			}
+		});
+
+		$labelHtml2.append($inputHtml2);
+		$labelHtml2.append(_text);
+
+		return $labelHtml2;
+	};
+
 	if($("input[name=dblog_service_list_all]").prop("checked")) {
+		if(dhdlog_support && $(".dblog_service_item.wifi").length > 0 && $(".dblog_service_item.dhd").length == 0){
+			$(".dblog_service_item.wifi").after(gen_appendix_option(16, "Additional WiFi DHD Log", "dhd"));		//Untranslated
+		}
 		$("input[name=dblog_service_list]").prop("checked", true);
+
+		if(dhdlog_support && $(".dblog_service_item.dhd").children().prop("checked")) {
+			if(!confirm("This WiFi DHD Log capture requires system reboot after the feedback is sent, would you like to continue?")){	//Untranslated
+				$(".dblog_service_item.all").children().prop("checked", false);
+				$(".dblog_service_item.dhd").children().prop("checked", false);
+			}
+		}
 	}
 	else {
 		$("input[name=dblog_service_list]").prop("checked", false);
+		if(dhdlog_support && $(".dblog_service_item.dhd").length > 0)
+			$(".dblog_service_item.dhd").remove();
+
 	}
 }
 function diag_change_service_list() {
@@ -810,13 +1055,46 @@ function diag_tune_service_option() {
 		$inputHtml.attr({"name" : "dblog_service_list"});
 		$inputHtml.val(_value);
 		$inputHtml.click(function() {
+			if(dhdlog_support && _text=="WiFi"){
+				if(this.checked) {
+					$(".dblog_service_item.wifi").after(gen_appendix_option(16, "Additional WiFi DHD Log", "dhd"));		//Untranslated
+				}else{
+					$(".dblog_service_item.dhd").remove();
+				}
+			}
 			diag_change_service_list();
 		});
+
 		$labelHtml.append($inputHtml);
 		$labelHtml.append(_text);
 
 		return $labelHtml;
 	};
+
+	var gen_appendix_option = function(_value, _text, _class) {
+		var $labelHtml2 = $("<label>");
+		$labelHtml2.addClass("dblog_service_item");
+		$labelHtml2.addClass(_class);
+
+		var $inputHtml2 = $('<input/>');
+		$inputHtml2.attr({"type" : "checkbox"});
+		$inputHtml2.attr({"name" : "dblog_service_list"});
+		$inputHtml2.val(_value);
+		$inputHtml2.click(function() {
+			if(this.checked) {
+				if(!confirm("This WiFi DHD Log capture requires system reboot after the feedback is sent, would you like to continue?")){	//Untranslated
+					$(".dblog_service_item.dhd").children().prop("checked", false);
+				}
+			}
+			diag_change_service_list();
+		});
+
+		$labelHtml2.append($inputHtml2);
+		$labelHtml2.append(_text);
+
+		return $labelHtml2;
+	};
+
 	if(amesh_support && (isSwMode("rt") || isSwMode("ap")) && ameshRouter_support) {
 		if($(".dblog_service_item.AiMesh").length == 0)
 			$(".dblog_service_item.all").after(gen_service_option(8, "AiMesh", "AiMesh"));
@@ -834,7 +1112,7 @@ function diag_tune_service_option() {
 	}
 
 	if($(".dblog_service_item.wifi").length == 0)
-		$(".dblog_service_item.all").after(gen_service_option(1, "Wi-Fi", "wifi"));
+		$(".dblog_service_item.all").after(gen_service_option(1, "WiFi", "wifi"));
 }
 function dblog_stop() {
 	showLoading(3);
@@ -954,6 +1232,14 @@ function CheckFBSize(){
 		}
 	});
 }
+
+function detect_fb_state(){
+	var fb_state = httpApi.nvramGet(["fb_state"], true).fb_state;
+	if(fb_state == "0")
+		setTimeout("detect_fb_state();", 5000);
+	else
+		top.location.href="Advanced_Feedback.asp";
+}
 </script>
 </head>
 <body onload="initial();" onunLoad="return unload_body();" class="bg">
@@ -1020,7 +1306,7 @@ function CheckFBSize(){
 <div style="margin:10px 0 10px 5px;" class="splitLine"></div>
 <div id="fb_desc0" class="formfontdesc" style="display:none;"><#Feedback_desc0#></div>
 <div id="fb_desc1" class="formfontdesc" style="display:none;"><#Feedback_desc1#></div>
-<div id="fb_desc_disconnect" class="formfontdesc" style="display:none;color:#FC0;"><#Feedback_desc_disconnect#> <a href="mailto:router_feedback@asus.com?Subject=<%nvram_get("productid");%>" target="_top" style="color:#FFCC00;">router_feedback@asus.com</a></div>
+<div id="fb_desc_disconnect" class="formfontdesc hint-color" style="display:none;"><#Feedback_desc_disconnect#> <a class="hint-color" href="mailto:router_feedback@asus.com?Subject=<%nvram_get("productid");%>" target="_top">router_feedback@asus.com</a></div>
 <table width="100%" border="1" align="center" cellpadding="4" cellspacing="0" bordercolor="#6b8fa3" class="FormTable">
 <tr>
 <th width="30%"><#feedback_country#> *</th>
@@ -1063,12 +1349,12 @@ function CheckFBSize(){
 </td>
 </tr>
 
-<th><#feedback_phone#></th>
+<th><#feedback_contact_info#> *</th>
 <td>
-	<input type="text" name="fb_phone" maxlength="12" class="input_15_table" onKeyPress="return validator.isNumber(this,event);" value="" autocorrect="off" autocapitalize="off">	
+	<select class="input_option" name="fb_contact_type"></select>
+	<input type="text" name="fb_phone" maxlength="50" class="input_25_table" value="" autocorrect="off" autocapitalize="off">	
 </td>
 </tr>
-
 <tr>
 <th><#feedback_extra_info#> *</th>
 <td>
@@ -1086,8 +1372,8 @@ function CheckFBSize(){
 		<input type="radio" name="dslx_diag_enable" class="input" value="1" onclick="change_dsl_diag_enable(1);"><#checkbox_Yes#>
 		<input type="radio" name="dslx_diag_enable" class="input" value="0" onclick="change_dsl_diag_enable(0);" checked><#checkbox_No#>
 		<br>	
-		<span id="storage_ready" style="display:none;color:#FC0">* <#USB_ready#></span>
-		<span id="be_lack_storage" style="display:none;color:#FC0">* <#no_usb_found#></span>
+		<span id="storage_ready" class="hint-color" style="display:none;">* <#USB_ready#></span>
+		<span id="be_lack_storage" class="hint-color" style="display:none;">* <#no_usb_found#></span>
 	</td>
 </tr>
 
@@ -1100,6 +1386,7 @@ function CheckFBSize(){
 			<option value="18000">5 <#Hour#></option>
 			<option value="43200">12 <#Hour#></option>
 			<option value="86400">24 <#Hour#></option>
+			<option value="172800">48 <#Hour#></option>
 		</select>
 	</td>
 </tr>
@@ -1110,8 +1397,8 @@ function CheckFBSize(){
 		<div class="dblog_disabled_status">
 			<input type='radio' name='dblog_enable' id='dblog_status_en' value="1" onclick="diag_change_dblog_status();"><label for='dblog_status_en'><#checkbox_Yes#></label>
 			<input type='radio' name='dblog_enable' id='dblog_status_dis' value="0" onclick="diag_change_dblog_status();" checked><label for='dblog_status_dis'><#checkbox_No#></label>
-			<label class="storeUSBHint"><input type="checkbox" name="dblog_tousb_cb" value="1" onclick="diag_change_storeUSB();" checked><#feedback_debug_log_inDisk#></label>
-			<span class="noUSBHint">* <#no_usb_found#></span>
+			<label class="storeUSBHint hint-color"><input type="checkbox" name="dblog_tousb_cb" value="1" onclick="diag_change_storeUSB();" checked><#feedback_debug_log_inDisk#></label>
+			<span class="noUSBHint hint-color">* <#no_usb_found#></span>
 		</div>
 		<div class="dblog_enabled_status">
 			<span>* <#feedback_current_capturing#></span>
@@ -1147,7 +1434,7 @@ function CheckFBSize(){
 <th><#feedback_connection_type#></th>
 <td>
 	<select class="input_option" name="fb_availability">
-		<option value="Not_selected"><#Select_menu_default#> ...</option>
+		<option value="No_selected"><#Select_menu_default#> ...</option>
 		<option value="Stable_connection"><#feedback_stable#></option>
 		<option value="Occasional_interruptions"><#feedback_Occasion_interrupt#></option>
 		<option value="Frequent_interruptions"><#feedback_Frequent_interrupt#></option>
@@ -1174,10 +1461,39 @@ function CheckFBSize(){
 </td>
 </tr>
 
+<tr class="which_band_tr" style="display:none;">
+<th><a class="hintstyle" href="javascript:void(0);" onClick=""><#feedback_which_band#></a></th>
+<td>
+	<select class="input_option" name="fb_which_band" onChange="">
+		
+	</select>
+</td>
+</tr>
+
+<tr class="when_occur_tr" style="display:none;">
+<th><a class="hintstyle" href="javascript:void(0);" onClick=""><#feedback_when_occur#></a></th>
+<td>
+	<select class="input_option" name="fb_when_occur" onChange="">
+		
+	</select>
+	<span id="occur_hint" class="hint-color" style="display:none;"></span>
+	<span id="occur_hint2" class="hint-color" style="display:none;"></span>
+</td>
+</tr>
+
+<tr class="unstable_conn_tr" style="display:none;">
+<th><a class="hintstyle" href="javascript:void(0);" onClick=""><#feedback_issue_WiFiorWAN#></a></th>
+<td>
+	<select class="input_option" name="fb_unstable_conn" onChange="">
+		
+	</select>
+</td>
+</tr>
+
 <tr style="display:none;">
 <th><a class="hintstyle" href="javascript:void(0);" onClick="openHint(34,2);"><#ASUS_Service_No#></a></th>
 <td>
-	<input type="text" name="fb_serviceno" maxlength="11" class="input_15_table" value="" autocorrect="off" autocapitalize="off">
+	<input type="text" name="fb_serviceno" maxlength="32" class="input_20_table" value="" autocorrect="off" autocapitalize="off">
 </td>
 </tr>
 
@@ -1194,7 +1510,7 @@ function CheckFBSize(){
 	</th>
 	<td>
 		<textarea name="fb_comment" maxlength="2000" cols="55" rows="8" class="textarea_ssh_table" style="font-family:'Courier New', Courier, mono; font-size:13px;" onKeyDown="textCounter(this,document.form.msglength,2000);" onKeyUp="textCounter(this,document.form.msglength,2000)"></textarea>
-		<span style="color:#FC0"><#feedback_max_counts#> : </span>
+		<span class="hint-color"><#feedback_max_counts#> : </span>
 		<input type="text" class="input_6_table" name="msglength" id="msglength" maxlength="4" value="2000" autocorrect="off" autocapitalize="off" readonly>
 	</td>
 </tr>
@@ -1205,7 +1521,8 @@ function CheckFBSize(){
 			<div style="float: left;"><input type="checkbox" name="eula_checkbox"/></div>
 			<div id="eula_content" style="margin-left: 20px;"><#feedback_eula#></div>
 		</div>
-		<input class="button_gen" style="margin-left: 305px; margin-top:5px;" name="btn_send" onclick="applyRule()" type="button" value="<#btn_send#>"/>
+		<input id="apply_button" class="button_gen" style="margin-left: 305px; margin-top:5px;" name="btn_send" onclick="applyRule()" type="button" value="<#btn_send#>"/>
+		<div  id="loadingIcon" style="display:none;"><div class="loadingIcon" style="float: left; margin-left: 305px; margin-top:5px;"></div><div style="float: left; margin-left: 15px; margin-top:10px;"><span class="hint-color"><#Main_alert_processing#>...</span></div></div>
 	</td>
 </tr>
 
@@ -1213,7 +1530,7 @@ function CheckFBSize(){
 	<td colspan="2">
 		<strong><#FW_note#></strong>
 		<ul>
-			<li><#feedback_note4#><br><a style="font-weight: bolder;text-decoration:underline;cursor:pointer;" href="https://www.asus.com/support/CallUs/" target="_blank">https://www.asus.com/support/CallUs/</a></li>
+			<li><#feedback_note4#><br><a id="call_link" style="font-weight: bolder;text-decoration:underline;cursor:pointer;" href="" target="_blank">https://www.asus.com/support/CallUs/</a></li>
 		</ul>
 	</td>
 </tr>	

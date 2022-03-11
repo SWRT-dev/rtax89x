@@ -29,6 +29,9 @@
 #define GLOBAL_I_INI		GLOBAL_INI_TOPDIR "/internal/global_i.ini"
 #define QCA8074_I_INI		GLOBAL_INI_TOPDIR "/internal/QCA8074_i.ini"
 #define QCA8074V2_I_INI		GLOBAL_INI_TOPDIR "/internal/QCA8074V2_i.ini"
+#if defined(RTCONFIG_SOC_IPQ60XX)
+#define QCA6018_I_INI		GLOBAL_INI_TOPDIR "/internal/QCA6018_i.ini"
+#endif
 #define CNSS2_SYSFS_COLDBOOT	"/sys/module/cnss2/parameters/cold_boot_support"
 #define CNSS2_SYSFS_DAEMON	"/sys/module/cnss2/parameters/daemon_support"
 
@@ -122,7 +125,7 @@ typedef struct _WLANCONFIG_LIST {
 
 #if defined(RTCONFIG_WIFI_QCA9990_QCA9990) || \
     defined(RTCONFIG_WIFI_QCA9994_QCA9994) || \
-    defined(RTCONFIG_WIFI_QCN5024_QCN5054)
+    (defined(RTCONFIG_WIFI_QCN5024_QCN5054) && !defined(RTCONFIG_SOC_IPQ60XX))
 #define MAX_STA_NUM 512
 #else
 #define MAX_STA_NUM 256
@@ -380,6 +383,20 @@ enum ASUS_IOCTL_SUBCMD {
 #define ETH0_MAC_OFFSET			0x1014	/* 2G+5G EEPROM, second set of MAC address. */
 #define ETH1_MAC_OFFSET			0x100E	/* 2G+5G EEPROM, first set of MAC address. */
 
+#elif defined(RTCONFIG_SOC_IPQ60XX)
+#define ETH0_MAC_OFFSET			0x1014	/* 2G+5G EEPROM, second set of MAC address. */
+#define ETH1_MAC_OFFSET			0x100E	/* 2G+5G EEPROM, first set of MAC address. */
+
+#elif defined(RTCONFIG_SOC_IPQ50XX)
+#define ETH0_MAC_OFFSET			0x100E			/* 2G   EEPROM, first set of MAC address. */
+#if defined(ETJ)
+#define ETH2_MAC_OFFSET			(0x25800+0x100E)	/* 6G EEPROM, first set of MAC address. */
+#define ETH1_MAC_OFFSET			(0x4B000+0x100E)	/* 5G EEPROM, first set of MAC address. */
+#else
+#define ETH1_MAC_OFFSET			(0x25800+0x100E)	/* 5G-1 EEPROM, first set of MAC address. */
+#define ETH2_MAC_OFFSET			(0x4B000+0x100E)	/* 2G-2 EEPROM, first set of MAC address. */
+#endif
+
 #else
 #error Define MAC address offset.
 #endif
@@ -394,8 +411,19 @@ enum ASUS_IOCTL_SUBCMD {
  * ASUSWRT parameters in 0x40000 ~ (0x40000 + 0x1000 - 1) on QCN50X4
  * Wi-Fi  platform.
  */
+#if defined(RTCONFIG_SOC_IPQ60XX)
+#define FTRY_PARM_SHIFT			(0xF000)
+#else /* IPQ70xx */
 #define FTRY_PARM_SHIFT			(0x40000)
-#else
+#endif // end of RTCONFIG_SOC_IPQ60XX
+
+#elif defined(RTCONFIG_SOC_IPQ60XX)
+#define FTRY_PARM_SHIFT			(0xF000)
+
+#elif defined(RTCONFIG_SOC_IPQ50XX)
+#define FTRY_PARM_SHIFT			(0x5F800)  /* (150KB * 3) - (16KB + 0xD000) */
+
+#else /* Non QCN50XX, Legacy */
 #define FTRY_PARM_SHIFT			(0)
 #endif
 
@@ -458,7 +486,22 @@ enum ASUS_IOCTL_SUBCMD {
  */
 #define OFFSET_MAC_ADDR_2G		(MTD_FACTORY_BASE_ADDRESS + ETH0_MAC_OFFSET)	/* GMAC0 MAC address, out of EEPROM */
 #define OFFSET_MAC_ADDR			(MTD_FACTORY_BASE_ADDRESS + ETH1_MAC_OFFSET)	/* MAC address in 2G+5G EEPROM */
+#if defined(RTCONFIG_SOC_IPQ60XX)
+#define	QCN50X4_EEPROM_SIZE		65536
+#else // @RTCONFIG_SOC_IPQ60XX
 #define	QCN50X4_EEPROM_SIZE		131072
+#endif
+
+#elif defined(RTCONFIG_SOC_IPQ60XX)
+#define OFFSET_MAC_ADDR_2G		(MTD_FACTORY_BASE_ADDRESS + ETH0_MAC_OFFSET)	/* GMAC0 MAC address, out of EEPROM */
+#define OFFSET_MAC_ADDR			(MTD_FACTORY_BASE_ADDRESS + ETH1_MAC_OFFSET)	/* MAC address in 2G+5G EEPROM */
+#define	QCN50X4_EEPROM_SIZE		65536
+
+#elif defined(RTCONFIG_SOC_IPQ50XX)
+#define OFFSET_MAC_ADDR_2G		(MTD_FACTORY_BASE_ADDRESS + ETH0_MAC_OFFSET)	/* GMAC0 MAC address, out of EEPROM */
+#define OFFSET_MAC_ADDR			(MTD_FACTORY_BASE_ADDRESS + ETH1_MAC_OFFSET)	/* MAC address in 2G+5G EEPROM */
+#define OFFSET_MAC_ADDR_5G_2		(MTD_FACTORY_BASE_ADDRESS + ETH2_MAC_OFFSET)
+#define	QCN90XX_EEPROM_SIZE		131072
 
 #else
 #error Define EEPROM offset and size
@@ -514,6 +557,13 @@ enum ASUS_IOCTL_SUBCMD {
 #define OFFSET_AVGUPTIME		(MTD_FACTORY_BASE_ADDRESS + FTRY_PARM_SHIFT + 0x0D310)	// 4 byte, uint32_t, little-endian
 #endif
 
+#if defined(RTCONFIG_ASUSCTRL)
+#define OFFSET_ASUSCTRL_FLAGS		(MTD_FACTORY_BASE_ADDRESS + FTRY_PARM_SHIFT + 0x0FEC0)  /*  8 bytes */
+#define ASUSCTRL_FLAGS_LENGTH		(8)
+#define OFFSET_ASUSCTRL_CHG_SKU		(MTD_FACTORY_BASE_ADDRESS + FTRY_PARM_SHIFT + 0x0FEC8)  /*  2 bytes */
+#define ASUSCTRL_CHG_SKU_LENGTH		(2)
+#endif
+#define OFFSET_SERIAL_NUMBER32		(MTD_FACTORY_BASE_ADDRESS + FTRY_PARM_SHIFT + 0x0FED0)  /*  32 bytes */
 #define OFFSET_IPADDR_LAN               (MTD_FACTORY_BASE_ADDRESS + FTRY_PARM_SHIFT + 0x0FEF0)
 
 #define OFFSET_HWID			(MTD_FACTORY_BASE_ADDRESS + FTRY_PARM_SHIFT + 0x0FF00)  /*  4 bytes */
@@ -535,7 +585,7 @@ enum ASUS_IOCTL_SUBCMD {
 #define OFFSET_FAIL_RET			(MTD_FACTORY_BASE_ADDRESS + FTRY_PARM_SHIFT + 0x0FFC0)
 #define OFFSET_FAIL_BOOT_LOG		(MTD_FACTORY_BASE_ADDRESS + FTRY_PARM_SHIFT + 0x0FFD0)	//bit operation for max 100
 #define OFFSET_FAIL_DEV_LOG		(MTD_FACTORY_BASE_ADDRESS + FTRY_PARM_SHIFT + 0x0FFE0)	//bit operation for max 100
-#define OFFSET_SERIAL_NUMBER		(MTD_FACTORY_BASE_ADDRESS + FTRY_PARM_SHIFT + 0x0FFF0)
+#define OFFSET_SERIAL_NUMBER		(MTD_FACTORY_BASE_ADDRESS + FTRY_PARM_SHIFT + 0x0FFF0)  /*  16 bytes */
 
 /*
  * EEPROM definitions of each band.
@@ -566,6 +616,20 @@ enum ASUS_IOCTL_SUBCMD {
 #define QCA_5G_EEPROM_CSUM_OFFSET	(0xa)
 #define QCA_2G_EEPROM_SIZE		(QCN50X4_EEPROM_SIZE)
 #define QCA_5G_EEPROM_SIZE		(QCN50X4_EEPROM_SIZE)
+
+#elif defined(RTCONFIG_SOC_IPQ60XX)
+#define QCA_2G_EEPROM_CSUM_OFFSET	(0xa)
+#define QCA_5G_EEPROM_CSUM_OFFSET	(0xa)
+#define QCA_2G_EEPROM_SIZE		(QCN50X4_EEPROM_SIZE)
+#define QCA_5G_EEPROM_SIZE		(QCN50X4_EEPROM_SIZE)
+
+#elif defined(RTCONFIG_SOC_IPQ50XX)
+#define QCA_2G_EEPROM_CSUM_OFFSET	(0xa)
+#define QCA_5G_EEPROM_CSUM_OFFSET	(0xa)
+#define QCA_5G2_EEPROM_CSUM_OFFSET	(0xa)
+#define QCA_2G_EEPROM_SIZE		(QCN90XX_EEPROM_SIZE)
+#define QCA_5G_EEPROM_SIZE		(QCN90XX_EEPROM_SIZE)
+#define QCA_5G2_EEPROM_SIZE		(QCN90XX_EEPROM_SIZE)
 
 #endif
 
@@ -601,6 +665,10 @@ enum ASUS_IOCTL_SUBCMD {
 #define MII_IFNAME	"switch0"
 #elif defined(RTCONFIG_QCA953X) || defined(RTCONFIG_SOC_IPQ40XX)
 #define MII_IFNAME	"eth1"
+#elif defined(RTCONFIG_SOC_IPQ60XX)
+#define MII_IFNAME	"eth0"
+#elif defined(RTCONFIG_SOC_IPQ50XX)
+#define MII_IFNAME	"eth1"	/* SGMII+ */
 #else
 #error Define MII_IFNAME interface!
 #endif
@@ -645,11 +713,32 @@ typedef struct {
 #elif defined(RTCONFIG_WIFI_QCN5024_QCN5054)
 /* 2G and 5G share same boarddata. */
 #define BD_2G_PREFIX	"bdwlan"
+#if defined(RTCONFIG_SOC_IPQ60XX) // SPF11.0 depends on QCN5024_QCN5054
+#define BD_2G_CHIP_DIR	"IPQ6018"
+#else // @RTCONFIG_SOC_IPQ60XX
 #define BD_2G_CHIP_DIR	"IPQ8074"
+#endif
 #define BD_2G_HW_DIR	"."
 #define BD_5G_PREFIX	BD_2G_PREFIX
 #define BD_5G_CHIP_DIR	BD_2G_CHIP_DIR
 #define BD_5G_HW_DIR	BD_2G_HW_DIR
+#elif defined(RTCONFIG_SOC_IPQ60XX)  // SPF11.4 separate from QCN5024_QCN5054
+#define BD_2G_PREFIX	"bdwlan"
+#define BD_2G_CHIP_DIR	"IPQ6018"
+#define BD_2G_HW_DIR	"."
+#define BD_5G_PREFIX	BD_2G_PREFIX
+#define BD_5G_CHIP_DIR	BD_2G_CHIP_DIR
+#define BD_5G_HW_DIR	BD_2G_HW_DIR
+#elif defined(RTCONFIG_SOC_IPQ50XX)
+#define BD_2G_PREFIX	"bdwlan"
+#define BD_5G_PREFIX	"bdwlan"
+#define BD_5G2_PREFIX	"bdwlan"
+#define BD_2G_CHIP_DIR	"IPQ5018"
+#define BD_2G_HW_DIR	"."
+#define BD_5G_CHIP_DIR	"qcn9000"
+#define BD_5G_HW_DIR	"."
+#define BD_5G2_CHIP_DIR	"qcn9100"
+#define BD_5G2_HW_DIR	"."
 #elif defined(RTAC58U) || defined(VZWAC1300) || defined(SHAC1300) || defined(RT4GAC53U)
 #define BD_2G_PREFIX	"boardData_1_0_IPQ4019_Y9803_wifi0"
 #define BD_5G_PREFIX	"boardData_1_0_IPQ4019_Y9803_wifi1"
@@ -729,6 +818,10 @@ extern int get_integer_parameter_from_ini_file(const char *param_name, int *para
 extern int get_channf(int band, const char *ifname);
 extern int __get_qca_sta_info_by_ifname(const char *ifname, char subunit_id, int (*handler)(const WLANCONFIG_LIST *rptr, void *arg), void *arg);
 extern int get_qca_sta_info_by_ifname(const char *ifname, char subunit_id, WIFI_STA_TABLE *sta_info);
+#if defined(RTCONFIG_AMAS_WGN)
+extern char* get_all_lan_ifnames(void);
+extern int check_vlan_invalid(char *word,char *iface);
+#endif
 
 #if defined(RTCONFIG_WIFI_QCA9990_QCA9990) \
  || defined(RTCONFIG_WIFI_QCA9994_QCA9994) \

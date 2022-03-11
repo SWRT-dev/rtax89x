@@ -2082,14 +2082,15 @@ int generate_sharelink( server* srv,
 			
 			//- check file is exist.
 			buffer* buffer_file_path = buffer_init();
-                        buffer_copy_buffer(buffer_file_path, buffer_real_url);
-                        buffer_append_string(buffer_file_path, "/");
-                        buffer_append_string(buffer_file_path, pch);
-                        buffer_urldecode_path(buffer_file_path);
+            buffer_copy_buffer(buffer_file_path, buffer_real_url);
+            buffer_append_string(buffer_file_path, "/");
+            buffer_append_string(buffer_file_path, pch);
+            buffer_urldecode_path(buffer_file_path);
 
 			if(con->mode == SMB_BASIC || con->mode == SMB_NTLM){
 				struct stat st;
-				if (-1 == smbc_wrapper_stat(con, buffer_file_path->ptr, &st)) {
+				// if (-1 == smbc_wrapper_stat(con, buffer_file_path->ptr, &st)) {
+				if (-1 == smbc_wrapper_stat(con, con->url.path->ptr, &st)) {
 					buffer_free(buffer_real_url);
 					buffer_free(buffer_file_path);
 

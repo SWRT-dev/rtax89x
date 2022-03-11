@@ -36,7 +36,7 @@
 		//alert("<#FIRM_fail_desc#>");
 		parent.confirm_asus({
 			title: "Invalid Firmware Upload",
-			contentA: "Firmware upgrade unsuccessful. This might result from incorrect image or error transmission, please check the model name "+ parent.support_site_modelid +" and version of firmware from <a href=\"https://www.asus.com/support/\" target=\"_blank\">support site</a> and try again.<br>",		/* untranslated */
+			contentA: "<#FIRM_fail_desc#><br><#FW_desc1#><br>",
 			left_button: "",
 			left_button_callback: function(){},
 			left_button_args: {},

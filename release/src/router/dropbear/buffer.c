@@ -39,44 +39,30 @@
 
 /* Create (malloc) a new buffer of size */
 buffer* buf_new(unsigned int size) {
-
 	buffer* buf;
-	
 	if (size > BUF_MAX_SIZE) {
 		dropbear_exit("buf->size too big");
 	}
 
 	buf = (buffer*)m_malloc(sizeof(buffer)+size);
-
-	if (size > 0) {
-		buf->data = (unsigned char*)buf + sizeof(buffer);
-	} else {
-		buf->data = NULL;
-	}
-
+	buf->data = (unsigned char*)buf + sizeof(buffer);
 	buf->size = size;
-
 	return buf;
-
 }
 
 /* free the buffer's data and the buffer itself */
 void buf_free(buffer* buf) {
-
 	m_free(buf);
 }
 
 /* overwrite the contents of the buffer to clear it */
 void buf_burn(const buffer* buf) {
-	
 	m_burn(buf->data, buf->size);
-
 }
 
 /* resize a buffer, pos and len will be repositioned if required when
  * downsizing */
 buffer* buf_resize(buffer *buf, unsigned int newsize) {
-
 	if (newsize > BUF_MAX_SIZE) {
 		dropbear_exit("buf->size too big");
 	}
@@ -139,16 +125,21 @@ void buf_incrwritepos(buffer* buf, unsigned int incr) {
 	}
 }
 
-/* increment the position by incr, negative values are allowed, to
- * decrement the pos*/
-void buf_incrpos(buffer* buf,  int incr) {
+/* increment the position by incr */
+void buf_incrpos(buffer* buf, unsigned int incr) {
 	if (incr > BUF_MAX_INCR 
-		|| incr < -BUF_MAX_INCR 
-		|| (unsigned int)((int)buf->pos + incr) > buf->len
-		|| ((int)buf->pos + incr) < 0) {
+		|| (buf->pos + incr) > buf->len) {
 		dropbear_exit("Bad buf_incrpos");
 	}
 	buf->pos += incr;
+}
+
+/* decrement the position by decr */
+void buf_decrpos(buffer* buf, unsigned int decr) {
+	if (decr > buf->pos) {
+		dropbear_exit("Bad buf_decrpos");
+	}
+	buf->pos -= decr;
 }
 
 /* Get a byte from the buffer and increment the pos */
@@ -228,17 +219,35 @@ char* buf_getstring(buffer* buf, unsigned int *retlen) {
 }
 
 /* Return a string as a newly allocated buffer */
-buffer * buf_getstringbuf(buffer *buf) {
+static buffer * buf_getstringbuf_int(buffer *buf, int incllen) {
 	buffer *ret = NULL;
 	unsigned int len = buf_getint(buf);
+	int extra = 0;
 	if (len > MAX_STRING_LEN) {
 		dropbear_exit("String too long");
 	}
-	ret = buf_new(len);
+	if (incllen) {
+		extra = 4;
+	}
+	ret = buf_new(len+extra);
+	if (incllen) {
+		buf_putint(ret, len);
+	}
 	memcpy(buf_getwriteptr(ret, len), buf_getptr(buf, len), len);
 	buf_incrpos(buf, len);
 	buf_incrlen(ret, len);
+	buf_setpos(ret, 0);
 	return ret;
+}
+
+/* Return a string as a newly allocated buffer */
+buffer * buf_getstringbuf(buffer *buf) {
+	return buf_getstringbuf_int(buf, 0);
+}
+
+/* Returns a string in a new buffer, including the length */
+buffer * buf_getbuf(buffer *buf) {
+	return buf_getstringbuf_int(buf, 1);
 }
 
 /* Just increment the buffer position the same as if we'd used buf_getstring,
@@ -289,18 +298,18 @@ void buf_putbytes(buffer *buf, const unsigned char *bytes, unsigned int len) {
 /* for our purposes we only need positive (or 0) numbers, so will
  * fail if we get negative numbers */
 void buf_putmpint(buffer* buf, mp_int * mp) {
-
+	size_t written;
 	unsigned int len, pad = 0;
 	TRACE2(("enter buf_putmpint"))
 
 	dropbear_assert(mp != NULL);
 
-	if (SIGN(mp) == MP_NEG) {
+	if (mp_isneg(mp)) {
 		dropbear_exit("negative bignum");
 	}
 
 	/* zero check */
-	if (USED(mp) == 1 && DIGIT(mp, 0) == 0) {
+	if (mp_iszero(mp)) {
 		len = 0;
 	} else {
 		/* SSH spec requires padding for mpints with the MSB set, this code
@@ -321,10 +330,10 @@ void buf_putmpint(buffer* buf, mp_int * mp) {
 		if (pad) {
 			buf_putbyte(buf, 0x00);
 		}
-		if (mp_to_unsigned_bin(mp, buf_getwriteptr(buf, len-pad)) != MP_OKAY) {
+		if (mp_to_ubin(mp, buf_getwriteptr(buf, len-pad), len-pad, &written) != MP_OKAY) {
 			dropbear_exit("mpint error");
 		}
-		buf_incrwritepos(buf, len-pad);
+		buf_incrwritepos(buf, written);
 	}
 
 	TRACE2(("leave buf_putmpint"))
@@ -352,7 +361,7 @@ int buf_getmpint(buffer* buf, mp_int* mp) {
 		return DROPBEAR_FAILURE;
 	}
 
-	if (mp_read_unsigned_bin(mp, buf_getptr(buf, len), len) != MP_OKAY) {
+	if (mp_from_ubin(mp, buf_getptr(buf, len), len) != MP_OKAY) {
 		return DROPBEAR_FAILURE;
 	}
 

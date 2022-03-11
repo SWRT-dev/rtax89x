@@ -101,6 +101,7 @@ typedef struct _WPS_CONFIGURED_VALUE {
 extern u_int ieee80211_mhz2ieee(u_int freq);
 extern int get_channel_list_via_driver(int unit, char *buffer, int len);
 extern int get_channel_list_via_country(int unit, const char *country_code, char *buffer, int len);
+extern int get_channel(const char *ifname);
 
 #define WL_A		(1U << 0)
 #define WL_B		(1U << 1)
@@ -376,55 +377,6 @@ char *getAPPhyMode(int unit)
 	return r;
 }
 
-static unsigned int getAPChannelbyIface(const char *ifname)
-{
-	char buf[8192];
-	FILE *fp;
-	int len, i = 0;
-	char *pt1, *pt2, ch_mhz[10], ch_mhz_t[10];
-
-	if (!ifname || *ifname == '\0') {
-		dbg("%S: got invalid ifname %p\n", __func__, ifname);
-		return 0;
-	}
-
-	snprintf(buf, sizeof(buf), "iwconfig %s", ifname);
-	fp = popen(buf, "r");
-	if (fp) {
-		memset(buf, 0, sizeof(buf));
-		len = fread(buf, 1, sizeof(buf), fp);
-		pclose(fp);
-		if (len > 1) {
-			buf[len-1] = '\0';
-			pt1 = strstr(buf, "Frequency:");
-			if (pt1) {
-				pt2 = pt1 + strlen("Frequency:");
-				pt1 = strstr(pt2, " GHz");
-				if (pt1) {
-					*pt1 = '\0';
-					memset(ch_mhz, 0, sizeof(ch_mhz));
-					len = strlen(pt2);
-					for (i = 0; i < 5; i++) {
-						if (i < len) {
-							if (pt2[i] == '.')
-								continue;
-							snprintf(ch_mhz_t, sizeof(ch_mhz), "%s%c", ch_mhz, pt2[i]);
-							strlcpy(ch_mhz, ch_mhz_t, sizeof(ch_mhz));
-						}
-						else{
-							snprintf(ch_mhz_t, sizeof(ch_mhz), "%s0", ch_mhz);
-							strlcpy(ch_mhz, ch_mhz_t, sizeof(ch_mhz));
-						}
-					}
-					//dbg("Frequency:%s MHz\n", ch_mhz);
-					return ieee80211_mhz2ieee((unsigned int)safe_atoi(ch_mhz));
-				}
-			}
-		}
-	}
-	return 0;
-}
-
 static unsigned int getAPChannelbyIWInfo(const char *ifname)
 {
 	int r;
@@ -463,7 +415,7 @@ unsigned int getAPChannel(int unit)
 	case WL_2G_BAND:	/* fall-through */
 	case WL_5G_BAND:	/* fall-through */
 	case WL_5G_2_BAND:
-		r = getAPChannelbyIface(get_wifname(unit));
+		r = get_channel(get_wifname(unit));
 		break;
 	case WL_60G_BAND:
 		/* FIXME */
@@ -667,6 +619,75 @@ static void getVAPBitRate(int unit, char *ifname, char *buf, size_t buf_len)
 	case WL_60G_BAND:
 		/* FIXME */
 		__getAPBitRateIW(unit, ifname, buf, buf_len);
+		break;
+#endif
+	default:
+		dbg("%s: Unknown wl%d band!\n", __func__, unit);
+	}
+}
+
+static int __getAPBandwidth(const char *ifname, char *buf, size_t buf_len)
+{
+	char *m, mode[32] = "";
+
+	if (!ifname || !buf || !buf_len)
+		return -1;
+
+	*buf = '\0';
+	m = iwpriv_get(ifname, "get_mode");
+	if (!m)
+		return -1;
+
+	/* Ref to phymode_strings of qca-wifi driver.
+	 * "AUTO", "11A", "11B", "11G", "FH", "TA", "TG",
+	 * "11NGHT20", "11NAHT20", "11ACVHT20", "11AXA_HE20", "11AXG_HE20",
+	 * "11NGHT40PLUS", "11NGHT40MINUS", "11NGHT40", "11AXG_HE40MINUS", "11AXG_HE40",
+	 * "11NAHT40PLUS", "11NAHT40MINUS", "11NAHT40",
+	 * "11ACVHT40PLUS", "11ACVHT40MINUS", "11ACVHT40",
+	 * "11AXA_HE40PLUS", "11AXA_HE40MINUS", "11AXG_HE40PLUS", "11AXA_HE40",
+	 * "11ACVHT80", "11AXA_HE80",
+	 * "11ACVHT160", "11AXA_HE160",
+	 * "11ACVHT80_80", "11AXA_HE80_80"
+	 */
+	strlcpy(mode, m, sizeof(mode));
+	if (strstr(mode, "HE160") || strstr(mode, "VHT160"))
+		strlcpy(buf, "160", buf_len);
+	else if (strstr(mode, "HE80_80") || strstr(mode, "VHT80_80"))
+		strlcpy(buf, "80+80", buf_len);
+	else if (strstr(mode, "HE80") || strstr(mode, "VHT80"))
+		strlcpy(buf, "80", buf_len);
+	else if (strstr(mode, "HT40") || strstr(mode, "HE40"))
+		strlcpy(buf, "40", buf_len);
+	else if (strstr(mode, "HT20") || strstr(mode, "HE20")
+	     ||  !strcmp(mode, "AUTO") || !strcmp(mode, "11A") || !strcmp(mode, "11B")
+	     ||  !strcmp(mode, "11G") || !strcmp(mode, "FH") || !strcmp(mode, "TA") || !strcmp(mode, "TG"))
+		strlcpy(buf, "20", buf_len);
+	else {
+		dbg("%s: Unknown mode [%s]\n", __func__, mode);
+		strlcpy(buf, "20", buf_len);
+	}
+
+	return 0;
+}
+
+static void getVAPBandwidth(int unit, char *ifname, char *buf, size_t buf_len)
+{
+	char *rate = "N/A";
+
+	if (!buf || !buf_len)
+		return;
+
+	strlcpy(buf, rate, buf_len);
+	switch (unit) {
+	case WL_2G_BAND:	/* fall-through */
+	case WL_5G_BAND:	/* fall-through */
+	case WL_5G_2_BAND:
+		__getAPBandwidth(ifname, buf, buf_len);
+		break;
+#if defined(RTCONFIG_WIGIG)
+	case WL_60G_BAND:
+		/* FIXME */
+		*buf = '\0';
 		break;
 #endif
 	default:
@@ -1152,7 +1173,7 @@ static int getSTAInfo(int unit, WIFI_STA_TABLE *sta_info)
 	if (!unit_name)
 		return ret;
 #if defined(RTCONFIG_AMAS_WGN)  
-        wl_ifnames = strdup(get_all_lan_ifnames());
+        wl_ifnames = get_all_lan_ifnames();
 #else
 	wl_ifnames = strdup(nvram_safe_get("lan_ifnames"));
 #endif	
@@ -1226,7 +1247,7 @@ show_wliface_info(webs_t wp, int unit, char *ifname, char *op_mode)
 #if defined(GTAXY16000)
 	unsigned int edmg_channel;
 #endif
-	int ret = 0;
+	int ret = 0, cac = 0;
 	FILE *fp;
 	unsigned char mac_addr[ETHER_ADDR_LEN];
 	char tmpstr[1024], cmd[] = "iwconfig staXYYYYYY";
@@ -1273,7 +1294,14 @@ show_wliface_info(webs_t wp, int unit, char *ifname, char *op_mode)
 	strlcpy(tmpstr, getAPPhyMode(unit), sizeof(tmpstr));
 	ret += websWrite(wp, "Phy Mode	: %s\n", tmpstr);
 	getVAPBitRate(unit, ifname, tmpstr, sizeof(tmpstr));
-	ret += websWrite(wp, "Bit Rate	: %s\n", tmpstr);
+	if (unit == WL_5G_BAND || unit == WL_5G_2_BAND) {
+		cac = safe_atoi(iwpriv_get(ifname, "get_cac_state"));
+	}
+	ret += websWrite(wp, "Bit Rate	: %s%s", tmpstr, cac? " (CAC scan)" : "");
+	getVAPBandwidth(unit, ifname, tmpstr, sizeof(tmpstr));
+	if (*tmpstr != '\0')
+		ret += websWrite(wp, ", %sMHz", tmpstr);
+	ret += websWrite(wp, "\n");
 	ret += websWrite(wp, "Channel		: %u\n", getAPChannel(unit));
 #if defined(GTAXY16000)
 	if (unit == WL_60G_BAND) {
@@ -1307,7 +1335,7 @@ wl_status(int eid, webs_t wp, int argc, char_t **argv, int unit)
 #if !defined(RTCONFIG_CONCURRENTREPEATER)
 		/* Media bridge mode */
 		snprintf(prefix, sizeof(prefix), "wl%d.1_", unit);
-		ifname = nvram_safe_get(strcat_r(prefix, "ifname", tmp));
+		ifname = nvram_safe_get(strlcat_r(prefix, "ifname", tmp, sizeof(tmp)));
 		if (unit != nvram_get_int("wlc_band")) {
 			snprintf(prefix, sizeof(prefix), "wl%d_", unit);
 			ret += websWrite(wp, "%s radio is disabled\n",
@@ -1317,7 +1345,7 @@ wl_status(int eid, webs_t wp, int argc, char_t **argv, int unit)
 		ret += show_wliface_info(wp, unit, ifname, "Media Bridge");
 #else
 		snprintf(prefix, sizeof(prefix), "wl%d.1_", unit);
-		ifname = nvram_safe_get(strcat_r(prefix, "ifname", tmp));
+		ifname = nvram_safe_get(strlcat_r(prefix, "ifname", tmp, sizeof(tmp)));
 		snprintf(wlc_prefix, sizeof(wlc_prefix), "wlc%d_", unit);
 		ret += show_wliface_info(wp, unit, ifname, "Media Bridge");
 		ret += websWrite(wp, "\n");
@@ -1337,7 +1365,7 @@ wl_status(int eid, webs_t wp, int argc, char_t **argv, int unit)
 			unit = 0;
 #else
 			snprintf(prefix, sizeof(prefix), "wl%d.1_", nvram_get_int("wlc_band"));
-			ifname = nvram_safe_get(strcat_r(prefix, "ifname", tmp));
+			ifname = nvram_safe_get(strlcat_r(prefix, "ifname", tmp, sizeof(tmp)));
 			ret += show_wliface_info(wp, nvram_get_int("wlc_band"), ifname, "Repeater");
 			ret += websWrite(wp, "\n");
 #endif
@@ -1348,7 +1376,7 @@ wl_status(int eid, webs_t wp, int argc, char_t **argv, int unit)
 				if (nvram_get_int("wlc_express") == 0) {	/* concurrent repeater */
 					for (i = 0; i <= 1; i++) {
 						snprintf(prefix, sizeof(prefix), "wl%d.1_", i);
-						ifname = nvram_safe_get(strcat_r(prefix, "ifname", tmp));
+						ifname = nvram_safe_get(strlcat_r(prefix, "ifname", tmp, sizeof(tmp)));
 						snprintf(wlc_prefix, sizeof(wlc_prefix), "wlc%d_", i);
 						ret += show_wliface_info(wp, i, ifname, "Repeater");
 						ret += websWrite(wp, "\n");
@@ -1356,7 +1384,7 @@ wl_status(int eid, webs_t wp, int argc, char_t **argv, int unit)
 				}
 				else {	/* express way (2G or 5G) */
 					snprintf(prefix, sizeof(prefix), "wl%d.1_", nvram_get_int("wlc_express") - 1);
-					ifname = nvram_safe_get(strcat_r(prefix, "ifname", tmp));
+					ifname = nvram_safe_get(strlcat_r(prefix, "ifname", tmp, sizeof(tmp)));
 					snprintf(wlc_prefix, sizeof(wlc_prefix), "wlc%d_", nvram_get_int("wlc_express") - 1);
 					ret += show_wliface_info(wp, nvram_get_int("wlc_express") - 1, ifname, nvram_get_int("wlc_express") == 1 ? "Express Way 2.4 GHz" : "Express Way 5 GHz");
 					ret += websWrite(wp, "\n");
@@ -1373,7 +1401,7 @@ wl_status(int eid, webs_t wp, int argc, char_t **argv, int unit)
 #endif
 
 		snprintf(prefix, sizeof(prefix), "wl%d_", unit);
-		ifname = nvram_safe_get(strcat_r(prefix, "ifname", tmp));
+		ifname = nvram_safe_get(strlcat_r(prefix, "ifname", tmp, sizeof(tmp)));
 		if (!get_radio_status(ifname)) {
 #if defined(BAND_2G_ONLY)
 			ret += websWrite(wp, "2.4 GHz radio is disabled\n");
@@ -1391,7 +1419,7 @@ wl_status(int eid, webs_t wp, int argc, char_t **argv, int unit)
 			return ret;
 		}
 
-		wl_mode_x = nvram_get_int(strcat_r(prefix, "mode_x", tmp));
+		wl_mode_x = nvram_get_int(strlcat_r(prefix, "mode_x", tmp, sizeof(tmp)));
 		op_mode = "AP";
 		if (wl_mode_x == 1)
 			op_mode = "WDS Only";
@@ -1772,7 +1800,7 @@ wl_wps_info(int eid, webs_t wp, int argc, char_t **argv, int unit)
 
 #if defined(RTCONFIG_WPSMULTIBAND)
 		SKIP_ABSENT_BAND(u);
-		if (!nvram_get(strcat_r(prefix, "ifname", tmp)))
+		if (!nvram_get(strlcat_r(prefix, "ifname", tmp, sizeof(tmp))))
 			continue;
 #endif
 
@@ -1829,18 +1857,18 @@ wl_wps_info(int eid, webs_t wp, int argc, char_t **argv, int unit)
 
 		//8. Saved WPAKey
 #if 0	//hide for security
-		if (!strlen(nvram_safe_get(strcat_r(prefix, "wpa_psk", tmp))))
+		if (!strlen(nvram_safe_get(strlcat_r(prefix, "wpa_psk", tmp, sizeof(tmp)))))
 			retval += websWrite(wp, "%s%s%s\n", tag1, "None", tag2);
 		else
 		{
-			char_to_ascii(tmpstr, nvram_safe_get(strcat_r(prefix, "wpa_psk", tmp)));
+			char_to_ascii(tmpstr, nvram_safe_get(strlcat_r(prefix, "wpa_psk", tmp, sizeof(tmp))));
 			retval += websWrite(wp, "%s%s%s\n", tag1, tmpstr, tag2);
 		}
 #else
 		retval += websWrite(wp, "%s%s\n", tag1, tag2);
 #endif
 		//9. WPS enable?
-		if (!strcmp(nvram_safe_get(strcat_r(prefix, "wps_mode", tmp)), "enabled"))
+		if (!strcmp(nvram_safe_get(strlcat_r(prefix, "wps_mode", tmp, sizeof(tmp))), "enabled"))
 			retval += websWrite(wp, "%s%s%s\n", tag1, "None", tag2);
 		else
 			retval += websWrite(wp, "%s%s%s\n", tag1, nvram_safe_get("wps_enable"), tag2);
@@ -1853,10 +1881,10 @@ wl_wps_info(int eid, webs_t wp, int argc, char_t **argv, int unit)
 			retval += websWrite(wp, "%s%s%s\n", tag1, "2", tag2);
 
 		//B. current auth mode
-		if (!strlen(nvram_safe_get(strcat_r(prefix, "auth_mode_x", tmp))))
+		if (!strlen(nvram_safe_get(strlcat_r(prefix, "auth_mode_x", tmp, sizeof(tmp)))))
 			retval += websWrite(wp, "%s%s%s\n", tag1, "None", tag2);
 		else
-			retval += websWrite(wp, "%s%s%s\n", tag1, nvram_safe_get(strcat_r(prefix, "auth_mode_x", tmp)), tag2);
+			retval += websWrite(wp, "%s%s%s\n", tag1, nvram_safe_get(strlcat_r(prefix, "auth_mode_x", tmp, sizeof(tmp))), tag2);
 
 		//C. WPS band
 		retval += websWrite(wp, "%s%d%s\n", tag1, u, tag2);
@@ -1970,7 +1998,7 @@ static int wl_scan(int eid, webs_t wp, int argc, char_t **argv, int unit)
 #endif
 	lock = file_lock("nvramcommit");
 	snprintf(prefix, sizeof(prefix), "wl%d_", unit);
-	snprintf(cmd, sizeof(cmd), "iwlist %s scanning", nvram_safe_get(strcat_r(prefix, "ifname", tmp)));
+	snprintf(cmd, sizeof(cmd), "iwlist %s scanning", nvram_safe_get(strlcat_r(prefix, "ifname", tmp, sizeof(tmp))));
 	fp = popen(cmd, "r");
 	file_unlock(lock);
 #if defined(RTCONFIG_QCA_LBD)
@@ -2161,7 +2189,7 @@ bypass:
 #endif
 
 	snprintf(prefix, sizeof(prefix), "wl%d_", unit);
-	country_code = nvram_get(strcat_r(prefix, "country_code", tmp));
+	country_code = nvram_get(strlcat_r(prefix, "country_code", tmp, sizeof(tmp)));
 
 	if (country_code == NULL || strlen(country_code) != 2) return retval;
 
@@ -2246,7 +2274,7 @@ static int ej_wl_rate(int eid, webs_t wp, int argc, char_t **argv, int unit)
 	name = get_staifname(nvram_get_int("wlc_triBand"));
 #else
 	snprintf(prefix, sizeof(prefix), "wl%d.1_", unit);
-	name = nvram_safe_get(strcat_r(prefix, "ifname", tmp));
+	name = nvram_safe_get(strlcat_r(prefix, "ifname", tmp, sizeof(tmp)));
 #endif
 
 	wrq.u.data.pointer = rate;
@@ -2303,7 +2331,7 @@ ej_wl_rate_5g_2(int eid, webs_t wp, int argc, char_t **argv)
 static struct nat_accel_kmod_s {
 	char *kmod_name;
 } nat_accel_kmod[] = {
-#if defined(RTCONFIG_SOC_IPQ8064) || defined(RTCONFIG_SOC_IPQ8074)
+#if defined(RTCONFIG_SOC_IPQ8064) || defined(RTCONFIG_SOC_IPQ8074) || defined (RTCONFIG_SOC_IPQ60XX) || defined (RTCONFIG_SOC_IPQ50XX)
 	{ "ecm" },
 #elif defined(RTCONFIG_SOC_QCA9557) || defined(RTCONFIG_QCA953X) || defined(RTCONFIG_QCA956X) || defined(RTCONFIG_QCN550X) || defined(RTCONFIG_SOC_IPQ40XX)
 	{ "shortcut_fe" },
@@ -2393,6 +2421,10 @@ const char *syslog_msg_filter[] = {
 	"net_ratelimit",
 #if defined(RTCONFIG_SOC_IPQ8074)
 	"[AUTH] vap", "[MLME] vap", "[ASSOC] vap", "[INACT] vap", "LBDR ", "npu_corner", "apc_corner", "Sync active EEPROM set",
+	"wlan_send_mgmt", "hapdevent_proc_event", "HAPD:", "WSUP:",
+#elif defined(RTCONFIG_SOC_IPQ8064)
+	"[AUTH] vap", "[MLME] vap", "[ASSOC] vap", "[INACT] vap",
 #endif
+	"exist in UDB, can't", "is used by someone else, can't use it", "not mesh client, can't update it",
 	NULL
 };

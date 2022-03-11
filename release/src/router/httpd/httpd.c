@@ -92,10 +92,16 @@ typedef unsigned int __u32;   // 1225 ham
 #include "bcmnvram_f.h"
 
 /* A multi-family sockaddr. */
-typedef union {
-    struct sockaddr sa;
-    struct sockaddr_in sa_in;
-} usockaddr;
+struct usockaddr {
+	union {
+		struct sockaddr sa;
+		struct sockaddr_in sa_in;
+#ifdef RTCONFIG_IPV6
+		struct sockaddr_in6 sa_in6;
+#endif
+	};
+	socklen_t sa_len;
+};
 
 #include "queue.h"
 #define MAX_CONN_ACCEPT 128
@@ -115,17 +121,20 @@ typedef struct conn_list {
 
 /* Globals. */
 static FILE *conn_fp;
-static char auth_userid[AUTH_MAX];
-char auth_passwd[AUTH_MAX];
-static char auth_realm[AUTH_MAX];
 char host_name[64];
 char referer_host[64];
 char current_page_name[128];
 char user_agent[1024];
 char gen_token[32];
+time_t login_timestamp_cache = 0;
+int url_do_auth = 0;
+int spam_count = 0;
+int auth_result = 1;
+char cookies_buf[4096];
 int do_ssl = 0; 	// use Global for HTTPS upgrade judgment in web.c
 int ssl_stream_fd; 	// use Global for HTTPS stream fd in web.c
 int json_support = 0;
+char wl_band_list[8][8] = {{0}};
 
 #ifdef TRANSLATE_ON_FLY
 char Accept_Language[16];
@@ -223,7 +232,7 @@ struct language_table language_tables[] = {
 #endif //TRANSLATE_ON_FLY
 
 /* Forwards. */
-static int initialize_listen_socket(usockaddr* usa, const char *ifname);
+static int initialize_listen_socket(int family, usockaddr* usa, const char *ifname);
 int check_noauth_referrer(char* referer, int fromapp_flag);
 char *get_referrer(char *referer, char *auth_referer, size_t length);
 static void send_error( int status, char* title, char* extra_header, char* text );
@@ -236,7 +245,7 @@ static void handle_request(void);
 void send_login_page(int fromapp_flag, int error_status, char* url, char* file, int lock_time, int logintry);
 void page_default_redirect(int fromapp_flag, char* url);
 int check_user_agent(char* user_agent);
-#if defined(RTCONFIG_IFTTT) || defined(RTCONFIG_ALEXA)
+#if defined(RTCONFIG_IFTTT) || defined(RTCONFIG_ALEXA) || defined(RTCONFIG_GOOGLE_ASST)
 void add_ifttt_flag(void);
 #endif
 
@@ -247,7 +256,6 @@ int check_current_ip_is_lan_or_wan();
 //int redirect = 1;
 int redirect = 0;
 int change_passwd = 0;
-int reget_passwd = 0;
 int x_Setting = 0;
 int skip_auth = 0;
 char url[128];
@@ -262,14 +270,16 @@ char indexpage[128];
 
 
 /* Added by Joey for handle one people at the same time */
-unsigned int login_ip=0; // the logined ip
+unsigned int login_ip = 0; // IPv6 compat: the logined ip
+uaddr login_uip = {0}; // the logined ip
+unsigned int app_login_ip = 0; // IPv6 compat: the logined ip
 time_t login_timestamp=0; // the timestamp of the logined ip
 time_t login_timestamp_tmp=0; // the timestamp of the current session.
 time_t last_login_timestamp=0; // the timestamp of the current session.
-unsigned int login_ip_tmp=0; // the ip of the current session.
+unsigned int login_ip_tmp = 0; // IPv6 compat: the ip of the current session.
+uaddr login_uip_tmp = {0}; // the ip of the current session.
 usockaddr login_usa_tmp = {0};
 unsigned int login_try=0;
-unsigned int last_login_ip = 0;	// the last logined ip 2008.08 magic
 //Add by Andy for handle the login block mechanism by LAN/WAN
 time_t login_timestamp_tmp_wan=0; // the timestamp of the current session.
 time_t last_login_timestamp_wan=0; // the timestamp of the current session.
@@ -284,6 +294,7 @@ time_t turn_off_auth_timestamp = 0;
 int temp_turn_off_auth = 0;	// for QISxxx.htm pages
 
 int amas_support = 0;
+int HTS = 0;	//HTTP Transport Security
 
 struct timeval alarm_tv;
 time_t alarm_timestamp = 0;
@@ -293,9 +304,10 @@ int check_alive_flag = 0;
 const int int_1 = 1;
 const struct linger linger = { 1, 0 };
 
-void http_login(unsigned int ip, char *url);
-void http_login_timeout(unsigned int ip, char *cookies, int fromapp_flag);
-void http_logout(unsigned int ip, char *cookies, int fromapp_flag);
+void http_login(uaddr *uip, char *url);
+void app_http_login(uaddr *uip);
+void http_login_timeout(uaddr *u, char *cookies, int fromapp_flag);
+void http_logout(uaddr *u, char *cookies, int fromapp_flag);
 int http_login_check(void);
 
 #if 0
@@ -378,15 +390,29 @@ long uptime(void)
 }
 
 static int
-initialize_listen_socket(usockaddr* usa, const char *ifname)
+initialize_listen_socket(int family, usockaddr* usa, const char *ifname)
 {
 	struct ifreq ifr;
 	int fd;
 
 	memset(usa, 0, sizeof(usockaddr));
-	usa->sa.sa_family = AF_INET;
-	usa->sa_in.sin_addr.s_addr = htonl(INADDR_ANY);
-	usa->sa_in.sin_port = htons(http_port);
+	usa->sa.sa_family = family;
+	switch (family) {
+	case AF_INET:
+		usa->sa_in.sin_addr.s_addr = htonl(INADDR_ANY);
+		usa->sa_in.sin_port = htons(http_port);
+		usa->sa_len = sizeof(usa->sa_in);
+		break;
+#ifdef RTCONFIG_IPV6
+	case AF_INET6:
+		usa->sa_in6.sin6_addr = in6addr_any;
+		usa->sa_in6.sin6_port = htons(http_port);
+		usa->sa_len = sizeof(usa->sa_in6);
+		break;
+#endif
+	default:
+		return -1;
+	}
 
 	fd = socket(usa->sa.sa_family, SOCK_STREAM, 0);
 	if (fd < 0) {
@@ -394,22 +420,42 @@ initialize_listen_socket(usockaddr* usa, const char *ifname)
 		return -1;
 	}
 
-	if (ifname) {
-		memset(&ifr, 0, sizeof(ifr));
-		strncpy(ifr.ifr_name, ifname, sizeof(ifr.ifr_name));
-		if (ioctl(fd, SIOCGIFADDR, &ifr) < 0) {
-			perror("ioctl");
-			goto error;
-		}
-		usa->sa_in.sin_addr.s_addr = ((struct sockaddr_in *) &ifr.ifr_addr)->sin_addr.s_addr;
-	}
-
 	fcntl(fd, F_SETFD, FD_CLOEXEC);
 	if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &int_1, sizeof(int_1)) < 0) {
 		perror("setsockopt");
 		goto error;
 	}
-	if (bind(fd, &usa->sa, sizeof(struct sockaddr_in)) < 0) {
+#ifdef RTCONFIG_IPV6
+	if (usa->sa.sa_family == AF_INET6 &&
+	    setsockopt(fd, IPPROTO_IPV6, IPV6_V6ONLY, &int_1, sizeof(int_1)) < 0) {
+		perror("setsockopt");
+		goto error;
+	}
+#endif
+
+	if (ifname) {
+		memset(&ifr, 0, sizeof(ifr));
+		strlcpy(ifr.ifr_name, ifname, sizeof(ifr.ifr_name));
+		switch (usa->sa.sa_family) {
+		case AF_INET:
+			if (ioctl(fd, SIOCGIFADDR, &ifr) < 0) {
+				perror("ioctl");
+				goto error;
+			}
+			usa->sa_in.sin_addr.s_addr = ((struct sockaddr_in *) &ifr.ifr_addr)->sin_addr.s_addr;
+			break;
+#ifdef RTCONFIG_IPV6
+		case AF_INET6:
+			/* IPv6 addresses are dynamic, bind to interface */
+			if (setsockopt(fd, SOL_SOCKET, SO_BINDTODEVICE, &ifr, sizeof(ifr)) < 0) {
+				perror("setsockopt");
+				goto error;
+			}
+			break;
+#endif
+		}
+	}
+	if (bind(fd, &usa->sa, usa->sa_len) < 0) {
 		perror("bind");
 		goto error;
 	}
@@ -502,8 +548,8 @@ send_login_page(int fromapp_flag, int error_status, char* url, char* file, int l
 	}else{
 		snprintf(inviteCode, sizeof(inviteCode), "\"error_status\":\"%d\"", error_status);
 		if(error_status == LOGINLOCK){
-			snprintf(buf, sizeof(buf), ",\"remaining_lock_time\":\"%ld\"", LOCKTIME - login_dt);
-			strcat(inviteCode, buf);
+			snprintf(buf, sizeof(buf), ",\"remaining_lock_time\":\"%ld\"", max_lock_time - login_dt);
+			strlcat(inviteCode, buf, sizeof(inviteCode));
 		}
 	}
 	send_page( 200, "OK", (char*) 0, inviteCode, fromapp_flag);
@@ -512,24 +558,31 @@ send_login_page(int fromapp_flag, int error_status, char* url, char* file, int l
 char
 *get_referrer(char *referer, char *auth_referer, size_t length)
 {
-	char *cp1=NULL, *cp2=NULL, *location_cp=NULL, *location_cp1=NULL;
+	char *referer_t = NULL;
+	char ip_addr[100] = {0}, path[100] = {0};
+
+	if(referer == NULL)
+		goto Error;
 
 	if(strstr(referer,"\r") != (char*) 0)
-		location_cp1 = strtok(referer, "\r");
+		referer_t = strtok(referer, "\r");
 	else
-		location_cp1 = referer;
+		referer_t = referer;
 
-	location_cp = strstr(location_cp1,"//");
-	if(location_cp != (char*) 0){
-		cp1 = &location_cp[2];
-		if(strstr(cp1,"/") != (char*) 0){
-			cp2 = strtok(cp1, "/");
-			strlcpy(auth_referer , cp2, length);
-		}else
-			strlcpy(auth_referer , cp1, length);
-	}else
-		strlcpy(auth_referer , location_cp1, length);
+	if(referer_t == NULL)
+		goto Error;
 
+	int uri_scan_status = sscanf(referer_t, "%*[^:]%*[:/]%99[^/]%99s", ip_addr, path);
+
+	if(uri_scan_status <= 0)
+		strlcpy(auth_referer, referer_t, length);
+	else
+		strlcpy(auth_referer, ip_addr, length);
+
+	return auth_referer;
+
+Error:
+	*auth_referer = '\0';
 	return auth_referer;
 }
 
@@ -743,7 +796,7 @@ int check_user_agent(char* user_agent){
 	return fromapp;
 }
 
-#if defined(RTCONFIG_IFTTT) || defined(RTCONFIG_ALEXA)
+#if defined(RTCONFIG_IFTTT) || defined(RTCONFIG_ALEXA) || defined(RTCONFIG_GOOGLE_ASST)
 void add_ifttt_flag(void){
 
 	memset(user_agent, 0, sizeof(user_agent));
@@ -864,7 +917,7 @@ void set_referer_host(void)
 			memset(referer_host, 0, sizeof(referer_host));
 			snprintf(referer_host,sizeof(referer_host),"%s:%d",lan_ipaddr, port);
 		}
-#ifdef RTAC68U
+#if defined(RTAC68U) || defined(RPAX56) || defined(RPAX58)
 	} else if (is_dpsta_repeater() && nvram_get_int("re_mode") == 0
 		&& !strncmp("repeater.asus.com", host_name, strlen("repeater.asus.com")) && *(host_name + strlen("repeater.asus.com")) == ':' && (port = atoi(host_name + strlen("repeater.asus.com") + 1)) > 0 && port < 65536){//transfer https domain to ip
 		if(port == 80)
@@ -876,13 +929,13 @@ void set_referer_host(void)
 #endif
 	}else if(!strcmp(DUT_DOMAIN_NAME, host_name))	//transfer http domain to ip
 		strlcpy(referer_host, lan_ipaddr, sizeof(referer_host));
-#ifdef RTAC68U
+#if defined(RTAC68U) || defined(RPAX56) || defined(RPAX58)
 	else if (is_dpsta_repeater() && nvram_get_int("re_mode") == 0
 		&& !strcmp("repeater.asus.com", host_name))   //transfer http domain to ip
 		strlcpy(referer_host, lan_ipaddr, sizeof(referer_host));
 #endif
-	else if(!strncmp(lan_ipaddr, host_name, ip_len) && *(host_name + ip_len) == ':' && (port = atoi(host_name + ip_len + 1)) == 80)	//filter send hostip:80
-		strlcpy(referer_host, lan_ipaddr, sizeof(referer_host));
+	else if(!strncmp(lan_ipaddr, host_name, ip_len) && *(host_name + ip_len) == ':' && ((port = atoi(host_name + ip_len + 1)) == 80 || port == nvram_get_int("https_lanport")))	//filter send hostip:80/8443
+		strlcpy(referer_host, host_name, sizeof(referer_host));
 	else if(nvram_match("x_Setting", "0"))
 		strlcpy(referer_host, lan_ipaddr, sizeof(referer_host));
 	else
@@ -934,9 +987,12 @@ int wave_handle_flag(char *url)
 }
 #endif
 
+int max_lock_time = MAX_LOGIN_BLOCK_TIME;
+
 static void
 handle_request(void)
 {
+	static long flush_cache_t1 = 0;
 	char line[10000], *cur;
 	char *method, *path, *protocol, *authorization, *boundary, *alang, *cookies, *referer, *useragent;
 	char *cp;
@@ -948,7 +1004,6 @@ handle_request(void)
 	int mime_exception, do_referer, login_state = -1;
 	int fromapp=0;
 	int cl = 0, flags;
-	int auth_result = 1;
 	int referer_result = 1;
 #ifdef RTCONFIG_FINDASUS
 	int i, isDeviceDiscovery=0;
@@ -957,6 +1012,8 @@ handle_request(void)
 	char inviteCode[512];
 
 	/* Initialize the request variables. */
+	auth_result = 1;
+	url_do_auth = 0;
 	authorization = boundary = cookies = referer = useragent = NULL;
 	host_name[0] = 0;
 	bzero( line, sizeof line );
@@ -1074,6 +1131,7 @@ handle_request(void)
 			cp = &cur[7];
 			cp += strspn( cp, " \t" );
 			cookies = cp;
+			strlcpy(cookies_buf, cookies, sizeof(cookies_buf));
 			cur = cp + strlen(cp) + 1;
 		}
 		else if ( strncasecmp( cur, "Referer:", 8 ) == 0 )
@@ -1111,6 +1169,14 @@ handle_request(void)
 				return;
 			}
 		}
+		else if (strncasecmp( cur, "Transfer-Encoding:", 18 ) == 0) {
+			cp = &cur[18];
+			cp += strspn( cp, " \t" );
+			if(strstr( cp, "chunked" )){
+				send_error( 400, "Bad Request", (char*) 0, "Illegal HTTP Format." );
+				return;
+			}
+		}
 		else if ((cp = strstr( cur, "boundary=" ))) {
 			boundary = &cp[9];
 			for ( cp = cp + 9; *cp && *cp != '\r' && *cp != '\n'; cp++ );
@@ -1118,6 +1184,8 @@ handle_request(void)
 			cur = ++cp;
 		}
 	}
+
+	slowloris_check();
 
 	if ( strcasecmp( method, "get" ) != 0 && strcasecmp(method, "post") != 0 && strcasecmp(method, "head") != 0 ) {
 		send_error( 501, "Not Implemented", (char*) 0, "That method is not implemented." );
@@ -1132,6 +1200,12 @@ handle_request(void)
 	len = strlen( file );
 	if ( file[0] == '/' || strcmp( file, ".." ) == 0 || strncmp( file, "../", 3 ) == 0 || strstr( file, "/../" ) != (char*) 0 || strcmp( &(file[len-3]), "/.." ) == 0 ) {
 		send_error( 400, "Bad Request", (char*) 0, "Illegal filename." );
+		return;
+	}
+
+	if(HTS == 1 && strcmp(inet_ntoa(login_usa_tmp.sa_in.sin_addr), "127.0.0.1")){ //allow tunnel pass
+		snprintf(inviteCode, sizeof(inviteCode), "<meta http-equiv=\"refresh\" content=\"0; https://%s:%d\">\r\n", gethost(), nvram_get_int("https_lanport"));
+		send_page( 307, "Temporary Redirect", (char*) 0, inviteCode, 0);
 		return;
 	}
 
@@ -1178,6 +1252,18 @@ handle_request(void)
 		snprintf(current_page_name, sizeof(current_page_name), "%s", url);
 	}
 
+	if (!strncmp(file, "Main_Login.asp", 14) && (uptime() - flush_cache_t1) > 10 * 60) {
+		/* free pagecahe when login, don't do it again in 10 minutes. */
+		f_write_string("/proc/sys/vm/drop_caches", "1", 0, 0);
+		flush_cache_t1 = uptime();
+	}
+#if defined(RTCONFIG_QCA) && defined(RTCONFIG_QCA_LBD)
+	if (nvram_match("smart_connect_x", "1") && !nvram_match("wl_unit", "0")
+	 && strstr(url, "Advanced_Wireless_Content.asp")) {
+		nvram_set("wl_unit", "0");
+	}
+#endif
+
 	if(strncmp(url, APPLYAPPSTR, strlen(APPLYAPPSTR))==0 
 #ifdef RTCONFIG_ROG
 		|| strncmp(url, APPLYROGSTR, strlen(APPLYROGSTR))==0
@@ -1198,18 +1284,18 @@ handle_request(void)
 	else
 		json_support = 0;
 
-#if defined(RTCONFIG_IFTTT) || defined(RTCONFIG_ALEXA)
+#if defined(RTCONFIG_IFTTT) || defined(RTCONFIG_ALEXA) || defined(RTCONFIG_GOOGLE_ASST)
 	ifttt_log(url, file);
 #endif
 
 #ifdef RTCONFIG_UIDEBUG
         char sysdepPath[128];
 	snprintf(sysdepPath, sizeof(sysdepPath), "sysdep/%s/www/", nvram_safe_get("productid"));
-	strcat(sysdepPath, url);
+	strlcat(sysdepPath, url, sizeof(sysdepPath));
         if(check_if_file_exist(sysdepPath)){
 // _dprintf("[httpd] ### GET ### sysdepPath: %s\n", sysdepPath);
-		snprintf(sysdepPath, 128, "sysdep/%s/www/", nvram_safe_get("productid"));
-		strcat(sysdepPath, file);
+		snprintf(sysdepPath, sizeof(sysdepPath), "sysdep/%s/www/", nvram_safe_get("productid"));
+		strlcat(sysdepPath, file, sizeof(sysdepPath));
 		file = sysdepPath;
 // _dprintf("[httpd] file: %s\n", file);
         }
@@ -1245,13 +1331,14 @@ handle_request(void)
 		if(!cur_login_ip_type && (lock_flag & LOCK_LOGIN_LAN)){
 			login_timestamp_tmp = uptime();
 			login_dt = login_timestamp_tmp - last_login_timestamp;
-			if(last_login_timestamp != 0 && login_dt > MAX_LOGIN_BLOCK_TIME){
+			if(last_login_timestamp != 0 && login_dt > max_lock_time){
 				login_try = 0;
 				last_login_timestamp = 0;
 				lock_flag &= ~(LOCK_LOGIN_LAN);
 				login_error_status = 0;
 #ifdef RTCONFIG_CAPTCHA
 				login_fail_num = 0;
+				HTTPD_DBG("reset login_fail_num\n");
 #endif
 			}else{
 				if((strncmp(file, "Main_Login.asp", 14)==0 && login_error_status == LOGINLOCK)|| strstr(url, ".png")){
@@ -1267,13 +1354,14 @@ handle_request(void)
 		else if(cur_login_ip_type && (lock_flag & LOCK_LOGIN_WAN)){
 			login_timestamp_tmp_wan= uptime();
 			login_dt = login_timestamp_tmp_wan - last_login_timestamp_wan;
-			if(last_login_timestamp_wan!= 0 && login_dt > MAX_LOGIN_BLOCK_TIME){
+			if(last_login_timestamp_wan!= 0 && login_dt > max_lock_time){
 				login_try_wan= 0;
 				last_login_timestamp_wan= 0;
 				lock_flag &= ~(LOCK_LOGIN_WAN);
 				login_error_status = 0;
 #ifdef RTCONFIG_CAPTCHA
 				login_fail_num = 0;
+				HTTPD_DBG("reset login_fail_num\n");
 #endif
 			}else{
 				if((strncmp(file, "Main_Login.asp", 14)==0 && login_error_status == LOGINLOCK)|| strstr(url, ".png")){
@@ -1286,7 +1374,7 @@ handle_request(void)
 				}
 			}
 		}
-		http_login_timeout(login_ip_tmp, cookies, fromapp);	// 2008.07 James.
+		http_login_timeout(&login_uip_tmp, cookies, fromapp);	// 2008.07 James.
 		login_state = http_login_check();
 		// for each page, mime_exception is defined to do exception handler
 
@@ -1327,7 +1415,8 @@ handle_request(void)
 #else
 			if(login_state==3 && !fromapp) { // few pages can be shown even someone else login
 #endif
-				if(!(mime_exception&MIME_EXCEPTION_MAINPAGE || (strncmp(file, "Main_Login.asp", 14)==0 && login_error_status == 9) || ((!handler->auth) && strncmp(file, "Main_Login.asp", 14) != 0))) {
+				 if(handler->auth || (!strncmp(file, "Main_Login.asp", 14) && login_error_status != 9) || mime_exception&MIME_EXCEPTION_NOPASS)
+				{
 					if(strcasecmp(method, "post") == 0 && handler->input)	//response post request
 						while (cl--) (void)fgetc(conn_fp);
 
@@ -1336,6 +1425,10 @@ handle_request(void)
 				}
 			}
 			if (handler->auth) {
+				url_do_auth = 1;
+#if defined(RTAX82U) || defined(DSL_AX82U) || defined(GSAX3000) || defined(GSAX5400) || defined(TUFAX5400) || defined(GTAX6000) || defined(GTAXE16000) || defined(GTAX11000_PRO)
+				switch_ledg(LEDG_QIS_FINISH);
+#endif
 				if ((mime_exception&MIME_EXCEPTION_NOAUTH_FIRST)&&!x_Setting) {
 					//skip_auth=1;
 				}
@@ -1347,7 +1440,8 @@ handle_request(void)
 #endif
 #ifdef RTCONFIG_AMAS
 				//RD can do firmware upgrade, if re_upgrade set to 1.
-				else if(!fromapp && nvram_match("re_mode", "1") && nvram_get_int("re_upgrade") == 0 && !check_AiMesh_whitelist(file)){
+				else if(!fromapp && (nvram_match("re_mode", "1") || nvram_match("disable_ui", "1")) &&
+					nvram_get_int("re_upgrade") == 0 && !check_AiMesh_whitelist(file)){
 					snprintf(inviteCode, sizeof(inviteCode), "<meta http-equiv=\"refresh\" content=\"0; url=message.htm\">\r\n");
 					send_page( 200, "OK", (char*) 0, inviteCode, 0);
 					return;
@@ -1367,12 +1461,11 @@ handle_request(void)
 								while (cl--) (void)fgetc(conn_fp);
 
 							send_login_page(fromapp, referer_result, NULL, NULL, 0, NOLOGINTRY);
-							//if(!fromapp) http_logout(login_ip_tmp, cookies);
+							//if(!fromapp) http_logout(&login_uip_tmp, cookies);
 							return;
 						}
 					}
-					handler->auth(auth_userid, auth_passwd, auth_realm);
-					auth_result = auth_check(auth_realm, authorization, url, file, cookies, fromapp);
+					auth_result = auth_check(url, file, cookies, fromapp);
 					if (auth_result != 0)
 					{
 						if(strcasecmp(method, "post") == 0 && handler->input)	//response post request
@@ -1394,9 +1487,10 @@ handle_request(void)
 							;//TODO
 						else
 #endif
-						http_login(login_ip_tmp, url);
+						http_login(&login_uip_tmp, url);
 					}
-				}
+				}else
+					app_http_login(&login_uip_tmp);
 #if defined(RTCONFIG_SOFTCENTER)
 			}else if(strstr(url, "_resp") || strstr(url, "_result")){
 #endif
@@ -1408,14 +1502,14 @@ handle_request(void)
 							while (cl--) (void)fgetc(conn_fp);
 
 						send_login_page(fromapp, referer_result, NULL, NULL, 0, NOLOGINTRY);
-						//if(!fromapp) http_logout(login_ip_tmp, cookies);
+						//if(!fromapp) http_logout(&login_uip_tmp, cookies);
 						return;
 					}
 				}
 			}
 
 			if(!strcmp(file, "Logout.asp")){
-				http_logout(login_ip_tmp, cookies, fromapp);
+				http_logout(&login_uip_tmp, cookies, fromapp);
 				send_login_page(fromapp, ISLOGOUT, NULL, NULL, 0, NOLOGINTRY);
 				return;
 			}
@@ -1456,7 +1550,7 @@ handle_request(void)
 #ifdef RTCONFIG_IPSEC
 					&& !strstr(file, "ipsec.log")
 #endif
-#if defined(RTCONFIG_IFTTT) || defined(RTCONFIG_ALEXA)
+#if defined(RTCONFIG_IFTTT) || defined(RTCONFIG_ALEXA) || defined(RTCONFIG_GOOGLE_ASST)
 					&& !strstr(file, "asustitle.png")
 #endif
 					&& !strstr(file,"cert_key.tar")
@@ -1466,6 +1560,20 @@ handle_request(void)
 #endif
 #ifdef RTCONFIG_CAPTCHA
 					&& !strstr(file, "captcha.gif")
+#endif
+#ifdef RTCONFIG_IPSEC
+					&& !strstr(file, "renew_ikev2_cert_mobile.pem") && !strstr(file, "ikev2_cert_mobile.pem")
+					&& !strstr(file, "renew_ikev2_cert_windows.der") && !strstr(file, "ikev2_cert_windows.der")
+#endif
+#ifdef RTCONFIG_WIREGUARD
+					&& !strstr(file, "wgs_client.")
+#endif
+#if defined(DSL_AX82U)
+					|| (is_ax5400_i1() &&
+						(strstr(file, "Advanced_TR069_Content.asp")
+						 || strstr(file, "Advanced_OAM_Content.asp")
+						 || strstr(file, "Advanced_ADSL_Content.asp")
+						))
 #endif
 #ifdef RTCONFIG_SOFTCENTER
 					&& !strstr(file, "ss_conf")
@@ -1484,10 +1592,10 @@ handle_request(void)
 			}
 			if(nvram_match("x_Setting", "0") && (strcmp(url, "QIS_default.cgi")==0 || strcmp(url, "page_default.cgi")==0 || !strcmp(websGetVar(file, "x_Setting", ""), "1"))){
 				if(!fromapp) set_referer_host();
-				send_token_headers( 200, "Ok", handler->extra_header, handler->mime_type, fromapp);
+				send_token_headers( 200, "OK", handler->extra_header, handler->mime_type, fromapp);
 
 			}else if(strncmp(url, "login.cgi", strlen(url))!=0){
-				send_headers( 200, "Ok", handler->extra_header, handler->mime_type, fromapp);
+				send_headers( 200, "OK", handler->extra_header, handler->mime_type, fromapp);
 			}
 			if (strcasecmp(method, "head") != 0 && handler->output) {
 				handler->output(file, conn_fp);
@@ -1512,21 +1620,157 @@ handle_request(void)
 	nvram_unset("httpd_handle_request_fromapp");
 }
 
+uaddr *uaddr_ston(const usockaddr *u, uaddr *uip)
+{
+	memset(uip, 0, sizeof(*uip));
+	uip->family = u->sa.sa_family;
+
+	switch (u->sa.sa_family) {
+	case AF_INET:
+		uip->in = u->sa_in.sin_addr;
+		return uip;
+#ifdef RTCONFIG_IPV6
+	case AF_INET6:
+		uip->in6 = u->sa_in6.sin6_addr;
+		if (IN6_IS_ADDR_V4MAPPED(&uip->in6)) {
+			uip->family = AF_INET;
+			uip->in.s_addr = uip->in6.s6_addr32[3];
+		}
+		return uip;
+#endif
+	}
+
+	return NULL;
+}
+
+uaddr *uaddr_pton(const char *src, uaddr *uip)
+{
+	memset(uip, 0, sizeof(*uip));
+
+	if (inet_pton(AF_INET, src, &uip->in) > 0) {
+		uip->family = AF_INET;
+		return uip;
+	}
+#ifdef RTCONFIG_IPV6
+	else if (inet_pton(AF_INET6, src, &uip->in6) > 0) {
+		uip->family = AF_INET6;
+		if (IN6_IS_ADDR_V4MAPPED(&uip->in6)) {
+			uip->family = AF_INET;
+			uip->in.s_addr = uip->in6.s6_addr32[3];
+		}
+		return uip;
+	}
+#endif
+
+	return NULL;
+}
+
+char *uaddr_ntop(const uaddr *uip, char *dst, size_t cnt)
+{
+	return (char *)inet_ntop(uip->family, &uip->in, dst, cnt);
+}
+
+/* IPv6 compat */
+unsigned int uaddr_addr(uaddr *uip)
+{
+	switch (uip->family) {
+	case AF_INET:
+		return uip->in.s_addr;
+#ifdef RTCONFIG_IPV6
+	case AF_INET6:
+		return uip->in6.s6_addr32[3];
+#endif
+	}
+
+	return 0;
+}
+
+int uaddr_is_unspecified(uaddr *uip)
+{
+	switch (uip->family) {
+	case AF_UNSPEC:
+		return 1;
+	case AF_INET:
+		return (uip->in.s_addr == 0);
+#ifdef RTCONFIG_IPV6
+	case AF_INET6:
+		return IN6_IS_ADDR_UNSPECIFIED(&uip->in6);
+#endif
+	}
+
+	return 0;
+}
+
+int uaddr_is_localhost(uaddr *uip)
+{
+	switch (uip->family) {
+	case AF_INET:
+		return (uip->in.s_addr == htonl(INADDR_LOOPBACK));
+#ifdef RTCONFIG_IPV6
+	case AF_INET6:
+		return IN6_IS_ADDR_LOOPBACK(&uip->in6);
+#endif
+	}
+
+	return 0;
+}
+
+int uaddr_is_equal(uaddr *a, uaddr *b)
+{
+	if (a->family != b->family)
+		return 0;
+	switch (a->family) {
+	case AF_UNSPEC:
+		return 1;
+	case AF_INET:
+		return (a->in.s_addr == b->in.s_addr);
+#ifdef RTCONFIG_IPV6
+	case AF_INET6:
+		return IN6_ARE_ADDR_EQUAL(&a->in6, &b->in6);
+#endif
+	}
+
+	return 0;
+}
+
+uaddr *uaddr_getpeer(webs_t wp, uaddr *uip)
+{
+	usockaddr peer;
+	int fd;
+
+#ifdef RTCONFIG_HTTPS
+	if (do_ssl) {
+		fd = ssl_stream_fd;
+	} else
+#endif
+	{
+		fd = fileno((FILE *)wp);
+	}
+
+	peer.sa_len = sizeof(peer);
+	if (getpeername(fd, &peer.sa, &peer.sa_len) < 0) {
+		perror("getpeername");
+		return NULL;
+	}
+
+	return uaddr_ston(&peer, uip);
+}
+
 //2008 magic{
-void http_login_cache(usockaddr *u) {
-	login_ip_tmp = (unsigned int)(u->sa_in.sin_addr.s_addr);
+void http_login_cache(usockaddr *u)
+{
+	login_timestamp_cache = uptime();
+	uaddr_ston(u, &login_uip_tmp);
+	login_ip_tmp = uaddr_addr(&login_uip_tmp); /* IPv6 compat */
 	login_usa_tmp = *u;
 	cur_login_ip_type = check_current_ip_is_lan_or_wan();
 	if(cur_login_ip_type == -1)
 		_dprintf("[%s, %d]ERROR! Can not check the remote ip!\n", __FUNCTION__, __LINE__);
 }
 
-void http_login(unsigned int ip, char *url) {
-	if(strncmp(url, "Main_Login.asp", strlen(url))==0)
-		return;
-	struct in_addr login_ip_addr;
-	char *login_ip_str;
-	char login_ipstr[32], login_timestampstr[32];
+void app_http_login(uaddr *uip)
+{
+	char tmp[100];
 
 	if ((http_port != SERVER_PORT
 	  && http_port != nvram_get_int("http_lanport")
@@ -1534,25 +1778,41 @@ void http_login(unsigned int ip, char *url) {
 	  && http_port != SERVER_PORT_SSL
 	  && http_port != nvram_get_int("https_lanport")
 #endif
-	    ) || ip == 0x100007f)
+	    ) || uaddr_is_localhost(uip))
 		return;
 
-	login_ip = ip;
-	last_login_ip = 0;
+	app_login_ip = uaddr_addr(uip); /* IPv6 compat */
 
-	login_ip_addr.s_addr = login_ip;
-	login_ip_str = inet_ntoa(login_ip_addr);
-	nvram_set("login_ip_str", login_ip_str);
+	snprintf(tmp, sizeof(tmp), "%lu", uptime());
+	nvram_set("app_login_timestamp", tmp);
+}
 
-	login_timestamp = uptime();
+void http_login(uaddr *uip, char *url)
+{
+	char tmp[100], *login_ip_str;
 
-	memset(login_ipstr, 0, 32);
-	snprintf(login_ipstr, sizeof(login_ipstr), "%u", login_ip);
-	nvram_set("login_ip", login_ipstr);
+	if (strncmp(url, "Main_Login.asp", strlen(url)) == 0)
+		return;
 
-	memset(login_timestampstr, 0, 32);
-	snprintf(login_timestampstr, sizeof(login_timestampstr), "%lu", login_timestamp);
-	nvram_set("login_timestamp", login_timestampstr);
+	if ((http_port != SERVER_PORT
+	  && http_port != nvram_get_int("http_lanport")
+#ifdef RTCONFIG_HTTPS
+	  && http_port != SERVER_PORT_SSL
+	  && http_port != nvram_get_int("https_lanport")
+#endif
+	    ) || uaddr_is_localhost(uip))
+		return;
+
+	login_ip = uaddr_addr(uip); /* IPv6 compat */
+	snprintf(tmp, sizeof(tmp), "%u", login_ip); /* IPv6 compat */
+	nvram_set("login_ip", tmp); /* IPv6 compat */
+
+	login_uip = *uip;
+	login_ip_str = uaddr_ntop(&login_uip, tmp, sizeof(tmp));
+	nvram_set("login_ip_str", login_ip_str ? : "");
+
+	snprintf(tmp, sizeof(tmp), "%lu", uptime());
+	nvram_set("login_timestamp", tmp);
 }
 
 // 0: can not login, 1: can login, 2: loginer, 3: not loginer
@@ -1564,19 +1824,19 @@ int http_login_check(void)
 	  && http_port != SERVER_PORT_SSL
 	  && http_port != nvram_get_int("https_lanport")
 #endif
-	    ) || login_ip_tmp == 0x100007f)
+	    ) || uaddr_is_localhost(&login_uip_tmp))
 		//return 1;
 		return 0;	// 2008.01 James.
 
-	if (login_ip == 0)
+	if (uaddr_is_unspecified(&login_uip))
 		return 1;
-	else if (login_ip == login_ip_tmp)
+	else if (uaddr_is_equal(&login_uip, &login_uip_tmp))
 		return 2;
 
 	return 3;
 }
 
-void http_login_timeout(unsigned int ip, char *cookies, int fromapp_flag)
+void http_login_timeout(uaddr *uip, char *cookies, int fromapp_flag)
 {
 	time_t now, login_ts;
 
@@ -1584,30 +1844,28 @@ void http_login_timeout(unsigned int ip, char *cookies, int fromapp_flag)
 	now = uptime();
 	login_ts = atol(nvram_safe_get("login_timestamp"));
 
-// 2007.10 James. for really logout. {
-	//if (login_ip!=ip && (unsigned long)(now-login_timestamp) > 60) //one minitues
-	if ((login_ip != 0 && login_ip != ip) && ((unsigned long)(now-login_ts) > 60)) //one minitues
-// 2007.10 James }
+	if ((!uaddr_is_unspecified(&login_uip) && !uaddr_is_equal(&login_uip, uip)) &&
+	    ((unsigned long)(now-login_ts) > 60)) //one minitues
 	{
-		http_logout(login_ip, cookies, fromapp_flag);
+		http_logout(&login_uip, cookies, fromapp_flag);
 	}
 }
 
-void http_logout(unsigned int ip, char *cookies, int fromapp_flag)
+void http_logout(uaddr *uip, char *cookies, int fromapp_flag)
 {
-	if ((ip == login_ip || ip == 0 ) && fromapp_flag == 0) {
-		last_login_ip = login_ip;
-		login_ip = 0;
+	if ((uaddr_is_unspecified(uip) || uaddr_is_equal(uip, &login_uip)) && fromapp_flag == 0) {
+		login_ip = 0; /* IPv6 compat */
+		memset(&login_uip, 0, sizeof(login_uip));
 		login_timestamp = 0;
 
-		nvram_set("login_ip", "");
+		nvram_set("login_ip", ""); /* IPv6 compat */
+		nvram_set("login_ip_str", "");
 		nvram_set("login_timestamp", "");
 		memset(referer_host, 0, sizeof(referer_host));
 		delete_logout_from_list(cookies);
 // 2008.03 James. {
 		if (change_passwd == 1) {
 			change_passwd = 0;
-			reget_passwd = 1;
 		}
 // 2008.03 James. }
 	}else if(fromapp_flag != 0){
@@ -1617,23 +1875,9 @@ void http_logout(unsigned int ip, char *cookies, int fromapp_flag)
 //2008 magic}
 //
 
-int is_auth(void)
-{
-	if (http_port == SERVER_PORT ||
-	    http_port == nvram_get_int("http_lanport") ||
-#ifdef RTCONFIG_HTTPS
-	    http_port == SERVER_PORT_SSL ||
-	    http_port == nvram_get_int("https_lanport") ||
-#endif
-	    strcmp(nvram_get_x("PrinterStatus", "usb_webhttpcheck_x"), "1") == 0)
-		return 1;
-	else
-		return 0;
-}
-
 int is_firsttime(void)
 {
-#if defined(RTAC58U) || defined(RTAC59U)
+#if defined(RTAC58U) || defined(RTAC59U) || defined(RTAX58U) || defined(RTAX56U)
 	if (!strncmp(nvram_safe_get("territory_code"), "CX/01", 5)
 	 || !strncmp(nvram_safe_get("territory_code"), "CX/05", 5))
 		return 0;
@@ -1675,14 +1919,14 @@ char *config_model_name(char *source, char *find,  char *rep){
        result_t = (char*)realloc(result, length * sizeof(char));
        if(result_t == NULL){
        	free(result);
-       	return NULL;
-       }else
-       	result = result_t;
-       strcat(result, rep);
+         	return NULL;
+         }else
+         	result = result_t;
+       strlcat(result, rep, length);
        gap+=rep_L;
 
        former=location+find_L;
-       strcat(result, former);
+       strlcat(result, former, length);
 
        location= strstr(former, find);
    }
@@ -1724,7 +1968,7 @@ load_dictionary (char *lang, pkw_t pkw)
 //printf ("lang=%s\n", lang);
 
 //	gettimeofday (&tv1, NULL);
-	if (lang == NULL || (lang != NULL && strlen (lang) == 0)) {
+	if(lang == NULL || strlen(lang) != 2 || !strstr(ALL_LANGS, lang)){
 		// if "lang" is invalid, use English as default
 		snprintf (dfn, sizeof (dfn), eng_dict);
 	} else {
@@ -1787,7 +2031,6 @@ load_dictionary (char *lang, pkw_t pkw)
 		strlcpy(pkw->buf, dyn_dict_buf_new, dict_size);
 		free(dyn_dict_buf_new);
 	}
-
 #else
 	pkw->buf = (char *) (q = malloc (dict_size));
 
@@ -1946,7 +2189,7 @@ load_dictionary (char *lang, pkw_t pkw)
 #endif  // RELOAD_DICT
 
 //	gettimeofday (&tv1, NULL);
-	if (lang == NULL || (lang != NULL && strlen (lang) == 0)) {
+	if(lang == NULL || strlen(lang) != 2 || !strstr(ALL_LANGS, lang)){
 		// if "lang" is invalid, use English as default
 		snprintf (dfn, sizeof (dfn), eng_dict);
 	} else {
@@ -2084,17 +2327,33 @@ void check_alive()
 		notify_rc("restart_httpd");
 	}
 	else{
+		slow_post_read_check();
 		check_alive_count++;
 	}
 
-	alarm(30);
+	alarm(20);
+}
+
+int enabled_http_ifname()
+{
+#ifdef DSL_AX82U
+	if (nvram_get_int("http_enable") == 1 && http_port == SERVER_PORT && is_ax5400_i1()){
+		HTS = 1; //HTTP Transport Security
+		return 1;
+	}
+#endif
+#ifdef RTCONFIG_AIHOME_TUNNEL
+	if (nvram_get_int("http_enable") == 1 && http_port == SERVER_PORT)
+		return 0;
+#endif
+
+	return 1;
 }
 
 int main(int argc, char **argv)
 {
 	usockaddr usa;
-	int listen_fd[2];
-	socklen_t sz;
+	int listen_fd[3];
 	char pidfile[32];
 	fd_set active_rfds;
 	conn_list_t pool;
@@ -2153,7 +2412,7 @@ int main(int argc, char **argv)
 	//websSetVer();
 	//2008.08 magic
 	nvram_unset("login_timestamp");
-	nvram_unset("login_ip");
+	nvram_unset("login_ip"); /* IPv6 compat */
 	nvram_unset("login_ip_str");
 
 	/* Ignore broken pipes */
@@ -2162,7 +2421,7 @@ int main(int argc, char **argv)
 	signal(SIGUSR1, update_wlan_log);
 	signal(SIGALRM, check_alive);
 
-	alarm(30);
+	alarm(20);
 
 #ifdef RTCONFIG_HTTPS
 	//if (do_ssl)
@@ -2172,17 +2431,23 @@ int main(int argc, char **argv)
 	/* Initialize listen socket */
 	for (i = 0; i < ARRAY_SIZE(listen_fd); i++)
 		listen_fd[i] = -1;
-#ifdef RTCONFIG_AIHOME_TUNNEL
-	if (nvram_get_int("http_enable") == 1 && http_port == SERVER_PORT) {
-		//httpd listen lo 80 port for tunnel but unused ifname in https only
-	} else
+	i = 0;
+
+	{
+		if (enabled_http_ifname() && (listen_fd[i++] = initialize_listen_socket(AF_INET, &usa, http_ifname)) < 0) {
+			fprintf(stderr, "can't bind to %s ipv4 address\n", http_ifname ? : "any");
+			return errno;
+		}
+#ifdef RTCONFIG_IPV6
+		if (ipv6_enabled() && enabled_http_ifname() &&
+		    (listen_fd[i++] = initialize_listen_socket(AF_INET6, &usa, http_ifname)) < 0) {
+			fprintf(stderr, "can't bind to %s ipv6 address\n", http_ifname ? : "any");
+			return errno;
+		}
 #endif
-	if ((listen_fd[0] = initialize_listen_socket(&usa, http_ifname)) < 0) {
-		fprintf(stderr, "can't bind to %s address\n", http_ifname ? : "any");
-		return errno;
 	}
 	if ((http_ifname && strcmp(http_ifname, "lo") != 0) &&
-	    (listen_fd[1] = initialize_listen_socket(&usa, "lo")) < 0) {
+	    (listen_fd[i++] = initialize_listen_socket(AF_INET, &usa, "lo")) < 0) {
 		fprintf(stderr, "can't bind to %s address\n", "loopback");
 		/* allow fail if previous bind to interface was ok */
 		/* return errno; */
@@ -2207,9 +2472,14 @@ int main(int argc, char **argv)
 
 	/* handler global variable */
 	get_index_page(indexpage, sizeof(indexpage));
+	get_wl_nband_list();
 #if defined(RTCONFIG_SW_HW_AUTH) && defined(RTCONFIG_AMAS)
 	amas_support = getAmasSupportMode();
 #endif
+	if(nvram_get_int("x_Setting") == 0){
+		save_ui_support_to_file();
+		save_iptvSettings_to_file();
+	}
 
 	/* Loop forever handling requests */
 	for (;;) {
@@ -2221,6 +2491,7 @@ int main(int argc, char **argv)
 
 		/* record alive flag */
 		if(check_alive_flag == 1){
+			clean_ban_ip_timeout();
 			alarm_tv.tv_sec = uptime();
 			check_alive_flag = 0;
 		}
@@ -2243,8 +2514,8 @@ int main(int argc, char **argv)
 		while ((count = select(max_fd + 1, &rfds, NULL, NULL, &tv)) < 0 && errno == EINTR)
 			continue;
 		if (count < 0) {
-			perror("select");
 			HTTPD_DBG("count = %d : return\n", count);
+			perror("select");
 			return errno;
 		}
 
@@ -2260,20 +2531,19 @@ int main(int argc, char **argv)
 
 			item = malloc(sizeof(*item));
 			if (item == NULL) {
-				perror("malloc");
 				HTTPD_DBG("malloc fail\n");
+				perror("malloc");
 				return errno;
 			}
-			sz = sizeof(item->usa);
-			while ((item->fd = accept(listen_fd[i], &item->usa.sa, &sz)) < 0 && errno == EINTR)
+			item->usa.sa_len = sizeof(item->usa);
+			while ((item->fd = accept(listen_fd[i], &item->usa.sa, &item->usa.sa_len)) < 0 && errno == EINTR)
 				continue;
 			if (item->fd < 0) {
-				perror("accept");
 				HTTPD_DBG("item->fd = %d (<0): continue\n", item->fd);
+				perror("accept");
 				free(item);
 				continue;
 			}
-
 			/* Set receive/send timeouts */
 			setsockopt(item->fd, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout));
 			setsockopt(item->fd, SOL_SOCKET, SO_SNDTIMEO, &timeout, sizeof(timeout));
@@ -2321,7 +2591,10 @@ int main(int argc, char **argv)
 
 				http_login_cache(&item->usa);
 
-				handle_request();
+				if(filter_ban_ip())
+				{
+					handle_request();
+				}
 				fflush(conn_fp);
 #ifdef RTCONFIG_HTTPS
 				if (!do_ssl)
@@ -2352,6 +2625,10 @@ int main(int argc, char **argv)
 			continue;
 		shutdown(listen_fd[i], 2);
 		close(listen_fd[i]);
+
+#ifdef RTCONFIG_HTTPS
+		if (do_ssl) mssl_ctx_free();
+#endif
 	}
 
 	return 0;
@@ -2402,14 +2679,20 @@ void start_ssl(int http_port)
 	while (1) {
 		save = nvram_match("https_crt_save", "1");
 
-		if ((!f_exists("/etc/cert.pem")) || (!f_exists("/etc/key.pem"))) {
+		/* check key/cert pairs */
+		if ((!f_exists("/etc/cert.pem")) || (!f_exists("/etc/key.pem")) || !mssl_cert_key_match("/etc/cert.pem", "/etc/key.pem")) {
 			ok = 0;
 			if (save) {
 				logmessage("httpd", "Save SSL certificate...%d", http_port);
 					if (eval("tar", "-xzf", HTTPS_CA_JFFS, "-C", "/", "etc/cert.pem", "etc/key.pem") == 0){
 						system("cat /etc/key.pem /etc/cert.pem > /etc/server.pem");
 						system("cp /etc/cert.pem /etc/cert.crt"); // openssl self-signed certificate for router.asus.com LAN access
-						ok = 1;
+
+						// check key and cert pair, if they are mismatched, regenerate key and cert
+						if (mssl_cert_key_match("/etc/cert.pem", "/etc/key.pem")) {
+							logmessage("httpd", "mssl_cert_key_match : PASS");
+							ok = 1;
+						}
 					}
 
 					int save_intermediate_crt = nvram_match("https_intermediate_crt_save", "1");
@@ -2454,13 +2737,24 @@ void start_ssl(int http_port)
 //return value: 0: LAN,  1: WAN,  -1: ERROR
 int check_current_ip_is_lan_or_wan()
 {
-	unsigned long lan=0, mask=0;
-	lan = inet_addr(nvram_safe_get("lan_ipaddr"));
-	mask = inet_addr(nvram_safe_get("lan_netmask"));
+	struct in_addr lan, mask;
 
-	if(!login_ip_tmp || lan == -1 || mask == -1)
+	if (uaddr_is_unspecified(&login_uip_tmp))
 		return -1;
 
-	return (lan & mask) == (login_ip_tmp & mask);
+	switch (login_uip_tmp.family) {
+	case AF_INET:
+		if (inet_aton(nvram_safe_get("lan_ipaddr"), &lan) == 0 ||
+		    inet_aton(nvram_safe_get("lan_netmask"), &mask) == 0)
+			return -1;
+		return (lan.s_addr & mask.s_addr) == (login_uip_tmp.in.s_addr & mask.s_addr);
+#ifdef RTCONFIG_IPV6
+	case AF_INET6:
+		/* IPv6 addresses are dynamic, must be bind to bind to interface */
+		return 0;
+#endif
+	}
+
+	return -1;
 }
 

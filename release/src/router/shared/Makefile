@@ -1,5 +1,6 @@
 include ../common.mak
 include $(SRCBASE)/.config
+include ../.config
 
 CFLAGS += -Os -Wall $(EXTRACFLAGS) -fPIC
 #CFLAGS += $(PRIVATE_EXTRACFLAGS)
@@ -20,11 +21,20 @@ CFLAGS += -I$(HND_SRC)/shared/opensource/include/bcm963xx
 #CFLAGS += -I$(TOP)/ethswctl
 CFLAGS += -I$(HND_SRC)/userspace/private/include
 #LDFLAGS += -L$(TOP)/ethswctl_lib -lethswctl
+ifeq ($(HND_ROUTER_AX),y)
+CFLAGS  += -DWL11AC_80P80 -DWL11AC_160
+CFLAGS  += -I$(SRCBASE)/include -I$(SRCBASE)/../components/wlioctl/include -I$(SRCBASE)/../components/proto/include
+CFLAGS  += -I$(SRCBASE)/shared/bcmwifi/include -I $(SRCBASE)/../components/math/include/
+CFLAGS += -I$(SRCBASE)/wl/sys
+endif
 endif
 CFLAGS += -D__EXPORTED_HEADERS__
 endif
 
 CFLAGS += -DTEST1
+ifeq ($(RTCONFIG_HND_ROUTER_AX),y)
+LDFLAGS += -lpthread
+endif
 
 ifeq ($(RTCONFIG_SHP),y)
 CFLAGS += -DSHP
@@ -75,8 +85,6 @@ ifeq ($(RTCONFIG_5301X),y)
 CFLAGS += -DBCM5301X
 endif
 
-include $(SRCBASE)/.config
-
 ifeq ($(RTCONFIG_4352_5G),y)
 CFLAGS += -DBCM4352
 endif
@@ -91,9 +99,17 @@ ifeq ($(RTCONFIG_BCM7)$(RTCONFIG_HSPOT),y)
 CFLAGS += -DD11AC_IOTYPES
 endif
 
+ifeq ($(RTCONFIG_BCM_CEVENTD),y)
+CFLAGS += -DBCM_CEVENT
+endif
+
 ifeq ($(RTCONFIG_CONCURRENTREPEATER),y)
+ifeq ($(RTCONFIG_RP_NEWSSID_REV3),y)
+CFLAGS += -DDEF_SSID_2G=\"ASUS_RP\" -DDEF_SSID_5G=\"ASUS_RP\"
+else
 SSID = $(subst -,,$(BUILD_NAME))
 CFLAGS += -DDEF_SSID_2G=\"ASUS_$(SSID)\" -DDEF_SSID_5G=\"ASUS_$(SSID)_5G\"
+endif
 endif
 
 ifeq ($(or $(RTAC68A),$(RT4GAC68U)),y)
@@ -112,7 +128,11 @@ ifeq ($(RTCONFIG_RGBLED),y)
 CFLAGS += -I$(TOP)/i2c-tools-3.1.2/include/linux
 endif
 
-OBJS = shutils.o linux_timer.o defaults.o model.o rtstate.o boardapi.o
+ifneq ($(findstring CONFIG_BCM_KF_NETFILTER=, $(shell cat $(LINUXDIR)/.config)),)
+CFLAGS         += -DBCM_KF_NETFILTER
+endif
+
+OBJS = shutils.o defaults.o model.o rtstate.o boardapi.o
 OBJS += network_utility.o
 OBJS += misc.o version.o files.o strings.o process.o
 OBJS += bin_sem_asus.o semaphore.o pids.o $(if $(wildcard notify_rc.c),notify_rc.o,prebuild/notify_rc.o)
@@ -155,10 +175,12 @@ endif
 endif
 ifeq ($(RTCONFIG_REALTEK),y)
 OBJS += api-realtek.o realtek.o
-
+ifeq ($(RTCONFIG_RTL8198D),y)
+OBJS += flash_mtd.o rtl8198d.o
+endif
 else ifeq ($(RTCONFIG_RALINK),y)
 OBJS += $(TOP)/wireless_tools/iwlib.o
-OBJS += flash_mtd.o api-ralink.o
+OBJS += flash_mtd.o api-ralink.o ralink.o
 ifeq ($(RTCONFIG_RALINK_RT3052),y)
 OBJS += ra3052.o
 endif
@@ -193,11 +215,17 @@ OBJS += ipq40xx.o
 else ifeq ($(RTCONFIG_SWITCH_QCA8075_PHY_AQR107),y)
 OBJS += qca8075_phy_aqr107.o
 else ifeq ($(RTCONFIG_SWITCH_QCA8075_QCA8337_PHY_AQR107_AR8035_QCA8033),y)
+ifeq ($(RAX120),y)
+OBJS += qca8075_phy_aqr111.o mdio.o ethtool.o
+else
 OBJS += qca8075_qca8337_phy_aqr107_ar8035_qca8033.o mdio.o ethtool.o
+endif
 else ifeq ($(RTCONFIG_QCN550X)$(RTCONFIG_SWITCH_QCA8337N),yy)
 OBJS += qca8337_ssdk_sh.o
 else ifeq ($(RTCONFIG_SOC_IPQ60XX),y)
 OBJS += ipq60xx.o
+else ifeq ($(RTCONFIG_SOC_IPQ50XX),y)
+OBJS += ipq50xx.o
 else
 OBJS += qca8337.o
 endif
@@ -213,7 +241,12 @@ OBJS += flash_mtd.o
 else
 # Broadcom
 OBJS += wl.o wl_linux.o
-OBJS += broadcom.o api-broadcom.o
+OBJS += broadcom.o
+ifeq ($(HND_ROUTER),y)
+OBJS += $(if $(wildcard sysdeps/api-broadcom.c),api-broadcom.o,prebuild/api-broadcom.o)
+else
+OBJS += api-broadcom.o
+endif
 ifeq ($(RTCONFIG_DSL_TCLINUX),y)
 OBJS += api-tclinux.o
 endif
@@ -227,6 +260,12 @@ OBJS += rtl_8365mb.o
 endif
 ifeq ($(RTCONFIG_STA_MONITOR),y)
 OBJS += bcm_stamon.o
+endif
+ifeq ($(RTCONFIG_WBD),y)
+OBJS += appevent_util.o
+endif
+ifeq ($(BCM_WLIMPL),69)
+OBJS += event_utils.o
 endif
 endif
 
@@ -243,8 +282,8 @@ ID_OBJS += $(TOP)/$(BUSYBOX_DIR)/util-linux/volume_id/linux_swap.o
 ID_OBJS += $(TOP)/$(BUSYBOX_DIR)/util-linux/volume_id/ext.o
 ID_OBJS += $(TOP)/$(BUSYBOX_DIR)/util-linux/volume_id/fat.o
 ID_OBJS += $(TOP)/$(BUSYBOX_DIR)/util-linux/volume_id/ntfs.o
-ID_OBJS += $(if $(HFS),$(TOP)/$(BUSYBOX_DIR)/util-linux/volume_id/hfs.o)
-ID_OBJS += $(if $(HFS),$(patsubst %.c,%.o,$(wildcard $(TOP)/$(BUSYBOX_DIR)/libbb/hash_md5.c)))
+ID_OBJS += $(if $(RTCONFIG_HFS),$(TOP)/$(BUSYBOX_DIR)/util-linux/volume_id/hfs.o)
+ID_OBJS += $(if $(RTCONFIG_HFS),$(patsubst %.c,%.o,$(wildcard $(TOP)/$(BUSYBOX_DIR)/libbb/hash_md5.c)))
 ID_OBJS += $(patsubst %.c,%.o,$(wildcard $(TOP)/$(BUSYBOX_DIR)/libbb/bb_bswap_64.c))
 ID_OBJS += $(if $(RTCONFIG_USB_CDROM),$(TOP)/$(BUSYBOX_DIR)/util-linux/volume_id/udf.o)
 ID_OBJS += $(if $(RTCONFIG_USB_CDROM),$(TOP)/$(BUSYBOX_DIR)/util-linux/volume_id/iso9660.o)
@@ -278,7 +317,7 @@ ifeq ($(RTCONFIG_SAVEJFFS),y)
 OBJS	+= $(if $(wildcard jffs_cfgs.c),jffs_cfgs.o,prebuild/jffs_cfgs.o)
 endif
 
-ifeq ($(RTCONFIG_QCA_PLC_UTILS),y)
+ifeq ($(or $(RTCONFIG_QCA_PLC_UTILS),$(RTCONFIG_QCA_PLC2)),y)
 OBJS	+= $(if $(wildcard plc_utils.c),plc_utils.o,prebuild/plc_utils.o)
 endif
 
@@ -295,16 +334,22 @@ endif
 OBJS += $(if $(wildcard spwenc.c), spwenc.o, prebuild/spwenc.o)
 
 ifeq ($(CONFIG_BCMWL5),y)
-ifneq ($(RTCONFIG_DSL)$(HND_ROUTER),y)
+ifneq ($(RTCONFIG_DSL_REMOTE)$(HND_ROUTER),y)
 CFLAGS += -DTRX_NEW
 endif
 OBJS += private.o
-OBJS += wlif_utils.o UdpLib.o bcmutils.o
+ifeq ($(RTCONFIG_HND_ROUTER_AX),y)
+OBJS += wlif_utils_ax.o linux_timer_ax.o
+else
+OBJS += wlif_utils.o linux_timer.o
+endif
+OBJS += UdpLib.o bcmutils.o
 OBJS += bcmwifi_channels.o
 endif
 
 ifeq ($(HND_ROUTER),y)
-OBJS += ethswctl.o ethctl_cmd.o
+OBJS += $(if $(wildcard ethswctl.c),ethswctl.o,prebuild/ethswctl.o)
+OBJS += $(if $(wildcard ethctl_cmd.c),ethctl_cmd.o,prebuild/ethctl_cmd.o)
 OBJS += memaccess.o
 endif
 
@@ -331,13 +376,20 @@ endif
 vpath %.c sysdeps/amas
 endif
 
+ifeq ($(RTCONFIG_SCHED_V2),y)
+OBJS += sched_v2.o
+endif
+
 vpath %.c sysdeps $(SRCBASE)/shared/ $(WLAN_ComponentSrcDirs)
 ifeq ($(RTCONFIG_REALTEK),y)
+ifeq ($(RPAC92),y)
+else
 CFLAGS += -DTRX_NEW
+endif
 OBJS += private.o
 vpath %.c sysdeps/realtek
 else ifeq ($(RTCONFIG_RALINK),y)
-ifneq ($(RTCONFIG_DSL),y)
+ifneq ($(RTCONFIG_DSL_REMOTE),y)
 CFLAGS += -DTRX_NEW
 endif
 OBJS += private.o
@@ -358,6 +410,12 @@ else ifeq ($(RTCONFIG_QTN),y)
 vpath %.c sysdeps sysdeps/broadcom sysdeps/qtn $(SRCBASE)/shared/ $(SRCBASE)/shared/bcmwifi/src $(WLAN_StdSrcDirsA) $(WLAN_ComponentSrcDirs) $(TOP)/libqcsapi_client/qcsapi_rpc_common/client  $(TOP)/libqcsapi_client/qcsapi_rpc_common/common
 else
 vpath %.c sysdeps/broadcom  $(SRCBASE)/shared/bcmwifi/src
+ifeq ($(RTCONFIG_HND_ROUTER_AX),y)
+OBJS += bcmxtlv.o bcmutils.o
+ifeq ($(or $(RTAX55),$(RTAX1800),$(RTAX58U_V2)),y)
+OBJS += rtkswitch.o
+endif
+endif
 endif
 
 ifeq ($(RTCONFIG_SW_HW_AUTH),y)
@@ -368,6 +426,26 @@ endif
 
 ifeq ($(RTCONFIG_GEFORCENOW), y)
 OBJS += nvgfn.o
+endif
+ifeq ($(RTCONFIG_BRCM_HOSTAPD),y)
+OBJS += common_utils.o
+endif
+
+ifeq ($(or $(RTCONFIG_JFFS_NVRAM),$(RTCONFIG_VAR_NVRAM)),y)
+OBJS += nvpriv.o
+endif
+
+ifeq ($(or $(HND_ROUTER_AX_675X),$(HND_ROUTER_AX_6710),$(BCM_502L07P2)),y)
+ifneq ($(RTCONFIG_SDK502L07P1_121_37),y)
+OBJS += event_utils.o
+endif
+endif
+
+ifeq ($(OPDBG),y)
+CFLAGS += -DOPDBG
+endif
+ifneq ($(CUSTOM_MODEL),)
+CFLAGS += -DCUSTOM_MODEL
 endif
 
 all: libshared.so libshared.a
@@ -416,6 +494,11 @@ else
 	cp -f $(TOP)/sw-hw-auth/hw_auth.o ./
 endif
 
+nvpriv.o:
+ifneq ($(wildcard ./prebuild/nvpriv.o),)
+	@-cp -f ./prebuild/nvpriv.o .
+endif
+
 ifeq ($(RTCONFIG_USB),y)
 vpath %.c $(sort $(dir $(ID_OBJS)))
 
@@ -441,6 +524,34 @@ prebuild/%.o:
 
 .depend: $(OBJS:%.o=%.c)
 	@$(CC) $(CFLAGS) -M $^ > .depend
+
+ifneq ($(wildcard prebuild/bcmutils.o),)
+bcmutils.o: prebuild/bcmutils.o
+	cp prebuild/$@ .
+else
+.bcmutils.depend: bcmutils.c
+	@$(CC) $(CFLAGS) -M $< > $@
+endif
+
+ifeq ($(RTCONFIG_HND_ROUTER_AX),y)
+ifneq ($(wildcard prebuild/bcmwifi_channels.o),)
+bcmwifi_channels.o: prebuild/bcmwifi_channels.o
+	cp prebuild/$@ .
+else
+.bcmwifi_channels.depend: bcmwifi_channels.c
+	@$(CC) $(CFLAGS) -M $< > $@
+endif
+endif
+
+ifeq ($(RTCONFIG_HND_ROUTER_AX),y)
+ifneq ($(wildcard prebuild/bcmxtlv.o),)
+bcmxtlv.o: prebuild/bcmxtlv.o
+	cp prebuild/$@ .
+else
+.bcmxtlv.depend: bcmxtlv.c
+	@$(CC) $(CFLAGS) -M $< > $@
+endif
+endif
 
 .%.depend: %.c
 	@$(CC) $(CFLAGS) -M $< > $@

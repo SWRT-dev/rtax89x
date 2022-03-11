@@ -16,6 +16,16 @@
 <script type="text/javascript" src="/general.js"></script>
 <script type="text/javascript" src="/popup.js"></script>
 <script type="text/javascript" src="/help.js"></script>
+<script type="text/javascript" src="/js/jquery.js"></script>
+<style>
+.perNode_app_table{
+	width: 740px;
+	position: absolute;
+	left: 50%;
+	margin-top: 30px;
+	margin-left: -370px;
+}
+</style>
 
 <script>
 var lacp_support = isSupport("lacp");
@@ -49,6 +59,16 @@ function disable_lacp_if_conflicts_with_iptv(){
 }
 
 function initial(){
+	if((based_modelid == "RT-AX89U" || based_modelid == "GT-AXY16000")){
+			document.form.aqr_link_speed.disabled = false;
+			document.form.aqr_ipg.disabled = false;
+			document.form.sfpp_max_speed.disabled = false;
+			document.form.sfpp_force_on.disabled = false;
+			document.getElementById("aqr_link_speed_tr").style.display = "";
+			document.getElementById("aqr_ipg_tr").style.display = "";
+			document.getElementById("sfpp_max_speed_tr").style.display = "";
+			document.getElementById("sfpp_force_on_tr").style.display = "";
+	}
 	if(qca_support){
 		var nataccel = '<% nvram_get("qca_sfe"); %>';
 		var nataccel_status = '<% nat_accel_status(); %>';
@@ -75,7 +95,17 @@ function initial(){
 		}
 	}
 
-	show_menu();
+	if (re_mode == "1"){
+		$("#tabMenu").addClass("perNode_app_table");
+		$(".submenuBlock").css("margin-top", "initial");
+		show_loading_obj();
+	} else {
+		$("#content_table").addClass("content");
+		$("#tabMenu").addClass("app_table app_table_usb");
+		show_menu();
+	}
+
+	$("#tabMenu").css("display", "");
 
 	if(lacp_support){
 		document.getElementById("lacp_tr").style.display = "";
@@ -109,12 +139,12 @@ function initial(){
 	else{
 		//MODELDEP
 		if(based_modelid == "GT-AC5300"){
-			document.getElementById("ctf_tr").style.display = "none";
 			var new_str = "";
 			new_str = document.getElementById("lacp_note").innerHTML.replace(/LAN1/g, "LAN5");
 			document.getElementById("lacp_note").innerHTML = new_str.replace(/LAN2/g, "LAN6");
 		}
-		else if(based_modelid == "RT-AC86U" || based_modelid == "GT-AC2900" || based_modelid == "RT-AX88U" || based_modelid == "GT-AX11000" || based_modelid == "RT-AX92U"){
+
+		if(hnd_support){
 			document.getElementById("ctf_tr").style.display = "none";
 			document.form.ctf_disable_force.disabled = true;
 		}
@@ -191,9 +221,19 @@ function applyRule(){
 			document.form.action_wait.value = "35";
 		}
 	}
-	
-	showLoading();
-	document.form.submit();
+
+	if(document.form.action_script.value == "reboot"){
+
+		if(confirm("<#AiMesh_Node_Reboot#>")){
+        	showLoading();
+			document.form.submit();
+		}
+	}
+	else{
+
+		showLoading();
+		document.form.submit();
+	}
 }
 
 function check_bonding_policy(obj){
@@ -250,7 +290,8 @@ function check_bonding_policy(obj){
 <input type="hidden" name="preferred_lang" id="preferred_lang" value="<% nvram_get("preferred_lang"); %>">
 <input type="hidden" name="firmver" value="<% nvram_get("firmver"); %>">
 <input type="hidden" name="iptv_port_settings" value="<% nvram_get("iptv_port_settings"); %>" disabled>
-<table class="content" align="center" cellpadding="0" cellspacing="0">
+<input type="hidden" name="sfpp_force_on" value="<% nvram_get("sfpp_force_on"); %>" disabled>
+<table id="content_table" align="center" cellspacing="0" style="margin:auto;">
 	<tr>
 		<td width="17">&nbsp;</td>
 		
@@ -309,11 +350,65 @@ function check_bonding_policy(obj){
 												</td>
 											</tr>
 
+											<tr id="mtk_tr" style="display: none;">
+												<th><#NAT_Acceleration#></th>
+												<td>
+													<select name="hwnat" class="input_option" disabled>
+														<option class="content_input_fd" value="0" <% nvram_match("hwnat", "0","selected"); %>><#WLANConfig11b_WirelessCtrl_buttonname#></option>
+														<option class="content_input_fd" value="1" <% nvram_match("hwnat", "1","selected"); %>><#Auto#></option>
+													</select>
+												&nbsp
+													<span id="natAccelDesc"></span>
+												</td>
+											</tr>
+
 											<tr style="display:none">
 												<th><#SwitchCtrl_Enable_GRO#></th>
 												<td>
 													<input type="radio" name="gro_disable_force" value="0" <% nvram_match("gro_disable_force", "0", "checked"); %>><#checkbox_Yes#>
 													<input type="radio" name="gro_disable_force" value="1" <% nvram_match("gro_disable_force", "1", "checked"); %>><#checkbox_No#>
+												</td>
+											</tr>
+
+											<tr id="aqr_link_speed_tr" style="display:none">
+												<th>10G base-T port link speed</th><!--untranslated-->
+												<td>
+													<select name="aqr_link_speed" class="input_option" disabled>
+														<option value="0" <% nvram_match("aqr_link_speed", "0","selected"); %>><#Auto#></option>
+														<option value="1000" <% nvram_match("aqr_link_speed", "1000","selected"); %>>1Gbps</option>
+														<option value="2500" <% nvram_match("aqr_link_speed", "2500","selected"); %>>2.5Gbps</option>
+														<option value="5000" <% nvram_match("aqr_link_speed", "5000","selected"); %>>5Gbps</option>
+														<option value="10000" <% nvram_match("aqr_link_speed", "10000","selected"); %>>10Gbps</option>
+													</select>
+												</td>
+											</tr>
+
+											<tr id="aqr_ipg_tr" style="display:none">
+												<th>10G base-T interpacket gap</th><!--untranslated-->
+												<td>
+													<select name="aqr_ipg" class="input_option" disabled>
+														<option value="96" <% nvram_match("aqr_ipg", "96","selected"); %>><#CTL_Default#></option>
+														<option value="128" <% nvram_match("aqr_ipg", "128","selected"); %>>128 bit times</option>
+													</select>
+												</td>
+											</tr>
+
+											<tr id="sfpp_max_speed_tr" style="display:none">
+												<th>SFP+ port maximum link speed</th><!--untranslated-->
+												<td>
+													<select name="sfpp_max_speed" class="input_option" disabled>
+														<option value="0" <% nvram_match("sfpp_max_speed", "0","selected"); %>><#Auto#></option>
+														<option value="1000" <% nvram_match("sfpp_max_speed", "1000","selected"); %>>1Gbps</option>
+														<option value="10000" <% nvram_match("sfpp_max_speed", "10000","selected"); %>>10Gbps</option>
+													</select>
+												</td>
+											</tr>
+
+											<tr id="sfpp_force_on_tr" style="display:none">
+												<th>SFP+ port TX clock</th><!--untranslated-->
+												<td>
+													<input type="radio" name="sfpp_force_on" value="0" <% nvram_match("sfpp_force_on", "0", "checked"); %>><#Auto#>
+													<input type="radio" name="sfpp_force_on" value="1" <% nvram_match("sfpp_force_on", "1", "checked"); %>>ON<!--untranslated-->
 												</td>
 											</tr>
 

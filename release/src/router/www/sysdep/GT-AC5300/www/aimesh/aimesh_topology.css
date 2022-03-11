@@ -3,16 +3,8 @@
 	src: url(/fonts/Roboto-Regular.ttf) format("opentype");
 }
 @font-face{
-	font-family: Roboto-Thin;
-	src: url(/fonts/Roboto-Thin.ttf) format("opentype");
-}
-@font-face{
 	font-family: Roboto-Light;
 	src: url(/fonts/Roboto-Light.ttf) format("opentype");
-}
-@font-face{
-	font-family: Roboto-Medium;
-	src: url(/fonts/Roboto-Medium.ttf) format("opentype");
 }
 #jstree{
 	display: flex;
@@ -107,7 +99,7 @@
 	float: right;
 	padding: 2% 1% 2% 1%;
 	background-color: #300202;
-	font-family: Roboto-Regular;
+	font-family: Roboto-Regular, "Microsoft JhengHei";
 }
 .card_block_bg{
 	width: 100%;
@@ -147,7 +139,7 @@
 	bottom: 0;
 	right: 0;
 	margin: auto;
-	background-image: linear-gradient(200deg, rgba(255,255,255,0) 70%, rgba(0,0,0,0.6) 100%);
+	background-image: linear-gradient(190deg, rgba(255,255,255,0) 60%, rgba(0,0,0,0.8) 100%);
 }
 .translucent_bg.Home, .translucent_bg.Custom{ 
 	background-image: url("/images/New_ui/amesh/location/Home.png");
@@ -204,7 +196,7 @@
 	background-image: url("/images/New_ui/amesh/location/Second_Floor.png");
 }
 .translucent_bg.Attic{
-	background-image: url("/images/New_ui/amesh/location/Kitchen.png");
+	background-image: url("/images/New_ui/amesh/location/Attic.png");
 }
 .translucent_bg.Basement{
 	background-image: url("/images/New_ui/amesh/location/Basement.png");
@@ -232,6 +224,19 @@
 	color: #FFFFFF;
 	text-shadow: 0 1px 7px rgba(0,0,0,0.66);
 }
+.model_name > span.node_feature_notice{
+	position: relative;
+}
+.model_name > span.node_feature_notice:after{
+	position: absolute;
+	content: "";
+	background-image: url(/images/New_ui/amesh/feature_notice.svg);
+	width: 20px;
+	height: 20px;
+	background-size: cover;
+	right: -24px;
+	top: 4px;
+}
 .mac_info{
 	font-size: 12px;
 	color: #B9CFDE;
@@ -252,12 +257,24 @@
 	position: absolute;
 	bottom: 6px;
 	right: 6px;
-	z-index: 10;
+	z-index: 9;
 	background-position: 0% 0%;
 }
 .model_icon.web{
 	background-size: contain;
 	background-position: 50%;
+}
+.model_icon_exchange{
+	background-image: url(/images/New_ui/amesh/icon_exchange.svg);
+	background-repeat: no-repeat;
+	background-size: contain;
+	background-position: 50%;
+	position: absolute;
+	bottom: -8px;
+	right: 0px;
+	width: 30px;
+	height: 30px;
+	cursor: pointer;
 }
 .location_dropdown_icon:before{
 	background-image: url('/images/New_ui/amesh/location_dropdown.svg');
@@ -353,7 +370,7 @@
 .custom_select{
 	position: relative;
 	width: 90%;
-	z-index: 10;
+	z-index: 9;
 	margin: auto;
 }
 .custom_select select{
@@ -370,12 +387,11 @@
 	z-index: 20;
 	color: #ffffff;
 	font-size: 14px;
-	font-family: Roboto-Light;
+	font-family: Roboto-Light, "Microsoft JhengHei";
 	background: transparent;
 }
 .location_info_bg span.location_hint{
 	color: #FC0;
-	z-index: 10;
 	position: relative;
 	margin-left: 18px;
 	font-size: 14px;
@@ -388,7 +404,7 @@
 	background-color: rgba(25, 3, 3, 0.7);
 	border-radius: 4px 4px 0px 0px;
 	font-size: 14px;
-	font-family: Roboto-Light;
+	font-family: Roboto-Light, "Microsoft JhengHei";
 	height: 21px;
 }
 /*style the arrow inside the select element:*/
@@ -420,7 +436,7 @@
 .custom_select_items div, .custom_select_selected, .custom_pure_text{
 	color: #ffffff;
 	padding: 7px 22px 7px 45px;
-	border: 1px solid transparent;
+	border: 1px solid 740F0F;
 	border-color: transparent transparent #4c0f0f transparent;
 	cursor: pointer;
 	user-select: none;
@@ -476,7 +492,7 @@
 	height: 185px;
 	overflow-y: scroll;
 	border-radius: 0px 0px 4px 4px;
-	font-family: Roboto-Light;
+	font-family: Roboto-Light, "Microsoft JhengHei";
 }
 .custom_select_items div:hover{
 	background-color: #740F0F;
@@ -550,7 +566,7 @@
 .signal_text_bg.signal{
 	font-size: 30px;
 	margin-left: 18px;
-	font-family: Roboto-Thin;
+	font-family: Roboto-Light, "Microsoft JhengHei";
 	height: 30px;
 	overflow: hidden;
 	text-overflow: ellipsis;
@@ -584,7 +600,7 @@
 }
 .signal_hint_text{
 	margin-left: 18px;
-	font-family: Roboto-Regular;
+	font-family: Roboto-Regular, "Microsoft JhengHei";
 	font-size: 12px;
 	color: #7F8FA4;
 }
@@ -609,7 +625,7 @@
 .fw_version_text{
 	color: #FFFFFF;
 	font-size: 14px;
-	font-family: Roboto-Light;
+	font-family: Roboto-Light, "Microsoft JhengHei";
 	text-decoration: underline;
 	position: relative;
 }
@@ -677,7 +693,8 @@
 .category_bg.clicked > div.manage:before{
 	background-position: -99px -136.8px;
 }
-.connect_type_status_bg > div, .manage_settings_bg > div{
+.connect_type_status_bg.uplink > div, .manage_settings_bg > div,
+.connect_type_status_bg .fronthaul_title, .connect_type_status_bg .fronthaul_info > div{
 	height: 60px;
 	position: relative;
 }
@@ -689,6 +706,22 @@
 	height: 58px;
 	position: relative;
 }
+.connect_type_status_bg .as_backhaul_info > div{
+	height: auto;
+	min-height: 25px;
+	font-size: 14px;
+	color: #FC0;
+	padding: 0 22px 0px 22px;
+	margin-top: -16px;
+}
+.connect_type_status_bg .as_backhaul_info .faq-link{
+	text-decoration: underline !important;
+	cursor: pointer;
+	color: #33ACFF;
+}
+.wan_status_bg:not(:last-child){
+	margin-bottom: 18px;
+}
 .wan_status_bg > div{
 	height: 60px;
 	position: relative;
@@ -698,12 +731,23 @@
 }
 .connect_type_status_bg .uplink_type_bg{
 	margin-bottom: 6px;
+	min-height: 60px;
+	height: auto;
+	display: flex;
+	align-items: flex-end;
+}
+.uplink_type_bg .uplink_connect_info_bg{
+	height: 100%;
+	display: flex;
+	flex-direction: column;
+	max-width: 245px;
 }
 .connect_type_status_bg .uplink_type_title{
-	line-height: 36px;
-	font-family: Roboto-Light;
+	line-height: 110%;
+	font-family: Roboto-Light, "Microsoft JhengHei";
 	font-size: 24px;
 	margin-left: 22px;
+	margin-bottom: 10px;
 }
 .connect_type_status_bg .uplink_type_title.great, .signal_text_bg.signal.great{
 	color: #4EF81C;
@@ -717,12 +761,14 @@
 .connect_type_status_bg .uplink_type_title.disconnected, .signal_text_bg.signal.disconnected{
 	color: #627681;
 }
-.connect_type_status_bg .uplink_type_ip{
-	font-family: Roboto-Regular;
+.connect_type_status_bg .uplink_type_ip, .connect_type_status_bg .uplink_type_mode_title{
+	font-family: Roboto-Regular, "Microsoft JhengHei";
 	font-size: 14px;
 	color: #CDEBFF;
-	position: absolute;
 	margin-left: 22px;
+}
+.connect_type_status_bg .uplink_type_mode_title{
+	color: #A4B7C3;
 }
 .connect_type_status_bg .uplink_icon_bg {
 	height: 100%;
@@ -778,6 +824,15 @@
 .connect_type_status_bg .uplink_icon_bg > .uplink_type_icon.wireless.wl_5g_2.weak{
 	background-position: -306px -204px;
 }
+.connect_type_status_bg .uplink_icon_bg > .uplink_type_icon.wireless.wl_6g.great{
+	background-position: -816px 0px;
+}
+.connect_type_status_bg .uplink_icon_bg > .uplink_type_icon.wireless.wl_6g.ok{
+	background-position: -816px -102px;
+}
+.connect_type_status_bg .uplink_icon_bg > .uplink_type_icon.wireless.wl_6g.weak{
+	background-position: -816px -204px;
+}
 .connect_type_status_bg .uplink_icon_bg > .uplink_type_icon.wireless.disconnected{
 	background-position: 0px -306px;
 }
@@ -799,13 +854,22 @@
 .connect_type_status_bg .uplink_icon_bg > .uplink_type_icon.wired.M{
 	background-position: 0px -510px;
 }
+.connect_type_status_bg .uplink_icon_bg > .uplink_type_icon.plc.great{
+	background-position: -918px -306px;
+}
+.connect_type_status_bg .uplink_icon_bg > .uplink_type_icon.plc.weak{
+	background-position: -918px -408px;
+}
+.connect_type_status_bg .uplink_icon_bg > .uplink_type_icon.plc.disconnected{
+	background-position: -918px -510px;
+}
 .connect_type_status_bg .uplink_icon_bg > .uplink_type_icon.wired.disconnected, .connect_type_status_bg .uplink_icon_bg > .uplink_type_icon.wired.X{
 	background-position: -102px -510px;
 }
 .card_block_bg span.connect_title{
 	top: 24px;
 	line-height: initial;
-	font-family: Roboto-Medium;
+	font-family: Roboto-Regular, "Microsoft JhengHei";
 }
 .card_block_bg span.connect_title.vertical{
 	top: 18px;
@@ -824,7 +888,7 @@
 	right: 12px;
 	top: 6px;
 }
-.wan_status_bg div.connect_icon_bg.disconnected > .router{
+.wan_status_bg div.connect_icon_bg.disconnected > .router, .wan_status_bg div.connect_icon_bg.standby > .router{
 	background-position: -78px 6px;
 }
 .wan_status_bg div.connect_icon_bg > .connect_line{
@@ -846,6 +910,9 @@
 }
 .wan_status_bg div.connect_icon_bg.disconnected > .connect_status{
 	background-position: 2px -224px;
+}
+.wan_status_bg div.connect_icon_bg.standby > .connect_status{
+	background: initial;
 }
 .wan_status_bg div.connect_icon_bg{
 	position: absolute;
@@ -872,30 +939,15 @@
 	right: 0;
 	height: 100%;
 }
-.card_block_bg span.connect_title.wan:before{
-	border-top: 3px solid #740F0F;
-}
-.card_block_bg span.connect_title.wired:before{
-	border-top: 3px solid #740F0F;
-}
-.card_block_bg span.connect_title.wl_5g_2:before{
-	border-top: 3px solid #740F0F;
-}
-.card_block_bg span.connect_title.wl_5g:before{
-	border-top: 3px solid #740F0F;
-}
-.card_block_bg span.connect_title.wl_2g:before{
+.card_block_bg span.connect_title.horizontal_line:before{
 	border-top: 3px solid #740F0F;
 }
 .card_block_bg span.connect_title.vertical.traffic:before{
 	border-left: 3px solid #740F0F;
 }
-.card_block_bg span.connect_title.manage:before{
-	border-top: 3px solid #740F0F;
-}
 .wan_status_bg span.connect_status{
 	font-size: 20px;
-	font-family: Roboto-Light;
+	font-family: Roboto-Light, "Microsoft JhengHei";
 }
 .wan_status_bg span.connect_status.connected{
 	color: #00FCFF;
@@ -1002,7 +1054,7 @@
 	border: 1px solid #300202;
 }
 .common_content_text{
-	font-family: Roboto-Light;
+	font-family: Roboto-Light, "Microsoft JhengHei";
 	font-size: 14px;
 	color: #FFFFFF;
 	letter-spacing: 3px;
@@ -1056,7 +1108,7 @@
 }
 .common_separate_bg span{
 	position: absolute;
-	font-family: Roboto-Regular;
+	font-family: Roboto-Regular, "Microsoft JhengHei";
 	font-size: 12px;
 	color: #A4B7C3;
 }
@@ -1065,7 +1117,7 @@
 	top: -4px;
 }
 .common_separate_bg span.transmit_value{
-	font-family: Roboto-Light;
+	font-family: Roboto-Light, "Microsoft JhengHei";
 	font-size: 20px;
 	color: #00FCFF;
 	bottom: 6px;
@@ -1078,7 +1130,7 @@
 .common_separate_bg span.transmit_unit{
 	bottom: 3px;
 	left: 120px;
-	font-family: Roboto-Light;
+	font-family: Roboto-Light, "Microsoft JhengHei";
 }
 .common_separate_bg.horizontal_line:before,
 .item_bg.signal:before,.item_bg.location:before,
@@ -1122,11 +1174,10 @@
 	height: 0% !important;
 	float: initial !important;
 }
-.manage_switch_led .switch{
-	background: #740f0f;
+.manage_switch_led .switch, .manage_switch_wifi .switch{
 	box-shadow: inset 0 1px 0 0 rgba(0,0,0,0.10);
 	border-radius: 83px;
-	width: 48px;
+	width: 40px;
 	height: 24px;
 	position: relative;
 	display: inline-block;
@@ -1134,7 +1185,13 @@
 	transition: all 0.6s;
 	cursor: pointer;
 }
-.manage_switch_led .switch:before{
+.manage_switch_led .switch.off, .manage_switch_wifi .switch.off{
+	background: rgb(255 255 255 / 0.3);
+}
+.manage_switch_led .switch.on, .manage_switch_wifi .switch.on{
+	background: #91071f;
+}
+.manage_switch_led .switch:before, .manage_switch_wifi .switch:before{
 	border-radius: 83px;
 	display: block;
 	position: absolute;
@@ -1147,21 +1204,18 @@
 	transition: all 0.6s;
 	-webkit-transition-delay: 0.01s;
 	transition-delay: 0.01s;
+	background: #f7f7f7;
 }
-.manage_switch_led .switch.off:before{
-	background: #A4B7C3;
-}
-.manage_switch_led .switch.on:before{
-	-webkit-transform: translateX(24px);
-	-ms-transform: translateX(24px);
-	transform: translateX(24px);
-	background: #00FCFF;
+.manage_switch_led .switch.on:before, .manage_switch_wifi .switch.on:before{
+	-webkit-transform: translateX(16px);
+	-ms-transform: translateX(16px);
+	transform: translateX(16px);
 }
 .manage_switch_led, .manage_remove_node, .manage_slider_led, .manage_reboot_node{
 	height: 56px !important
 }
 .manage_common_title{
-	font-family: Roboto-Regular;
+	font-family: Roboto-Regular, "Microsoft JhengHei";
 	font-size: 14px;
 	color: #FFFFFF;
 }
@@ -1174,31 +1228,55 @@
 }
 .manage_common_separate_bg.left{
 	margin-left: 22px;
+	max-width: 265px;
+	word-break: break-word;
 }
 .manage_common_separate_bg.right{
 	margin-right: 22px;
 	right: 0;
 }
-.manage_settings_bg .dropdown_item_bg{
-	height: 92px;
+.manage_settings_bg .dropdown_item_bg, .manage_settings_bg .two_text_item_bg{
+	min-height: 92px;
+	height: auto;
+	display: flex;
+	flex-direction: column;
+	justify-content: space-around;
 }
-.manage_settings_bg .dropdown_item_bg > div{
+.manage_settings_bg .two_text_item_bg{
+	min-height: 70px;
+}
+.manage_settings_bg .dropdown_item_bg > div, .manage_settings_bg .two_text_item_bg > div{
 	margin-left: 22px;
 }
-.manage_settings_bg .dropdown_item_bg > div:nth-child(1){
-	height: 30px;
-	line-height: 42px;
+.manage_settings_bg .dropdown_item_bg > div:nth-child(1), .manage_settings_bg .two_text_item_bg > div:nth-child(1){
+	min-height: 42px;
+	height: auto;
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+}
+.manage_settings_bg .dropdown_item_bg .manage_common_title > div:nth-child(1),
+.manage_settings_bg .two_text_item_bg .manage_common_title > div:nth-child(1){
+	width: 85%;
+	display: flex;
+	min-height: 42px;
+	align-items: center;
 }
 .manage_settings_bg .dropdown_item_bg > div:nth-child(2){
-	height: 36px;
-	margin-top: 12px;
+	height: 42px;
+}
+.manage_settings_bg .two_text_item_bg > div:nth-child(2){
+	height: 30px;
+	display: flex;
+	align-items: center;
+	margin-bottom: 2px;
 }
 .manage_settings_bg .dropdown_item_bg .dropdown_select{
 	background: #190809;
 	border: 1px solid #740f0f;
 	border-radius: 4px;
 	color: #FFFFFF;
-	font-family: Roboto-Regular;
+	font-family: Roboto-Regular, "Microsoft JhengHei";
 	font-size: 14px;
 	line-height: 36px;
 	height: 36px;
@@ -1206,9 +1284,62 @@
 	padding-left: 6px;
 	outline: none;
 }
-.manage_settings_bg .dropdown_item_bg .bubble_icon{
+.manage_settings_bg .dropdown_item_bg .bubble_icon, .manage_settings_bg .two_text_item_bg .bubble_icon{
 	position: relative;
-	top: 7px;
+	right: 16px;
+}
+.manage_settings_bg .sub_item_bg{
+	height: auto;
+}
+.manage_settings_bg .sub_item_bg > div{
+	position: relative;
+}
+.manage_settings_bg .sub_item_bg > div:nth-child(1){
+	height: 60px;
+}
+.manage_settings_bg .sub_item_bg > div:nth-child(2){
+	margin-left: 22px;
+	padding-bottom: 2px;
+}
+.manage_sub_item_bg .manage_common_title .wifi_title{
+	position: relative;
+}
+.manage_sub_item_bg .manage_common_title .wifi_title.loading:after{
+	content: "";
+	position: absolute;
+	top: -4px;
+	right: -30px;
+	width: 24px;
+	height: 24px;
+	background-image: url(/images/InternetScan.gif);
+	background-repeat: no-repeat;
+	background-size: cover;
+}
+.manage_settings_bg .sub_item_bg .manage_sub_item_bg.loading:after{
+	content: "";
+	position: absolute;
+	bottom: 0;
+	top: 0;
+	left: 0;
+	right: 0;
+	width: 90%;
+	margin: auto;
+}
+.manage_settings_bg .sub_item_bg .manage_sub_item_bg > div{
+	height: 36px;
+	position: relative;
+	line-height: 36px;
+}
+.manage_settings_bg .sub_item_bg .manage_sub_item_bg > div .manage_common_title{
+	color: #A4B7C3;
+}
+.manage_settings_bg .sub_item_bg .manage_sub_item_bg > div:before{
+	content: "";
+	position: absolute;
+	left: 5%;
+	height: 1px;
+	width: 90%;
+	border-top: 1px solid #740F0F;
 }
 .manage_btn{
 	background-image: linear-gradient(-180deg, #6A7C83 0%, #364249 62%, #222D32 100%);
@@ -1218,12 +1349,29 @@
 	padding: 7px 18px;
 	cursor: pointer;
 }
+.manage_disconnected{
+	text-align: left;
+	color: #FC0;
+	font-size: 14px;
+	height: auto !important;
+	margin-bottom: 10px;
+	padding: 0px 18px 0px 22px;
+}
+.manage_disconnected:before{
+	content: "";
+	position: absolute;
+	left: 5%;
+	bottom: -10px;
+	height: 1px;
+	width: 90%;
+	border-bottom: 1px solid #740F0F;
+}
 .backhaul_bg .bubble_icon, .fronthaul_bg .bubble_icon{
 	position: absolute;
 	top: -2px;
 }
 .custom_radio_label{
-	margin-right: 24px;
+	margin-right: 12px !important;
 	cursor: pointer;
 	position: relative;
 }
@@ -1233,56 +1381,85 @@
 	vertical-align: middle;
 	width: 18px;
 	height: 18px;
-	margin-right: 12px;
-	background: #190809;
-	box-shadow: inset 0 1px 0 0 rgba(0,0,0,0.10);
 	border-radius: 50%;
+	border-color: rgb(207 10 44 / 0.7);
+	border-width: 2px;
+	border-style: solid;
 }
 .custom_radio_label.checked:after{
 	content: '';
-	width: 12px;
-	height: 12px;
-	background: #00FCFF;
+	width: 8px;
+	height: 8px;
+	background: #cf0a2c;
 	border-radius: 50%;
 	position: absolute;
-	left: 3px;
-	top: 5px;
+	top: 2px;
+	bottom: 0;
+	left: 0;
+	right: 0;
+	margin: auto;
 }
 .custom_radio_label > .custom_radio{
 	display: none;
 }
-.trash_icon{
-	background: url(/images/New_ui/amesh/cards_usage.svg) no-repeat;
-	background-size: initial;
+.managment_icon{
+	background: url(/images/New_ui/amesh/managment_icon.svg) no-repeat;
+	background-size: 500%;
 	width: 24px;
 	height: 24px;
-	background-position: -97px -223px;
 	cursor: pointer;
 }
-.reboot_icon{
-	background: url(/images/New_ui/amesh/cards_usage.svg) no-repeat;
-	background-size: initial;
-	width: 24px;
-	height: 24px;
-	background-position: -145px -223px;
-	cursor: pointer;
+.managment_icon.trash_icon{
+	background-position: 3px -151px;
 }
-.arrow_right_icon{
+.managment_icon.reconnect_icon{
+	background-position: 2px -42px;
+}
+.managment_icon.reboot_icon{
+	background-position: 2px -96px;
+}
+.managment_icon.preferable_backhaul_icon{
+	background-position: 2px -206px;
+}
+.preferable_backhaul_text{
+	color: #A4B7C3;
+	font-size: 12px;
+	margin-left: 6px;
+}
+.arrow_icon{
 	position: relative;
 	right: 8px;
 	width: 10px;
 	height: 10px;
-	border-top: 3px solid #778690;
-	border-right: 3px solid #778690;
+	border-top: 3px solid #ffffff;
+	border-right: 3px solid #ffffff;
+	cursor: pointer;
+}
+.arrow_icon.right{
 	-o-transform: rotate(45deg);
 	-ms-transform: rotate(45deg);
 	-moz-transform: rotate(45deg);
 	-webkit-transform: rotate(45deg);
 	transform: rotate(45deg);
-	cursor: pointer;
+}
+.arrow_icon.down{
+	-o-transform: rotate(135deg);
+	-ms-transform: rotate(135deg);
+	-moz-transform: rotate(135deg);
+	-webkit-transform: rotate(135deg);
+	transform: rotate(135deg);
+	right: 6px;
+}
+.arrow_icon.up{
+	-o-transform: rotate(-45deg);
+	-ms-transform: rotate(-45deg);
+	-moz-transform: rotate(-45deg);
+	-webkit-transform: rotate(-45deg);
+	transform: rotate(-45deg);
+	right: 6px;
 }
 .client_num_bg{
-	font-family: Roboto-Regular;
+	font-family: Roboto-Regular, "Microsoft JhengHei";
 	font-size: 14px;
 	color: #FFFFFF;
 	margin: 24px 22px 18px 22px;
@@ -1290,7 +1467,7 @@
 .client_num_bg div.left{
 	float: left;
 	position: relative;
-	font-family: Roboto-Medium;
+	font-family: Roboto-Regular, "Microsoft JhengHei";
 	font-size: 16px;
 }
 .client_num_bg div.left span:before{
@@ -1312,8 +1489,9 @@
 	background: #420606;
 	border: 1px solid #740F0F;
 	border-radius: 4px;
-	height: 36px;
 	line-height: 36px;
+	min-height: 36px;
+	height: auto;
 	width: 95%;
 	margin: 0 auto;
 }
@@ -1326,6 +1504,9 @@
 	cursor: pointer;
 	position: relative;
 	width: 33%;
+	display: flex;
+	justify-content: center;
+	align-items: center;
 }
 .client_tab_bg div:nth-child(2){
 	width: 34%;
@@ -1360,30 +1541,58 @@
 .client_list_bg .client_icon_bg{
 	height: 42px;
 	width: 42px;
-	margin: 0px 12px 0px 18px;
+	margin: 0px 10px 0px 18px;
 	float: left;
 	position: relative;
 }
-.client_list_bg .client_icon_bg.default_icon{
-	background-image: url(/images/New_ui/networkmap/client-list.svg);
+.client_list_bg .client_icon_bg.default_icon, .client_list_bg .client_icon_bg.user_icon{
 	background-repeat: no-repeat;
-	background-size: 900%;
+	background-size: 100%;
 	border-radius: 8px;
 	background-color: #680516;
+	box-shadow: 0px 0px 0px 1px #740F0F;
+	background-position: 50%;
 }
 .client_list_bg .client_icon_bg.vender_icon{
 	background-image: url(/images/New_ui/networkmap/vender-list.png);
 	background-repeat: no-repeat;
 	background-size: 180%;
-	top: -1px;
+	top: 1px;
 }
-.client_list_bg .client_icon_bg.user_icon{
+.client_list_bg .client_action_bg{
+	right: 0;
+}
+.client_list_bg .client_action_bg > span{
+	cursor: pointer;
+	width: 24px;
+	height: 24px;
+	display: inline-block;
+	background-color: rgb(145,7,31);
+	background-image: url(/images/New_ui/amesh/client_control.svg);
+	background-repeat: no-repeat;
+	background-size: initial;
+	margin-left: 6px;
+	border-radius: 50%;
+}
+.client_list_bg .client_action_bg > span:hover{
+	background-color:  rgba(207,10,44);
+}
+.client_list_bg .client_action_bg > span.unbind{
+	background-color: #FFFFFF;
+	background-position: -369.5px 1px !important;
+}
+.client_list_bg .client_action_bg > span.reconn{
+	background-position: -332.5px 1px;
+}
+.client_list_bg .client_action_bg > span.bind{
+	background-position: -295.5px 1px;
+}
+.client_list_bg .client_action_bg > span.bind_notice{
+	background-image: url(/images/New_ui/amesh/bind_notice.png) !important;
 	background-size: cover;
-	border-radius: 8px;
-}
-.type0{
-	background-image:url('/images/New_ui/networkmap/client.svg') !important;
-	background-size: 100% !important;
+	cursor: initial;
+	background-color: initial;
+	margin-left: initial;
 }
 .client_list_bg .client_content_bg{
 	float: left;
@@ -1392,32 +1601,67 @@
 	position: relative;
 }
 .client_list_bg .client_content_bg > .client_content_name{
-	font-family: Roboto-Light;
+	font-family: Roboto-Light, "Microsoft JhengHei";
 	font-size: 16px;
 	color: #FFFFFF;
 	height: 60%;
+}
+.client_list_bg .client_content_bg > .client_content_name.offline, .client_list_bg .client_content_bg > .client_content_mac_ip.offline{
+	color: #627681;
+}
+.client_list_bg .client_content_bg > .client_content_name div{
+	position: absolute;
+}
+.client_list_bg .client_content_bg .client_content_name .client_name{
+	width: 100%;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+.client_list_bg .client_content_bg .client_content_mac_ip .client_connect_icon{
+	width: 20px;
+	height: 20px;
+	background-image: url(/images/New_ui/amesh/client_control.svg);
+	background-size: 345px;
+	background-repeat: no-repeat;
+}
+.client_list_bg .client_content_bg .client_content_mac_ip .client_connect_icon.wired{
+	background-position-x: -32px;
+}
+.client_list_bg .client_content_bg .client_content_mac_ip .client_connect_icon.wl_2g{
+	background-position-x: -65px;
+}
+.client_list_bg .client_content_bg .client_content_mac_ip .client_connect_icon.wl_5g{
+	background-position-x: -98px;
+}
+.client_list_bg .client_content_bg .client_content_mac_ip .client_connect_icon.wl_5g_2{
+	background-position-x: -164px;
+}
+.client_list_bg .client_content_bg .client_content_mac_ip .client_connect_icon.wl_6g{
+	background-position-x: -197px;
+}
+.client_list_bg .client_content_bg .client_content_mac_ip .client_connect_icon.plc{
+	background-position-x: -230px;
 }
 .client_list_bg .client_content_bg > .client_content_mac_ip{
 	font-size: 13px;
 	color: #B9CFDE;
 	height: 40%;
+	display: inline-flex;
 }
 .client_list_bg .client_content_bg > .client_content_mac_ip div{
 	position: relative;
-}
-.client_list_bg .client_content_bg > .client_content_mac_ip div:first-child{
 	float: left;
-	width: 48%;
 }
-.client_list_bg .client_content_bg > .client_content_mac_ip div:nth-child(2){
+.client_list_bg .client_content_bg > .client_content_mac_ip div:not(:first-child){
 	float: left;
-	padding-left: 12px;
+	padding-left: 10px;
 }
-.client_list_bg .client_content_bg > .client_content_mac_ip > div:first-child:before{
+.client_list_bg .client_content_bg > .client_content_mac_ip > div:not(:first-child):before{
 	position: absolute;
 	content: "";
-	right: 0;
-	height: 90%;
+	left: 5px;
+	height: 110%;
 	border-left: 1px solid #7F8FA4;
 	top: 1px;
 }
@@ -1439,10 +1683,11 @@
 	border-radius: 4px;
 	position: absolute;
 	padding: 18px;
-	font-family: Roboto-Regular;
+	font-family: Roboto-Regular, "Microsoft JhengHei";
 	font-size: 16px;
 	left: 12%;
 	z-index: 500;
+	margin-bottom: 30px;
 }
 .popup_hint_bg .action_bg{
 	margin-top: 18px;
@@ -1450,6 +1695,97 @@
 }
 .popup_hint_bg .action_bg .button_gen{
 	margin-left: 18px;
+}
+.popup_hint_bg .notice_text{
+	margin-bottom: 10px;
+	position: relative;
+}
+.popup_hint_bg .notice_text.hint{
+	color: #FC0;
+	font-size: 14px;
+}
+.popup_hint_bg .notice_text_blue{
+	color: #33ACFF;
+}
+.popup_hint_bg .notice_text > span.gray{
+	color: #64737c;
+}
+.popup_hint_bg .notice_text .not_support_hint{
+	position: absolute;
+	top: 8px;
+	right: 0;
+}
+.popup_hint_bg .horizontal_line:before{
+	content: "";
+	position: absolute;
+	bottom: -4px;
+	height: 1px;
+	width: 100%;
+	border-bottom: 1px solid #740F0F;
+}
+.popup_hint_bg .notice_text_location{
+	color: #A4B7C3;
+	font-size: 12px;
+}
+.popup_hint_bg .model_info{
+	margin-left: 15px;
+}
+.popup_hint_bg .model_info.no_location{
+	display: inline-block;
+	height: 30px;
+	line-height: 30px;
+}
+.popup_hint_bg .model_info.offline{
+	color: #64737c;
+	font-size: 13px;
+	margin-left: 3px;
+	position: relative;
+	top: -2px;
+}
+.popup_hint_bg .custom_radio_bg{
+	position: absolute;
+	top: 12px;
+	right: 0;
+	margin-right: 0px;
+}
+.popup_hint_bg .custom_radio_bg.no_location{
+	top: 6px;
+}
+.popup_hint_bg .custom_radio_bg > span{
+	margin-right: initial;
+}
+.popup_hint_bg .mask_bg{
+	position: absolute;
+	width: 100%;
+	top: 0;
+	right: 0;
+	left: 0;
+	bottom: 0;
+	margin: auto;
+	background: rgba(0, 0, 0, 0.6);
+	border-radius: 4px;
+}
+.popup_hint_bg .action_more_bg{
+	margin-top: 18px;
+	position: relative;
+}
+.popup_hint_bg .action_more_bg:before{
+	content: "";
+	position: absolute;
+	top: -10px;
+	width: 100%;
+	border-top: 1px solid #616E79;
+}
+.popup_hint_bg .action_more_bg > span{
+	cursor: pointer;
+	font-size: 12px;
+	color: #A4B7C3;
+}
+.popup_hint_bg .action_more_bg > span:nth-child(1){
+	float: right;
+}
+.popup_hint_bg .action_more_bg > span:nth-child(2){
+	float: right;
 }
 .hover_pop_hint_bg{
 	cursor: initial;
@@ -1462,23 +1798,74 @@
 	box-shadow: 0 2px 4px 0 rgba(0,0,0,0.20), 0 1px 4px 0 rgba(60,60,60,0.30);
 	border-radius: 4px;
 	padding: 18px;
-	font-family: Roboto-Regular;
+	font-family: Roboto-Regular, "Microsoft JhengHei";
 	font-size: 16px;
 	color: #FFFFFF;
 	z-index: 500;
 	display: none;
 }
-.hover_pop_hint_bg.conn_priority_icon, .hover_pop_hint_bg.lacp_icon{
-	top: 40px;
+.hover_pop_hint_bg.conn_priority_icon{
+	top: -90px;
+	left: -18px;
+}
+.hover_pop_hint_bg.prefer_ap_icon{
+	top: -130px;
+	left: -18px;
+}
+.hover_pop_hint_bg.lacp_icon{
+	top: 43px;
 	left: 16px;
 }
+.hover_pop_hint_bg.conn_priority_icon > span.conn_priority_title{
+	position: relative;
+	padding-left: 12px;
+}
+.hover_pop_hint_bg.conn_priority_icon > span.conn_priority_title:before{
+	content: "";
+	position: absolute;
+	width: 6px;
+	height: 6px;
+	background-color: #FFF;
+	border-radius: 50%;
+	top: 7px;
+	left: 0px;
+}
+.hover_pop_hint_bg.conn_priority_icon > span.conn_priority_content, .hover_pop_hint_bg.prefer_ap_icon > span.prefer_ap_content{
+	color: #A4B7C3;
+	font-size: 13px;
+	line-height: 140%;
+}
+.hover_pop_hint_bg.conn_priority_icon > span.conn_priority_content.text_yellow{
+	color: #FC0;
+}
+.hover_pop_hint_bg.conn_priority_icon .height_space, .hover_pop_hint_bg.prefer_ap_icon .height_space{
+	height: 12px;
+}
 .hover_pop_hint_bg.fw_icon{
-	top: 30px;
+	top: 26px;
 	left: -124px;
 }
 .hover_pop_hint_bg.ssid_icon{
-	top: 34px;
+	top: 30px;
 	left: -2px;
+}
+.hover_pop_hint_bg.bind_notice{
+	top: 34px;
+	left: -220px;
+}
+.hover_pop_hint_bg.node_feature_notice{
+	top: 32px;
+	left: 0px;
+}
+.hover_pop_hint_bg.node_feature_notice .list_item, .hover_pop_hint_bg.prefer_ap_icon .list_item{
+	margin: 0;
+	padding: 0 18px;
+	color: #33ACFF;
+}
+.hover_pop_hint_bg.prefer_ap_icon .list_item{
+	color: #A4B7C3;
+	font-size: 13px;
+	line-height: 140%;
 }
 .hover_pop_hint:hover::before{
 	content: '';
@@ -1499,9 +1886,25 @@
 	transform: rotate(-45deg);
 	background-color: #000;
 }
+.hover_pop_hint.node_feature_notice:hover::before{
+	right: -27px;
+	left: initial;
+}
+.hover_pop_hint.conn_priority_icon:hover::before, .hover_pop_hint.prefer_ap_icon:hover::before{
+	top: 5px;
+	left: -13px;
+	-o-transform: rotate(45deg);
+	-ms-transform: rotate(45deg);
+	-moz-transform: rotate(45deg);
+	-webkit-transform: rotate(45deg);
+	transform: rotate(45deg);
+}
 .bubble_icon.info:hover + .hover_pop_hint_bg,
 .bubble_icon.fw_icon:hover + .hover_pop_hint_bg,
-.bubble_icon.signal_icon:hover + .hover_pop_hint_bg{
+.bubble_icon.signal_icon:hover + .hover_pop_hint_bg,
+.bind_notice:hover + .hover_pop_hint_bg,
+.node_feature_notice:hover + .hover_pop_hint_bg
+{
 	display: block;
 }
 /* jsTree default theme */
@@ -1552,6 +1955,12 @@
 }
 .jstree-anchor.weak.wireless:before {
 	background-position: -218px -38px;
+}
+.jstree-anchor.great.plc:before {
+	background-position: -724px -38px;
+}
+.jstree-anchor.weak.plc:before {
+	background-position: -806px -38px;
 }
 .jstree-anchor.disconnected:before {
 	background-position: -287px -38px;
@@ -1708,6 +2117,12 @@
 .jstree-default .jstree-node.weak.wireless:before{
 	background-position: -586px 0px;
 }
+.jstree-default .jstree-node.great.plc:before{
+	background-position: -886px 0px;
+}
+.jstree-default .jstree-node.weak.plc:before{
+	background-position: -962px 0px;
+}
 .jstree-default .jstree-node.disconnected:before{
 	background-position: -655px 0px;
 }
@@ -1838,7 +2253,7 @@
 	line-height: initial;
 	margin-left: 0px;
 	width: 160px;
-	font-family: Roboto-Regular;
+	font-family: Roboto-Regular, "Microsoft JhengHei";
 }
 .topology_node_info > div{
 	line-height: 180%;
@@ -1851,6 +2266,19 @@
 	font-size: 18px;
 	height: 24%;
 	margin-top: 12px;
+}
+.topology_node_info > div:nth-child(1) > span:nth-child(1).node_feature_notice{
+	position: relative;
+}
+.topology_node_info > div:nth-child(1) > span:nth-child(1).node_feature_notice:before{
+	content: "";
+	position: absolute;
+	width: 6px;
+	height: 6px;
+	background-color: #ebae04;
+	border-radius: 50%;
+	top: 13px;
+	right: -12px;
 }
 .topology_node_info > div:nth-child(2){
 	font-size: 14px;
@@ -1870,11 +2298,22 @@
 	height: 24%;
 }
 .topology_node_info > div:nth-child(3) > span:nth-child(2){
-	font-family: Roboto-Light;
+	font-family: Roboto-Light, "Microsoft JhengHei";
 	font-size: 16px;
 	color: #00FCFF;
 	margin-left: 6px;
 	margin-top: -4px;
+	position: relative;
+}
+.topology_node_info > div:nth-child(3) > span:nth-child(2).bind_notice:before{
+	content: "";
+	position: absolute;
+	width: 6px;
+	height: 6px;
+	background-color: #ebae04;
+	border-radius: 50%;
+	top: 8px;
+	right: -12px;
 }
 .clientlist_content{
 	z-index: 500 !important;
@@ -1883,60 +2322,72 @@
 	right: 12%;
 	top: 12%;
 }
-.add_node_btn{
+.node_btn_control{
 	position: relative;
 	text-align: center;
-	margin-top: 30px;
+	margin-bottom: 30px;
+	height: 35px;
 }
-.add_node_btn:before{
+.node_btn_control:before{
 	content: "";
 	position: absolute;
 	left: 2%;
-	top: -15px;
+	bottom: -15px;
 	width: 95%;
 	border-top: 1px solid #616E79;
 }
-.add_node_btn > span{
+.node_btn_control > div{
 	background-image: linear-gradient(-180deg, #740f0f 0%, #420606 62%, #400505 100%);
 	border: 1px solid #740F0F;
 	box-shadow: 0 1px 2px 0 rgba(0,0,0,0.30);
 	border-radius: 4px;
-	padding: 8px 30px 8px 54px;
-	font-family: Roboto-Medium;
+	font-family: Roboto-Regular, "Microsoft JhengHei";
 	font-size: 14px;
 	color: #FFFFFF;
 	display: inline-block;
 	cursor: pointer;
+	width: 48%;
+	float: left;
+	height: 35px;
+	margin-left: 4px;
 }
-.add_node_btn > span > span{
+.node_btn_control > div > span{
+	display: inline-block;
+	vertical-align: middle;
+	height: 35px;
+	line-height: 35px;
 	position: relative;
+	margin-left: 18px;
 }
-.add_node_btn > span > span:before{
+.node_btn_control > div > span.add_icon:before{
 	content: "+";
 	position: absolute;
-	left: -24px;
-	top: 1px;
+	left: -18px;
+	top: 0px;
 	font-size: 24px;
 	font-family: none;
 	font-weight: bolder;
 }
-.introduction_bg{
-	background-image: url(/images/New_ui/amesh/AiMesh-introduction.png);
+.node_btn_control > div > span.refresh_icon:before{
+	content: "";
+	position: absolute;
+	left: -25px;
+	top: 8px;
+	background: url(/images/New_ui/amesh/client_control.svg) no-repeat;
+	background-size: 350px;
+	width: 20px;
+	height: 20px;
+	background-position: 0px 0px;
+}
+.aimesh_introduction{
+	background-image: url(/images/New_ui/amesh/AiMesh-introduction.jpg);
 	width: 100%;
 	height: 520px;
 	background-size: 100%;
 	background-position: center;
 	background-repeat: no-repeat;
 	position: relative;
-	margin-top: 30px;
-}
-.introduction_bg:before{
-	content: "";
-	position: absolute;
-	left: 2%;
 	top: -15px;
-	width: 95%;
-	border-top: 1px solid #616E79;
 }
 .aimesh_intro_text{
 	color: #FFFFFF;
@@ -1949,7 +2400,7 @@
 	top: 36px;
 }
 .aimesh_intro_text > div:nth-child(1){
-	font-family: Roboto-Light;
+	font-family: Roboto-Light, "Microsoft JhengHei";
 	font-size: 24px;
 }
 .aimesh_intro_text > div:nth-child(2):before{
@@ -1965,24 +2416,24 @@
 	height: 1px;
 }
 .aimesh_intro_text > div:nth-child(2){
-	font-family: Roboto-Regular;
+	font-family: Roboto-Light, "Microsoft JhengHei";
 	font-size: 12px;
 	position: relative;
 	margin-top: 18px;
 }
-.introduction_bg > .add_node_btn{
+.connect_info_bg{
+	position: relative;
+	margin-top: 30px;
+	height: auto;
+	min-height: 30px;
+}
+.connect_info_bg:before{
+	content: "";
 	position: absolute;
-	bottom: 50px;
-	right: 0;
-	left: 0;
-	width: 50%;
-	margin: auto;
-}
-.introduction_bg > .add_node_btn:before{
-	content: none;
-}
-.aimesh_introduction{
-	display: none;
+	left: 2%;
+	top: -15px;
+	width: 95%;
+	border-top: 1px solid #616E79;
 }
 .connect_line_info_icon{
 	width: 26px;
@@ -1995,8 +2446,9 @@
 	background-size: 500%;
 	background-repeat: no-repeat;
 	right: 15px;
-	top: 8px;
+	top: -8px;
 	cursor: pointer;
+	z-index: 100;
 }
 .connect_line_info_bg > div{
 	height: 32px;
@@ -2045,6 +2497,12 @@
 .connect_line_info_bg .connect_line.wireless.weak:before{
 	background-position: -223px 0px;
 }
+.connect_line_info_bg .connect_line.plc.great:before{
+	background-position: -729px -59px;
+}
+.connect_line_info_bg .connect_line.plc.weak:before{
+	background-position: -811px -59px;
+}
 .connect_line_info_bg .connect_line.disconnected:before{
 	background-position: -292px -55px;
 }
@@ -2057,14 +2515,14 @@
 	margin-top: 12px !important;
 	margin-bottom: 12px !important;
 }
-.connect_type_status_bg.backhaul .wired_hide{
+.connect_type_status_bg.backhaul .wired_hide, .connect_type_status_bg.backhaul .phy_rate_bg{
 	height: auto !important;
 }
 .connect_type_status_bg.backhaul .spacing{
 	margin-top: 12px !important;
 }
 .aimesh_tab{
-	font-family: Roboto-Regular;
+	font-family: Roboto-Regular, "Microsoft JhengHei";
 	font-size: 16px;
 	color: #FFFFFF;
 	height: 24px;
@@ -2086,4 +2544,154 @@
 .aimesh_tab_content{
 	width: 100%;
 	display: none;
+}
+.client_reconnect_loading_icon{
+	background-image: url(/images/InternetScan.gif);
+	width: 60px;
+	height: 60px;
+	background-repeat: no-repeat;
+	background-size: contain;
+	left: 0;
+	right: 0;
+	margin: auto;
+	margin-bottom: 15px;
+}
+.client_reconnect_loading_text{
+	text-align: center;
+}
+
+/* CSS Loader */
+.cssload-bellContainer.topology_node{
+	height: 110px;
+}
+.cssload-bellContainer.topology_node .cssload-bell{
+	height: 68px;
+	width: 68px;
+	left: 11px;
+	top: 21px;
+	z-index: 500;
+}
+.cssload-bellContainer.topology_node .cssload-circle .cssload-inner {
+	border: 2px solid rgba(0, 252, 255, 0.4);
+	box-shadow: inset 0px 0px 10px rgba(0,252,255,0.15);
+}
+.cssload-bellContainer{
+	height: 60px;
+}
+.cssload-bell {
+	margin-top: 0px;
+	width: 50px;
+	height: 50px;
+	border-radius: 100%;
+	position: absolute;
+	left: calc(50% - 25px);
+}
+.cssload-circle {
+	width: 100%;
+	height: 100%;
+	position: absolute;
+}
+.cssload-circle .cssload-inner {
+	width: 100%;
+	height: 100%;
+	border-radius: 100%;
+	border: 3px solid rgba(0,122,255,0.7);
+	border-right: none;
+	border-top: none;
+	background-clip: padding;
+	box-shadow: inset 0px 0px 10px rgba(0,122,255,0.15);
+}
+.cssload-circle:nth-of-type(1) {
+	transform: rotate(0deg);
+	-o-transform: rotate(0deg);
+	-ms-transform: rotate(0deg);
+	-webkit-transform: rotate(0deg);
+	-moz-transform: rotate(0deg);
+}
+.cssload-circle:nth-of-type(1) .cssload-inner,
+.cssload-circle:nth-of-type(2) .cssload-inner,
+.cssload-circle:nth-of-type(3) .cssload-inner
+{
+	animation: cssload-spin 2s infinite linear;
+	-o-animation: cssload-spin 2s infinite linear;
+	-ms-animation: cssload-spin 2s infinite linear;
+	-webkit-animation: cssload-spin 2s infinite linear;
+	-moz-animation: cssload-spin 2s infinite linear;
+}
+.cssload-circle:nth-of-type(2) {
+	transform: rotate(70deg);
+	-o-transform: rotate(70deg);
+	-ms-transform: rotate(70deg);
+	-webkit-transform: rotate(70deg);
+	-moz-transform: rotate(70deg);
+}
+
+.cssload-circle:nth-of-type(3) {
+	transform: rotate(140deg);
+	-o-transform: rotate(140deg);
+	-ms-transform: rotate(140deg);
+	-webkit-transform: rotate(140deg);
+	-moz-transform: rotate(140deg);
+}
+.cssload-bell{
+	animation: cssload-spin 5s infinite linear;
+	-o-animation: cssload-spin 5s infinite linear;
+	-ms-animation: cssload-spin 5s infinite linear;
+	-webkit-animation: cssload-spin 5s infinite linear;
+	-moz-animation: cssload-spin 5s infinite linear;
+}
+@keyframes cssload-spin {
+	from {
+		transform: rotate(0deg);
+	}
+	to {
+		transform: rotate(360deg);
+	}
+}
+@-o-keyframes cssload-spin {
+	from {
+		-o-transform: rotate(0deg);
+	}
+	to {
+		-o-transform: rotate(360deg);
+	}
+}
+@-ms-keyframes cssload-spin {
+	from {
+		-ms-transform: rotate(0deg);
+	}
+	to {
+		-ms-transform: rotate(360deg);
+	}
+}
+@-webkit-keyframes cssload-spin {
+	from {
+		-webkit-transform: rotate(0deg);
+	}
+	to {
+		-webkit-transform: rotate(360deg);
+	}
+}
+@-moz-keyframes cssload-spin {
+	from {
+		-moz-transform: rotate(0deg);
+	}
+	to {
+		-moz-transform: rotate(360deg);
+	}
+}
+.loadingBlock{
+	width: 500px;
+}
+.cssload-bellContainer.center{
+	position: absolute;
+	top: 0;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	margin: auto;
+}
+.splitLine{
+	margin: 5px;
+	height: 1px;
 }

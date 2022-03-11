@@ -45,6 +45,9 @@
 #include <sys/wait.h>
 #include <sys/stat.h>
 #include <shared.h>
+#if !defined(__GLIBC__) && !defined(__UCLIBC__) /* musl */
+#include <sys/syscall.h>
+#endif
 
 #ifdef RTCONFIG_RALINK
 #include <ralink.h>
@@ -653,6 +656,9 @@ void setup_ct_timeout(int connflag)
 			v[1] = read_ct_timeout("icmp", NULL);
 
 			snprintf(buf, sizeof(buf), "%u %u", v[0], v[1]);
+#if defined(RTCONFIG_HND_ROUTER_AX_675X)
+		if(strcmp(buf, "0 0") != 0)
+#endif
 			nvram_set("ct_timeout", buf);
 		}
 	}
@@ -672,7 +678,7 @@ void setup_ct_timeout(int connflag)
 void setup_conntrack(void)
 {
 	unsigned int v[10];
-	char p[32];
+	char p[64];
 	char buf[70];
 	int i;
 
@@ -683,6 +689,9 @@ void setup_conntrack(void)
 	snprintf(p, sizeof(p), "%s", nvram_safe_get("ct_tcp_timeout"));
 	if (sscanf(p, "%u%u%u%u%u%u%u%u%u%u",
 		&v[0], &v[1], &v[2], &v[3], &v[4], &v[5], &v[6], &v[7], &v[8], &v[9]) == 10) {	// lightly verify
+#if defined(RTCONFIG_HND_ROUTER_AX_675X)
+		fprintf(stderr, "ct_tcp_timeout:[%s]\n", p);
+#endif
 		write_tcp_timeout("established", v[1]);
 		write_tcp_timeout("syn_sent", v[2]);
 		write_tcp_timeout("syn_recv", v[3]);
@@ -703,13 +712,19 @@ void setup_conntrack(void)
 		v[8] = read_tcp_timeout("last_ack");
 		snprintf(buf, sizeof(buf), "0 %u %u %u %u %u %u %u %u 0",
 			v[1], v[2], v[3], v[4], v[5], v[6], v[7], v[8]);
-		nvram_set("ct_tcp_timeout", buf);
+#if defined(RTCONFIG_HND_ROUTER_AX_675X)
+		if(strcmp(buf, "0 0 0 0 0 0 0 0 0 0") != 0)
+#endif
+			nvram_set("ct_tcp_timeout", buf);
 	}
 
 	setup_udp_timeout(FALSE);
 
 	snprintf(p, sizeof(p), "%s", nvram_safe_get("ct_timeout"));
 	if (sscanf(p, "%u%u", &v[0], &v[1]) == 2) {
+#if defined(RTCONFIG_HND_ROUTER_AX_675X)
+		fprintf(stderr, "ct_timeout:[%s]\n", p);
+#endif
 //		write_ct_timeout("generic", NULL, v[0]);
 		write_ct_timeout("icmp", NULL, v[1]);
 	}
@@ -717,6 +732,9 @@ void setup_conntrack(void)
 		v[0] = read_ct_timeout("generic", NULL);
 		v[1] = read_ct_timeout("icmp", NULL);
 		snprintf(buf, sizeof(buf), "%u %u", v[0], v[1]);
+#if defined(RTCONFIG_HND_ROUTER_AX_675X)
+		if(strcmp(buf, "0 0") != 0)
+#endif
 		nvram_set("ct_timeout", buf);
 	}
 
@@ -748,6 +766,18 @@ void setup_conntrack(void)
 	}
 	else if (f_read_string("/proc/sys/net/ipv4/netfilter/ip_conntrack_max", buf, sizeof(buf)) > 0) {
 		if (atoi(buf) > 0) nvram_set("ct_max", buf);
+	}
+#endif
+#ifdef LINUX26
+	if (f_exists("/proc/sys/net/netfilter/nf_conntrack_expect_max")) {
+		snprintf(p, sizeof(p), "%s", nvram_safe_get("ct_expect_max"));
+		i = atoi(p);
+		if (i >= 1) {
+			f_write_string("/proc/sys/net/netfilter/nf_conntrack_expect_max", p, 0, 0);
+		}
+		else if (f_read_string("/proc/sys/net/netfilter/nf_conntrack_expect_max", buf, sizeof(buf)) > 0) {
+			if (atoi(buf) > 0) nvram_set("ct_expect_max", buf);
+		}
 	}
 #endif
 #if 0
@@ -805,6 +835,10 @@ void setup_conntrack(void)
 		ct_modprobe_r("pptp");
 		ct_modprobe_r("proto_gre");
 	}
+#ifdef RTCONFIG_HND_ROUTER_AX_6756
+	f_write_string("/proc/sys/net/netfilter/nf_conntrack_helper", "1", 0, 0);
+#endif
+
 }
 
 void setup_pt_conntrack(void)
@@ -1169,7 +1203,7 @@ const zoneinfo_t tz_list[] = {
         {"UTC4DST_2",	"America/Santiago"},	// (GMT-04:00) Santiago
         {"NST3.30DST",	"Canada/Newfoundland"},	// (GMT-03:30) Newfoundland
         {"EBST3",	"America/Araguaina"},	// (GMT-03:00) Brasilia //EBST3DST_1
-		{"UTC3",	"America/Araguaina"},	// (GMT-03:00) Buenos Aires, Georgetown
+	{"UTC3",	"America/Araguaina"},	// (GMT-03:00) Buenos Aires, Georgetown
         {"EBST3DST_2",	"America/Godthab"},	// (GMT-03:00) Greenland
         {"UTC2",	"Atlantic/South_Georgia"},	// (GMT-02:00) South Georgia
         {"EUT1DST",     "Atlantic/Azores"},	// (GMT-01:00) Azores
@@ -1199,14 +1233,14 @@ const zoneinfo_t tz_list[] = {
         {"UTC-3_1",     "Asia/Kuwait"},		// (GMT+03:00) Kuwait, Riyadh
         {"UTC-3_2",     "Africa/Nairobi"},	// (GMT+03:00) Nairobi
         {"UTC-3_3",     "Europe/Minsk"},	// (GMT+03:00) Minsk
-        {"UTC-3_4",     "Europe/Moscow"},	// (GMT+03:00) Moscow, St. Petersburg        
+        {"UTC-3_4",     "Europe/Moscow"},	// (GMT+03:00) Moscow, St. Petersburg
+	{"UTC-3_5",     "Europe/Volgograd"},    // (GMT+03:00) Volgograd        //UTC-4_7
         {"IST-3",       "Asia/Baghdad"},	// (GMT+03:00) Baghdad
         {"UTC-3_6",     "Asia/Istanbul"},	// (GMT+03:00) Istanbul
         {"UTC-3.30DST", "Asia/Tehran"},		// (GMT+03:00) Tehran        
         {"UTC-4_1",     "Asia/Muscat"},		// (GMT+04:00) Abu Dhabi, Muscat
         {"UTC-4_5",     "Europe/Samara"},	// (GMT+04:00) Izhevsk, Samara
-		{"UTC-4_7",     "Europe/Volgograd"},	// (GMT+03:00) Volgograd	//UTC-3_5
-		{"UTC-4_4",     "Asia/Tbilisi"},	// (GMT+04:00) Tbilisi, Yerevan
+	{"UTC-4_4",     "Asia/Tbilisi"},	// (GMT+04:00) Tbilisi, Yerevan
         {"UTC-4_6",	"Asia/Baku"},		// (GMT+04:00) Baku
         {"UTC-4.30",    "Asia/Kabul"},		// (GMT+04:30) Kabul
         {"UTC-5",       "Asia/Karachi"},	// (GMT+05:00) Islamabad, Karachi, Tashkent
@@ -1242,10 +1276,11 @@ const zoneinfo_t tz_list[] = {
         {"UTC-11",      "Pacific/Noumea"},	// (GMT+11:00) Solomon Is.
         {"UTC-11_1",    "Pacific/Noumea"},	// (GMT+11:00) New Caledonia
         {"UTC-11_3",    "Asia/Srednekolymsk"},	// (GMT+11:00) Chokurdakh, Srednekolymsk
-        {"UTC-12",      "Pacific/Fiji"},	// (GMT+12:00) Fiji, Marshall IS.
-        {"UTC-12_2",	"Asia/Anadyr"},		// (GMT+12:00) Anadyr, Petropavlovsk-Kamchatsky
-        {"NZST-12DST",  "Pacific/Auckland"},	// (GMT+12:00) Auckland, Wellington
-        {"UTC-13",      "Pacific/Tongatapu"},	// (GMT+13:00) Nuku'alofa
+	{"UTC-12",      "Pacific/Majuro"},	// (GMT+12:00) Marshall IS.
+	{"UTC-12DST",	"Pacific/Fiji"},	// (GMT+12:00) Fiji
+	{"UTC-12_2",	"Asia/Anadyr"},		// (GMT+12:00) Anadyr, Petropavlovsk-Kamchatsky
+	{"NZST-12DST",  "Pacific/Auckland"},	// (GMT+12:00) Auckland, Wellington
+	{"UTC-13",      "Pacific/Tongatapu"},	// (GMT+13:00) Nuku'alofa
 	{ NULL }
 };
 #endif
@@ -1255,6 +1290,7 @@ void time_zone_x_mapping(void)
 	FILE *fp;
 	char tmpstr[32];
 	char *ptr;
+	int len;
 
 #ifdef HND_ROUTER
 	int idx;
@@ -1326,19 +1362,25 @@ void time_zone_x_mapping(void)
 		nvram_set("time_zone", "EBST3");
 		nvram_set("time_zone_dst", "0");
 	}
-	else if (nvram_match("time_zone", "UTC-3_5")){	/*Volgograd*/
-		nvram_set("time_zone", "UTC-4_7");
+	else if (nvram_match("time_zone", "UTC-4_7")){  /*Volgograd*/
+		nvram_set("time_zone", "UTC-3_5");
+	}	
+	else if (nvram_match("time_zone", "UTC-6_2")){  /*Novosibirsk*/
+		nvram_set("time_zone", "UTC-7_3");
 	}
 
-	snprintf(tmpstr, sizeof(tmpstr), "%s", nvram_safe_get("time_zone"));
+	len = snprintf(tmpstr, sizeof(tmpstr), "%s", nvram_safe_get("time_zone"));
 	/* replace . with : */
 	while ((ptr=strchr(tmpstr, '.'))!=NULL) *ptr = ':';
 	/* remove *_? */
-	while ((ptr=strchr(tmpstr, '_'))!=NULL) *ptr = 0x0;
+	while ((ptr=strchr(tmpstr, '_'))!=NULL){
+		*ptr = 0x0;
+		len = ptr-tmpstr;
+	}
 
 	/* check time_zone_dst for daylight saving */
 	if (nvram_get_int("time_zone_dst"))
-		sprintf(tmpstr, "%s,%s", tmpstr, nvram_safe_get("time_zone_dstoff"));
+		len += sprintf(tmpstr + len, ",%s", nvram_safe_get("time_zone_dstoff"));
 #ifdef CONVERT_TZ_TO_GMT_DST
 	else	gettzoffset(tmpstr, tmpstr, sizeof(tmpstr));
 #endif
@@ -1387,7 +1429,13 @@ setup_timezone(void)
 	gmtime_r(&now, &gm);
 	localtime_r(&now, &local);
 	gm.tm_isdst = local.tm_isdst;
+	memset(&tz, 0, sizeof(tz));	// On Linux, with glibc, the setting of the tz_dsttime field of struct timezone has never been used by settimeofday() or gettimeofday().
 	tz.tz_minuteswest = (mktime(&gm) - mktime(&local)) / 60;
+
+#if !defined(__GLIBC__) && !defined(__UCLIBC__) /* musl */
+	if (syscall(SYS_settimeofday, NULL, &tz))
+		_dprintf("[%s]: can't set kernel time zone!!!!\n");
+#endif
 
 	/* Setup sane start time */
 	if (now < RC_BUILDTIME) {
@@ -1397,7 +1445,6 @@ setup_timezone(void)
 		tv.tv_sec += info.uptime;
 		tvp = &tv;
 	}
-
 	settimeofday(tvp, &tz);
 }
 
@@ -1454,7 +1501,9 @@ int setup_dnsmq(int mode)
 	else {
 		eval("ebtables", "-F");
 		eval("ebtables", "-t", "broute", "-F");
+#ifdef CONFIG_BCMWL5
 		if (is_ure(nvram_get_int("wlc_band")))
+#endif
 		eval("ebtables", "-I", "FORWARD", "-i", nvram_safe_get(wlc_nvname("ifname")), "-j", "DROP");
 	}	
 	
@@ -1562,6 +1611,67 @@ int rand_seed_by_time(void)
 	return rand();
 }
 
+//Andrew add
+#ifdef RTCONFIG_CONNTRACK
+void conntrack_check(int action)
+{
+	static unsigned int conntrack_times = 0;
+	char cmd[80];
+
+	if (!nvram_match("fb_conntrack_debug", "1"))
+		return;
+
+	int pid = pidof("conntrack");
+	/*
+	time_t now;
+	struct tm *info;
+	char t_str[10];
+
+	time(&now);
+	info = localtime(&now);
+	strftime(t_str, 10, "%H:%M:%S", info);
+	*/
+	switch (action) {
+	case CONNTRACK_START:
+		//_dprintf("%s conntrack_check, action=[%d][START], pid=[%d]\n", t_str, CONNTRACK_START, pid);
+		if (pid < 1) {
+			snprintf(cmd, sizeof(cmd), "conntrack -E -p tcp -v %s &", NF_CONNTRACK_FILE);
+			_dprintf("cmd=[%s]\n", cmd);
+			system(cmd);
+			conntrack_times = 0;
+		}
+		break;
+
+	case CONNTRACK_STOP:
+		//_dprintf("%s conntrack_check, action=[%d][STOP], pid=[%d]\n", t_str, CONNTRACK_STOP, pid);
+		if (pid >= 1) {
+			snprintf(cmd, sizeof(cmd), "kill -SIGTERM %d", pid);
+			_dprintf("cmd=[%s]\n", cmd);
+			system(cmd);
+			conntrack_times = 0;
+		}
+		break;
+
+	case CONNTRACK_ROTATE:
+		//_dprintf("%s conntrack_check, action=[%d][ROTATE], pid=[%d], times=[%d]\n", t_str, CONNTRACK_ROTATE, pid, conntrack_times);
+		conntrack_times++;
+		if (conntrack_times < ONEDAY)
+			return;
+
+		if (pid >= 1) {
+			snprintf(cmd, sizeof(cmd), "kill -SIGUSR1 %d", pid);
+			_dprintf("cmd=[%s]\n", cmd);
+			system(cmd);
+			conntrack_times = 0;
+		}
+		break;
+	}
+
+	return;
+}
+#endif //RTCONFIG_CONNTRACK
+//Andrew end
+
 #if defined(RTCONFIG_QCA)
 char *get_wpa_supplicant_pidfile(const char *ifname, char *buf, int size)
 {
@@ -1596,3 +1706,93 @@ void kill_wifi_wpa_supplicant(int unit)
 }
 #endif	/* RTCONFIG_QCA */
 
+void reset_corefilesize(rlim_t s)
+{
+	struct rlimit lim;
+
+	getrlimit(RLIMIT_CORE, &lim);
+	_dprintf("\nnow sys rlimit core:cur=%d, max=%d\n", (int)lim.rlim_cur, (int)lim.rlim_max);
+
+	lim.rlim_cur = s;
+	if (setrlimit(RLIMIT_CORE, &lim) < 0)
+		_dprintf("\nreset core file size failed\n\n");
+	else
+		_dprintf("\nreset core file size as %d\n\n", s);
+}
+
+#define DEBUGLOG_KLOG_PATH "/jffs/debuglog_klog.tgz"
+#define DEBUGLOG_CORE_PATH "/jffs/debuglog_core.tgz"
+#define DEBUGLOG_SLOG_PATH "/jffs/debuglog_slog.tgz"
+extern void collect_misclog(char* file_list, size_t len);
+extern void delete_tmplog();
+void collect_debuglog(int type)
+{
+	char cmd[1024] = {0};
+	char path[128] = {0};
+	char buf[1024] = {0};
+
+	if (type & DEBUGLOG_KLOG) {
+		strlcpy(path, "/tmp/klog.txt", sizeof(path));
+		snprintf(cmd, sizeof(cmd), "dmesg -r > %s", path);
+		system(cmd);
+		snprintf(cmd, sizeof(cmd), "tar zcf %s %s", DEBUGLOG_KLOG_PATH, path);
+		system(cmd);
+		unlink(path);
+	}
+	if (type & DEBUGLOG_CORE) {
+		strlcpy(path, "/tmp/corelist.txt", sizeof(path));
+		snprintf(cmd, sizeof(cmd), "ls -l /tmp/core-* > %s", path);
+		system(cmd);
+		snprintf(cmd, sizeof(cmd), "tar zcf %s /tmp/core-* %s", DEBUGLOG_CORE_PATH, path);
+		system(cmd);
+		unlink(path);
+	}
+	if (type & DEBUGLOG_SLOG) {
+		snprintf(cmd, sizeof(cmd), "tar zcf %s /tmp/syslog.log*", DEBUGLOG_SLOG_PATH);
+		collect_misclog(buf, sizeof(buf));
+		strlcat(cmd, buf, sizeof(cmd));
+		system(cmd);
+		delete_tmplog();
+	}
+}
+
+int check_mountpoint(char *mountpoint)
+{
+	FILE *procpt;
+	char line[256], devname[48], mpname[48], system_type[10], mount_mode[128];
+	int dummy1, dummy2;
+
+	if ((procpt = fopen("/proc/mounts", "r")) != NULL)
+	while (fgets(line, sizeof(line), procpt)) {
+		memset(mpname, 0x0, sizeof(mpname));
+		if (sscanf(line, "%s %s %s %s %d %d", devname, mpname, system_type, mount_mode, &dummy1, &dummy2) != 6)
+			continue;
+
+		if (!strcmp(mpname, mountpoint))
+			return 1;
+	}
+
+	if (procpt)
+		fclose(procpt);
+
+	return 0;
+}
+
+extern char **environ;
+void envsave(const char* path)
+{
+	FILE* fp;
+	int i = 0;
+
+	if (!*path)
+		return;
+
+	fp = fopen(path, "w");
+	if (fp) {
+		while(environ[i] != NULL) {
+			fprintf(fp, "%s\n", environ[i]);
+			i++;
+		}
+		fclose(fp);
+	}
+}

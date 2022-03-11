@@ -19,6 +19,7 @@
 <script type="text/javascript" src="validator.js"></script>
 <script type="text/javaScript" src="/js/jquery.js"></script>
 <script type="text/javascript" src="switcherplugin/jquery.iphone-switch.js"></script>
+<script type="text/javascript" src="/js/httpApi.js"></script>
 
 <style>
 .contentM_connection{
@@ -59,22 +60,37 @@ var orig_wan_vpndhcp = '<% nvram_get("wan_vpndhcp"); %>';
 var orig_ttl_inc_enable = '<% nvram_get("ttl_inc_enable"); %>';
 var iptv_profiles = [<% get_iptvSettings();%>][0];
 var isp_profiles = iptv_profiles.isp_profiles;
+var stbPortMappings = [<% get_stbPortMappings();%>][0];
 var orig_wnaports_bond = '<% nvram_get("wanports_bond"); %>';
 
+if(wan_bonding_support)
+	var orig_bond_wan = httpApi.nvramGet(["bond_wan"], true).bond_wan;
+
+// get Primary WAN setting list from hook.
+// cplumn 0: dsl(wan)_enable
+var MSWAN_List_Pri = [ <% get_MS_WAN_list_Pri(); %> ];
+var mr_mswan_idx_orig = '<% nvram_get("mr_mswan_idx"); %>';
+var with_multiservice=0;
+for(var i = 1; i < MSWAN_List_Pri.length; i++){
+	if (MSWAN_List_Pri[i][0] == "1") {
+		with_multiservice++;
+	}
+}
 
 function initial(){
 	show_menu();
 
 	create_stb_select(original_switch_stb_x);
+	if(mswan_support){
+		update_mr_mswan_idx();
+		inputCtrl(document.form.mr_mswan_idx, with_multiservice ? 1 : 0);
+	}
 	create_mr_select(orig_mr_enable);
 	if(dsl_support) {
-		if( based_modelid == "DSL-AC68U")
-			$("#dsl_vlan_check").show();
+		document.form.action_wait.value = 20;
 		$("#isp_profile_tr").hide();
 		$("#mr_enable_field").show();
 		$("#enable_eff_multicast_forward").show();
-		document.form.action_script.value = "reboot";
-		document.form.action_wait.value = "<% get_default_reboot_time(); %>";
 	}
 	else{	//DSL not support
 		create_ISP_select();
@@ -264,6 +280,7 @@ function ISP_Profile_Selection(isp){
 		document.getElementById("wan_internet_x").style.display = "none";
 		document.getElementById("wan_iptv_port4_x").style.display = "none";
 		document.getElementById("wan_voip_port3_x").style.display = "none";
+		document.form.switch_stb_x.value = isp_settings.switch_stb_x;
 		document.form.switch_wan0tagid.disabled = true;
 		document.form.switch_wan0prio.disabled = true;
 		document.form.switch_wan1tagid.disabled = true;
@@ -415,17 +432,51 @@ function validForm(){
 		if (tmp_pri_if == 'LAN' || tmp_sec_if == 'LAN'){
 			var port_conflict = false;
 			var iptv_port = document.form.switch_stb_x.value;
-			if(wans_lanport == iptv_port)
-				port_conflict = true;
-			else if( (wans_lanport == 1 || wans_lanport == 2) && iptv_port == 5)
-				port_conflict = true;
-			else if( (wans_lanport == 3 || wans_lanport == 4) && (iptv_port == 6 || iptv_port == 8) )
-				port_conflict = true;
+			var iptv_port_settings = document.form.iptv_port_settings.value;
+
+			if(based_modelid == "GT-AC5300"){
+				/* Dual WAN: "LAN Port 1" (wans_lanport: 2), "LAN Port 2" (wans_lanport:1), "LAN Port 5" (wans_lanport:4), "LAN Port 6" (wans_lanport:3) */
+				if(iptv_port_settings == "56"){// LAN Port 5 (switch_stb_x: 3)  LAN Port 6 (switch_stb_x: 4)
+					if((wans_lanport == "4" && iptv_port == "3") || (wans_lanport == "3" && iptv_port == "4"))
+						port_conflict = true;
+					else if((iptv_port == "6" || iptv_port == "8") && (wans_lanport == '4' || wans_lanport == "3"))
+						port_conflict = true;
+				}
+				else{// LAN Port 1 (switch_stb_x: 3)  LAN Port 2 (switch_stb_x: 4)
+					if((wans_lanport == "2" && iptv_port == "3") || (wans_lanport == "1" && iptv_port == "4")) //LAN 1, LAN2
+						port_conflict = true;
+					else if((iptv_port == "6" || iptv_port == "8") && (wans_lanport == "2" || wans_lanport == "1"))
+						port_conflict = true;
+				}
+			}
+			else{
+				if(iptv_port == wans_lanport)
+					port_conflict = true;
+					else{
+						for(var i = 0; i < stbPortMappings.length; i++){
+							if(iptv_port == stbPortMappings[i].value && stbPortMappings[i].comboport_value_list.length != 0){
+								var value_list = stbPortMappings[i].comboport_value_list.split(" ");
+								for(var j = 0; j < value_list.length; j++){
+									if(wans_lanport == value_list[j])
+										port_conflict = true;
+								}
+							}
+						}
+					}
+			}
 
 			if (port_conflict) {
 				alert("<#RouterConfig_IPTV_conflict#>");
 				return false;
 			}
+		}
+	}
+
+	if(document.form.udpxy_enable_x.value != 0 && document.form.udpxy_enable_x.value != ""){	//validate UDP Proxy
+		if(!validator.range(document.form.udpxy_enable_x, 1024, 65535)){
+			document.form.udpxy_enable_x.focus();
+			document.form.udpxy_enable_x.select();
+			return false;
 		}
 	}
 
@@ -445,28 +496,28 @@ function turn_off_lacp_if_conflicts(){
 	}
 }
 
+var reboot_confirm=0;
 function applyRule(){
-	if(!dsl_support){
-		if( (original_switch_stb_x != document.form.switch_stb_x0.value)
-			|| (original_switch_wantag != document.form.switch_wantag.value)
-			|| ((document.form.switch_wantag.value == "manual") && ((original_switch_wan0tagid != document.form.switch_wan0tagid.value)
+	if(validForm()){
+
+		if(!dsl_support){
+			if( (original_switch_stb_x != document.form.switch_stb_x0.value)
+				|| (original_switch_wantag != document.form.switch_wantag.value)
+				|| ((document.form.switch_wantag.value == "manual") && ((original_switch_wan0tagid != document.form.switch_wan0tagid.value)
 																	|| (original_switch_wan0prio != document.form.switch_wan0prio.value)
 																	|| (original_switch_wan1tagid != document.form.switch_wan1tagid.value)
 																	|| (original_switch_wan1prio != document.form.switch_wan1prio.value)
 																	|| (original_switch_wan2tagid != document.form.switch_wan2tagid.value)
 																	|| (original_switch_wan2prio != document.form.switch_wan2prio.value)) )
 			){
-			turn_off_lacp_if_conflicts();
-			FormActions("start_apply.htm", "apply", "reboot", "<% get_default_reboot_time(); %>");
+				turn_off_lacp_if_conflicts();
+				reboot_confirm=1;
+			}
 		}
-	}
-
-	if(validForm()){
-		if(document.form.udpxy_enable_x.value != 0 && document.form.udpxy_enable_x.value != ""){	//validate UDP Proxy
-			if(!validator.range(document.form.udpxy_enable_x, 1024, 65535)){
-				document.form.udpxy_enable_x.focus();
-				document.form.udpxy_enable_x.select();
-				return false;
+		else{
+			if( based_modelid == "DSL-AC68U"){
+				$("#dsl_vlan_check").show();
+				reboot_confirm=1;
 			}
 		}
 
@@ -489,7 +540,7 @@ function applyRule(){
 					}
 					document.form.wans_dualwan.value = wans_dualwan_temp;
 					document.form.wans_lanport.value = document.form.wans_lanport1.value;
-					FormActions("start_apply.htm", "apply", "reboot", "<% get_default_reboot_time(); %>");
+					reboot_confirm=1;
 					alert("Please make sure the internet wire already plug in 'Port LAN " + document.form.wans_lanport.value + "' as primary WAN.");/*untranslated*/
 				}
 			}
@@ -522,8 +573,19 @@ function applyRule(){
 
 		turn_off_lacp_if_conflicts();
 
-		showLoading();
-		document.form.submit();
+		if(reboot_confirm==1){
+        	
+			if(confirm("<#AiMesh_Node_Reboot#>")){
+				FormActions("start_apply.htm", "apply", "reboot", "<% get_default_reboot_time(); %>");
+				showLoading();
+				document.form.submit();
+	        	}
+        	}
+		else{
+
+			showLoading();
+			document.form.submit();
+		}
 	}
 }
 
@@ -1077,7 +1139,7 @@ function change_port_settings(val, changed){
 	}
 	else if(val == "56"){
 		if(changed){
-			var msg="Change IPTV/ VOIP port settings to LAN5/ LAN6 will disable Bonding/ Link aggregation function. Are you sure to do it?";
+			var msg="<#NAT_lacp_disable_note#>";	/*Untranslated*/
 			if(lacp_enabled){
 				if(!confirm(msg)){
 					document.form.iptv_port_settings.value = "12";
@@ -1135,6 +1197,14 @@ function change_mr_enable(val){
 	inputCtrl(document.form.mr_igmp_ver, igmp_enable ? 1 : 0);
 	inputCtrl(document.form.mr_mld_ver, mld_enable ? 1 : 0);
 	inputCtrl(document.form.mr_qleave_x, qleave_enable ? 1 : 0);
+}
+
+function update_mr_mswan_idx(){
+	for(var i = 1; i < MSWAN_List_Pri.length; i++){
+		if (MSWAN_List_Pri[i][0] == "1") {
+			add_option(document.form.mr_mswan_idx, i, i, (mr_mswan_idx_orig==i)?1:0);
+		}
+	}
 }
 
 function change_switch_stb(switch_stb_x){
@@ -1568,6 +1638,14 @@ function change_switch_stb(switch_stb_x){
 				</select>
 			</td>
 		</tr>
+		<tr style="display:none;">
+			<th>WAN index</th>
+			<td>
+				<select name="mr_mswan_idx" class="input_option">
+					<option value="0" <% nvram_match("mr_mswan_idx", "0","selected"); %> >0</option>
+				</select>
+			</td>
+		</tr>
 		<tr id="mr_enable_field" style="display:none;">
 			<th><a class="hintstyle" href="javascript:void(0);" onClick="openHint(5,11);"><#RouterConfig_GWMulticastEnable_itemname#></a></th>
 			<td>
@@ -1578,12 +1656,12 @@ function change_switch_stb(switch_stb_x){
 				<span id="mr_hint" style="display:none;">( <#RouterConfig_GWMulticastEnable_hint#> )</span>
 				<div id="mr_disable" style="display:none;">
 					<span style="color:#FFF;"><#WLANConfig11b_WirelessCtrl_buttonname#></span>
-					<span style="margin-left: 5px;">(Due to hardware limitation, IGMP proxy cannot co-exist with IPTV function.)</span><!--untranslated-->
+					<span style="margin-left: 5px;"><#RouterConfig_GWMulticastEnable_hint2#></span>
 				</div>
 			</td>
 		</tr>
 		<tr style="display:none;">
-			<th><a class="hintstyle" href="javascript:void(0);" onClick="openHint(5,14);">Default IGMP version</a></th>
+			<th><a class="hintstyle" href="javascript:void(0);" onClick="openHint(5,14);"><#RouterConfig_IGMPver_itemname#></a></th>
 			<td>
 				<select name="mr_igmp_ver" class="input_option">
 					<option value="1" <% nvram_match("mr_igmp_ver", "1","selected"); %> >IGMP v1</option>
@@ -1593,7 +1671,7 @@ function change_switch_stb(switch_stb_x){
 			</td>
 		</tr>
 		<tr style="display:none;">
-			<th><a class="hintstyle" href="javascript:void(0);" onClick="openHint(5,15);">Default MLD version</a></th>
+			<th><a class="hintstyle" href="javascript:void(0);" onClick="openHint(5,15);"><#RouterConfig_MLDver_itemname#></a></th>
 			<td>
 				<select name="mr_mld_ver" class="input_option">
 					<option value="1" <% nvram_match("mr_mld_ver", "1","selected"); %> >MLD v1</option>

@@ -13,6 +13,7 @@
 <link rel="stylesheet" type="text/css" href="index_style.css"> 
 <link rel="stylesheet" type="text/css" href="form_style.css">
 <link rel="stylesheet" type="text/css" href="usp_style.css">
+<link rel="stylesheet" type="text/css" href="pwdmeter.css">
 <link href="other.css"  rel="stylesheet" type="text/css">
 <script type="text/javascript" src="/state.js"></script>
 <script type="text/javascript" src="/help.js"></script>
@@ -23,6 +24,26 @@
 <script type="text/javascript" src="/js/jquery.js"></script>
 <script type="text/javascript" src="/switcherplugin/jquery.iphone-switch.js"></script>
 <script type="text/javascript" src="/js/httpApi.js"></script>
+<style>
+.warning_msg{
+	color: #FC0;
+	margin: 2px 0 0 8px;
+}
+
+.wpa_psk_container{
+	display: flex;
+	align-items: center;
+}
+
+.pwdmeter_container{
+	margin-left: 5px;
+	outline: 0px;
+}
+
+.short_pwdmeter{
+	width: 110px;
+}
+</style>
 <script><% wl_get_parameter(); %>
 
 $(function () {
@@ -45,6 +66,8 @@ var wlc1_ssid = '<% nvram_get("wlc1_ssid"); %>';
 var wifison_ready = httpApi.nvramGet(["wifison_ready"]).wifison_ready;
 var wl_bw_160 = '<% nvram_get("wl_bw_160"); %>';
 var enable_bw_160 = (wl_bw_160 == 1) ? true : false;
+var wl_wpa_psk_org = decodeURIComponent("<% nvram_char_to_ascii("WLANConfig11b", "wl_wpa_psk"); %>");
+var faq_fref = "https://nw-dlcdnet.asus.com/support/forward.html?model=&type=Faq&lang="+ui_lang+"&kw=&num=150";
 
 function initial(){
 	show_menu();
@@ -53,7 +76,7 @@ function initial(){
 		$("#he_mode_faq_link")  //for string tag: WLANConfig11b_HE_Frame_Mode_faq
             .attr('target', '_blank')
             .attr('style', 'color:#FC0;text-decoration:underline;')
-            .attr('href', 'https://www.asus.com/support/FAQ/1037422/');
+            .attr('href', faq_fref);
 	}
 
 	if(vht160_support){
@@ -268,7 +291,26 @@ function initial(){
 			
 			document.form.wl_channel.value = _ch;
 		}
-	}	
+	}
+
+	controlHideSSIDHint();
+
+	$("<div>")
+		.attr({"id": "ssid_msg"})
+		.addClass("warning_msg")
+		.appendTo($("#ssid_setting"));
+
+	$("#wl_ssid").keyup(function(){
+		validator.ssidCheck($("#"+this.id), $("#ssid_msg"));
+	});
+
+	$("input[name='wl_wpa_psk']").parent().parent().append(Get_Component_PWD_Strength_Meter());
+	$("#scorebarBorder").addClass("pwdmeter_container short_pwdmeter");
+	$("#scorebarBorder *").addClass("short_pwdmeter");
+	chkPass(wl_wpa_psk_org, "");
+	$("input[name='wl_wpa_psk']").keyup(function(e){
+									chkPass(this.value, "");
+								})
 }
 
 function genBWTable(_unit){
@@ -343,17 +385,28 @@ function genBWTable(_unit){
 		}
 
 		if(document.form.wl_nmode_x.value == 8 || (_unit != 0 && document.form.wl_nmode_x.value == 0)){// N/AC mixed or 5G Auto
+			var nband = "<% nvram_get("wl_nband"); %>";
 			if(isArray(wl_channel_list_5g)){
-				array_80m = filter_5g_channel_by_bw(wl_channel_list_5g, 80);
-				array_160m = filter_5g_channel_by_bw(wl_channel_list_5g, 160);
+				if(nband == "4"){
+					array_80m = filter_6g_channel_by_bw(wl_channel_list_5g, 80);
+					array_160m = filter_6g_channel_by_bw(wl_channel_list_5g, 160);
+				}else{
+					array_80m = filter_5g_channel_by_bw(wl_channel_list_5g, 80);
+					array_160m = filter_5g_channel_by_bw(wl_channel_list_5g, 160);
+				}
 			}else{
 				start = wl_channel_list_5g.lastIndexOf("[");
 				end = wl_channel_list_5g.indexOf("]");
 				if (end == -1)
 					end = wl_channel_list_5g.length;
 				ch = wl_channel_list_5g.slice(start + 1, end);
-				array_80m = filter_5g_channel_by_bw(ch.split(","), 80);
-				array_160m = filter_5g_channel_by_bw(ch.split(","), 160);
+				if(nband == "4"){
+					array_80m = filter_6g_channel_by_bw(ch.split(","), 80);
+					array_160m = filter_6g_channel_by_bw(ch.split(","), 160);
+				}else{
+					array_80m = filter_5g_channel_by_bw(ch.split(","), 80);
+					array_160m = filter_5g_channel_by_bw(ch.split(","), 160);
+				}
 			}
 			
 			if(vht80_80_support && array_80m.length/4 >= 2){
@@ -486,7 +539,7 @@ function applyRule(){
 
 	if(validForm()){
 		if(amesh_support && (isSwMode("rt") || isSwMode("ap")) && ameshRouter_support) {
-			if(!check_wl_auth_support(auth_mode, $("select[name=wl_auth_mode_x] option:selected")))
+			if(!check_wl_auth_support($("select[name=wl_auth_mode_x] option:selected"), wl_unit))
 				return false;
 			else {
 				var wl_parameter = {
@@ -616,6 +669,20 @@ function applyRule(){
 			document.form.action_wait.value = "20";
 		}
 
+		if(smart_connect_support && (isSwMode("rt") || isSwMode("ap")) && document.form.smart_connect_x.value == "1"){
+			if(isSupport("amas_fronthaul_network")){
+				if(isSupport("triband")){
+					if(smart_connect_flag_t != document.form.smart_connect_x.value){//SC change to 1
+						if(dwb_info.mode && wl_unit != dwb_info.band){//current wl_unit maybe is 0 or 1
+							var nvramSet_obj = {"action_mode":"apply"};
+							nvramSet_obj["wl"+dwb_info.band+"_closed"] = "1";
+							httpApi.nvramSet(nvramSet_obj);
+						}
+					}
+				}
+			}
+		}
+
 		document.form.submit();
 	}
 }
@@ -679,7 +746,7 @@ function validForm(){
 		ssid_array.push(httpApi.nvramGet(["wl0_ssid"]).wl0_ssid);
 		if(wl_info.band5g_support)
 			ssid_array.push(httpApi.nvramGet(["wl1_ssid"]).wl1_ssid);
-		if(wl_info.band5g_2_support)
+		if(wl_info.band5g_2_support || wl_info.band6g_support)
 			ssid_array.push(httpApi.nvramGet(["wl2_ssid"]).wl2_ssid);
 		jsonPara["current_ssid"] = ssid_array;
 		if(!validator.dwb_check_wl_setting(jsonPara)) {
@@ -852,23 +919,23 @@ function enableSmartCon(val){
 	var desc = new Array();
 
 	if(isSupport("triband") && dwb_info.mode) {
-		desc = ["Dual-Band Smart Connect (2.4GHz and 5GHz)"];
+		desc = ["<#smart_connect_dual#> (2.4GHz and 5GHz)"];
 		value = ["1"];
 		add_options_x2(document.form.smart_connect_t, desc, value, val);
 	}
 	else {
 		if(based_modelid=="RT-AC5300" || based_modelid=="GT-AC5300"){
-			desc = ["Tri-Band Smart Connect (2.4GHz, 5GHz-1 and 5GHz-2)", "5GHz Smart Connect (5GHz-1 and 5GHz-2)"];
+			desc = ["<#smart_connect_tri#> (2.4GHz, 5GHz-1 and 5GHz-2)", "5GHz Smart Connect (5GHz-1 and 5GHz-2)"];
 			value = ["1", "2"];
 			add_options_x2(document.form.smart_connect_t, desc, value, val);
 		}
 		else if(based_modelid =="RT-AC3200" || based_modelid =="RT-AC95U"){
-			desc = ["Tri-Band Smart Connect (2.4GHz, 5GHz-1 and 5GHz-2)"];
+			desc = ["<#smart_connect_tri#> (2.4GHz, 5GHz-1 and 5GHz-2)"];
 			value = ["1"];
 			add_options_x2(document.form.smart_connect_t, desc, value, val);
 		}
-		else if(based_modelid == "RT-AC88U" || based_modelid == "RT-AC86U" || based_modelid == "GT-AC2900" || based_modelid == "RT-AC3100" || based_modelid == "BLUECAVE" || based_modelid == "MAP-AC1750" || based_modelid == "RT-AX89U" || based_modelid == "GT-AXY16000"){
-			desc = ["Dual-Band Smart Connect (2.4GHz and 5GHz)"];
+		else if(based_modelid == "RT-AC88U" || based_modelid == "RT-AC86U" || based_modelid == "GT-AC2900" || based_modelid == "RT-AC3100" || based_modelid == "BLUECAVE" || based_modelid == "MAP-AC1750" || based_modelid == "RT-AX89U" || based_modelid == "GT-AXY16000" || based_modelid.substring(0,7) == "RT-AC59"){
+			desc = ["<#smart_connect_dual#> (2.4GHz and 5GHz)"];
 			value = ["1"];
 			add_options_x2(document.form.smart_connect_t, desc, value, val);
 		}
@@ -884,6 +951,7 @@ function enableSmartCon(val){
 		based_modelid == "RT-AC3100" ||
 		based_modelid == "RT-AC95U" ||
 		based_modelid == "MAP-AC1750" ||
+		based_modelid.substring(0,7) == "RT-AC59" ||
 		based_modelid == "RT-AX89U" ||
 		based_modelid == "GT-AXY16000" ||
 		based_modelid == "BLUECAVE"){
@@ -898,7 +966,6 @@ function enableSmartCon(val){
 	if((val == 0 || (val == 2 && wl_unit == 0)) || (dwb_info.mode && wl_unit == dwb_info.band)){
 		document.getElementById("wl_unit_field").style.display = "";
 		document.form.wl_nmode_x.disabled = "";
-		document.getElementById("wl_optimizexbox_span").style.display = "";
 		if(document.form.wl_unit[0].selected == true){
 			document.getElementById("wl_gmode_checkbox").style.display = "";
 		}
@@ -914,7 +981,6 @@ function enableSmartCon(val){
 	}else{
 		document.getElementById("wl_unit_field").style.display = "none";
 		regen_auto_option(document.form.wl_nmode_x);
-		document.getElementById("wl_optimizexbox_span").style.display = "none";
 		document.getElementById("wl_gmode_checkbox").style.display = "none";
 		if (Qcawifi_support)
 			__regen_auto_option(document.form.wl_bw, 1);
@@ -926,6 +992,24 @@ function enableSmartCon(val){
 	
 	if(based_modelid=="RT-AC5300" || based_modelid=="GT-AC5300" || based_modelid=="RT-AC3200")
 		_change_smart_connect(val);
+
+	if(isSupport("amas_fronthaul_network")){
+		if(isSupport("triband")){
+			var wl_closed = httpApi.nvramGet(["wl_closed"]).wl_closed;
+			if(wl_closed != undefined && wl_closed != ""){
+				$('input:radio[name=wl_closed]').each(function(){$(this).prop('checked', false);});
+				$('input:radio[name=wl_closed][value="' + wl_closed + '"]').click();
+			}
+			if(dwb_info.mode && wl_unit == dwb_info.band){
+				if(smart_connect_flag_t != val && val == "1"){
+					$('input:radio[name=wl_closed]').each(function(){$(this).prop('checked', false);});
+					$('input:radio[name=wl_closed][value=1]').click();
+				}
+			}
+		}
+	}
+
+	controlHideSSIDHint();
 }
 
 function enable_160MHz(obj){
@@ -1039,7 +1123,15 @@ function he_frame_mode(obj) {
 		document.form.acs_dfs.value = 0;
 	}
 }
-
+function controlHideSSIDHint() {
+	$("#dwb_band_hide_hint").hide();
+	if(isSupport("triband") && dwb_info.mode){
+		if(dwb_info.band == wl_unit){
+			if(document.form.smart_connect_x.value != "1" && ($('input:radio[name=wl_closed]:checked').val() == "1"))
+				$("#dwb_band_hide_hint").show();
+		}
+	}
+}
 function ajax_wl_channel(){
 	$.ajax({
 		url: '/ajax_wl_channel.asp',
@@ -1111,7 +1203,6 @@ function ajax_wl_edmg_channel(){
 <input type="hidden" name="firmver" value="<% nvram_get("firmver"); %>">
 <input type="hidden" name="wps_mode" value="<% nvram_get("wps_mode"); %>">
 <input type="hidden" name="wps_config_state" value="<% nvram_get("wps_config_state"); %>">
-<input type="hidden" name="wl_wpa_psk_org" value="<% nvram_char_to_ascii("WLANConfig11b", "wl_wpa_psk"); %>">
 <input type="hidden" name="wl_key1_org" value="<% nvram_char_to_ascii("WLANConfig11b", "wl_key1"); %>">
 <input type="hidden" name="wl_key2_org" value="<% nvram_char_to_ascii("WLANConfig11b", "wl_key2"); %>">
 <input type="hidden" name="wl_key3_org" value="<% nvram_char_to_ascii("WLANConfig11b", "wl_key3"); %>">
@@ -1243,8 +1334,8 @@ function ajax_wl_edmg_channel(){
 
 				<tr>
 					<th><a class="hintstyle" href="javascript:void(0);" onClick="openHint(0, 1);"><#QIS_finish_wireless_item1#></a></th>
-					<td>
-						<input type="text" maxlength="32" class="input_32_table" id="wl_ssid" name="wl_ssid" value="<% nvram_get("wl_ssid"); %>" onkeypress="return validator.isString(this, event)" autocorrect="off" autocapitalize="off">
+					<td id="ssid_setting">
+						<input type="text" maxlength="33" class="input_32_table" id="wl_ssid" name="wl_ssid" value="<% nvram_get("wl_ssid"); %>" onkeypress="return validator.isString(this, event)" autocorrect="off" autocapitalize="off">
 					</td>
 		  	</tr>
 			  
@@ -1254,6 +1345,8 @@ function ajax_wl_edmg_channel(){
 						<input type="radio" value="1" name="wl_closed" class="input" onClick="return change_common_radio(this, 'WLANConfig11b', 'wl_closed', '1')" <% nvram_match("wl_closed", "1", "checked"); %>><#checkbox_Yes#>
 						<input type="radio" value="0" name="wl_closed" class="input" onClick="return change_common_radio(this, 'WLANConfig11b', 'wl_closed', '0')" <% nvram_match("wl_closed", "0", "checked"); %>><#checkbox_No#>
 						<span id="WPS_hideSSID_hint" style="display:none;"></span>	
+						<br>
+						<span id="dwb_band_hide_hint"><#AiMesh_dedicated_backhaul_band_hide_SSID#></span>
 					</td>					
 				</tr>
 					  
@@ -1364,10 +1457,12 @@ function ajax_wl_edmg_channel(){
 					</td>
 			  	</tr>
 			  
-			  	<tr>
+			  	<tr id="wpa_psk_key_field">
 					<th><a class="hintstyle" href="javascript:void(0);" onClick="openHint(0, 7);"><#WLANConfig11b_x_PSKKey_itemname#></a></th>
 					<td>
-				  		<input type="text" name="wl_wpa_psk" maxlength="64" class="input_32_table" value="<% nvram_get("wl_wpa_psk"); %>" onClick="clean_input(this)" autocorrect="off" autocapitalize="off">
+						<div class="wpa_psk_container">
+							<div><input type="text" name="wl_wpa_psk" maxlength="64" class="input_32_table" value="<% nvram_get("wl_wpa_psk"); %>" autocorrect="off" autocapitalize="off"></div>
+						</div>
 					</td>
 			  	</tr>
 			  		  

@@ -53,6 +53,15 @@
 	*color:#000;
 	border:0px;
 }
+
+.cert_status_title{
+	width: 20%;
+}
+
+.cert_status_val{
+	width: 76%;
+	padding-left: 10px;
+}
 </style>
 
 <script>
@@ -78,10 +87,15 @@ var deregister_fail = 0;
 var cur_wan_ipaddr = wanlink_ipaddr();
 var inadyn = isSupport("inadyn");
 
+var le_sbstate_t = '<% nvram_get("le_sbstate_t"); %>';
+var le_auxstate_t = '<% nvram_get("le_auxstate_t"); %>';
+var le_re_ddns = '<% nvram_get("le_re_ddns"); %>';
+var faq_href = "https://nw-dlcdnet.asus.com/support/forward.html?model=&type=Faq&lang="+ui_lang+"&kw=&num=105";
+
 function init(){
 	show_menu();
-	httpApi.faqURL("1034294", function(url){document.getElementById("faq").href=url;});
-    ddns_load_body();
+	document.getElementById("faq").href=faq_href;
+	ddns_load_body();
 	update_ddns_wan_unit_option();
 
 	if(no_phddns){
@@ -166,6 +180,10 @@ function submitForm(){
 				document.form.action_script.value = "restart_httpd;restart_webdav;restart_ddns_le";
 			else
 				document.form.action_script.value += ";restart_httpd;restart_webdav";
+
+		}
+		if (('<% nvram_get("enable_ftp"); %>' == "1") && ('<% nvram_get("ftp_tls"); %>' == "1")) {
+			document.form.action_script.value += ";restart_ftpd";
 		}
 	}
 
@@ -253,7 +271,7 @@ function ddns_load_body(){
 	{
 		var ddnsHint = getDDNSState(ddns_return_code, ddns_hostname_x_t, ddns_old_name);
 
-		if(ddnsHint != ""){
+		if(ddnsHint != "" && le_re_ddns != "1"){
 			alert(ddnsHint);
 			document.getElementById("ddns_result").innerHTML = ddnsHint;
 			document.getElementById('ddns_result_tr').style.display = "";
@@ -275,6 +293,9 @@ function ddns_load_body(){
 				if(ddnsStatus != "")
 					$("#ddns_status_detail").css("display", "inline");
 			}
+
+			if(ddns_return_code == "ddns_query" && le_re_ddns != "1")
+				checkDDNSReturnCode_noRefresh();
 		}
 	}
 }
@@ -396,6 +417,42 @@ function checkDDNSReturnCode(){
                 refreshpage(); 
        }
    });
+}
+
+function checkDDNSReturnCode_noRefresh(){
+	$.ajax({
+		url: '/ajax_ddnscode.asp',
+		dataType: 'script',
+		error: function(xhr){
+			checkDDNSReturnCode_noRefresh();
+		},
+		success: function(response){
+			if(ddns_return_code == 'ddns_query')
+				setTimeout("checkDDNSReturnCode_noRefresh();", 500);
+			else{
+				var ddnsHint = getDDNSState(ddns_return_code, ddns_hostname_x_t, ddns_old_name);
+				document.getElementById("ddns_result").innerHTML = ddnsHint;
+				document.getElementById('ddns_result_tr').style.display = "";
+				if((ddns_return_code.indexOf('200')!=-1 || ddns_return_code.indexOf('220')!=-1 || ddns_return_code == 'register,230') ||
+				   (ddns_return_code_chk.indexOf('200')!=-1 || ddns_return_code_chk.indexOf('220')!=-1 || ddns_return_code_chk == 'register,230')){
+					showhide("wan_ip_hide2", 0);
+					if(ddns_server_x == "WWW.ASUS.COM"){
+						showhide("wan_ip_hide3", 1);
+						document.getElementById("ddns_status").innerHTML = "<#Status_Active#>";
+						if(inadyn)
+							$("#deregister_btn").css("display", "inline");
+					}
+				}
+				else{
+					if(ddns_server_x == "WWW.ASUS.COM"){
+						document.getElementById("ddns_status").innerHTML = "<#Status_Inactive#>";
+						if(ddnsStatus != "")
+							$("#ddns_status_detail").css("display", "inline");
+					}
+				}
+			}
+		}
+	});
 }
 
 function validate_ddns_hostname(o){
@@ -664,8 +721,15 @@ function show_cert_details(){
 		}
 	}
 	else{
-		document.getElementById("cert_status").innerHTML = "<#vpn_openvpn_KC_Authorizing#>";
-		setTimeout("get_cert_info();", 1000);
+		if(le_auxstate_t == "5" && le_sbstate_t == "7"){
+			var ddnsHint = "<#DDNS_Auth_Fail_Hint#>";
+			$("#cert_status").text(ddnsHint);
+			$("#cert_status").css("color", "#FFCC00")
+		}
+		else{
+			document.getElementById("cert_status").innerHTML = "<#vpn_openvpn_KC_Authorizing#>";
+			setTimeout("get_cert_info();", 1000);
+		}
 	}
 }
 
@@ -743,12 +807,12 @@ function check_unregister_result(){
 
 	if(timeout || return_status != ""){
 		if(return_status == "200"){
-			alert("Deregistration is successful.");
+			alert("<#LANHostConfig_x_DDNS_alarm_16#>");
 			refreshpage();
 		}
 		else{
 			hideLoading();
-			alert("Fail to deregister ASUSDDNS hostname.");
+			alert("<#LANHostConfig_x_DDNS_alarm_18#>");
 			deregister_fail = 1;
 			retry_count = 0;
 		}
@@ -930,21 +994,21 @@ function check_unregister_result(){
 			<tr id="cert_details" style="display:none;">
 				<th><#vpn_openvpn_KC_SA#></th>
 				<td>
-					<div style="display:table-row;">
-						<div style="display:table-cell;"><#Status_Str#> :</div>
-						<div id="cert_status" style="display:table-cell; padding-left:10px;"></div>
+					<div style="display: flex;">
+						<div class="cert_status_title"><#Status_Str#> :</div>
+						<div id="cert_status" class="cert_status_val"></div>
 					</div>
-					<div style="display:table-row;">
-						<div style="display:table-cell;"><#vpn_openvpn_KC_to#> :</div>
-						<div id="issueTo" style="display:table-cell; padding-left:10px;"></div>
+					<div style="display: flex;">
+						<div class="cert_status_title"><#vpn_openvpn_KC_to#> :</div>
+						<div id="issueTo" class="cert_status_val"></div>
 					</div>
-					<div style="display:table-row;">
-						<div style="display:table-cell;"><#vpn_openvpn_KC_by#> :</div>
-						<div id="issueBy" style="display:table-cell; padding-left:10px;"></div>
+					<div style="display: flex;">
+						<div class="cert_status_title"><#vpn_openvpn_KC_by#> :</div>
+						<div id="issueBy" class="cert_status_val"></div>
 					</div>
-					<div style="display:table-row;">
-						<div style="display:table-cell;"><#vpn_openvpn_KC_expire#> :</div>
-						<div id="expireOn" style="display:table-cell; padding-left:10px;"></div>
+					<div style="display: flex;">
+						<div class="cert_status_title"><#vpn_openvpn_KC_expire#> :</div>
+						<div id="expireOn" class="cert_status_val"></div>
 					</div>
 					<div>
 						<input class="button_gen" onclick="save_cert_key();" type="button" value="<#btn_Export#>" />

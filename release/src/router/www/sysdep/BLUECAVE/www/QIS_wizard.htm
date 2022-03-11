@@ -18,8 +18,13 @@
 		<script type="text/javascript" src="./mobile/js/plugins.js"></script>
 		<script type="text/javascript" src="./mobile/js/qisData.js"></script>
 		<script type="text/javascript" src="./mobile/js/handler.js"></script>
+		<script type="text/javascript" src="./js/https_redirect/https_redirect.js"></script>
 		<script>
 			$(document).ready(function(){
+				if(Check_Https_Redirect_Status()){
+					Initial_Https_Redirect();
+					return;
+				}
 				var getJsonFromUrl = (function(){
 					var query = location.search.substr(1);
 					var result = {};
@@ -44,28 +49,90 @@
 				$(".secureInput").click(checkPasswd);
 				$("div[data-role='page']").append("<div class='footerPadding'></div>");
 				$(".headerBar").html(Get_Component_Header());
+				$("#http_passwd").showPasswordScore();
 				handleModelIcon();
 
 				// setup systemVariables
 				setTimeout(function(){
-					var initNvram = httpApi.nvramGet(["wan0_proto", "wan0_pppoe_username", "wan0_pppoe_passwd", "wan0_dnsenable_x", "sw_mode", "wlc_psta", "wl_ifnames", "wl_version", "productid", "rc_support", "x_Setting", "preferred_lang", "territory_code", "reboot_time", "lan_ipaddr", "wlc_dpsta"]);
+					var initNvram = httpApi.nvramGet([
+						"sw_mode", 
+						"wlc_psta", 
+						"wl_ifnames", 
+						"wl_version", 
+						"productid", 
+						"rc_support", 
+						"x_Setting", 
+						"preferred_lang", 
+						"territory_code", 
+						"reboot_time", 
+						"lan_ipaddr", 
+						"wlc_dpsta", 
+						"CoBrand", 
+						"wans_dualwan", 
+						"dslx_transmode", 
+						"dsl0_proto", 
+						"dsl0_pppoe_username", 
+						"dsl0_pppoe_passwd", 
+						"dsl0_dnsenable", 
+						"dsl8_proto", 
+						"dsl8_pppoe_username", 
+						"dsl8_pppoe_passwd", 
+						"dsl8_dnsenable",
+						"smart_connect_x"
+					]);
 
 					systemVariable.historyPage = [];
-					systemVariable.originWanType = initNvram.wan0_proto;
-					if(systemVariable.originWanType == "pppoe" || systemVariable.originWanType == "pptp" || systemVariable.originWanType == "l2tp"){
-						systemVariable.originPppAccount.username = initNvram.wan0_pppoe_username;
-						systemVariable.originPppAccount.password = initNvram.wan0_pppoe_passwd;
+
+					var ethWan = initNvram.wans_dualwan.split(" ").indexOf("wan");
+					systemVariable.ethWanIf = (ethWan == -1) ? 0 : ethWan;
+					wanObj.general.wan_unit = systemVariable.ethWanIf;
+					wanObj.all.wan_unit = systemVariable.ethWanIf;
+
+					var initWanNvram = httpApi.nvramGetWanByUnit(systemVariable.ethWanIf, [
+						"wan_proto", 
+						"wan_pppoe_username", 
+						"wan_pppoe_passwd", 
+						"wan_dnsenable_x", 
+					]);
+
+					if(initNvram.dslx_transmode != ""){
+						if(initNvram.dslx_transmode == "ptm"){
+							systemVariable.originWanType = initNvram.dsl8_proto;
+							if(systemVariable.originWanType == "pppoe" || systemVariable.originWanType == "pppoa"){
+								systemVariable.originPppAccount.username = initNvram.dsl8_pppoe_username;
+								systemVariable.originPppAccount.password = initNvram.dsl8_pppoe_passwd;
+							}
+							systemVariable.wanDnsenable = initNvram.dsl8_dnsenable;
+						}
+						else{
+							systemVariable.originWanType = initNvram.dsl0_proto;
+							if(systemVariable.originWanType == "pppoe" || systemVariable.originWanType == "ppoa"){
+								systemVariable.originPppAccount.username = initNvram.dsl0_pppoe_username;
+								systemVariable.originPppAccount.password = initNvram.dsl0_pppoe_passwd;
+							}
+							systemVariable.wanDnsenable = initNvram.dsl0_dnsenable;
+						}
+						systemVariable.originOpMode = "RT";
 					}
-					systemVariable.wanDnsenable = initNvram.wan0_dnsenable_x;
-					systemVariable.originOpMode = (function(){
-						if(initNvram.sw_mode == "2" && (initNvram.wlc_psta == "0" || initNvram.wlc_psta == "") && (initNvram.wlc_dpsta == "0" || initNvram.wlc_dpsta == "")) return "RP";
-						else if(initNvram.sw_mode == "3" && initNvram.wlc_psta == "2" && (initNvram.wlc_dpsta == "0" || initNvram.wlc_dpsta == "")) return "RP";
-						else if(initNvram.sw_mode == "3" && initNvram.wlc_psta == "2" && initNvram.wlc_dpsta == "1") return "RP";
-						else if(initNvram.sw_mode == "3" && (initNvram.wlc_psta == "0" || initNvram.wlc_psta == "") && (initNvram.wlc_dpsta == "0" || initNvram.wlc_dpsta == "")) return "AP";
-						else if(initNvram.sw_mode == "2" && initNvram.wlc_psta == "1" && (initNvram.wlc_dpsta == "0" || initNvram.wlc_dpsta == "")) return "MB";
-						else if(initNvram.sw_mode == "3" && initNvram.wlc_psta == "1" && (initNvram.wlc_dpsta == "0" || initNvram.wlc_dpsta == "")) return "MB";
-						else return "RT";
-					})();
+					else{
+
+						systemVariable.originWanType = initWanNvram.wan_proto;
+						if(systemVariable.originWanType == "pppoe" || systemVariable.originWanType == "pptp" || systemVariable.originWanType == "l2tp"){
+							systemVariable.originPppAccount.username = initWanNvram.wan_pppoe_username;
+							systemVariable.originPppAccount.password = initWanNvram.wan_pppoe_passwd;
+						}
+						systemVariable.wanDnsenable = initWanNvram.wan_dnsenable_x;
+						systemVariable.originOpMode = (function(){
+							if(initNvram.sw_mode == "2" && (initNvram.wlc_psta == "0" || initNvram.wlc_psta == "") && (initNvram.wlc_dpsta == "0" || initNvram.wlc_dpsta == "")) return "RP";
+							else if(initNvram.sw_mode == "3" && initNvram.wlc_psta == "2" && (initNvram.wlc_dpsta == "0" || initNvram.wlc_dpsta == "")) return "RP";
+							else if(initNvram.sw_mode == "3" && initNvram.wlc_psta == "2" && initNvram.wlc_dpsta == "1") return "RP";
+							else if(initNvram.sw_mode == "3" && initNvram.wlc_psta == "2" && initNvram.wlc_dpsta == "2") return "RP";
+							else if(initNvram.sw_mode == "3" && (initNvram.wlc_psta == "0" || initNvram.wlc_psta == "") && (initNvram.wlc_dpsta == "0" || initNvram.wlc_dpsta == "")) return "AP";
+							else if(initNvram.sw_mode == "2" && initNvram.wlc_psta == "1" && (initNvram.wlc_dpsta == "0" || initNvram.wlc_dpsta == "")) return "MB";
+							else if(initNvram.sw_mode == "3" && initNvram.wlc_psta == "1" && (initNvram.wlc_dpsta == "0" || initNvram.wlc_dpsta == "")) return "MB";
+							else return "RT";
+						})();
+					}
 					systemVariable.opMode = systemVariable.originOpMode;
 					systemVariable.wirelessBand = initNvram.wl_ifnames.split(" ").length;
 					systemVariable.sdkVersion = initNvram.wl_version.split(".")[0];
@@ -76,8 +143,10 @@
 					systemVariable.territoryCode = initNvram.territory_code;
 					systemVariable.rebootTime = initNvram.reboot_time;
 					systemVariable.lanIpaddr = initNvram.lan_ipaddr;
+					systemVariable.CoBrand = initNvram.CoBrand;
 					systemVariable.forceChangePw = (httpApi.hookGet("check_pw") == '1') ? true : false;
 					systemVariable.linkLnternet = httpApi.isConnected();
+					systemVariable.maxPasswordLen = getSupportNum("MaxLen_http_passwd");
 
 					if(isSupport("2p5G_LWAN"))
 						systemVariable.originWansExtwan = httpApi.nvramGet(["wans_extwan"]).wans_extwan;
@@ -93,6 +162,21 @@
 						systemVariable.multiPAP.wlcStatus["wlc" + allWlArray[i].ifname + "_skip"] = false;
 					}
 
+					systemVariable.get_feat_def = httpApi.hookGet("get_feat_def") || {};
+					systemVariable.scMode = "SC_all";
+					if(systemVariable.get_feat_def.smart_connect_opt){
+						if( 
+							systemVariable.get_feat_def.smart_connect_opt.join(",").indexOf("3")+1 &&
+							isSupport("wifi6e")
+						){
+							systemVariable.scMode = "SC_2g5g";
+						}
+					}
+					var dwb_mode = httpApi.nvramGet(["dwb_mode"]).dwb_mode;
+					if(dwb_mode == "1" && systemVariable.scMode == "SC_all")
+						systemVariable.scMode = "SC_dwb_mode";
+
+					systemVariable.eth_wan_list = httpApi.hookGet("get_ethernet_wan_list", true);
 					handleSysDep();
 
 					switch(getJsonFromUrl["flag"] || ""){
@@ -131,6 +215,10 @@
 
 					if(initNvram.isError) setTimeout(arguments.callee, 1000);
 				}, 500);
+				
+				$("#uiLanguage").load("/mobile/pages/uiLanguage.html", function(){
+					$('#selected_lang').html("<#selected_language#>");
+				});
 			});
 		</script>
 	</head>
@@ -152,13 +240,13 @@
 								<div class="icon_logo"></div>
 							</div>
 						</td>
-						<td>
-							<div class="model_welcome"></div>
+						<td style="vertical-align: top;position: absolute;right:250px;">
+							<ul id="uiLanguage" class="navigation" style="color: #fff"></ul>
 						</td>
 					</tr>
 				</table>
 			</div>
-			<div class="tableContainerIndex">
+			<div class="tableContainerIndex">		
 				<div id="welcomeTitle"></div>
 				<div class="pageDesc" style="display:none"></div>
 
@@ -170,7 +258,7 @@
 					<div><div id="ROGLOGO"></div></div>
 				</div>
 
-				<div style="text-align:center;margin:50px 0">
+				<div style="text-align:center;margin:50px 0;">
 					<div id="welcome_button" onclick="apply.welcome();"></div>
 				</div>
 
@@ -189,7 +277,7 @@
 					<a href="#" onclick="goTo.AsusToS()">ASUS Terms of Use</a> & 
 					<a href="#" onclick="goTo.TMToS()">Trend Micro End User License Agreement</a>.
 				</div>
-			</div>
+			</div>			
 		</div>
 		
 		<!-- Prelink description -->
@@ -212,7 +300,7 @@
 							<div style="font-weight: normal;"><#Setup_node_desc_step2#></div>
 						</div>
 						<div style="text-align: center;">
-							<div><img width="504" src="/images/product_location.png"></div>
+							<div><img id="product_location" width="504" src="/images/product_location.png"></div>
 						</div>
 					</div>
 
@@ -322,6 +410,73 @@
 			</div>
 		</div>
 
+		<!-- Advanced Setting for DSL -->
+		<div id="advanced_setting_dsl" data-role="page" class="qisBackground">
+			<div class="headerBar"></div>
+			<div class="tableContainer">
+				<div class="desktop_left_field">
+					<div>
+						<div class="titleMain"><#Internet#></div>
+						<div class="titleSub"><#menu5_6_1#></div>
+					</div>
+				</div>
+				<div class="table_td">
+					<div class="amasSupport amasNoWAN">
+						<div class="pageDesc"><#AiMesh_Desc#></div>
+						<div>
+							<div class="selectorTopContainer">
+								<div class="selectorContainer">
+									<div class="selectorContainerDiv">
+										<div class="selectBar" onclick="goTo.asNode()"><#AiMesh_setup_node#></div>
+										<div class="narrowContainer">
+											<div class="icon_arrow_right" style="width:20px;height:32px;"></div>
+										</div>
+									</div>
+								</div>
+							</div>
+						</div>
+					</div>
+
+					<div style="height: 50px"></div>
+
+					<div class="pageDesc"><#Setting_upload_itemdesc#></div>
+					<div>
+						<div class="selectorTopContainer" id="settingProfileBarDSL">
+							<div class="selectorContainer">
+								<div class="selectorContainerDiv">
+									<div class="selectBar">
+										<label for="setting_profile"><#CTL_upload#></label>
+										<div style="display:none">
+											<input id="setting_profile_dsl" type="file" name="file" class="input" style="display:none" onchange="apply.upload();" />
+										</div>
+									</div>
+									<div class="narrowContainer">
+										<div class="icon_arrow_right" style="width:20px;height:32px;"></div>
+									</div>
+								</div>
+							</div>					
+						</div>					
+					</div>
+
+					<div>
+						<!-- Action Button -->
+						<div class="footer_desktop">
+							<div class="desktop_abortBtn" onclick='abort.advSetting()'><#CTL_prev#></div>
+						</div>
+						<div class="footer_mobile">
+							<table style="width:100%;" cellpadding="0" cellspacing="0">
+								<tr>
+									<td class="mobileAbort" style="width:100%;" onclick='abort.advSetting()'>
+										<div class="mobile_abortBtn"><#CTL_prev#></div>
+									</td>
+								</tr>
+							</table>
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+
 		<!-- Login Page -->	
 		<div id="login_name" data-role="page" class="qisBackground">
 			<div class="headerBar"></div>
@@ -341,7 +496,7 @@
 								<div class="inputTitle"><#Router_Login_Name#></div>
 							</div>
 							<div class="inputContainer">
-								<input id="http_username" type="text" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" maxlength="20" class="textInput" data-role="none" value="" data-clear-btn="true" />
+								<input id="http_username" type="text" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" maxlength="32" class="textInput" data-role="none" value="" data-clear-btn="true" />
 							</div>
 						</div>
 						<div>
@@ -350,7 +505,7 @@
 								<div class="secureInput icon_eye_close" for="http_passwd http_passwd_confirm"></div>
 							</div>
 							<div class="inputContainer">
-								<input id="http_passwd" type="password" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" maxlength="17" class="textInput" data-role="none" value="" data-clear-btn="true" />
+								<input id="http_passwd" type="password" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" maxlength="33" class="textInput" data-role="none" value="" data-clear-btn="true" onkeyup="chkPass('httpd', this.value); check_password_length(this);"/>
 							</div>
 						</div>
 						<div>
@@ -358,7 +513,7 @@
 								<div class="inputTitle"><#PASS_retype#></div>
 							</div>
 							<div class="inputContainer">
-								<input id="http_passwd_confirm" type="password" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" maxlength="17" class="textInput" data-role="none" value="" data-clear-btn="true" />
+								<input id="http_passwd_confirm" type="password" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" maxlength="33" class="textInput" data-role="none" value="" data-clear-btn="true" />
 							</div>
 						</div>
 						<!-- Action Button -->
@@ -475,6 +630,58 @@
 			</div>
 		</div>
 
+		<!-- DSL Detecting -->
+		<div id="waiting_dsl_page" data-role="page" class="qisBackground">
+			<div class="headerBar"></div>
+			<div class="tableContainer">
+				<div class="desktop_left_field">
+					<div>
+						<div class="titleMain"><#Internet#></div>
+						<div class="titleSub"><#QKSet_detect_sanglass#></div>
+					</div>
+				</div>
+				<div class="table_td">
+					<div class="pageDesc">
+						<div><#QKSet_detect_waitdesc#></div>
+					</div>
+					<strong><span class="pageDesc" id="LED_state" style="color:#FFCC00;display:none;"></span></strong>
+					<div class="cssload-bellContainer">
+						<div class="cssload-bell">
+							<div class="cssload-circle">
+								<div class="cssload-inner"></div>
+							</div>
+							<div class="cssload-circle">
+								<div class="cssload-inner"></div>
+							</div>
+							<div class="cssload-circle">
+								<div class="cssload-inner"></div>
+							</div>
+							<div class="cssload-circle">
+								<div class="cssload-inner"></div>
+							</div>
+							<div class="cssload-circle">
+								<div class="cssload-inner"></div>
+							</div>
+						</div>
+					</div>
+
+					<!-- Action Button -->
+					<div class="footer_desktop">
+						<div class="desktop_applyBtn" onclick="goTo.Manual()"><#Manual_Setting_btn#></div>
+					</div>
+					<div class="footer_mobile">
+						<table style="width:100%;" cellpadding="0" cellspacing="0">
+							<tr>
+								<td class="mobileApply" onclick="goTo.Manual()">
+									<div class="mobile_applyBtn"><#Manual_Setting_btn#></div>
+								</td>
+							</tr>
+						</table>
+					</div>
+				</div>
+			</div>
+		</div>
+
 		<!-- Operation Mode Page -->
 		<div id="opMode_page" data-role="page" class="qisBackground">
 			<div class="headerBar"></div>
@@ -509,7 +716,7 @@
 									</div>
 								</div>
 							</div>
-							<div class="selectorContainer">
+							<div class="selectorContainer apSupport">
 								<div class="selectorContainerDiv">
 									<div class="selectBar" onclick="goTo.apMode()">
 										<#OP_AP_item#>
@@ -570,20 +777,21 @@
 					</div>
 				</div>
 				<div class="table_td">
-					<div class="pageDesc">
+					<div class="pageDesc" id="noWan_desc">
 						<#QIS_desc_1#>
 					</div>
 
 					<div>
 						<div id="noWanContainer">
 							<div><img id="noWanPic" width="504" src="/images/WANunplug.png"></div>
+							<div><img id="noWanDsl" width="504" src="/images/WANunplug_dsl.png"></div>
 							<div><img id="noWanEth" width="504" src="/images/WANunplug_eth.png"></div>
 							<div><img id="noWanUsb" width="504" src="/images/WANunplug_usb.png"></div>
 						</div>
 						<!-- Action Button -->
 						<div class="footer_desktop">
 							<div class="desktop_abortBtn" onclick="abort.nowan()"><#CTL_prev#></div>
-							<div class="desktop_applyBtn" onclick="apply.manual()"><#Manual_Setting_btn#></div>
+							<div id="desktop_manual_applyBtn" class="desktop_applyBtn" onclick=""><#Manual_Setting_btn#></div>
 						</div>
 						<div class="footer_mobile">
 							<table style="width:100%;" cellpadding="0" cellspacing="0">
@@ -591,8 +799,8 @@
 									<td class="mobileAbort" style="width:50%" onclick='abort.nowan()'>
 										<div class="mobile_abortBtn"><#CTL_prev#></div>
 									</td>
-									<td class="mobileApply" onclick="apply.manual()">
-										<div class="mobile_applyBtn"><#Manual_Setting_btn#></div>
+									<td class="mobileApply" onclick="">
+										<div id="mobile_manual_applyBtn" class="mobile_applyBtn"><#Manual_Setting_btn#></div>
 									</td>
 								</tr>
 							</table>
@@ -644,12 +852,12 @@
 					<div>
 						<!-- Action Button -->
 						<div class="footer_desktop">
-							<div class="desktop_abortBtn" onclick='abort.wanType()'><#CTL_prev#></div>
+							<div class="desktop_abortBtn" onclick='abort.wan()'><#CTL_prev#></div>
 						</div>
 						<div class="footer_mobile">
 							<table style="width:100%;" cellpadding="0" cellspacing="0">
 								<tr>
-									<td class="mobileAbort" style="width:100%;" onclick='abort.wanType()'>
+									<td class="mobileAbort" style="width:100%;" onclick='abort.wan()'>
 										<div class="mobile_abortBtn"><#CTL_prev#></div>
 									</td>
 								</tr>
@@ -660,22 +868,22 @@
 			</div>
 		</div>
 
-		<!-- Account prompt for PPPDHCP -->
-		<div id="wanTypePrompt_setting" data-role="page" class="qisBackground">
+		<!-- Special ISP Requirement -->
+		<div id="special_isp_requirement" data-role="page" class="qisBackground">
 			<div class="headerBar"></div>
 			<div class="tableContainer">
 				<div class="desktop_left_field">
 					<div>
 						<div class="titleMain"><#Internet#></div>
-						<div class="titleSub"><#Connectiontype#></div>
+						<div class="titleSub"><#QKSet_account_webtitle#></div>
 					</div>
 				</div>
 				<div class="table_td">
-					<div class="pageDesc"><#QIS_SmartConn_title1#></div>
+					<div class="pageDesc"><#PPPConnection_x_HostNameForISP_sectionname#></div>
 					<div>
 						<div class="selectorTopContainer" id="test">
 							<div class="selectorContainer">
-								<div class="selectorContainerDiv" onclick="goTo.PPPoE()">
+								<div class="selectorContainerDiv" onclick="goTo.IPTV()">
 									<div class="selectBar">
 										<#checkbox_Yes#>
 									</div>
@@ -688,7 +896,7 @@
 						<div class="selectorTopContainer">
 							<div class="selectorContainer">
 								<div class="selectorContainerDiv">
-									<div class="selectBar" onclick="goTo.DHCP()">
+									<div class="selectBar" onclick="goTo.wirelessWithoutIPTV();">
 										<#checkbox_No#>
 									</div>
 									<div class="narrowContainer">
@@ -696,18 +904,18 @@
 									</div>
 								</div>
 							</div>
-						</div>		
+						</div>
 					</div>
 
 					<div>
 						<!-- Action Button -->
 						<div class="footer_desktop">
-							<div class="desktop_abortBtn" onclick='abort.wanType()'><#CTL_prev#></div>
+							<div class="desktop_abortBtn" onclick='abort.specialISP()'><#CTL_prev#></div>
 						</div>
 						<div class="footer_mobile">
 							<table style="width:100%;" cellpadding="0" cellspacing="0">
 								<tr>
-									<td class="mobileAbort" style="width:100%;" onclick='abort.wanType()'>
+									<td class="mobileAbort" style="width:100%;" onclick='abort.specialISP()'>
 										<div class="mobile_abortBtn"><#CTL_prev#></div>
 									</td>
 								</tr>
@@ -762,6 +970,16 @@
 									</div>
 								</div>
 							</div>
+							<div class="selectorContainer v6plus">
+								<div class="selectorContainerDiv">
+									<div class="selectBar" onclick="goTo.V6PLUS()">
+										<#IPv6_plus#>
+									</div>
+									<div class="narrowContainer">
+										<div class="icon_arrow_right" style="width:20px;height:32px;"></div>
+									</div>
+								</div>
+							</div>
 							<div class="selectorContainer dailIP vpnClient">
 								<div class="selectorContainerDiv">
 									<div class="selectBar" onclick="goTo.PPTP()">
@@ -797,6 +1015,12 @@
 								<input type="checkbox" id="iptv_checkbox" value="1" data-mini="true" />
 							</div>
 						</div>
+						<div id= "dhcp_option_checkbox">
+							<div id="dhcp_option_check_container" class="labelContainer dhcp_option">
+								<label for="wan_dhcp_option_checkbox" class="labelInput"><#ipv6_6rd_dhcp_option#></label>
+								<input type="checkbox" id="wan_dhcp_option_checkbox" value="1" data-mini="true" />
+							</div>
+						</div>
 						<!-- Action Button -->
 						<div class="footer_desktop">
 							<div class="desktop_abortBtn" onclick='abort.wan()'><#CTL_prev#></div>
@@ -828,8 +1052,8 @@
 				<div class="table_td">
 					<div class="pageDesc" id="connTypeDesc"><#Layer3Forwarding_x_ConnectionType_itemname#></div>
 					<div>
-						<div class="selectorTopContainer">
-							<div class="selectorContainer">
+						<div class="selectorTopContainer" id="wanOptions">
+							<div class="selectorContainer WAN1G">
 								<div class="selectorContainerDiv">
 									<div class="selectBar" onclick="apply.WAN1G();">
 										<#wan_port#>
@@ -852,7 +1076,7 @@
 							<div class="selectorContainer LWAN_10G">
 								<div class="selectorContainerDiv">
 									<div class="selectBar" onclick="apply.WAN10G();">
-										10G base-T
+										10G <#wan_ethernet#>
 									</div>
 									<div class="narrowContainer">
 										<div class="icon_arrow_right" style="width:20px;height:32px;"></div>
@@ -883,12 +1107,12 @@
 
 						<!-- Action Button -->
 						<div class="footer_desktop">
-							<div class="desktop_abortBtn" onclick='abort.wanType()'><#CTL_prev#></div>
+							<div class="desktop_abortBtn" onclick='abort.wan()'><#CTL_prev#></div>
 						</div>
 						<div class="footer_mobile">
 							<table style="width:100%;" cellpadding="0" cellspacing="0">
 								<tr>
-									<td class="mobileAbort" style="width:100%;" onclick='abort.wanType()'>
+									<td class="mobileAbort" style="width:100%;" onclick='abort.wan()'>
 										<div class="mobile_abortBtn"><#CTL_prev#></div>
 									</td>
 								</tr>
@@ -1265,6 +1489,61 @@
 							</table>
 						</div>
 					</div>
+				</div>
+			</div>
+		</div>
+
+		<!-- E-WAN DHCP option Setting -->
+		<div id="wan_dhcp_option_setting" data-role="page" class="qisBackground">
+			<div class="headerBar"></div>
+			<div class="tableContainer">
+				<div class="desktop_left_field">
+					<div>
+						<div class="titleMain"><#Internet#></div>
+						<div class="titleSub"><#ipv6_6rd_dhcp_option#></div>
+					</div>
+				</div>
+				<div class="table_td">
+					<div class="pageDesc"><#ipv6_6rd_dhcp_option#></div>
+					<div>
+						<div>
+							<div class="inputTitleContainer">
+								<div class="inputTitle">Class-identifier (option 60)</div>
+							</div>
+							<div class="inputContainer">
+								<input id="wan_vendorid" type="text" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" maxlength="126" class="textInput pppInput" data-role="none" value="" data-clear-btn="true" />
+							</div>
+						</div>
+
+						<div>
+							<div class="inputTitleContainer">
+								<div class="inputTitle">Client-identifier (option 61)</div>
+							</div>
+							<div class="inputContainer">
+								<input type="checkbox" id="wan_clientid_type" name="wan_clientid_type" onclick="showDiableDHCPclientID(this);" class="labelInput"><label for="wan_clientid_type" class="labelInput">IAID/DUID</label><br>
+								<input id="wan_clientid" type="text" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" maxlength="126" class="textInput pppInput" data-role="none" value="" data-clear-btn="true" />
+							</div>
+						</div>
+					</div>
+
+					<!-- Action Button -->
+					<div class="footer_desktop">
+						<div class="desktop_abortBtn" onclick='abort.wan_dhcp_option()'><#CTL_prev#></div>
+						<div class="desktop_applyBtn" onclick="apply.wan_dhcp_option();"><#CTL_next#></div>
+					</div>
+					<div class="footer_mobile">
+						<table style="width:100%;" cellpadding="0" cellspacing="0">
+							<tr>
+								<td class="mobileAbort" style="width:50%" onclick='abort.wan_dhcp_option()'>
+									<div class="mobile_abortBtn"><#CTL_prev#></div>
+								</td>
+								<td class="mobileApply" onclick="apply.wan_dhcp_option();">
+									<div class="mobile_applyBtn"><#CTL_next#></div>
+								</td>
+							</tr>
+						</table>
+					</div>
+
 				</div>
 			</div>
 		</div>
@@ -1847,13 +2126,13 @@
 							<div class="ap_sort_text"><#QIS_RP_desc9#></div>
 						</td>
 						<td>
-							<div class="ap_sort_icon_background" onclick="sortAP('band', 'down')">
-								<div class="icon_sort_band_2g ap_sort_icon_container"></div>
+							<div class="ap_sort_icon_background" onclick="sortAP('band', 'top')">
+								<div class="icon_sort_freq_high ap_sort_icon_container"></div>
 							</div>
 						</td>
 						<td>
-							<div class="ap_sort_icon_background" onclick="sortAP('band', 'top')">
-								<div class="icon_sort_band_5g ap_sort_icon_container"></div>
+							<div class="ap_sort_icon_background" onclick="sortAP('band', 'down')">
+								<div class="icon_sort_freq_low ap_sort_icon_container"></div>
 							</div>
 						</td>
 					</tr>
@@ -1996,6 +2275,7 @@
 		  				<input type="checkbox" id="wireless_checkbox" data-mini="true"/>
 					</div>
 
+					<div id="wifi6e_legacy_hint" class="hint_yellow" style="padding:30px;margin-top:6px;display:none"><#Wireless_SSID_hint2#> <#Wireless_SSID_hint3#></div>
 					<div class="labelContainer" id="syncSSID" style="display:none;">
 						<label for="wireless_sync_checkbox" class="labelInput"><#qis_ssid_desc#></label>
 		  				<input type="checkbox" id="wireless_sync_checkbox" data-mini="true"/>
@@ -2003,13 +2283,13 @@
 
 					<!-- Action Button -->
 					<div class="footer_desktop">
-						<div class="desktop_abortBtn" onclick='abort.wireless();'><#CTL_prev#></div>
+						<div class="desktop_abortBtn" id="wireless_abortBtn" onclick='abort.wireless();'><#CTL_prev#></div>
 						<div class="desktop_applyBtn btn_wireless_apply" onclick="apply.wireless();"><#CTL_apply#></div>
 					</div>
 					<div class="footer_mobile">
 						<table style="width:100%;" cellpadding="0" cellspacing="0">
 							<tr>
-								<td class="mobileAbort" style="width:50%" onclick='abort.wireless();'>
+								<td class="mobileAbort" id="wireless_mobile_abortBtn" style="width:50%" onclick='abort.wireless();'>
 									<div class="mobile_abortBtn"><#CTL_prev#></div>
 								</td>
 								<td class="mobileApply" onclick="apply.wireless();">
@@ -2048,7 +2328,7 @@
 					<!-- Action Button -->
 					<div class="footer_desktop">
 						<div class="desktop_abortBtn" id="desktop_abortBtn_update" onclick='abort.update();'><#CTL_Cancel#></div>
-						<div class="desktop_applyBtn" id="desktop_applyBtn_update" onclick="apply.update();"><#CTL_upgrade#></div>
+						<div class="desktop_applyBtn btn_upgrade_apply" id="desktop_applyBtn_update" onclick="apply.update();"><#CTL_upgrade#></div>
 					</div>
 					<div class="footer_mobile">
 						<table style="width:100%;" cellpadding="0" cellspacing="0">
@@ -2057,7 +2337,7 @@
 									<div class="mobile_abortBtn" id="mobile_abortBtn_update"><#CTL_Cancel#></div>
 								</td>
 								<td class="mobileApply" onclick="apply.update();">
-									<div class="mobile_applyBtn" id="mobile_applyBtn_update"><#CTL_upgrade#></div>
+									<div class="mobile_applyBtn btn_upgrade_apply" id="mobile_applyBtn_update"><#CTL_upgrade#></div>
 								</td>
 							</tr>
 						</table>
@@ -2172,7 +2452,8 @@
 						<div class="descSteps">Step 2</div>
 						<div id="stepText2"><#qis_summary_description_step2#></div>
 					</div>
-						
+					
+					<div id="wifi6e_legacy_hint_summary" class="hint_yellow" style="display:none">*Note: <#Wirelesss_Connectivity_hint1#></div>
 					<div id="finishButton" style="display:none">
 						<div class="footer_desktop">
 							<div class="desktop_applyBtn" onclick="goTo.leaveQIS();"><#QKSet_finishpre_rebootnow#></div>
@@ -2190,6 +2471,39 @@
 				</div>
 			</div>
 		</div>
+
+		<!-- DSL detected PPP -->
+		<div id="ppp_cfg_page" data-role="page" class="qisBackground"></div>
+
+		<!-- DSL detected MER -->
+		<div id="mer_cfg_page" data-role="page" class="qisBackground"></div>
+
+		<!-- DSL iptv -->
+		<div id="dsl_iptv_setting" data-role="page" class="qisBackground"></div>
+
+		<!-- DSL DHCP option -->
+		<div id="dsl_dhcp_option_setting" data-role="page" class="qisBackground"></div>		
+
+		<!-- DSL PTM Manual -->
+		<div id="PTM_manual_setting_page" data-role="page" class="qisBackground"></div>
+
+		<!-- DSL ATM Manual -->
+		<div id="manual_setting_page" data-role="page" class="qisBackground"></div>
+
+		<!-- DSL PPP cfg tmp-->
+		<div id="ppp_cfg_tmp_page" data-role="page" class="qisBackground"></div>
+
+		<!-- DSL MER cfg tmp -->
+		<div id="mer_cfg_tmp_page" data-role="page" class="qisBackground"></div>
+
+		<!-- DSL IPOA cfg tmp -->
+		<div id="ipoa_cfg_tmp_page" data-role="page" class="qisBackground"></div>
+
+		<!-- DSL Bridge cfg tmp -->
+		<div id="bridge_cfg_tmp_page" data-role="page" class="qisBackground"></div>
+		
+		<!-- IPTV tmp -->
+		<div id="dsl_iptv_page" data-role="page" class="qisBackground"></div>
 
 		<!-- AMAS Introduction -->
 		<div id="amasintro_page" data-role="page" class="qisBackground aimeshPages"></div>
@@ -2219,8 +2533,7 @@
 					<div class="pageDesc">	
 						<#AiMesh_Desc#>
 						<br/>
-						<#AiMesh_Add_Another_Node_confirm#>
-
+						<#AiMesh_FindNode_Search_Btn#>
 						<div class="amasIconContainer">
 							<div><img src="images\New_ui\amesh\Amesh_button_light.png"></div>
 						</div>
@@ -2229,7 +2542,7 @@
 					<!-- Action Button -->
 					<div class="footer_desktop">
 						<div class="desktop_abortBtn" onclick='abort.amasbundle();'><#CTL_finished#></div>
-						<div class="desktop_applyBtn" onclick="goTo.amasearch();"><#AiMesh_Add_Another_Node#></div>
+						<div class="desktop_applyBtn" onclick="goTo.amasearch();"><#CTL_search#></div>
 					</div>
 					<div class="footer_mobile">
 						<table style="width:100%;" cellpadding="0" cellspacing="0">
@@ -2238,7 +2551,7 @@
 									<div class="mobile_abortBtn"><#CTL_finished#></div>
 								</td>
 								<td class="mobileApply" onclick="goTo.amasearch();">
-									<div class="mobile_applyBtn"><#AiMesh_Add_Another_Node#></div>
+									<div class="mobile_applyBtn"><#CTL_search#></div>
 								</td>
 							</tr>
 						</table>
@@ -2373,5 +2686,13 @@
 			</div>
 		</div>
 
+		<div id="gundam_page" data-role="page" class="qisBackground" style="display:none">
+			<div class="GD-content">
+				<div style="display: flex;justify-content: center;">
+					<div class="GD-bg"></div>
+					<div class="GD-logo"></div>
+				</div>
+			</div>
+		</div>
 	</body>
 </html>

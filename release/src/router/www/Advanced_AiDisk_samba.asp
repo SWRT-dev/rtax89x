@@ -53,6 +53,8 @@ var changedPermissions = new Array();
 
 var folderlist = new Array();
 
+var faq_href = "https://nw-dlcdnet.asus.com/support/forward.html?model=&type=Faq&lang="+ui_lang+"&kw=&num=103";
+
 function initial(){
 	if(re_mode == "1"){
 		$("#apply_btn").addClass("perNode_apply_gen");
@@ -70,10 +72,20 @@ function initial(){
 
 	document.aidiskForm.protocol.value = PROTOCOL;
 	
-	//complete SMBv1_FAQ link
-	document.getElementById('SMBv1_FAQ').target="_blank";
-	document.getElementById('SMBv1_FAQ').style.textDecoration="underline";
-	httpApi.faqURL("1037477", function(url){document.getElementById("SMBv1_FAQ").href=url;});
+	var sambainfo = httpApi.hookGet("get_SambaInfo");
+	if(sambainfo != undefined && sambainfo != ""){
+		var vernums = sambainfo.replace("Version", "").trim().split(".");
+		if(parseInt(vernums[0]) >= 3 && parseInt(vernums[1]) >= 6){
+			$("#smbv1_hint").remove();
+		}
+	}
+
+	if($("#smbv1_hint").length > 0){
+		//complete SMBv1_FAQ link
+		document.getElementById('SMBv1_FAQ').target="_blank";
+		document.getElementById('SMBv1_FAQ').style.textDecoration="underline";
+		document.getElementById("SMBv1_FAQ").href=faq_href;
+	}
 
 	if(is_KR_sku){
 		document.getElementById("radio_anonymous_enable_tr").style.display = "none";
@@ -94,16 +106,6 @@ function initial(){
 	showPermissionTitle();
 	document.getElementById("computer_name").placeholder = lan_hostname.toUpperCase();
 	document.getElementById("st_samba_workgroup").placeholder = lan_domain.toUpperCase();
-	
-	// show mask
-	if(get_manage_type(PROTOCOL)){
-		document.getElementById("loginMethod").innerHTML = "<#AiDisk_SAMBA_hint_2#>";
-		document.getElementById("accountMask").style.display = "none";
-	}
-	else{
-		document.getElementById("loginMethod").innerHTML = "<#AiDisk_SAMBA_hint_1#>";
-		document.getElementById("accountMask").style.display = "block";
-	}
 
 	// show folder's tree
 	setTimeout('get_disk_tree();', 1000);
@@ -124,6 +126,17 @@ function initial(){
 		$("#trPMGroup").css("display", "block");
 	else
 		$("#trAccount").css("display", "block");
+
+	// show mask
+	if(get_manage_type(PROTOCOL)){
+		document.getElementById("loginMethod").innerHTML = "<#AiDisk_SAMBA_hint_2#>";
+		document.getElementById("accountMask").style.display = "none";
+	}
+	else{
+		document.getElementById("loginMethod").innerHTML = "<#AiDisk_SAMBA_hint_1#>";
+		document.getElementById("accountMask").style.display = "block";
+		$("#accountMask").css("height", ($("#shareStatus").height() + $(".AiDiskTable").height()));
+	}
 }
 
 function get_disk_tree(){
@@ -267,12 +280,12 @@ function showPermissionTitle(){
 	if(PROTOCOL == "cifs"){
 		code += '<td width="34%" align="center">R/W</td>';
 		code += '<td width="28%" align="center">R</td>';
-		code += '<td width="38%" align="center">No</td>';
+		code += '<td width="38%" align="center"><#checkbox_No#></td>';
 	}else if(PROTOCOL == "ftp"){
 		code += '<td width="28%" align="center">R/W</td>';
 		code += '<td width="22%" align="center">W</td>';
 		code += '<td width="22%" align="center">R</td>';
-		code += '<td width="28%" align="center">No</td>';
+		code += '<td width="28%" align="center"><#checkbox_No#></td>';
 	}
 	
 	code += '</tr></table>';
@@ -495,9 +508,10 @@ function onEvent(){
 		changeActionButton(document.getElementById("createAccountBtn"), 'User', 'Add', 0);
 		
 		var accounts_length = this.accounts.length;
+		var maximum_account = httpApi.nvramGet(["st_max_user"]).st_max_user;
 		document.getElementById("createAccountBtn").onclick = function(){
-				if(accounts_length >= 6) {
-					alert("<#JS_itemlimit1#> 6 <#JS_itemlimit2#>");
+				if(accounts_length >= maximum_account) {
+					alert("<#JS_itemlimit1#> " + maximum_account + " <#JS_itemlimit2#>");
 					return false;
 				}
 				else
@@ -680,13 +694,26 @@ function unload_body(){
 	document.getElementById("modifyFolderBtn").onmouseout = function(){};
 }
 
+var reboot_confirm=0;
 function applyRule(){
     if(validForm()){
-				if(document.form.usb_fs_ntfs_sparse.value != "<% nvram_get("usb_fs_ntfs_sparse"); %>")
-        		FormActions("start_apply.htm", "apply", "reboot", "<% get_default_reboot_time(); %>");
+	if(document.form.usb_fs_ntfs_sparse.value != "<% nvram_get("usb_fs_ntfs_sparse"); %>"){
+		reboot_confirm=1;
+	}
         
-        showLoading();
-				document.form.submit();
+        if(reboot_confirm==1){
+        	
+		if(confirm("<#AiMesh_Node_Reboot#>")){
+			FormActions("start_apply.htm", "apply", "reboot", "<% get_default_reboot_time(); %>");
+			showLoading();
+			document.form.submit();
+        	}
+        }
+        else{
+
+		showLoading();
+		document.form.submit();
+	}
      }
 }
 
@@ -797,7 +824,7 @@ function switchUserType(flag){
 			</div>
 			<div id="splitLine" class="splitLine"></div>
 			<div class="formfontdesc" style="margin-top: 10px;"><#Samba_desc#></div>
-			<div class="formfontdesc"><#ADSL_FW_note#>&nbsp;<#SMBv1_enable_hint#></div>
+			<div id="smbv1_hint" class="formfontdesc"><#ADSL_FW_note#>&nbsp;<#SMBv1_enable_hint#></div>
 		  </td>
 		</tr>
 		<tr>

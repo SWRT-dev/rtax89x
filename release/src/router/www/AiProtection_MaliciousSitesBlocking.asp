@@ -102,8 +102,10 @@
 </style>
 <script>
 window.onresize = function() {
-	if(document.getElementById("erase_confirm").style.display == "block") {
-		cal_panel_block("erase_confirm", 0.25);
+	if(document.getElementById("erase_confirm") != null){
+		if(document.getElementById("erase_confirm").style.display == "block") {
+			cal_panel_block("erase_confirm", 0.25);
+		}
 	}
 }
 
@@ -140,6 +142,13 @@ function initial(){
 			}
 		}
 	});
+
+	var malware = cookie.get("malware");
+	if(malware){
+		showWhitelistField();
+		$("#newDomain").val(malware);
+		cookie.unset("malware");
+	}
 }
 
 function getEventTime(){
@@ -383,7 +392,7 @@ function getIPSDetailData(type, event){
 var cat_id_index = [["39", "Proxy Avoidance"], ["73", "Malicious Software"], ["74", "Spyware"], ["75", "Phishing"], ["76", "Spam"], 
 					["77", "Adware"], ["78", "Malware Accomplic"], ["79", "Disease Vector"], ["80", "Cookies"], ["81", "Dialers"], 
 					["82", "Hacking"], ["83", "Joke Program"], ["84", "Password Cracking Apps"], ["85", "Remote Access"], ["86", "Made for AdSense sites"],
-					["91", "C&C Server"], ["92", "Malicious Domain"], ["94", "Scam"], ["95", "Ransomware"]];
+					["91", "C&C Server"], ["92", "Malicious Domain"], ["94", "Scam"], ["95", "Ransomware"], ["2", "Illegal"]];
 var cat_id_array = new Array();
 for(i=0; i<cat_id_index.length;i++){
 	var index = "_" + cat_id_index[i][0];
@@ -486,19 +495,30 @@ function recount(){
 	}
 }
 
+var reboot_confirm=0;
 function applyRule(){
 	if(ctf_disable == 0 && ctf_fa_mode == 2){
 		if(!confirm(Untranslated.ctf_fa_hint)){
 			return false;
 		}	
 		else{
-			document.form.action_script.value = "reboot";
-			document.form.action_wait.value = "<% nvram_get("reboot_time"); %>";
+			reboot_confirm=1;
 		}	
 	}
 
-	showLoading();	
-	document.form.submit();
+	if(reboot_confirm==1){
+        	
+		if(confirm("<#AiMesh_Node_Reboot#>")){
+			FormActions("start_apply.htm", "apply", "reboot", "<% get_default_reboot_time(); %>");
+			showLoading();
+			document.form.submit();
+		}
+	}
+	else{
+
+		showLoading();	
+		document.form.submit();
+	}
 }
 
 function mals_check(active){
@@ -526,6 +546,12 @@ function recountHover(flag){
 function eraseDatabase(){
 	document.form.action_script.value = 'reset_mals_db';
 	document.form.action_wait.value = "1";
+
+	/* update current timestamp when delete database */
+	var t = new Date();
+	var timestamp = t.getTime();
+	document.form.wrs_mals_t.value = timestamp.toString().substring(0, 10);
+
 	applyRule();
 }
 
@@ -549,26 +575,26 @@ function addWhitelist(){
 	var _url = $("#newDomain").val();
 	$('#domainErrMessage').hide();
 	if(_url == ''){
-		$('#domainErrMessage').html('The domain name can not be blank');
+		$('#domainErrMessage').html('<#AiProtection_ErrMsg_blank#>');
 		$('#domainErrMessage').show();
 		return false;
 	}
 
 	if(!validator.domainName_flag(_url) && !validator.ipv4_addr(_url)){
-		$('#domainErrMessage').html('wrong domain name / IPv4 address format');
+		$('#domainErrMessage').html('<#AiProtection_ErrMsg_wrong_format#>');
 		$('#domainErrMessage').show();
 		return false;
 	}
 
 	if(whitelist.data.length >= 64){
-		$('#domainErrMessage').html('The whitelist is reaching maximum, the maximum size is 64');
+		$('#domainErrMessage').html('<#AiProtection_ErrMsg_full#>');
 		$('#domainErrMessage').show();
 		return false;
 	}
 
 	for(i=0;i<whitelist.data.length;i++){
 		if(_url == whitelist.data[i]){
-			$('#domainErrMessage').html('The domain name is already in the whitelist');
+			$('#domainErrMessage').html('<#AiProtection_ErrMsg_duplicate#>');
 			$('#domainErrMessage').show();
 			return false;
 		}
@@ -639,11 +665,11 @@ function genWhitelist(list){
 
 function showWhitelistField(){
 	getWhitelist();
-	$('#whitelistField').show();
+	$('#whitelistField').fadeIn(300);
 }
 
 function hideWhitelistField(){
-	$('#whitelistField').hide();
+	$('#whitelistField').fadeOut(300);
 }
 
 var download = function(content, fileName, mimeType) {
@@ -701,6 +727,7 @@ function query(value){
 function quickAdd(value){
 	$('#newDomain').val(value);
 	$('#query_list').hide();
+	//genLogTable(value);
 }
 </script>
 </head>
@@ -708,11 +735,11 @@ function quickAdd(value){
 <div id="TopBanner"></div>
 <div id="Loading" class="popup_bg"></div>
 <div id="erase_confirm" class="confirm">
-	<div style="margin: 16px 24px;font-size:24px;"><span id="model_name"></span> says</div>
-	<div style="margin: 16px 24px;font-size:16px;">Are you sure want to permanently delete events.</div>
+	<div style="margin: 16px 24px;font-size:24px;"><span id="model_name"></span> : </div>
+	<div style="margin: 16px 24px;font-size:16px;"><#AiProtection_event_del_confirm#></div>
 	<div style="display:flex;justify-content: flex-end;margin: 36px 24px;">
-		<div class="confirm-button" onclick="hideConfirm();">Cancel</div>
-		<div class="confirm-button" onclick="eraseDatabase();">OK</div>
+		<div class="confirm-button" onclick="hideConfirm();"><#CTL_Cancel#></div>
+		<div class="confirm-button" onclick="eraseDatabase();"><#CTL_ok#></div>
 	</div>
 </div>
 <div id="hiddenMask" class="popup_bg" style="z-index:999;">
@@ -784,7 +811,7 @@ function quickAdd(value){
 													<div id="bar_shade" style="position:absolute;width:330px;height:330px;background-color:#505050;opacity:0.6;margin:5px;display:none"></div>
 													<div>
 														<div style="display:table-cell;width:50px;padding: 10px;">
-															<div style="width:35px;height:35px;background:url('images/New_ui/mals.svg');margin: 0 auto;"></div>
+															<div style="width:35px;height:35px;background:url('images/New_ui/mals.svg');margin: 0 auto;background-size: 100%;"></div>
 
 														</div>	
 														<div style="display:table-cell;width:200px;padding: 10px;vertical-align:middle;text-align:center;">
@@ -844,9 +871,9 @@ function quickAdd(value){
 													<div style="font-size: 24px;"><#WhiteList#></div>
 													<div onclick="hideWhitelistField();"><img src="images/New_ui/icon_close.svg" alt="" style="width:32px;height:32px;cursor:pointer;"></div>
 												</div>
-												<div style="color: #CCCCCC;font-size: 16px;margin: 12px 0 24px 0;">Add a domain you trust and unlock it with AiProtection</div>
+												<div style="color: #CCCCCC;font-size: 16px;margin: 12px 0 24px 0;"><#AiProtection_sites_trust#></div>
 												<div>
-													<div style="font-size: 14px;padding: 0 0 2px 4px;">Add domain to whitelist</div>
+													<div style="font-size: 14px;padding: 0 0 2px 4px;"><#AiProtection_sites_trust_add#></div>
 													<div>
 														<input id="newDomain" style="font-size: 14px;" type="text" maxlength="32" size="22" class="input_32_table" autocomplete="off" autocorrect="off" autocapitalize="off">
 														<ul id="query_list" class="query_list"></ul>						
@@ -859,7 +886,7 @@ function quickAdd(value){
 												<div style="width:100%;" class="line_horizontal"></div>
 												<div style="margin-top:24px;">
 													<span style="font-size: 24px;padding-right:12px;"><#WhiteList#></span>
-													<span style="font-size: 14px;">Count: <b id="list_count">0</b> (<#List_limit#>&nbsp;64)</span>
+													<span style="font-size: 14px;"><#NetworkTools_Count#>: <b id="list_count">0</b> (<#List_limit#>&nbsp;64)</span>
 												</div>
 												<div id="whitelistTable" style="overflow: auto;height:420px;"></div>
 											</div>
@@ -879,7 +906,7 @@ function quickAdd(value){
 											</div>
 										</div>
 									</div>
-									<div style="width:135px;height:55px;margin: 10px 0 0 600px;background-image:url('images/New_ui/tm_logo_power.png');"></div>
+									<div style="width:96px;height:44px;margin: 10px 0 0 600px;background-image:url('images/New_ui/TrendMirco_logo.svg');background-size: 100%;"></div>
 								</td>
 							</tr>
 							</tbody>	

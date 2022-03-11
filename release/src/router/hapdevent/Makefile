@@ -12,7 +12,7 @@ CFLAGS	+= -I. -I$(TOP)/shared -I$(SRCBASE)/include -I$(SRCBASE)/common/include -
 CFLAGS	+= $(if $(WLAN_ComponentIncPath),$(WLAN_ComponentIncPath),$(addprefix -I,$(wildcard $(SRCBASE)/shared/bcmwifi/include)))
 #CFLAGS	+= -g -DDEBUG
 CFLAGS	+= -s -O2
-LDFLAGS += -L$(TOP)/nvram$(BCMEX)${EX7} ${EXTRA_NV_LDFLAGS} -lnvram
+LDFLAGS += -L$(TOP_PLATFORM)/nvram$(BCMEX)${EX7} ${EXTRA_NV_LDFLAGS} -lnvram
 LDFLAGS += -L$(TOP)/shared -L$(INSTALLDIR)/shared/usr/lib -lshared
 LDFLAGS += $(EXTRALDFLAGS)
 
@@ -63,10 +63,7 @@ all: hapdevent
 endif
 
 OBJS = hapdevent_main.o 
-ifeq ($(RTCONFIG_SOC_IPQ40XX),y)
-OBJS += $(SRCBASE)/router/qca-hostap.ipq40xx/source/src/common/wpa_ctrl.o
-OBJS += $(SRCBASE)/router/qca-hostap.ipq40xx/source/src/utils/os_unix.o
-else ifneq ($(PLATFORM_ROUTER),)
+ifneq ($(PLATFORM_ROUTER),)
 OBJS += $(SRCBASE)/$(PLATFORM_ROUTER)/qca-hostap/source/src/common/wpa_ctrl.o
 OBJS += $(SRCBASE)/$(PLATFORM_ROUTER)/qca-hostap/source/src/utils/os_unix.o
 else

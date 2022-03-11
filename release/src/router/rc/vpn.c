@@ -77,6 +77,7 @@ void start_pptpd(void)
 	char *nv, *nvp, *b;
 	char *pptpd_client, *vpn_network, *vpn_netmask;
 	int ret, pptpd_opt, count, port;
+	char lanip[20] = {0};
 
 	if (!nvram_get_int("pptpd_enable"))
 		return;
@@ -86,6 +87,7 @@ void start_pptpd(void)
 		return;
 	}
 
+#if !defined(DSL_AX82U) ///TODO: !defined(RTCONFIG_HND_ROUTER_AX_675X)
 #ifdef HND_ROUTER
 	char tmp[100], prefix[] = "wanXXXXXXXXXX_";
 	char wan_proto[16];
@@ -103,6 +105,7 @@ void start_pptpd(void)
 		dbg("[%s, %d] Flow Cache Learning of GRE flows Tunnel: DISABLED, PassThru: ENABLED\n", __FUNCTION__, __LINE__);
 		eval("fc", "config", "--gre", "0");
 	}
+#endif
 #endif
 
 	// cprintf("stop vpn modules\n");
@@ -245,6 +248,7 @@ void start_pptpd(void)
 #endif
 		fprintf(fp, "iptables -t mangle -A FORWARD -i $1 -m state --state NEW -j MARK --set-mark 0x01/0x7\n");
 #endif
+	snprintf(lanip, sizeof(lanip), "%s", nvram_safe_get("lan_ipaddr"));
 	/* Add static route for vpn client */
 	nv = nvp = strdup(nvram_safe_get("pptpd_sr_rulelist"));
 	if (nv) {
@@ -253,6 +257,10 @@ void start_pptpd(void)
 				continue;
 			if (*pptpd_client == '\0' || *vpn_network == '\0')
 				continue;
+			if (!strcmp(vpn_network, lanip)) {
+				dbg("[%s, %d] static route host ip can't be the same as lan ip, router will crash!\n", __FUNCTION__, __LINE__);
+				continue;
+			}
 			if (*vpn_netmask == '\0')
 				vpn_netmask = "255.255.255.255";
 			fprintf(fp, "if [ \"$PEERNAME\" = \"%s\" ]; then\n", pptpd_client);
@@ -307,7 +315,9 @@ void stop_pptpd(void)
 	killall_tk("pptpd");
 	killall_tk("bcrelay");
 
+#if !defined(DSL_AX82U) ///TODO: !defined(RTCONFIG_HND_ROUTER_AX_675X)
 #ifdef HND_ROUTER
 	if (nvram_match("fc_disable", "0")) eval("fc", "config", "--gre", "1");
+#endif
 #endif
 }

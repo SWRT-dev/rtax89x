@@ -4,11 +4,14 @@ KERNEL_3_4_X_MODEL_LIST := $(addprefix _,$(addsuffix _,BRT-AC828 RT-AC88N RT-AC8
 IPQ806X_MODEL_LIST := $(addprefix _,$(addsuffix _,BRT-AC828 RT-AC88N RT-AC88S RT-AD7200))
 ifeq ($(MUSL64),y)
 SPF8_MODEL_LIST := #$(addprefix _,$(addsuffix _,GT-6000N))
+SPF11.0_MODEL_LIST := $(addprefix _,$(addsuffix _,))
+SPF11.1_MODEL_LIST := $(addprefix _,$(addsuffix _,))
 IPQ807X_MODEL_LIST := $(addprefix _,$(addsuffix _,GT-AXY16000 RT-AX89U))
 else
 SPF8_MODEL_LIST := #$(addprefix _,$(addsuffix _,GT-6000N))
 SPF11.0_MODEL_LIST := $(addprefix _,$(addsuffix _,))
-IPQ807X_MODEL_LIST := $(addprefix _,$(addsuffix _,RT-AX89U GT-AXY16000))	# SPF11.1
+SPF11.1_MODEL_LIST := $(addprefix _,$(addsuffix _,RT-AX89U))
+IPQ807X_MODEL_LIST := $(addprefix _,$(addsuffix _,GT-AXY16000))	# SPF11.1
 endif
 
 # Select IPQ807X SoC
@@ -61,13 +64,19 @@ export PLATFORM_ROUTER := ipq806x
 export LOADADDR := 41508000
 export LINUXDIR := $(SRCBASE)/linux/linux-3.4.x
 else ifneq ($(findstring $(_BUILD_NAME_),$(SPF8_MODEL_LIST)),)
+$(error SPF8 is deleted!!!)
 export PLATFORM_ROUTER := spf8
 export LOADADDR := 42208000
 export LINUXDIR := $(SRCBASE)/linux/linux-4.4.x.spf8
 else ifneq ($(findstring $(_BUILD_NAME_),$(SPF11.0_MODEL_LIST)),)
+$(error SPF11.0 is deleted!!!)
 export PLATFORM_ROUTER := spf11.0
 export LOADADDR := 42208000
 export LINUXDIR := $(SRCBASE)/linux/linux-4.4.x.spf11.0
+else ifneq ($(findstring $(_BUILD_NAME_),$(SPF11.1_MODEL_LIST)),)
+export PLATFORM_ROUTER := spf11.1
+export LOADADDR := 42208000
+export LINUXDIR := $(SRCBASE)/linux/linux-4.4.x.spf11.1
 else ifneq ($(findstring $(_BUILD_NAME_),$(IPQ807X_MODEL_LIST)),)
 export PLATFORM_ROUTER := ipq807x
 export LOADADDR := 42208000
@@ -180,13 +189,15 @@ define platformRouterOptions
 			echo "RTCONFIG_CFG80211=y" >>$(1); \
 			sed -i "/RTCONFIG_GLOBAL_INI\>/d" $(1); \
 			echo "RTCONFIG_GLOBAL_INI=y" >>$(1); \
-		elif [ -n "$(findstring $(_BUILD_NAME_),$(IPQ807X_MODEL_LIST))" ] ; then \
+		elif [ -n "$(findstring $(_BUILD_NAME_),$(SPF11.0_MODEL_LIST) $(SPF11.1_MODEL_LIST) $(IPQ807X_MODEL_LIST))" ] ; then \
 			sed -i "/RTCONFIG_SPF11_1_QSDK/d" $(1); \
 			echo "RTCONFIG_SPF11_1_QSDK=y" >>$(1); \
 			sed -i "/RTCONFIG_CFG80211\>/d" $(1); \
 			echo "RTCONFIG_CFG80211=y" >>$(1); \
 			sed -i "/RTCONFIG_GLOBAL_INI\>/d" $(1); \
 			echo "RTCONFIG_GLOBAL_INI=y" >>$(1); \
+			sed -i "/RTCONFIG_HW_DOG/d" $(1); \
+			echo "RTCONFIG_HW_DOG=y" >>$(1); \
 		fi; \
 		if [ "$(IPQ806X)" = "y" ] ; then \
 			sed -i "/RTCONFIG_SOC_IPQ8064/d" $(1); \
@@ -217,6 +228,10 @@ define platformRouterOptions
 		echo "RTCONFIG_QCA_ARM=y" >>$(1); \
 		sed -i "/RTCONFIG_32BYTES_ODMPID/d" $(1); \
 		echo "RTCONFIG_32BYTES_ODMPID=y" >>$(1); \
+		if [ "$(SWRT_NAME)" != "RAX120" ] ; then \
+			sed -i "/RTCONFIG_FITFDT/d" $(1); \
+			echo "# RTCONFIG_FITFDT is not set" >>$(1); \
+		fi; \
 		if [ "$(WIFI_CHIP)" = "BEELINER" ] ; then \
 			sed -i "/RTCONFIG_WIFI_QCA9990_QCA9990/d" $(1); \
 			echo "RTCONFIG_WIFI_QCA9990_QCA9990=y" >>$(1); \
@@ -381,11 +396,9 @@ define platformKernelConfig
 			sed -i "/CONFIG_CFG80211\>/d" $(1); \
 			echo "CONFIG_CFG80211=y" >>$(1); \
 			sed -i "/CONFIG_CFG80211_DEVELOPER_WARNINGS/d" $(1); \
-			echo "CONFIG_CFG80211_DEVELOPER_WARNINGS=y" >>$(1); \
+			echo "# CONFIG_CFG80211_DEVELOPER_WARNINGS is not set" >>$(1); \
 			sed -i "/CONFIG_CFG80211_DEBUGFS/d" $(1); \
-			echo "CONFIG_CFG80211_DEBUGFS=y" >>$(1); \
-			sed -i "/CONFIG_CFG80211_DEBUGFS/d" $(1); \
-			echo "CONFIG_CFG80211_DEBUGFS=y" >>$(1); \
+			echo "# CONFIG_CFG80211_DEBUGFS is not set" >>$(1); \
 			sed -i "/CONFIG_CFG80211_INTERNAL_REGDB/d" $(1); \
 			echo "CONFIG_CFG80211_INTERNAL_REGDB=y" >>$(1); \
 			sed -i "/CONFIG_CFG80211_CRDA_SUPPORT/d" $(1); \
@@ -432,7 +445,7 @@ define platformKernelConfig
 				sed -i "/CONFIG_THERMAL_HWMON\>/d" $(1); \
 				echo "CONFIG_THERMAL_HWMON=y" >>$(1); \
 			fi; \
-			if [ -n "$(findstring $(_BUILD_NAME_),$(SPF11.0_MODEL_LIST) $(IPQ807X_MODEL_LIST))" ] ; then \
+			if [ -n "$(findstring $(_BUILD_NAME_),$(SPF11.0_MODEL_LIST) $(SPF11.1_MODEL_LIST) $(IPQ807X_MODEL_LIST))" ] ; then \
 				sed -i "/CONFIG_ARCH_WANT_KMAP_ATOMIC_FLUSH\>/d" $(1); \
 				echo "CONFIG_ARCH_WANT_KMAP_ATOMIC_FLUSH=y" >>$(1); \
 				sed -i "/CONFIG_QCOM_DCC\>/d" $(1); \
@@ -600,7 +613,7 @@ define platformKernelConfig
 				sed -i "/CONFIG_CNSS_QCA6290/d" $(1); \
 				echo "CONFIG_CNSS_QCA6290=y" >>$(1); \
 			fi; \
-			if [ -n "$(findstring $(_BUILD_NAME_),$(IPQ807X_MODEL_LIST))" ] ; then \
+			if [ -n "$(findstring $(_BUILD_NAME_),$(SPF11.1_MODEL_LIST) $(IPQ807X_MODEL_LIST))" ] ; then \
 				sed -i "/CONFIG_HAVE_GCC_PLUGINS\>/d" $(1); \
 				echo "CONFIG_HAVE_GCC_PLUGINS=y" >>$(1); \
 				sed -i "/CONFIG_IPC_ROUTER\>/d" $(1); \
@@ -933,7 +946,11 @@ define platformKernelConfig
 		if [ "$(DUMP_OOPS_MSG)" = "y" ]; then \
 			echo "CONFIG_DUMP_PREV_OOPS_MSG=y" >>$(1); \
 			echo "CONFIG_DUMP_PREV_OOPS_MSG_BUF_ADDR=0x45300000" >>$(1); \
-			echo "CONFIG_DUMP_PREV_OOPS_MSG_BUF_LEN=0x2000" >>$(1); \
+			if [ "$(IPQ807X)" = "y" ] ; then \
+				echo "CONFIG_DUMP_PREV_OOPS_MSG_BUF_LEN=0x8000" >>$(1); \
+			else \
+				echo "CONFIG_DUMP_PREV_OOPS_MSG_BUF_LEN=0x2000" >>$(1); \
+			fi; \
 		fi; \
 		if [ "$(IPV6SUPP)" = "y" ]; then \
 			if [ "$(IPQ806X)" = "y" -o "$(IPQ807X)" = "y" ]; then \
@@ -962,3 +979,4 @@ define platformGen_Target
 endef
 
 export PARALLEL_BUILD := -j$(shell grep -c '^processor' /proc/cpuinfo)
+

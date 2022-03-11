@@ -53,25 +53,31 @@
 	background-position: 0px 0px;
 }
 .wl1_icon_on{
-	background-position: 0px 144px;
+	background-position: 0px -48px;
 }
 .wl1_1_icon_on{
-	background-position: 0px 96px;
+	background-position: 0px -96px;
 }
 .wl2_icon_on{
-	background-position: 0px 48px;
+	background-position: 0px -144px;
+}
+.wl6_icon_on{
+	background-position: 0px -192px;
 }
 .wl0_icon_off{
 	background-position: 48px 0px;
 }
 .wl1_icon_off{
-	background-position: 48px 144px;
+	background-position: 48px -48px;
 }
 .wl1_1_icon_off{
-	background-position: 48px 96px;
+	background-position: 48px -96px;
 }
 .wl2_icon_off{
-	background-position: 48px 48px;
+	background-position: 48px -144px;
+}
+.wl6_icon_off{
+	background-position: 48px -192px;
 }
 .wan_state_icon{
 	width: 136px;
@@ -254,6 +260,13 @@
 .event-cancel:hover{
 	border: 1px solid #E64000;
 }
+.light_effect_iframe {
+	width: 100%;
+	height: 100%;
+}
+.light_effect_iframe .light_effect_bg {
+	height: 160px;
+}
 </style>
 <script>
 // disable auto log out
@@ -281,6 +294,7 @@ var wl2_radio = '<% nvram_get("wl2_radio"); %>';
 var label_mac = <% get_label_mac(); %>;
 var CNSku = in_territory_code("CN");
 var modelname = "<% nvram_get("modelname"); %>";
+var swrtuu = "<% nvram_get("swrt_uu"); %>";
 
 for(i=0;i<30;i++){
 	var temp = [];
@@ -315,15 +329,22 @@ function initial(){
 		$("#aura_field").show();
 		$("#boostKey_field").show();
 	}
+	else if(isGundam){
+		$(".banner").attr("class", "banner_GD");
+		$("#wan_state_icon").attr("class", "gd_connect");
+		$("#pingMap").show();
+		$("#aura_field").show();
+		$("#boostKey_field").show();
+	}
 	else if(rog_support){
 		$("#pingMap").show();
 		if (aura_support) {
+			if(based_modelid == 'GT-AC2900'){
+				$("#aura_event").show();
+			}
+
 			$("#aura_field").show();
 		}
-		else {
-			$('#pingMap').height('430px');
-		}
-
 		if (boostKey_support) {
 			$("#boostKey_field").show();
 		}
@@ -331,6 +352,15 @@ function initial(){
 	else{
 		$("#wan_state_icon").attr("class", "wan_state_icon");
 	}
+
+	if(isSupport("ledg")){
+		$("#aura_field").show();
+		$("#light_effect_bg").show();
+		$("#aura_rgb_bg").hide();
+	}
+
+	if($("#aura_field").css("display") == "none")
+		$('#pingMap').height('430px');
 
 	if(uu_support && (based_modelid == 'GT-AC5300' || modelname == 'RAX120')){
 		$('#uu_field').show();
@@ -341,16 +371,6 @@ function initial(){
 	check_sw_mode();
 	check_wireless();
 	updateClientsCount();
-	
-	httpApi.nvramGetAsync({
-		data: ["ping_target"],
-		success: function(nvram){
-			netoolApiDashBoard.start({
-				"type": 1, 
-				"target": (nvram.ping_target == "") ? "www.google.com" : nvram.ping_target
-			});
-		}
-	})
 
 	if(isSwMode('rt')){
 		if (ddns_enable == '0' || ddnsName == '' || ddnsName == isMD5DDNSName()) {
@@ -450,6 +470,16 @@ function initial(){
 	if(!ASUS_EULA.status("tm")){
 		ASUS_EULA.config(tm_agree, tm_disagree);
 	}
+
+	httpApi.nvramGetAsync({
+		data: ["ping_target"],
+		success: function(nvram){
+			netoolApiDashBoard.start({
+				"type": 1, 
+				"target": (nvram.ping_target == "") ? "www.google.com" : nvram.ping_target
+			});
+		}
+	})
 }
 
 function updateWANIP(){
@@ -504,8 +534,13 @@ function check_wireless(){
 		}
 
 		temp = (wl1_radio == "1") ? "wl1_icon_on" : "wl1_icon_off"
-		if(band5g2_support){
-			temp = (wl1_radio == "1") ? "wl1_1_icon_on" : "wl1_1_icon_off"
+		if(band5g2_support || band6g_support){
+			if(band6g_support){
+				temp = (wl1_radio == "1") ? "wl1_icon_on" : "wl1_icon_off";
+			}
+			else{
+				temp = (wl1_radio == "1") ? "wl1_1_icon_on" : "wl1_1_icon_off";
+			}			
 		}
 
 		$("#wl1_icon").show();
@@ -513,11 +548,18 @@ function check_wireless(){
 	}
 
 	//check 5 GHz-2
-	if(band5g2_support){
+	if(band5g2_support || band6g_support){
 		if (isSwMode('mb')) {
 			wl2_radio = '0';
 		}
-		temp = (wl2_radio == "1") ? "wl2_icon_on" : "wl2_icon_off"
+
+		if(band6g_support){
+			temp = (wl2_radio == "1") ? "wl6_icon_on" : "wl6_icon_off";
+		}
+		else{
+			temp = (wl2_radio == "1") ? "wl2_icon_on" : "wl2_icon_off";
+		}
+		
 
 		$("#wl2_icon").show();
 		$("#wl2_icon").addClass(temp);
@@ -716,9 +758,11 @@ var netoolApiDashBoard = {
 
 		$.getJSON("/netool.cgi", obj)
 			.done(function(data){
-				if(data.successful != "0") setTimeout(function(){
-					netoolApiDashBoard.check(obj, data.successful)
-				}, 2000)
+				if(data.successful != "0"){
+					setTimeout(function(){
+						netoolApiDashBoard.check(obj, data.successful)
+					}, 2000)
+				} 
 			})
 	},
 
@@ -1024,14 +1068,16 @@ function hideEventTriggerDesc(){
 }
 function uuRegister(mac){
 	var _mac = mac.toLowerCase();
-	if(modelname.indexOf("RTAC") != -1 || modelname.indexOf("RTAX") != -1 || modelname.indexOf("GTAC") != -1 || modelname.indexOf("GTAX") != -1 || modelname.indexOf("BLUE") != -1 || modelname.indexOf("ZEN") != -1  || modelname.indexOf("XT") != -1  )
-		window.open('https://router.uu.163.com/asus/pc.html#/acce?gwSn=' + _mac + '&type=asuswrt', '_blank');
-	else
+	if(swrtuu == "1")
 		window.open('https://router.uu.163.com/asus/pc.html#/acce?gwSn=' + _mac + '&type=asuswrt-merlin', '_blank');
+	else
+		window.open('https://router.uu.163.com/asus/pc.html#/acce?gwSn=' + _mac + '&type=asuswrt', '_blank');
 }
-function enableuu(){
-	window.open("http://"+window.location.hostname+"/Advanced_System_Content.asp");
+function applyRule() {
+	showLoading();
+	document.form.submit();
 }
+
 </script>
 </head>
 
@@ -1197,142 +1243,157 @@ function enableuu(){
 										$("#pingMap").load("/cards/pingMap.html");
 									</script>
 									<div id="aura_field" style="width:345px;height:425px;margin:-360px 0 0 390px;display:none;position: relative">
-										<div id="aura_event_trigger" class="aura-event-container aura-event-desc-hide">
-											<div>
-												<div style="display: flex;justify-content: space-between">
-													<div style="font-size: 16px;font-weight: bold;"><#AURA_Event#></div>
-													<div class="event-cancel" onclick="hideEventTriggerDesc();"></div>											
-												</div>
-												
-												<div style="margin: 3px 0 6px 0;color:#BFBFBF;"><#AURA_Event_desc#></div>
-											</div>
-											<div style="margin-left:12px;">
-												<div>
-													<li style="font-size: 14px;font-weight: bold;;"><#Game_Boost#></li>
-													<div style="margin: 0 0 6px 0;color:#BFBFBF"><#AURA_Event_Boost_desc#></div>
-												</div>
-												<div>
-													<li style="font-size: 14px;font-weight: bold;"><#AURA_Event_Traffic#></li>
-													<div style="margin: 0 0 6px 0;color:#BFBFBF;"><#AURA_Event_Traffic_desc#></div>
-												</div>
-												<div>
-													<li style="font-size: 14px;font-weight: bold;"><#AURA_Event_Login#></li>
-													<div style="margin: 0 0 6px 0;color:#BFBFBF;"><#AURA_Event_Login_desc#></div>
-												</div>
-
-												<div>
-													<li style="font-size: 14px;font-weight: bold;"><#AURA_Event_Attack#></li>
-													<div style="margin: 0 0 6px 0;color:#BFBFBF;"><#AURA_Event_Attack_desc#></div>
-												</div>
-												<div style="margin: 12px 0 0 -12px;"><#AURA_Event_Note#></div>
-											</div>
-										</div>
-
-										<div style="display:flex;align-items: center;justify-content: space-around;;">
-											<div class="rog-title" style="height:65px;"><#BoostKey_Aura_RGB#></div>
-											<div style="width: 68px;height:68px;margin-top:10px;background: url('./images/New_ui/img-aurasync-logo.png')"></div>
-										</div>
-										<div style="display:flex;margin-top:-20px;">
-											<div style="position: relative;">
-											    <canvas id="picker"></canvas><br>
-											</div>
-
-											<div style="margin:30px 0 0 30px;width: 101px;height: 160px;">
-												<div id="color_pad" style="width: 115px;height:115px;margin: 5px auto 0 auto;border-radius: 50%;position: relative;">
-													 <div style="width: 120px;height:120px;background:url('images/New_ui/img-aurasync-rog-logo-mask.png') no-repeat;background-size:100%;position: absolute;top:-1px;left:-1px;"></div>
-												</div>
-
-												<input id="color" value="" style="width:90px;height: 30px;margin:10px 0 0 10px;border: 1px solid rgb(145,7,31);background: rgb(62,3,13);color: #FFF;font-size:16px;padding: 0 5px;" onchange="inputColor(this.value);">
-											</div>
+										<div id="light_effect_bg" style="width:100%;height:100%;">
+											<iframe id="light_effect_iframe" class="light_effect_iframe" frameborder="0"></iframe>
 											<script>
-												var colorPicker = new KellyColorPicker({
-											        place : 'picker',
-											        size : 200,
-											        method : 'quad',
-											        input: 'color',
-											        input_color : false,
-											        userEvents : {mouseupsv: function(event, handler, dot){
-											        	$("#color_pad").css({"background": handler.getCurColorHex()});
-											            $("#color").val(handler.getCurColorHex().toUpperCase());
-											            var _rgb = handler.getCurColorRgb();
-											            aura_settings[0] = _rgb.r.toString(); 
-											            aura_settings[1] = _rgb.g.toString(); 
-														aura_settings[2] = _rgb.b.toString();
-											            submitAura();
-													},
-													mouseuph: function(event, handler, dot){
-														$("#color_pad").css({"background": handler.getCurColorHex()});
-											            $("#color").val(handler.getCurColorHex().toUpperCase());
-											            var _rgb = handler.getCurColorRgb();
-											            aura_settings[0] = _rgb.r.toString(); 
-											            aura_settings[1] = _rgb.g.toString(); 
-														aura_settings[2] = _rgb.b.toString();
-											            submitAura();
-													}}
-											    });
+												if(isSupport("ledg")){
+													setTimeout(function(){
+														$("#light_effect_iframe").attr("src", "/light_effect/light_effect.html");
+														$("#light_effect_iframe").load(function(){
+															$("#light_effect_iframe").contents().find(".light_effect_bg").css("height", "160px");
+															$("#light_effect_iframe").contents().find(".light_effect_mask").css("background-size", "95vw 160px");
+														});
+													}, 1000);
+												}
 											</script>
 										</div>
+										<div id="aura_rgb_bg">
+											<div id="aura_event_trigger" class="aura-event-container aura-event-desc-hide">
+												<div>
+													<div style="display: flex;justify-content: space-between">
+														<div style="font-size: 16px;font-weight: bold;"><#AURA_Event#></div>
+														<div class="event-cancel" onclick="hideEventTriggerDesc();"></div>
+													</div>
+													<div style="margin: 3px 0 6px 0;color:#BFBFBF;"><#AURA_Event_desc#></div>
+												</div>
+												<div style="margin-left:12px;">
+													<div>
+														<li style="font-size: 14px;font-weight: bold;;"><#Game_Boost#></li>
+														<div style="margin: 0 0 6px 0;color:#BFBFBF"><#AURA_Event_Boost_desc#></div>
+													</div>
+													<div>
+														<li style="font-size: 14px;font-weight: bold;"><#AURA_Event_Traffic#></li>
+														<div style="margin: 0 0 6px 0;color:#BFBFBF;"><#AURA_Event_Traffic_desc#></div>
+													</div>
+													<div>
+														<li style="font-size: 14px;font-weight: bold;"><#AURA_Event_Login#></li>
+														<div style="margin: 0 0 6px 0;color:#BFBFBF;"><#AURA_Event_Login_desc#></div>
+													</div>
 
-										<div style="display:flex;align-items:center;margin: 12px;">
-											<div style="font-size:14px;font-family: Xolonium;"><#ROG_LED_Enable#></div>
-											<div class="switch-button-container" >
-												<label for="aura_switch" style="cursor:pointer;">
-													<input type="checkbox" id="aura_switch" class="switch-button" style="display:none;" onchange="aura_enable(this);">
-													<div class="switch-button-bg"></div>
-													<div class="switch-button-circle"></div>
-												</label>
+													<div>
+														<li style="font-size: 14px;font-weight: bold;"><#AURA_Event_Attack#></li>
+														<div style="margin: 0 0 6px 0;color:#BFBFBF;"><#AURA_Event_Attack_desc#></div>
+													</div>
+													<div style="margin: 12px 0 0 -12px;"><#AURA_Event_Note#></div>
+												</div>
 											</div>
-										</div>
 
-										<div class="aura-scheme-container">
-											<div class="aura-scheme">
-												<div id="_event" class="aura-icon aura-icon-event" onclick="changeRgbMode(this);"></div>
-												<div class="aura-desc"><#AURA_Event#></div>
-												<div style="width:16px;height:16px;background: url('images/New_ui/helpicon.png');margin: 5px auto 0 auto;cursor:pointer;" onclick="showEventTriggerDesc();"></div>
+											<div style="display:flex;align-items: center;justify-content: space-around;;">
+												<div class="rog-title" style="height:65px;"><#BoostKey_Aura_RGB#></div>
+												<div style="width: 68px;height:68px;margin-top:10px;background: url('./images/New_ui/img-aurasync-logo.png')"></div>
 											</div>
-											<div class="aura-scheme">
-												<div id="_static" class="aura-icon aura-icon-static" onclick="changeRgbMode(this);"></div>
-												<div class="aura-desc"><#BoostKey_AURA_state_static#></div>
+											<div style="display:flex;margin-top:-20px;">
+												<div style="position: relative;">
+													<canvas id="picker"></canvas><br>
+												</div>
+
+												<div style="margin:30px 0 0 30px;width: 101px;height: 160px;">
+													<div id="color_pad" style="width: 115px;height:115px;margin: 5px auto 0 auto;border-radius: 50%;position: relative;">
+														 <div style="width: 120px;height:120px;background:url('images/New_ui/img-aurasync-rog-logo-mask.png') no-repeat;background-size:100%;position: absolute;top:-1px;left:-1px;"></div>
+													</div>
+
+													<input id="color" value="" style="width:90px;height: 30px;margin:10px 0 0 10px;border: 1px solid rgb(145,7,31);background: rgb(62,3,13);color: #FFF;font-size:16px;padding: 0 5px;" onchange="inputColor(this.value);">
+												</div>
+												<script>
+													var colorPicker = new KellyColorPicker({
+														place : 'picker',
+														size : 200,
+														method : 'quad',
+														input: 'color',
+														input_color : false,
+														userEvents : {mouseupsv: function(event, handler, dot){
+															$("#color_pad").css({"background": handler.getCurColorHex()});
+															$("#color").val(handler.getCurColorHex().toUpperCase());
+															var _rgb = handler.getCurColorRgb();
+															aura_settings[0] = _rgb.r.toString();
+															aura_settings[1] = _rgb.g.toString();
+															aura_settings[2] = _rgb.b.toString();
+															submitAura();
+														},
+														mouseuph: function(event, handler, dot){
+															$("#color_pad").css({"background": handler.getCurColorHex()});
+															$("#color").val(handler.getCurColorHex().toUpperCase());
+															var _rgb = handler.getCurColorRgb();
+															aura_settings[0] = _rgb.r.toString();
+															aura_settings[1] = _rgb.g.toString();
+															aura_settings[2] = _rgb.b.toString();
+															submitAura();
+														}}
+													});
+												</script>
 											</div>
-											<div class="aura-scheme">
-												<div id="_breathing" class="aura-icon aura-icon-breathing" onclick="changeRgbMode(this);"></div>
-												<div class="aura-desc"><#BoostKey_AURA_state_breathing#></div>
+
+											<div style="display:flex;align-items:center;margin: 12px;">
+												<div style="font-size:14px;font-family: Xolonium;"><#ROG_LED_Enable#></div>
+												<div class="switch-button-container" >
+													<label for="aura_switch" style="cursor:pointer;">
+														<input type="checkbox" id="aura_switch" class="switch-button" style="display:none;" onchange="aura_enable(this);">
+														<div class="switch-button-bg"></div>
+														<div class="switch-button-circle"></div>
+													</label>
+												</div>
 											</div>
-											<div class="aura-scheme">
-												<div id="_rainbow" class="aura-icon aura-icon-rainbow" onclick="changeRgbMode(this);"></div>
-												<div class="aura-desc"><#BoostKey_AURA_state_rainbow#></div>
-											</div>
-											<div class="aura-scheme">
-												<div id="_comet" class="aura-icon aura-icon-comet" onclick="changeRgbMode(this);"></div>
-												<div class="aura-desc"><#BoostKey_AURA_state_comet#></div>
-											</div>
-											<div class="aura-scheme">
-												<div id="_flash" class="aura-icon aura-icon-flash" onclick="changeRgbMode(this);"></div>
-												<div class="aura-desc"><#BoostKey_AURA_state_flash#></div>
-											</div>
-											<div class="aura-scheme">
-												<div id="_yoyo" class="aura-icon aura-icon-yoyo" onclick="changeRgbMode(this);"></div>
-												<div class="aura-desc"><#BoostKey_AURA_state_glowing#></div>
-											</div>
-											<div class="aura-scheme">
-												<div id="_ccycle" class="aura-icon aura-icon-ccycle" onclick="changeRgbMode(this);"></div>
-												<div class="aura-desc"><#BoostKey_AURA_state_cycle#></div>
-											</div>
-											<div class="aura-scheme">
-												<div id="_snight" class="aura-icon aura-icon-snight" onclick="changeRgbMode(this);"></div>
-												<div class="aura-desc"><#BoostKey_AURA_state_star#></div>
-											</div>
-											<div class="aura-scheme">
-												<div id="_strobing" class="aura-icon aura-icon-strobing" onclick="changeRgbMode(this);"></div>
-												<div class="aura-desc"><#BoostKey_AURA_state_strobing#></div>
-											</div>
-											<div class="aura-scheme">
-												<div id="_wave" class="aura-icon aura-icon-wave" onclick="changeRgbMode(this);"></div>
-												<div class="aura-desc"><#BoostKey_AURA_state_wave#></div>
+
+											<div class="aura-scheme-container">
+												<div id="aura_event" class="aura-scheme" style="display:none">
+													<div id="_event" class="aura-icon aura-icon-event" onclick="changeRgbMode(this);"></div>
+													<div class="aura-desc"><#AURA_Event#></div>
+													<div style="width:16px;height:16px;background: url('images/New_ui/helpicon.png');margin: 5px auto 0 auto;cursor:pointer;" onclick="showEventTriggerDesc();"></div>
+												</div>
+												<div class="aura-scheme">
+													<div id="_static" class="aura-icon aura-icon-static" onclick="changeRgbMode(this);"></div>
+													<div class="aura-desc"><#BoostKey_AURA_state_static#></div>
+												</div>
+												<div class="aura-scheme">
+													<div id="_breathing" class="aura-icon aura-icon-breathing" onclick="changeRgbMode(this);"></div>
+													<div class="aura-desc"><#BoostKey_AURA_state_breathing#></div>
+												</div>
+												<div class="aura-scheme">
+													<div id="_rainbow" class="aura-icon aura-icon-rainbow" onclick="changeRgbMode(this);"></div>
+													<div class="aura-desc"><#BoostKey_AURA_state_rainbow#></div>
+												</div>
+												<div class="aura-scheme">
+													<div id="_comet" class="aura-icon aura-icon-comet" onclick="changeRgbMode(this);"></div>
+													<div class="aura-desc"><#BoostKey_AURA_state_comet#></div>
+												</div>
+												<div class="aura-scheme">
+													<div id="_flash" class="aura-icon aura-icon-flash" onclick="changeRgbMode(this);"></div>
+													<div class="aura-desc"><#BoostKey_AURA_state_flash#></div>
+												</div>
+												<div class="aura-scheme">
+													<div id="_yoyo" class="aura-icon aura-icon-yoyo" onclick="changeRgbMode(this);"></div>
+													<div class="aura-desc"><#BoostKey_AURA_state_glowing#></div>
+												</div>
+												<div class="aura-scheme">
+													<div id="_ccycle" class="aura-icon aura-icon-ccycle" onclick="changeRgbMode(this);"></div>
+													<div class="aura-desc"><#BoostKey_AURA_state_cycle#></div>
+												</div>
+												<div class="aura-scheme">
+													<div id="_snight" class="aura-icon aura-icon-snight" onclick="changeRgbMode(this);"></div>
+													<div class="aura-desc"><#BoostKey_AURA_state_star#></div>
+												</div>
+												<div class="aura-scheme">
+													<div id="_strobing" class="aura-icon aura-icon-strobing" onclick="changeRgbMode(this);"></div>
+													<div class="aura-desc"><#BoostKey_AURA_state_strobing#></div>
+												</div>
+												<div class="aura-scheme">
+													<div id="_wave" class="aura-icon aura-icon-wave" onclick="changeRgbMode(this);"></div>
+													<div class="aura-desc"><#BoostKey_AURA_state_wave#></div>
+												</div>
 											</div>
 										</div>
 									</div>
-									<div id="uu_field" style="width:345px;height:425px;margin:-428px 0 0 390px;position: relative;display:none;">
+										<div id="uu_field" style="width:345px;height:425px;margin:-428px 0 0 390px;position: relative;display:none;">
 										<div style="font-size: 26px;color:#BFBFBF;margin-left:12px;">网易UU加速器</div>
 										<div style="margin: 24px 0 36px 18px;">
 											<img src="/images/uu_accelerator.png" alt="">
@@ -1341,12 +1402,21 @@ function enableuu(){
 										<div style="margin:6px;">
 											<a href="https://uu.163.com/router/" target="_blank" style="color:#4A90E2;text-decoration: underline">FAQ</a>
 										</div>
-										<div class="content-action-container" onclick="enableuu();" style="margin-top:0px;">
-											<div class="button-container button-container-sm" style="margin: 0 auto;">
-												<div class="button-icon icon-go"></div>
-												<div class="button-text"><#CTL_Enabled#> UU</div>
-											</div>
-										</div>
+										<div style="width:1px;height: 120px;background-color: #929EA1"></div>
+										<div style="width:0px;height: 70px;margin: 32px" id="radio_uu_enable"></div>
+											<script type="text/javascript">
+											$('#radio_uu_enable').iphoneSwitch('<% nvram_get("uu_enable"); %>',
+												function(){
+													document.form.uu_enable.value = 1;
+													applyRule();
+												},
+												function(){
+													document.form.uu_enable.value = 0;
+													applyRule();
+												}
+											);
+										</script>
+
 										<div class="content-action-container" onclick="uuRegister(label_mac);" style="margin-top:10px;">
 											<div class="button-container button-container-sm" style="margin: 0 auto;">
 												<div class="button-icon icon-go"></div>

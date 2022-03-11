@@ -23,7 +23,7 @@
 
 #if 1
 #define ETHER_ADDRESS_LEN 6
-#if defined(RTCONFIG_LANTIQ) || defined(RTCONFIG_QCA) || defined(RTCONFIG_REALTEK)
+#if defined(RTCONFIG_LANTIQ) || defined(RTCONFIG_QCA) || defined(RTCONFIG_REALTEK) || defined(RTCONFIG_RALINK)
 #define OUI_LEN 3
 #define VS_ID 221
 #else
@@ -92,6 +92,9 @@ struct scanned_bss {
 	uint8 vsie_len;
 	uint8 vsie[MAX_VSIE_LEN];
 	unsigned char RSSI;
+#if defined(RTCONFIG_AMAS_QCA_WDS) && defined(RTCONFIG_BHCOST_OPT)
+	int wds;
+#endif	
 };
 
 // sysdeps prototype

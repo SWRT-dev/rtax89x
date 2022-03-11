@@ -66,11 +66,11 @@ var apps_id_array = [["22", "", ""],
 					 ["8", "4", ""]];
 
 var curState = '<% nvram_get("wrs_enable"); %>';
+var faq_href = "https://nw-dlcdnet.asus.com/support/forward.html?model=&type=Faq&lang="+ui_lang+"&kw=&num=140";
 
 function initial(){
 	show_menu();
-	//	https://www.asus.com/support/FAQ/1008720/
-	httpApi.faqURL("1008720", function(url){document.getElementById("faq").href=url;});
+	document.getElementById("faq").href=faq_href;
 	translate_category_id();
 	genMain_table();
 	if('<% nvram_get("wrs_enable"); %>' == 1)
@@ -226,7 +226,7 @@ function check_macaddr(obj,flag){ //control hint of input mac address
 	}
 }
 
-function addRow_main(obj, length){
+function addRow_main(obj){
 	var category_array = $(obj.parentNode).siblings()[2].children;
 	var subCategory_array;
 	var category_checkbox;
@@ -236,7 +236,7 @@ function addRow_main(obj, length){
 	var blank_category = 0;
 	var apps_filter_row =  apps_filter.split("<");
 	var apps_filter_col = "";
-	var upper = 16;
+	var upper = MaxRule_bwdpi_wrs>0?MaxRule_bwdpi_wrs:16;
 
 	//check max limit of rule list
 	if(apps_filter.split("<").length >= upper){
@@ -334,7 +334,7 @@ function genMain_table(){
 	var clientListEventData = [];
 	code += '<table width="100%" border="1" cellspacing="0" cellpadding="4" align="center" class="FormTable_table" id="mainTable_table">';
 	code += '<thead><tr>';
-	code += '<td colspan="5"><#ConnectedClient#>&nbsp;(<#List_limit#>&nbsp;16)</td>';
+	code += '<td colspan="5"><#ConnectedClient#>&nbsp;(<#List_limit#>&nbsp;'+MaxRule_bwdpi_wrs+')</td>';
 	code += '</tr></thead>';
 	code += '<tbody>';
 	code += '<tr>';
@@ -365,12 +365,12 @@ function genMain_table(){
 		}
 
 		code += '</div>';
-		code += '<div style="margin-left:25px;color:#FC0;font-size:12px;font-weight:normal;">'+ category_desc[i] +'</div>';
+		code += '<div class="hint-color" style="margin-left:25px;font-size:12px;font-weight:normal;">'+ category_desc[i] +'</div>';
 		code += '</div>';
 	}
 
 	code += '</td>';
-	code += '<td style="border-bottom:2px solid #000;"><input class="add_btn" type="button" onclick="addRow_main(this, 16)" value=""></td>';
+	code += '<td style="border-bottom:2px solid #000;"><input class="add_btn" type="button" onclick="addRow_main(this)" value=""></td>';
 	code += '</tr>';
 	if(apps_filter == ""){
 		code += '<tr><td style="color:#FFCC00;" colspan="10"><#IPConnection_VSList_Norule#></td></tr>';
@@ -570,8 +570,10 @@ function edit_table(){
 
 var ctf_disable = '<% nvram_get("ctf_disable"); %>';
 var ctf_fa_mode = '<% nvram_get("ctf_fa_mode"); %>';
+var reboot_confirm=0;
 function applyRule(){
 	document.form.action_script.value = "restart_wrs;restart_firewall";
+
 	if(amesh_support && isSwMode("rt") && ameshRouter_support)
 		document.form.action_script.value += ";apply_amaslib";
 
@@ -656,8 +658,7 @@ function applyRule(){
 				return false;
 			}
 			else{
-				document.form.action_script.value = "reboot";
-				document.form.action_wait.value = "<% nvram_get("reboot_time"); %>";
+				reboot_confirm=1;
 			}
 		}
 
@@ -665,8 +666,19 @@ function applyRule(){
 			reset_wan_to_fo.change_wan_mode(document.form);
 	}
 	
-	showLoading();
-	document.form.submit();
+	if(reboot_confirm==1){
+        	
+		if(confirm("<#AiMesh_Node_Reboot#>")){
+			FormActions("start_apply.htm", "apply", "reboot", "<% get_default_reboot_time(); %>");
+			showLoading();
+			document.form.submit();
+		}
+	}
+	else{
+
+		showLoading();
+		document.form.submit();
+	}
 }
 
 function translate_category_id(){
@@ -850,9 +862,9 @@ function switch_control(_status){
 									<table width="730px">
 										<tr>
 											<td align="left">
-												<div class="formfonttitle" style="width:400px"><#AiProtection_title#> - <#AiProtection_filter#></div>
+												<div class="formfonttitle" style="width:400px"><#Parental_Control#> - <#AiProtection_filter#></div>
 											</td>
-											<td>
+											<td style="display:none;">
 												<div id="switch_menu" style="margin:-20px 0px 0px 0px;">
 													<div style="width:168px;height:30px;border-top-left-radius:8px;border-bottom-left-radius:8px;" class="block_filter_pressed">
 														<table class="block_filter_name_table_pressed"><tr><td style="line-height:13px;"><#AiProtection_filter#></td></tr></table>
@@ -936,7 +948,7 @@ function switch_control(_status){
 											<div id="mainTable" style="margin-top:10px;"></div>
 											<div id="ctrlBtn" style="text-align:center;margin-top:20px;">
 												<input class="button_gen" type="button" onclick="applyRule();" value="<#CTL_apply#>">
-												<div style="width:135px;height:55px;position:absolute;bottom:5px;right:5px;background-image:url('images/New_ui/tm_logo_power.png');"></div>
+												<div style="width:96px;height:44px;position:absolute;bottom:5px;right:5px;background-image:url('images/New_ui/TrendMirco_logo.svg');background-size: 100%;"></div>
 											</div>
 										</td>
 									</tr>

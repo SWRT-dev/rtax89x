@@ -147,6 +147,10 @@ void common_session_init(int sock_in, int sock_out) {
 
 	ses.allowprivport = 0;
 
+#if DROPBEAR_PLUGIN
+        ses.plugin_session = NULL;
+#endif
+
 	TRACE(("leave session_init"))
 }
 
@@ -366,8 +370,11 @@ static void read_session_identification() {
 	int len = 0;
 	char done = 0;
 	int i;
-	/* If they send more than 50 lines, something is wrong */
-	for (i = 0; i < 50; i++) {
+
+	/* Servers may send other lines of data before sending the
+	 * version string, client must be able to process such lines.
+	 * If they send more than 50 lines, something is wrong */
+	for (i = IS_DROPBEAR_CLIENT ? 50 : 1; i > 0; i--) {
 		len = ident_readln(ses.sock_in, linebuf, sizeof(linebuf));
 
 		if (len < 0 && errno != EINTR) {
@@ -458,6 +465,11 @@ static int ident_readln(int fd, char* buf, int count) {
 				TRACE(("leave ident_readln: EOF"))
 				return -1;
 			}
+
+#if DROPBEAR_FUZZ
+			fuzz_dump(&in, 1);
+#endif
+
 			if (in == '\n') {
 				/* end of ident string */
 				break;

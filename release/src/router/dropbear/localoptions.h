@@ -1,13 +1,13 @@
 /* ASUSWRT custom configuration */
 
+/* Override SSH 2.0 ident */
+#define LOCAL_IDENT "SSH-2.0-dropbear"
+
 /* Set INETD_MODE if you want to be able to run Dropbear with inetd (or
  * similar), where it will use stdin/stdout for connections, and each process
  * lasts for a single connection. Dropbear should be invoked with the -i flag
  * for inetd, and can only accept IPv4 connections. */
 #define INETD_MODE 0
-
-/* Enable X11 Forwarding - server only */
-#define DROPBEAR_X11FWD 0
 
 /* Enable "Netcat mode" option. This will forward standard input/output
  * to a remote TCP-forwarded connection */
@@ -15,15 +15,6 @@
 
 /* Whether to support "-c" and "-m" flags to choose ciphers/MACs at runtime */
 #define DROPBEAR_USER_ALGO_LIST 0
-
-/* Enable CBC mode for ciphers. This has security issues though
- * is the most compatible with older SSH implementations */
-#define DROPBEAR_ENABLE_CBC_MODE 0
-
-/* Message integrity. sha2-256 is recommended as a default, 
-   sha1 for compatibility */
-//#define DROPBEAR_SHA1_HMAC 1
-#define DROPBEAR_SHA1_96_HMAC 0
 
 /* Specify the number of clients we will allow to be connected but
  * not yet authenticated. After this limit, connections are rejected */

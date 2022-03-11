@@ -1,13 +1,15 @@
-/* $Id: upnpdescgen.c,v 1.77 2014/03/10 11:04:53 nanard Exp $ */
-/* MiniUPnP project
- * http://miniupnp.free.fr/ or http://miniupnp.tuxfamily.org/
- * (c) 2006-2014 Thomas Bernard
+/* $Id: upnpdescgen.c,v 1.87 2020/05/30 09:05:46 nanard Exp $ */
+/* vim: tabstop=4 shiftwidth=4 noexpandtab
+ * MiniUPnP project
+ * http://miniupnp.free.fr/ or https://miniupnp.tuxfamily.org/
+ * (c) 2006-2020 Thomas Bernard
  * This software is subject to the conditions detailed
  * in the LICENCE file provided within the distribution */
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <syslog.h>
 
 #include "config.h"
 #ifdef ENABLE_EVENTS
@@ -30,6 +32,7 @@ int gfn_only = 0;
 #endif
 
 /* Event magical values codes */
+#define SETUPREADY_MAGICALVALUE (248)
 #define CONNECTIONSTATUS_MAGICALVALUE (249)
 #define FIREWALLENABLED_MAGICALVALUE (250)
 #define INBOUNDPINHOLEALLOWED_MAGICALVALUE (251)
@@ -53,6 +56,10 @@ static const char * const upnpdefaultvalues[] =
 	0,
 	"IP_Routed"/*"Unconfigured"*/, /* 1 default value for ConnectionType */
 	"3600", /* 2 default value for PortMappingLeaseDuration */
+	"Unconfigured",	/* 3 default value for ConnectionStatus */
+	"0", /* 4 default value for RSIPAvailable */
+	"1", /* 5 default value for NATEnabled */
+	"ERROR_NONE", /* 6 default value for LastConnectionError */
 };
 
 static const char * const upnpallowedvalues[] =
@@ -93,7 +100,6 @@ static const char * const upnpallowedvalues[] =
  * ERROR_NO_CARRIER
  * ERROR_IP_CONFIGURATION
  * ERROR_UNKNOWN */
-	0,
 #ifdef ENABLE_AURASYNC
 	"-2",	/* 27 , speed */
 	"-1",
@@ -119,6 +125,7 @@ static const char * const upnpallowedvalues[] =
 	"inout",
 	0,
 #endif
+	0,
 	"",		/* 27 */
 	0
 };
@@ -152,7 +159,7 @@ static const int upnpallowedranges[] = {
 	AS_DIR_MAX,
 #endif
 #ifdef ENABLE_NVGFN
-	/* 17 NVGFN Qos Port if ENABLE_AURASYNC is defined, otherwise 9 */
+/* 17 NVGFN Qos Port if ENABLE_AURASYNC is defined, otherwise 9 */
 	NVGFN_QOSPORT_MIN,
 	NVGFN_QOSPORT_MAX,
 	/* 19 NVGFN Modulation Coding Scheme Index if ENABLE_AURASYNC is defined, otherwise 11 */
@@ -166,13 +173,20 @@ static const int upnpallowedranges[] = {
 
 static const char * magicargname[] = {
 	0,
-	"StartPort",
-	"EndPort",
-	"RemoteHost",
-	"RemotePort",
-	"InternalClient",
-	"InternalPort",
-	"IsWorking"
+	"StartPort",		/* 1 */
+	"EndPort",			/* 2 */
+	"RemoteHost",		/* 3 */
+	"RemotePort",		/* 4 */
+	"InternalClient",	/* 5 */
+	"InternalPort",		/* 6 */
+	"IsWorking",		/* 7 */
+#ifdef ENABLE_DP_SERVICE
+	"ProtocolType",		/* 8 */
+	"InMessage",		/* 9 */
+	"OutMessage",		/* 10 */
+	"ProtocolList",		/* 11 */
+	"RoleList",			/* 12 */
+#endif /* ENABLE_DP_SERVICE */
 };
 
 static const char xmlver[] =
@@ -188,9 +202,13 @@ static const struct XMLElt rootDesc_auraonly[] =
 /* 0 */
 	{root_device, INITHELPER(1,2)},
 	{"specVersion", INITHELPER(3,2)},
+#if defined(ENABLE_L3F_SERVICE) || defined(HAS_DUMMY_SERVICE) || defined(ENABLE_DP_SERVICE)
 	{"device", INITHELPER(5,13)},
-	{"/major", "1"},
-	{"/minor", "0"},
+#else
+	{"device", INITHELPER(5,12)},
+#endif
+	{"/major", UPNP_VERSION_MAJOR_STR},
+	{"/minor", UPNP_VERSION_MINOR_STR},
 /* 5 */
 	{"/deviceType", DEVICE_TYPE_IGD},
 		/* urn:schemas-upnp-org:device:InternetGatewayDevice:1 or 2 */
@@ -892,8 +910,8 @@ static const struct XMLElt rootDesc[] =
 #else
 	{"device", INITHELPER(5,12)},
 #endif
-	{"/major", "1"},
-	{"/minor", "0"},
+	{"/major", UPNP_VERSION_MAJOR_STR},
+	{"/minor", UPNP_VERSION_MINOR_STR},
 /* 5 */
 	{"/deviceType", DEVICE_TYPE_IGD},
 		/* urn:schemas-upnp-org:device:InternetGatewayDevice:1 or 2 */
@@ -976,9 +994,9 @@ static const struct XMLElt rootDesc[] =
 			"urn:schemas-upnp-org:service:WANCommonInterfaceConfig:1"},
 	/*{"/serviceId", "urn:upnp-org:serviceId:WANCommonInterfaceConfig"}, */
 	{"/serviceId", "urn:upnp-org:serviceId:WANCommonIFC1"}, /* required */
+	{"/SCPDURL", WANCFG_PATH},
 	{"/controlURL", WANCFG_CONTROLURL},
 	{"/eventSubURL", WANCFG_EVENTURL},
-	{"/SCPDURL", WANCFG_PATH},
 /* 38 */
 	{"device", INITHELPER(39,12)},
 /* 39 */
@@ -1007,16 +1025,16 @@ static const struct XMLElt rootDesc[] =
 		/* urn:schemas-upnp-org:service:WANIPConnection:2 for v2 */
 	{"/serviceId", SERVICE_ID_WANIPC},
 		/* urn:upnp-org:serviceId:WANIPConn1 or 2 */
+	{"/SCPDURL", WANIPC_PATH},
 	{"/controlURL", WANIPC_CONTROLURL},
 	{"/eventSubURL", WANIPC_EVENTURL},
-	{"/SCPDURL", WANIPC_PATH},
 #ifdef ENABLE_6FC_SERVICE
 /* 58 */
 	{"/serviceType", "urn:schemas-upnp-org:service:WANIPv6FirewallControl:1"},
-	{"/serviceId", "urn:upnp-org:serviceId:WANIPv6FC1"},
+	{"/serviceId", "urn:upnp-org:serviceId:WANIPv6Firewall1"},
+	{"/SCPDURL", WANIP6FC_PATH},
 	{"/controlURL", WANIP6FC_CONTROLURL},
 	{"/eventSubURL", WANIP6FC_EVENTURL},
-	{"/SCPDURL", WANIP6FC_PATH},
 #endif
 /* 58 / 63 = SERVICES_OFFSET*/
 #if defined(HAS_DUMMY_SERVICE) || defined(ENABLE_L3F_SERVICE) || defined(ENABLE_DP_SERVICE)
@@ -1027,17 +1045,17 @@ static const struct XMLElt rootDesc[] =
 /* 60 / 65 = SERVICES_OFFSET+2 */
 	{"/serviceType", "urn:schemas-dummy-com:service:Dummy:1"},
 	{"/serviceId", "urn:dummy-com:serviceId:dummy1"},
+	{"/SCPDURL", DUMMY_PATH},
 	{"/controlURL", "/dummy"},
 	{"/eventSubURL", "/dummy"},
-	{"/SCPDURL", DUMMY_PATH},
 #endif
 #ifdef ENABLE_L3F_SERVICE
 /* 60 / 65 = SERVICES_OFFSET+2 */
 	{"/serviceType", "urn:schemas-upnp-org:service:Layer3Forwarding:1"},
-	{"/serviceId", "urn:upnp-org:serviceId:Layer3Forwarding1"},
+	{"/serviceId", "urn:upnp-org:serviceId:L3Forwarding1"},
+	{"/SCPDURL", L3F_PATH},
 	{"/controlURL", L3F_CONTROLURL}, /* The Layer3Forwarding service is only */
 	{"/eventSubURL", L3F_EVENTURL}, /* recommended, not mandatory */
-	{"/SCPDURL", L3F_PATH},
 #endif
 #ifdef ENABLE_DP_SERVICE
 /* InternetGatewayDevice v2 :
@@ -1048,9 +1066,9 @@ static const struct XMLElt rootDesc[] =
 /* 65 / 70 = SERVICES_OFFSET+7 */
 	{"/serviceType", "urn:schemas-upnp-org:service:DeviceProtection:1"},
 	{"/serviceId", "urn:upnp-org:serviceId:DeviceProtection1"},
+	{"/SCPDURL", DP_PATH},
 	{"/controlURL", DP_CONTROLURL},
 	{"/eventSubURL", DP_EVENTURL},
-	{"/SCPDURL", DP_PATH},
 #endif
 	{0, 0}
 };
@@ -1232,24 +1250,30 @@ static const struct action WANIPCnActions[] =
 /* ignore "warning: missing initializer" */
 #pragma GCC diagnostic ignored "-Wmissing-field-initializers"
 
+/* struct stateVar :
+ * {name, itype(&event), idefault, iallowedlist, ieventvalue} */
 static const struct stateVar WANIPCnVars[] =
 {
 /* 0 */
 #if 0
 	{"ConnectionType", 0, 0/*1*/}, /* required */
 	{"PossibleConnectionTypes", 0|0x80, 0, 14, 15},
-#endif
+#elif 0
 	{"ConnectionType", 0, 1, 14, 15}, /* required */
 	{"PossibleConnectionTypes", 0|0x80, 0, 0, 15},
+#else
+	{"ConnectionType", 0, 1, 0, 15}, /* required */
+	{"PossibleConnectionTypes", 0|0x80, 0, 14, 15},
+#endif
 	 /* Required
 	  * Allowed values : Unconfigured / IP_Routed / IP_Bridged */
-	{"ConnectionStatus", 0|0x80, 0/*1*/, 18,
+	{"ConnectionStatus", 0|0x80, 3, 18,
 	 CONNECTIONSTATUS_MAGICALVALUE }, /* required */
 	 /* Allowed Values : Unconfigured / Connecting(opt) / Connected
 	  *                  PendingDisconnect(opt) / Disconnecting (opt)
 	  *                  Disconnected */
 	{"Uptime", 3, 0},	/* Required */
-	{"LastConnectionError", 0, 0, 25},	/* required : */
+	{"LastConnectionError", 0, 6, 25},	/* required : */
 	 /* Allowed Values : ERROR_NONE(req) / ERROR_COMMAND_ABORTED(opt)
 	  *                  ERROR_NOT_ENABLED_FOR_INTERNET(opt)
 	  *                  ERROR_USER_DISCONNECT(opt)
@@ -1259,8 +1283,8 @@ static const struct stateVar WANIPCnVars[] =
 	  *                  ERROR_NO_CARRIER(opt)
 	  *                  ERROR_IP_CONFIGURATION(opt)
 	  *                  ERROR_UNKNOWN(opt) */
-	{"RSIPAvailable", 1, 0}, /* required */
-	{"NATEnabled", 1, 0},    /* required */
+	{"RSIPAvailable", 1, 4}, /* required */
+	{"NATEnabled", 1, 5},    /* required */
 	{"ExternalIPAddress", 0|0x80, 0, 0,
 	 EXTERNALIPADDRESS_MAGICALVALUE}, /* required. Default : empty string */
 	{"PortMappingNumberOfEntries", 2|0x80, 0, 0,
@@ -1485,17 +1509,38 @@ static const struct serviceDesc scpd6FC =
 
 #ifdef ENABLE_DP_SERVICE
 /* UPnP-gw-DeviceProtection-v1-Service.pdf */
+
+static const struct argument SendSetupMessageArgs[] =
+{
+	{1|0x80|(8<<2), 6},		/* ProtocolType : in ProtocolType / A_ARG_TYPE_String */
+	{1|0x80|(9<<2), 5},		/* InMessage : in InMessage / A_ARG_TYPE_Base64 */
+	{2|0x80|(10<<2), 5},	/* OutMessage : out OutMessage / A_ARG_TYPE_Base64 */
+	{0, 0}
+};
+
+static const struct argument GetSupportedProtocolsArgs[] =
+{
+	{2|0x80|(11<<2), 1},	/* ProtocolList : out ProtocolList / SupportedProtocols */
+	{0, 0}
+};
+
+static const struct argument GetAssignedRolesArgs[] =
+{
+	{2|0x80|(12<<2), 6},	/* RoleList : out RoleList / A_ARG_TYPE_String */
+	{0, 0}
+};
+
 static const struct action DPActions[] =
 {
-	{"SendSetupMessage", 0},
-	{"GetSupportedProtocols", 0},
-	{"GetAssignedRoles", 0},
+	{"SendSetupMessage", SendSetupMessageArgs},
+	{"GetSupportedProtocols", GetSupportedProtocolsArgs},
+	{"GetAssignedRoles", GetAssignedRolesArgs},
 	{0, 0}
 };
 
 static const struct stateVar DPVars[] =
 {
-	{"SetupReady", 1|0x80},
+	{"SetupReady", 1|0x80, 0, 0, SETUPREADY_MAGICALVALUE},
 	{"SupportedProtocols", 0},
 	{"A_ARG_TYPE_ACL", 0},
 	{"A_ARG_TYPE_IdentityList", 0},
@@ -1589,6 +1634,7 @@ static const struct stateVar NVGFNVars[] =
 	{"DownloadBandwidthReservation",3, 0, 0 },
 	{"UploadBandwidth",				3, 0, 0 },
 	{"UploadBandwidthReservation",	3, 0, 0 },
+	{"A_ARG_TYPE_PacketDropCount",              3, 0, 0 },
 	{0, 0}
 };
 
@@ -1712,6 +1758,12 @@ static const struct argument SetMcsIndex_Args[] =
 	{0, 0}
 };
 
+static const struct argument GetPacketDropCount_Args[] =
+{
+	     {2|0x80, 15},
+	     {0, 0}
+};
+
 static const struct action NVGFNActions[] =
 {
 	{"GetQosState",				GetQosState_Args},
@@ -1732,6 +1784,7 @@ static const struct action NVGFNActions[] =
 	{"SetUploadBandwidthReservation",	SetUploadBandwidthReservation_Args},
 	{"GetMcsIndex",				GetMcsIndex_Args},
 	{"SetMcsIndex",				SetMcsIndex_Args},
+	{"GetPacketDropCount",			GetPacketDropCount_Args},
 	{0, 0}
 };
 
@@ -1759,7 +1812,10 @@ strcat_str(char * str, int * len, int * tmplen, const char * s2)
 			newlen = *tmplen + s2len + 1;
 		p = (char *)realloc(str, newlen);
 		if(p == NULL) /* handle a failure of realloc() */
+		{
+			syslog(LOG_ERR, "strcat_str: Failed to realloc %d bytes", newlen);
 			return str;
+		}
 		str = p;
 		*tmplen = newlen;
 	}
@@ -1783,6 +1839,7 @@ strcat_char(char * str, int * len, int * tmplen, char c)
 		p = (char *)realloc(str, *tmplen);
 		if(p == NULL) /* handle a failure of realloc() */
 		{
+			syslog(LOG_ERR, "strcat_char: Failed to realloc %d bytes", *tmplen);
 			*tmplen -= 256;
 			return str;
 		}
@@ -1855,12 +1912,31 @@ genXML(char * str, int * len, int * tmplen,
 				str = strcat_char(str, len, tmplen, '<');
 				str = strcat_str(str, len, tmplen, eltname+1);
 				str = strcat_char(str, len, tmplen, '>');
+#ifdef RANDOMIZE_URLS
+				if(p[i].data[0] == '/')
+				{
+					/* prepend all URL paths with a "random" value */
+					str = strcat_char(str, len, tmplen, '/');
+					str = strcat_str(str, len, tmplen, random_url);
+				}
+#endif /* RANDOMIZE_URLS */
 				str = strcat_str(str, len, tmplen, p[i].data);
+#ifdef IGD_V2
+				/* checking a single 'u' saves us 4 strcmp() calls most of the time */
+				if (GETFLAG(FORCEIGDDESCV1MASK) && (p[i].data[0] == 'u'))
+				{
+					if ((strcmp(p[i].data, DEVICE_TYPE_IGD) == 0) ||
+						(strcmp(p[i].data, DEVICE_TYPE_WAN) == 0)  ||
+						(strcmp(p[i].data, DEVICE_TYPE_WANC) == 0) ||
+						(strcmp(p[i].data, SERVICE_TYPE_WANIPC) == 0) )
+					{
+						str[*len - 1] = '1';	/* Change the version number to 1 */
+					}
+				}
+#endif
 				str = strcat_char(str, len, tmplen, '<');
 				str = strcat_str(str, len, tmplen, eltname);
 				str = strcat_char(str, len, tmplen, '>');
-				str = strcat_char(str, len, tmplen, '\r');
-				str = strcat_char(str, len, tmplen, '\n');
 			}
 			for(;;)
 			{
@@ -1878,8 +1954,6 @@ genXML(char * str, int * len, int * tmplen,
 					for(c = *s; c > ' '; c = *(++s))
 						str = strcat_char(str, len, tmplen, c);
 					str = strcat_char(str, len, tmplen, '>');
-					str = strcat_char(str, len, tmplen, '\r');
-					str = strcat_char(str, len, tmplen, '\n');
 					top--;
 				}
 				else
@@ -1888,12 +1962,18 @@ genXML(char * str, int * len, int * tmplen,
 		}
 		else
 		{
+			/* node with child(ren) */
 			/*printf("<%s>\n", eltname); */
 			str = strcat_char(str, len, tmplen, '<');
 			str = strcat_str(str, len, tmplen, eltname);
+			if(memcmp(eltname, "root ", 5) == 0) {
+				char configid_str[16];
+				/* add configId attribute, required by UDA 1.1 */
+				snprintf(configid_str, sizeof(configid_str), "\"%u\"", upnp_configid);
+				str = strcat_str(str, len, tmplen, " configId=");
+				str = strcat_str(str, len, tmplen, configid_str);
+			}
 			str = strcat_char(str, len, tmplen, '>');
-			str = strcat_char(str, len, tmplen, '\r');
-			str = strcat_char(str, len, tmplen, '\n');
 			k = (unsigned long)p[i].data;
 			i = k & 0xffff;
 			j = i + (k >> 16);
@@ -1929,24 +2009,23 @@ genRootDesc(int * len)
 	* len = strlen(xmlver);
 	/*strcpy(str, xmlver); */
 	memcpy(str, xmlver, *len + 1);
-
 #ifdef ENABLE_AURASYNC
 	if (aura_standalone) /* with flag==1 */
 		str = genXML(str, len, &tmplen, rootDesc_auraonly);
 	else if (GETFLAG(ENABLEAURASYNCMASK)){
-	#ifdef ENABLE_NVGFN
+#ifdef ENABLE_NVGFN
 		if(GETFLAG(ENABLENVGFNMASK))
 			str = genXML(str, len, &tmplen, rootDesc_full);
 		else
 			str = genXML(str, len, &tmplen, rootDesc_aura_nonvgfn);
-	#else
+#else
 		str = genXML(str, len, &tmplen, rootDesc_aura_nonvgfn);
-	#endif
+#endif
 	}
 	else
 #endif
 #ifdef ENABLE_NVGFN
-	if(gfn_only)
+	if (gfn_only)
 		str = genXML(str, len, &tmplen, rootDesc_nvgfnonly);
 	else if(GETFLAG(ENABLENVGFNMASK))
 		str = genXML(str, len, &tmplen, rootDesc_nvgfn);
@@ -1967,7 +2046,6 @@ genServiceDesc(int * len, const struct serviceDesc * s)
 	const struct action * acts;
 	const struct stateVar * vars;
 	const struct argument * args;
-	const char * p;
 	char * str;
 	int tmplen;
 	tmplen = 2048;
@@ -1986,7 +2064,8 @@ genServiceDesc(int * len, const struct serviceDesc * s)
 	str = strcat_char(str, len, &tmplen, '>');
 
 	str = strcat_str(str, len, &tmplen,
-		"<specVersion><major>1</major><minor>0</minor></specVersion>");
+		"<specVersion><major>" UPNP_VERSION_MAJOR_STR "</major>"
+		"<minor>" UPNP_VERSION_MINOR_STR "</minor></specVersion>");
 
 	i = 0;
 	str = strcat_str(str, len, &tmplen, "<actionList>");
@@ -2003,24 +2082,27 @@ genServiceDesc(int * len, const struct serviceDesc * s)
 			j = 0;
 			while(args[j].dir)
 			{
+				const char * p;
+				size_t plen;
 				str = strcat_str(str, len, &tmplen, "<argument><name>");
 				if((args[j].dir & 0x80) == 0) {
 					str = strcat_str(str, len, &tmplen, "New");
 				}
-				#ifdef ENABLE_NVGFN
+#ifdef ENABLE_NVGFN
 				else{
 					if( s == &scpdNVGFN ){
 						str = strcat_str(str, len, &tmplen, "Current");
 					}
 				}
-				#endif
+#endif
 				p = vars[args[j].relatedVar].name;
+				plen = strlen(p);
 				if(args[j].dir & 0x7c) {
 					/* use magic values ... */
 					str = strcat_str(str, len, &tmplen, magicargname[(args[j].dir & 0x7c) >> 2]);
-				} else if(0 == memcmp(p, "PortMapping", 11)
-				   && 0 != memcmp(p + 11, "Description", 11)) {
-					if(0 == memcmp(p + 11, "NumberOfEntries", 15)) {
+				} else if(plen >= 11 && 0 == memcmp(p, "PortMapping", 11)
+				   && (plen < 22 || 0 != memcmp(p + 11, "Description", 11))) {
+					if(plen >= (11+15) && 0 == memcmp(p + 11, "NumberOfEntries", 15)) {
 						/* PortMappingNumberOfEntries */
 #ifdef IGD_V2
 						if(0 == memcmp(acts[i].name, "GetListOfPortMappings", 22)) {
@@ -2038,22 +2120,21 @@ genServiceDesc(int * len, const struct serviceDesc * s)
 						str = strcat_str(str, len, &tmplen, p + 11);
 					}
 #ifdef IGD_V2
-				} else if(0 == memcmp(p, "A_ARG_TYPE_", 11)) {
+				} else if(plen >= 11 && 0 == memcmp(p, "A_ARG_TYPE_", 11)) {
 					str = strcat_str(str, len, &tmplen, p + 11);
-				} else if(0 == memcmp(p, "ExternalPort", 13)
+				} else if(plen >= 13 && 0 == memcmp(p, "ExternalPort", 13)
 				          && args[j].dir == 2
 				          && 0 == memcmp(acts[i].name, "AddAnyPortMapping", 18)) {
 					str = strcat_str(str, len, &tmplen, "ReservedPort");
 #endif
-				}
-				else {
-					#ifdef ENABLE_NVGFN
+				} else {
+#ifdef ENABLE_NVGFN
 					if(s == &scpdNVGFN && 0 == memcmp(p, "A_ARG_TYPE_", 11)){
 						str = strcat_str(str, len, &tmplen, p + 11);
 					}
 					else
-					#endif
-						str = strcat_str(str, len, &tmplen, p);
+#endif
+					str = strcat_str(str, len, &tmplen, p);
 				}
 				str = strcat_str(str, len, &tmplen, "</name><direction>");
 				str = strcat_str(str, len, &tmplen, (args[j].dir&0x03)==1?"in":"out");
@@ -2088,6 +2169,14 @@ genServiceDesc(int * len, const struct serviceDesc * s)
 		str = strcat_str(str, len, &tmplen, "</name><dataType>");
 		str = strcat_str(str, len, &tmplen, upnptypes[vars[i].itype & 0x0f]);
 		str = strcat_str(str, len, &tmplen, "</dataType>");
+		/*if(vars[i].defaultValue) */
+		if(vars[i].idefault)
+		{
+		  str = strcat_str(str, len, &tmplen, "<defaultValue>");
+		  /*str = strcat_str(str, len, &tmplen, vars[i].defaultValue); */
+		  str = strcat_str(str, len, &tmplen, upnpdefaultvalues[vars[i].idefault]);
+		  str = strcat_str(str, len, &tmplen, "</defaultValue>");
+		}
 		if(vars[i].iallowedlist)
 		{
 		  if((vars[i].itype & 0x0f) == 0)
@@ -2109,14 +2198,6 @@ genServiceDesc(int * len, const struct serviceDesc * s)
 			str = strcat_int(str, len, &tmplen, upnpallowedranges[vars[i].iallowedlist+1]);
 		    str = strcat_str(str, len, &tmplen, "</maximum></allowedValueRange>");
 		  }
-		}
-		/*if(vars[i].defaultValue) */
-		if(vars[i].idefault)
-		{
-		  str = strcat_str(str, len, &tmplen, "<defaultValue>");
-		  /*str = strcat_str(str, len, &tmplen, vars[i].defaultValue); */
-		  str = strcat_str(str, len, &tmplen, upnpdefaultvalues[vars[i].idefault]);
-		  str = strcat_str(str, len, &tmplen, "</defaultValue>");
 		}
 		str = strcat_str(str, len, &tmplen, "</stateVariable>");
 		/*str = strcat_char(str, len, &tmplen, '\n'); // TEMP ! */
@@ -2207,6 +2288,13 @@ genEventVars(int * len, const struct serviceDesc * s)
 			switch(v->ieventvalue) {
 			case 0:
 				break;
+#ifdef ENABLE_DP_SERVICE
+			case SETUPREADY_MAGICALVALUE:
+				/* always ready for setup */
+				snprintf(tmp, sizeof(tmp), "%d", 1);
+				str = strcat_str(str, len, &tmplen, tmp);
+				break;
+#endif
 			case CONNECTIONSTATUS_MAGICALVALUE:
 				/* or get_wan_connection_status_str(ext_if_name) */
 				str = strcat_str(str, len, &tmplen,
@@ -2246,8 +2334,9 @@ genEventVars(int * len, const struct serviceDesc * s)
 				if(use_ext_ip_addr)
 					str = strcat_str(str, len, &tmplen, use_ext_ip_addr);
 				else {
+					struct in_addr addr;
 					char ext_ip_addr[INET_ADDRSTRLEN];
-					if(getifaddr(ext_if_name, ext_ip_addr, INET_ADDRSTRLEN, NULL, NULL) < 0) {
+					if(getifaddr(ext_if_name, ext_ip_addr, INET_ADDRSTRLEN, &addr, NULL) < 0 /* || addr_is_reserved(&addr) */) {
 						str = strcat_str(str, len, &tmplen, "0.0.0.0");
 					} else {
 						str = strcat_str(str, len, &tmplen, ext_ip_addr);

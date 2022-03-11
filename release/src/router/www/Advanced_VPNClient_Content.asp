@@ -91,6 +91,20 @@
 	font-size: 13px;
 	text-align: center;
 }
+.conn_status_hint{
+	color: #FC0;
+	font-weight: bolder;
+	font-size: 13px;
+	margin-left: 12px;
+	margin-top: -8px;
+	position: absolute;
+	display: none;
+}
+.conn_status_hint > a{
+	color: #33ACFF;
+	text-decoration: underline;
+	cursor: pointer;
+}
 </style>
 <script>
 var subnetIP_support_IPv6 = false;
@@ -113,6 +127,9 @@ var ipsec_profile_client_5_ext = decodeURIComponent('<% nvram_char_to_ascii("","
 var all_profile_subnet_list = "";
 var control_profile_flag = true;
 var openvpnc_max = 5;
+
+var faq_href1 = "https://nw-dlcdnet.asus.com/support/forward.html?model=&type=Faq&lang="+ui_lang+"&kw=&num=123";
+var faq_href2 = "https://nw-dlcdnet.asus.com/support/forward.html?model=&type=Faq&lang="+ui_lang+"&kw=&num=133";
 
 function parseNvramToArray(_oriNvram, _arrayLength) {
 	var parseArray = [];
@@ -181,9 +198,12 @@ function initial(){
 			option.text = wan_type_list[i][1];
 			selectobject.add(option);
 		}
-		$("#ipsec_vpn_type_faq").html("IPSec Net-to-Net FAQ");/*untranslated*/
-		httpApi.faqURL("1033578", function(url){document.getElementById("ipsec_vpn_type_faq").href=url;});
+		$("#ipsec_vpn_type_faq").html("IPSec Net-to-Net FAQ")	/*untranslated*/
+					.attr("href", faq_href1);
 	}
+
+	$("#ip_conflict_hint").html("<#vpn_openvpn_conflict#>: Please change your router LAN subnet, please refer to this <a target='_blank'>FAQ</a> for detail");/* untranslated */
+	$("#ip_conflict_hint a").attr("href", faq_href2);
 }
 var add_profile_flag = false;
 function Add_profile(upper){
@@ -636,6 +656,7 @@ function update_unit_option(){
 var ipsec_arrayLength = 0;
 var openvpn_arrayLength = 0;
 function show_vpnc_rulelist(){
+	$("#ip_conflict_hint").hide();
 	all_profile_subnet_list = "";	
 	ipsec_arrayLength = 0;
 	openvpn_arrayLength = 0;
@@ -713,8 +734,10 @@ function show_vpnc_rulelist(){
 							code +="<td width='10%'><img title='<#CTL_Add_enrollee#>' src='/images/InternetScan.gif'></td>";
 						else if(client_state == 2)
 							code +="<td width='10%'><img title='<#Connected#>' src='/images/checked_parentctrl.png' style='width:25px;'></td>";
-						else if(client_errno == 1 || client_errno == 2 || client_errno == 3)
+						else if(client_errno == 1 || client_errno == 2 || client_errno == 3){
 							code +="<td width='10%'><div title='<#vpn_openvpn_conflict#>' class='vpnc_ipconflict_icon'></div></td>";
+							$("#ip_conflict_hint").show();
+						}
 						else if(client_errno == 4 || client_errno == 5 || client_errno == 6)
 							code +="<td width='10%'><img title='<#qis_fail_desc1#>' src='/images/button-close2.png' style='width:25px;'></td>";
 						else if(client_errno == 7)
@@ -732,8 +755,10 @@ function show_vpnc_rulelist(){
 							code +="<td width='10%'><img title='<#Connected#>' src='/images/checked_parentctrl.png' style='width:25px;'></td>";
 						else if(vpnc_state_t == 4 && vpnc_sbstate_t == 2)
 							code +="<td width='10%'><img title='<#qis_fail_desc1#>' src='/images/button-close2.png' style='width:25px;'></td>";
-						else if(vpnc_state_t == 4 && vpnc_sbstate_t == 7)
+						else if(vpnc_state_t == 4 && vpnc_sbstate_t == 7){
 							code +="<td width='10%'><div title='<#vpn_openvpn_conflict#>' class='vpnc_ipconflict_icon'></div></td>";
+							$("#ip_conflict_hint").show();
+						}
 						else // Stop connection
 							code +="<td width='10%'><img title='<#ConnectionFailed#>' src='/images/button-close2.png' style='width:25px;'></td>";
 					}
@@ -1238,6 +1263,10 @@ function ovpnFileChecker(){
 			document.getElementById('loadingiconCA').style.display = "none";
 			if(vpn_upload_state == "init"){
 				setTimeout("ovpnFileChecker();",1000);
+			}
+			else if(vpn_upload_state == "err"){
+				document.getElementById("importOvpnFile").innerHTML = "<#Setting_upload_hint#>";
+				document.getElementById("manualCRList").style.color = "#FC0";
 			}
 			else{
 				setManualTable(document.vpnclientForm.vpnc_openvpn_unit_edit.value);
@@ -1870,7 +1899,7 @@ function save_ipsec_profile_panel() {
 		else if(getRadioItemCheck(document.ipsec_form.ipsec_remote_gateway_method) == "1") {
 			if(!validator.domainName_flag(document.ipsec_form.ipsec_remote_gateway.value)) {
 				document.ipsec_form.ipsec_remote_gateway.focus();
-				alert(document.ipsec_form.ipsec_remote_gateway.value + " is invalid Domain Name");/*untranslated*/
+				alert(document.ipsec_form.ipsec_remote_gateway.value + ": is invalid Domain Name");/*untranslated*/
 				return false;
 			}
 			if(!validator.isEmpty(document.ipsec_form.ipsec_remote_id))
@@ -2574,6 +2603,7 @@ function changePFS() {
 									<li><#vpnc_step3#>
 								</ol>
 							</div>
+							<div id="ip_conflict_hint" class="conn_status_hint"></div>
 						</td>		
         			</tr>						
         			<tr>

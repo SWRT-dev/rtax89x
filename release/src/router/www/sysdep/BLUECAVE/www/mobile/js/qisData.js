@@ -40,6 +40,10 @@ var wanObj = {
 		"wan_dns2_x": ""
 	},
 
+	"v6plus": {
+		"ipv6_service": "ipv6pt"
+	},
+
 	"vpn": {
 		"wan_heartbeat_x": ""
 	},
@@ -58,7 +62,8 @@ var wanObj = {
 		"wan_gateway_x": "",
 		"wan_dns1_x": "",
 		"wan_dns2_x": "",
-		"wan_heartbeat_x": ""
+		"wan_heartbeat_x": "",
+		"ipv6_service": ""
 	},
 
 	"LWAN_2p5G": {
@@ -90,19 +95,22 @@ var wirelessObj = {
 		"wl0_ssid": "",
 		"wl0_wpa_psk": "",
 		"wl0_auth_mode_x": "",
-		"wl0_crypto": ""
+		"wl0_crypto": "",
+		"wl0_mfp": ""
 	},
 	"wl1": {
 		"wl1_ssid": "",
 		"wl1_wpa_psk": "",
 		"wl1_auth_mode_x": "",
-		"wl1_crypto": ""
+		"wl1_crypto": "",
+		"wl1_mfp": ""
 	},
 	"wl2": {
 		"wl2_ssid": "",
 		"wl2_wpa_psk": "",
 		"wl2_auth_mode_x": "",
-		"wl2_crypto": ""
+		"wl2_crypto": "",
+		"wl2_mfp": ""
 	},
 	"wl3": {
 		"wl3_ssid": "",
@@ -114,6 +122,10 @@ var wirelessObj = {
 
 var smartConnectObj = {
 	"smart_connect_x": "1"
+}
+
+var fronthaulNetworkObj = {
+	"fh_ap_enabled": "2"
 }
 
 var wlcObj = {
@@ -190,6 +202,12 @@ var iptvObj = {
 	"switch_wantag": ""
 }
 
+var wanDhcpOptionObj = {
+	"wan_vendorid": "",
+	"wan_clientid_type": "",
+	"wan_clientid": ""
+}
+
 var iptvManualObj = {
 	"switch_wan0tagid": "",
 	"switch_wan0prio": "",
@@ -236,6 +254,7 @@ var systemVariable = {
 		"username": "",
 		"password": ""
 	},
+	"maxPasswordLen": 32,
 	"originWansExtwan": "",
 	"originWansDualwan": "",
 	"manualWanSetup": false,
@@ -266,12 +285,13 @@ var systemVariable = {
 		"wlcStatus": {}
 	},
 	"wanOption": false,
-	"skipAiMeshOptionPage": false,
 	"interval_status": false,
 	"modelCloudIcon": [],
 	"onboardingInfo": {},
+	"skipAiMeshOptionPage": false,
 	"amas_newWindow_addNode": false,
-	"authModePostData": {}
+	"authModePostData": {},
+	"eth_wan_list":{},
 }
 
 var aimeshObj = {
@@ -286,4 +306,136 @@ var axModeObj = {
 	"wl0_11ax": "1",
 	"wl1_11ax": "1",
 	"wl2_11ax": "1"
+}
+
+var dsl_wanObj = {
+	
+	"PPPOEObj" : {
+		"dsl_pppoe_username": "",
+		"dsl_pppoe_passwd": "",
+		"dsl_pppoe_idletime": "",
+		"dsl_pppoe_mtu": "",
+		"dsl_pppoe_mru": "",
+		"dsl_pppoe_service": "",
+		"dsl_pppoe_options": "",
+		"dsl_pppoe_ac": "",
+		"dsl_pppoe_relay": "",
+		"dsl_DHCPClient": "1",
+		"dsl_dnsenable": "1"
+	},
+
+	"atm_dslObj" : {
+		"dsl_enable": "1",
+		"dsl_unit": "0",
+		"dsl_vpi": "",
+		"dsl_vci": "",
+		"dsl_proto": "",
+		"dsl_encap": "",
+		"dsl_dot1q": "",
+	 	"dsl_vid": "",
+ 		"dsl_svc_cat": "",
+	 	"dsl_pcr": "",
+ 		"dsl_scr": "",
+	 	"dsl_mbs": ""
+	},
+
+	"ptm_dslObj" : {
+		"dsl_enable": "1",
+		"dsl_unit": "8",
+		"dsl_proto": "",
+		"dsl_dot1q": "",
+		"dsl_vid": "",
+	},
+
+	"dslDHCPObj" : {
+		"dsl_hwaddr": "",
+		"dsl_DHCPClient": "1",
+		"dsl_ipaddr": "",
+		"dsl_netmask": "",
+		"dsl_gateway": "",
+		"dsl_dnsenable": "1",
+		"dsl_dns1": "",
+		"dsl_dns2": "",
+		"dsl_dhcp_clientid": "",
+		"dsl_dhcp_hostname": ""
+	},
+
+	"atm_all" : {
+		"dsl_pppoe_username": "",
+		"dsl_pppoe_passwd": "",
+		"dsl_pppoe_idletime": "",
+		"dsl_pppoe_mtu": "",
+		"dsl_pppoe_mru": "",
+		"dsl_pppoe_service": "",
+		"dsl_pppoe_options": "",
+		"dsl_pppoe_ac": "",
+		"dsl_pppoe_relay": "",
+		"dsl_enable": "",
+		"dsl_unit": "",
+		"dsl_vpi": "",
+		"dsl_vci": "",
+		"dsl_proto": "",
+		"dsl_encap": "",
+		"dsl_dot1q": "",
+	 	"dsl_vid": "",
+ 		"dsl_svc_cat": "",
+	 	"dsl_pcr": "",
+ 		"dsl_scr": "",
+	 	"dsl_mbs": "",
+	 	"dsl_hwaddr": "",
+		"dsl_DHCPClient": "",
+		"dsl_ipaddr": "",
+		"dsl_netmask": "",
+		"dsl_gateway": "",
+		"dsl_dnsenable": "",
+		"dsl_dns1": "",
+		"dsl_dns2": "",
+		"dsl_dhcp_clientid": "",
+		"dsl_dhcp_hostname": ""
+	},
+
+	"ptm_all" : {
+		"dsl_pppoe_username": "",
+		"dsl_pppoe_passwd": "",
+		"dsl_pppoe_idletime": "",
+		"dsl_pppoe_mtu": "",
+		"dsl_pppoe_mru": "",
+		"dsl_pppoe_service": "",
+		"dsl_pppoe_options": "",
+		"dsl_pppoe_ac": "",
+		"dsl_pppoe_relay": "",
+		"dsl_enable": "",
+		"dsl_proto": "",
+		"dsl_dot1q": "",
+		"dsl_vid": "",
+		"dsl_hwaddr": "",
+		"dsl_DHCPClient": "",
+		"dsl_ipaddr": "",
+		"dsl_netmask": "",
+		"dsl_gateway": "",
+		"dsl_dnsenable": "",
+		"dsl_dns1": "",
+		"dsl_dns2": "",
+		"dsl_dhcp_clientid": "",
+		"dsl_dhcp_hostname": ""
+	}
+}
+
+var dsltmpQISObj = {
+	"dslx_transmode": "",
+	"dsltmp_transmode": "",
+	"dsl_hwaddr": "",
+	"dsl_nat": "1",
+	"dsl_upnp_enable": "1"
+}
+
+var dslIPTVObj = {
+	"dsltmp_cfg_iptv_enable": "0", 	//{1: for iptv enable, 0: for iptv disable}
+	"dsltmp_cfg_iptv_rmvlan": "",
+	"dsltmp_cfg_iptv_mr": "",
+	"dsltmp_cfg_iptv_num_pvc": "0",
+	"dsltmp_cfg_iptv_pvclist": "",
+	"dsltmp_cfg_iptv_idx": "",
+	"dsltmp_cfg_ispname": "",
+	"dsltmp_cfg_country": ""
 }

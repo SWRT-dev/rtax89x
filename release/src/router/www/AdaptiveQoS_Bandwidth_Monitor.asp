@@ -67,15 +67,6 @@
     ms-transform:rotate(-123deg);
     transform:rotate(-123deg);
 }
-.divUserIcon{
-	cursor: pointer;
-	margin: 0 auto;
-	width: 50px;
-	height: 50px;
-	-webkit-border-radius: 10px;
-	-moz-border-radius: 10px;
-	border-radius: 10px;
-}
 .traffic_bar{
 	width: 0%;
 	background-color: #93E7FF;
@@ -155,6 +146,8 @@ function register_event(){
 		});
 	});
 }
+
+var faq_href = "https://nw-dlcdnet.asus.com/support/forward.html?model=&type=Faq&lang="+ui_lang+"&kw=&num=102";
 var scale = [1, 5, 10, 20, 30, 50, 75, 100];
 var download_maximum = 100 * 1024;
 var upload_maximum = 100 * 1024;
@@ -184,8 +177,7 @@ function initial(){
 
 	$('#scale_unit').val(getTrafficUnit());
 	show_menu();
-	// https://www.asus.com/support/FAQ/1008717/
-	httpApi.faqURL("1008717", function(url){document.getElementById("faq").href=url;});
+	document.getElementById("faq").href=faq_href;
 
 	if(totalClientNum.online == 0) {
 		var loop_count = 0;
@@ -442,7 +434,7 @@ function show_clients(priority_type){
 				code += '<div id="icon_' + i + '" onclick="show_apps(this);" class="closed qosLevel' + clientObj.qosLevel + ' clientIconIE8HACK" ';
 			}
 			else{
-				code += '<div id="icon_' + i + '" onclick="show_apps(this);" class="closed qosLevel' + clientObj.qosLevel + ' divUserIcon" ';
+				code += '<div id="icon_' + i + '" onclick="show_apps(this);" class="closed qosLevel' + clientObj.qosLevel + ' clientIcon" ';
 			}
 			code += 'style="background-image:url('+userIconBase64+');background-size:50px;">';
 			code += '</div>';
@@ -573,11 +565,11 @@ function show_apps(obj){
 		parent_obj_temp.appendChild(last_element);
 		register_event();
 		if(children_obj != undefined) {
-			obj.setAttribute("class", "closed qosLevel" + clientObj.qosLevel + " divUserIcon");
+			obj.setAttribute("class", "closed qosLevel" + clientObj.qosLevel + " clientIcon");
 		}
 		else {
 			if(clientObj.type != "0" || clientObj.vendor == "") {
-				obj.setAttribute("class", "closed clientIcon type" + clientObj.type + " qosLevel" + clientObj.qosLevel + " divUserIcon");
+				obj.setAttribute("class", "closed clientIcon type" + clientObj.type + " qosLevel" + clientObj.qosLevel + " clientIcon");
 			}
 			else if(clientObj.vendor != "") {
 				var clientListCSS = "";
@@ -588,7 +580,7 @@ function show_apps(obj){
 				else {
 					clientListCSS = "clientIcon type" + clientObj.type;
 				}
-				obj.setAttribute("class", "closed " + clientListCSS + " qosLevel" + clientObj.qosLevel + " divUserIcon");
+				obj.setAttribute("class", "closed " + clientListCSS + " qosLevel" + clientObj.qosLevel + " clientIcon");
 			}
 		}
 	}
@@ -613,11 +605,11 @@ function show_apps(obj){
 		parent_obj.appendChild(new_element);
 		parent_obj.appendChild(last_element);
 		if(children_obj != undefined) {
-			obj.setAttribute("class", "opened clicked qosLevel" + clientObj.qosLevel + " divUserIcon");
+			obj.setAttribute("class", "opened clicked qosLevel" + clientObj.qosLevel + " clientIcon");
 		}
 		else {
 			if(clientObj.type != "0" || clientObj.vendor == "") {
-				obj.setAttribute("class", "opened clientIcon_clicked type" + clientObj.type + " clicked qosLevel" + clientObj.qosLevel + " divUserIcon");
+				obj.setAttribute("class", "opened clientIcon_clicked type" + clientObj.type + " clicked qosLevel" + clientObj.qosLevel + " clientIcon");
 			}
 			else if(clientObj.vendor != "") {
 				var clientListCSS = "";
@@ -628,7 +620,7 @@ function show_apps(obj){
 				else {
 					clientListCSS = "clientIcon_clicked type" + clientObj.type;
 				}
-				obj.setAttribute("class", "opened " + clientListCSS + " clicked qosLevel" + clientObj.qosLevel + " divUserIcon");
+				obj.setAttribute("class", "opened " + clientListCSS + " clicked qosLevel" + clientObj.qosLevel + " clientIcon");
 			}
 		}
 		update_device_tarffic();
@@ -661,11 +653,11 @@ function cancel_previous_device_apps(obj){
 	parent_obj_temp.appendChild(first_element);
 	parent_obj_temp.appendChild(last_element);
 	if(children_obj != undefined) {
-		obj.setAttribute("class", "closed qosLevel" + clientObj.qosLevel + " divUserIcon");
+		obj.setAttribute("class", "closed qosLevel" + clientObj.qosLevel + " clientIcon");
 	}
 	else {
 		if(clientObj.type != "0" || clientObj.vendor == "") {
-			obj.setAttribute("class", "closed clientIcon type" + clientObj.type + " qosLevel" + clientObj.qosLevel + " divUserIcon");
+			obj.setAttribute("class", "closed clientIcon type" + clientObj.type + " qosLevel" + clientObj.qosLevel + " clientIcon");
 		}
 		else if(clientObj.vendor != "") {
 			var clientListCSS = "";
@@ -676,7 +668,7 @@ function cancel_previous_device_apps(obj){
 			else {
 				clientListCSS = "clientIcon type" + clientObj.type;
 			}
-			obj.setAttribute("class", "closed " + clientListCSS + " qosLevel" + clientObj.qosLevel + " divUserIcon");
+			obj.setAttribute("class", "closed " + clientListCSS + " qosLevel" + clientObj.qosLevel + " clientIcon");
 		}
 	}
 }

@@ -263,6 +263,15 @@ typedef struct _SITE_SURVEY_ARRAY
 	SITE_SURVEY SiteSurvey[64];
 } SSA;
 
+struct _SITESURVEY_VSIE {
+	char Ssid[33];
+	unsigned char Bssid[6];
+    unsigned char Channel;
+    char Rssi;
+    unsigned char vendor_ie[128];
+    unsigned char vendor_ie_len;
+};
+
 #define SITE_SURVEY_APS_MAX	(16*1024)
 
 //#if WIRELESS_EXT <= 11
@@ -315,16 +324,15 @@ enum ASUS_IOCTL_SUBCMD {
 	ASUS_SUBCMD_GETSKUTABLE,
     ASUS_SUBCMD_GETSKUTABLE_TXBF,
 	ASUS_SUBCMD_CLIQ,
-#ifdef RTCONFIG_AMAS
+	ASUS_SUBCMD_DRIVERVER,
     ASUS_SUBCMD_CLRSSI,    
-#ifdef RTCONFIG_ADV_RAST
     ASUS_SUBCMD_GMONITOR_RSSI,
     ASUS_SUBCMD_MACMODE,
     ASUS_SUBCMD_MACLIST,
-#endif
-#else
-	ASUS_SUBCMD_DRIVERVER,
-#endif
+	ASUS_SUBCMD_GDFSNOPCHANNEL,
+	ASUS_SUBCMD_GCHANNELINFO,
+    ASUS_SUBCMD_GETSITESURVEY_VSIE,
+    ASUS_SUBCMD_GETAPCLIENABLE,
 	ASUS_SUBCMD_MAX
 };
 

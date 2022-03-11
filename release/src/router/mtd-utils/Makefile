@@ -49,7 +49,7 @@ endif
 
 ifeq ($(UBI),y)
 #Override default UBI binary list
-UBI_BINS = ubinfo mtdinfo
+UBI_BINS = ubinfo mtdinfo ubiformat ubiattach ubimkvol ubidetach ubiupdatevol ubirmvol
 ifeq ($(MTK_NAND),y)
 UBI_BINS += ubiattach ubimkvol
 endif

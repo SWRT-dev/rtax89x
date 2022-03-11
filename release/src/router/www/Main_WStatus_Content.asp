@@ -46,8 +46,9 @@ function GenContent(){
 		},
 
 		success: function(resp){
-			content = htmlEnDeCode.htmlEncode(resp);
+			content = decodeURI(resp);
 			content = classObj.UnHexCode(content);
+			content = htmlEnDeCode.htmlEncode(content);
 			if(content.length > 10){
 				$("#wl_log").html(content);
 			}
