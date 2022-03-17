@@ -3650,9 +3650,9 @@ define RouterOptions
 		sed -i "/RTCONFIG_BRCM_HOSTAPD/d" $(1); \
 		echo "RTCONFIG_BRCM_HOSTAPD=y" >>$(1); \
 	fi;
-	if [ "$(FRS_LIVE_UPDATE)" = "n" ]; then \
+	if [ "$(FRS_LIVE_UPDATE)" = "y" ]; then \
 		sed -i "/RTCONFIG_FRS_LIVE_UPDATE/d" $(1); \
-		echo "# RTCONFIG_FRS_LIVE_UPDATE is not set" >>$(1); \
+		echo "RTCONFIG_FRS_LIVE_UPDATE=y" >>$(1); \
 	fi;
 	if [ "$(ASUSDDNS_ACCOUNT_BASE)" = "y" ]; then \
 		sed -i "/RTCONFIG_ASUSDDNS_ACCOUNT_BASE/d" $(1); \
@@ -3892,7 +3892,7 @@ define RouterOptions
 	echo "RTCONFIG_SWRT=y" >>$(1); \
 	fi;
 	if [ "$(SWRT_LED)" = "y" ]; then \
-	sed -i "/RTCONFIG_SWRT_LED/d" $(1); \
+	sed -i "/RTCONFIG_SWRT_LED\>/d" $(1); \
 	echo "RTCONFIG_SWRT_LED=y" >>$(1); \
 	fi;
 	if [ "$(SWRT_UU)" = "y" ]; then \
