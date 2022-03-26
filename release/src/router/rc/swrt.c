@@ -87,10 +87,159 @@ void swrt_init()
 	nvram_set("entware_wan_sig", "0");
 	nvram_set("entware_stop_sig", "0");
 #endif
+#if defined(RTCONFIG_AMAS) && defined(RTCONFIG_SMARTDNS)
+	if(aimesh_re_node())
+		nvram_set("smartdns_enable", "0");
+#endif
 	swrt_insmod();
 	swrt_init_model();
 #if defined(RTCONFIG_ROG_UI)
 	nvram_set("swrt_rog", "1");
+#endif
+#if defined(RTCONFIG_TUF_UI)
+	nvram_set("swrt_tuf", "1");
+#endif
+	if(!nvram_get("modelname"))
+//non asus
+#if defined(SBRAC1900P)
+		nvram_set("modelname", "SBRAC1900P");
+#elif defined(EA6700)
+		nvram_set("modelname", "EA6700");
+#elif defined(DIR868L)
+		nvram_set("modelname", "DIR868L");
+#elif defined(R6300V2)
+		nvram_set("modelname", "R6300V2");
+#elif defined(F9K1118)
+		nvram_set("modelname", "F9K1118");
+#elif defined(SBRAC3200P)
+		nvram_set("modelname", "SBRAC3200P");
+#elif defined(K3)
+		nvram_set("modelname", "K3");
+#elif defined(XWR3100)
+		nvram_set("modelname", "XWR3100");
+#elif defined(R7000P)
+		nvram_set("modelname", "R7000P");
+#elif defined(R8500)
+		nvram_set("modelname", "R8500");
+#elif defined(R8000P)
+		nvram_set("modelname", "R8000P");
+#elif defined(RAX20)
+		nvram_set("modelname", "RAX20");
+#elif defined(RAX70)
+		nvram_set("modelname", "RAX70");
+#elif defined(RAX80)
+		nvram_set("modelname", "RAX80");
+#elif defined(RAX120)
+		nvram_set("modelname", "RAX120");
+#elif defined(RAX200)
+		nvram_set("modelname", "RAX200");
+#elif defined(TY6201_BCM)
+		nvram_set("modelname", "TY6201_BCM");
+#elif defined(TY6201_RTK)
+		nvram_set("modelname", "TY6201_RTK");
+#elif defined(TY6202)
+		nvram_set("modelname", "TY6202");
+#elif defined(K3C)
+		nvram_set("modelname", "K3C");
+#elif defined(MR60)
+		nvram_set("modelname", "MR60");
+#elif defined(MS60)
+		nvram_set("modelname", "MS60");
+#elif defined(SWRT360V6)
+		nvram_set("modelname", "360V6");
+#elif defined(GLAX1800)
+		nvram_set("modelname", "GLAX1800");
+//asus
+#elif defined(RTAC68U)
+		nvram_set("modelname", "RTAC68U");
+#elif defined(RTAC3200)
+		nvram_set("modelname", "RTAC3200");
+#elif defined(RTAC3100)
+		nvram_set("modelname", "RTAC3100");
+#elif defined(RTAC88U)
+		nvram_set("modelname", "RTAC88U");
+#elif defined(RTAC5300)
+		nvram_set("modelname", "RTAC5300");
+#elif defined(RTAC86U)
+		nvram_set("modelname", "RTAC86U");
+#elif defined(GTAC2900)
+		nvram_set("modelname", "GTAC2900");
+#elif defined(GTAC5300)
+		nvram_set("modelname", "GTAC5300");
+#elif defined(RTAX53U)
+		nvram_set("modelname", "RTAX53U");
+#elif defined(RTAX54)
+		nvram_set("modelname", "RTAX54");
+#elif defined(RTAX55) || defined(RTAX1800)
+		nvram_set("modelname", "RTAX55");
+#elif defined(RTAX56U)
+		nvram_set("modelname", "RTAX56U");
+#elif defined(RTAX58U) || defined(RTAX3000) || defined(RTAX58U_V2)
+		nvram_set("modelname", "RTAX58U");
+#elif defined(TUFAX3000) || defined(TUFAX3000_V2)
+		nvram_set("modelname", "TUFAX3000");
+#elif defined(TUFAX5400)
+		nvram_set("modelname", "TUFAX5400");
+#elif defined(GSAX3000)
+		nvram_set("modelname", "GSAX3000");
+#elif defined(GSAX5400)
+		nvram_set("modelname", "GSAX5400");
+#elif defined(RTAX68U)
+		nvram_set("modelname", "RTAX68U");
+#elif defined(RTAX82U)
+		nvram_set("modelname", "RTAX82U");
+#elif defined(RTAX86U)
+		nvram_set("modelname", "RTAX86U");
+#elif defined(RTAX88U)
+		nvram_set("modelname", "RTAX88U");
+#elif defined(GTAX6000)
+		nvram_set("modelname", "GTAX6000");
+#elif defined(GTAX11000)
+		nvram_set("modelname", "GTAX11000");
+#elif defined(GTAX11000_PRO)
+		nvram_set("modelname", "GTAX11000PRO");
+#elif defined(GTAXE11000)
+		nvram_set("modelname", "GTAXE11000");
+#elif defined(GTAXE16000)
+		nvram_set("modelname", "GTAXE16000");
+#elif defined(BLUECAVE)
+		nvram_set("modelname", "BLUECAVE");
+#elif defined(RTAC82U)
+		nvram_set("modelname", "RTACRH17");
+#elif defined(RTAX89U)
+		nvram_set("modelname", "RTAX89X");
+#elif defined(RTAC85P)
+		nvram_set("modelname", "RTAC85P");
+#elif defined(RMAC2100)
+		nvram_set("modelname", "RMAC2100");
+#elif defined(R6800)
+		nvram_set("modelname", "R6800");
+#elif defined(TUFAC1750)
+		nvram_set("modelname", "TUFAC1750");
+#elif defined(RTAC95U)
+		nvram_set("modelname", "ZENWIFICT8");
+#elif defined(RTAX56XD4)
+		nvram_set("modelname", "ZENWIFIXD4");
+#elif defined(RTAX82_XD6)
+		nvram_set("modelname", "ZENWIFIXD6");
+#elif defined(RTAX95Q)
+		nvram_set("modelname", "ZENWIFIXT8");
+#elif defined(RTAXE95Q)
+		nvram_set("modelname", "ZENWIFIET8");
+#elif defined(XT12)
+		nvram_set("modelname", "ZENWIFIXT12");
+#elif defined(ET12)
+		nvram_set("modelname", "ZENWIFIET12");
+#elif defined(XD4PRO)
+		nvram_set("modelname", "ZENWIFIXD4PRO");
+#elif defined(XT8PRO)
+		nvram_set("modelname", "ZENWIFIXT8PRO");
+#elif defined(ET8PRO)
+		nvram_set("modelname", "ZENWIFIET8PRO");
+#elif defined(PLAX56_XP4)
+		nvram_set("modelname", "ZENWIFIXP4");
+#elif defined(ETJ)
+		nvram_set("modelname", "ZENWIFIETJ");
 #endif
 }
 
@@ -271,148 +420,6 @@ void swrt_init_done(){
 	if(!nvram_get("bl_ver"))
 		doSystem("nvram set bl_ver=`uboot_env --get --name bl_ver`");
 #endif
-#endif
-	if(!nvram_get("modelname"))
-//non asus
-#if defined(SBRAC1900P)
-		nvram_set("modelname", "SBRAC1900P");
-#elif defined(EA6700)
-		nvram_set("modelname", "EA6700");
-#elif defined(DIR868L)
-		nvram_set("modelname", "DIR868L");
-#elif defined(R6300V2)
-		nvram_set("modelname", "R6300V2");
-#elif defined(SBRAC3200P)
-		nvram_set("modelname", "SBRAC3200P");
-#elif defined(K3)
-		nvram_set("modelname", "K3");
-#elif defined(XWR3100)
-		nvram_set("modelname", "XWR3100");
-#elif defined(R7000P)
-		nvram_set("modelname", "R7000P");
-#elif defined(R8500)
-		nvram_set("modelname", "R8500");
-#elif defined(R8000P)
-		nvram_set("modelname", "R8000P");
-#elif defined(RAX20)
-		nvram_set("modelname", "RAX20");
-#elif defined(RAX70)
-		nvram_set("modelname", "RAX70");
-#elif defined(RAX80)
-		nvram_set("modelname", "RAX80");
-#elif defined(RAX120)
-		nvram_set("modelname", "RAX120");
-#elif defined(RAX200)
-		nvram_set("modelname", "RAX200");
-#elif defined(TY6201_BCM)
-		nvram_set("modelname", "TY6201_BCM");
-#elif defined(TY6201_RTK)
-		nvram_set("modelname", "TY6201_RTK");
-#elif defined(TY6202)
-		nvram_set("modelname", "TY6202");
-#elif defined(K3C)
-		nvram_set("modelname", "K3C");
-#elif defined(MR60)
-		nvram_set("modelname", "MR60");
-#elif defined(MS60)
-		nvram_set("modelname", "MS60");
-#elif defined(SWRT360V6)
-		nvram_set("modelname", "360V6");
-#elif defined(GLAX1800)
-		nvram_set("modelname", "GLAX1800");
-//asus
-#elif defined(RTAC68U)
-		nvram_set("modelname", "RTAC68U");
-#elif defined(RTAC3200)
-		nvram_set("modelname", "RTAC3200");
-#elif defined(RTAC3100)
-		nvram_set("modelname", "RTAC3100");
-#elif defined(RTAC88U)
-		nvram_set("modelname", "RTAC88U");
-#elif defined(RTAC5300)
-		nvram_set("modelname", "RTAC5300");
-#elif defined(RTAC86U)
-		nvram_set("modelname", "RTAC86U");
-#elif defined(GTAC2900)
-		nvram_set("modelname", "GTAC2900");
-#elif defined(GTAC5300)
-		nvram_set("modelname", "GTAC5300");
-#elif defined(RTAX53U)
-		nvram_set("modelname", "RTAX53U");
-#elif defined(RTAX54)
-		nvram_set("modelname", "RTAX54");
-#elif defined(RTAX55) || defined(RTAX1800)
-		nvram_set("modelname", "RTAX55");
-#elif defined(RTAX56U)
-		nvram_set("modelname", "RTAX56U");
-#elif defined(RTAX58U) || defined(RTAX3000)
-		nvram_set("modelname", "RTAX58U");
-#elif defined(RTAX58U_V2)
-		nvram_set("modelname", "RTAX58UV2");
-#elif defined(TUFAX3000)
-		nvram_set("modelname", "TUFAX3000");
-#elif defined(TUFAX5400)
-		nvram_set("modelname", "TUFAX5400");
-#elif defined(GSAX3000)
-		nvram_set("modelname", "GSAX3000");
-#elif defined(GSAX5400)
-		nvram_set("modelname", "GSAX5400");
-#elif defined(RTAX68U)
-		nvram_set("modelname", "RTAX68U");
-#elif defined(RTAX82U)
-		nvram_set("modelname", "RTAX82U");
-#elif defined(RTAX86U)
-		nvram_set("modelname", "RTAX86U");
-#elif defined(RTAX88U)
-		nvram_set("modelname", "RTAX88U");
-#elif defined(GTAX6000)
-		nvram_set("modelname", "GTAX6000");
-#elif defined(GTAX11000)
-		nvram_set("modelname", "GTAX11000");
-#elif defined(GTAX11000_PRO)
-		nvram_set("modelname", "GTAX11000PRO");
-#elif defined(GTAXE11000)
-		nvram_set("modelname", "GTAXE11000");
-#elif defined(GTAXE16000)
-		nvram_set("modelname", "GTAXE16000");
-#elif defined(BLUECAVE)
-		nvram_set("modelname", "BLUECAVE");
-#elif defined(RTAC82U)
-		nvram_set("modelname", "RTACRH17");
-#elif defined(RTAX89U)
-		nvram_set("modelname", "RTAX89X");
-#elif defined(RTAC85P)
-		nvram_set("modelname", "RTAC85P");
-#elif defined(RMAC2100)
-		nvram_set("modelname", "RMAC2100");
-#elif defined(R6800)
-		nvram_set("modelname", "R6800");
-#elif defined(TUFAC1750)
-		nvram_set("modelname", "TUFAC1750");
-#elif defined(RTAC95U)
-		nvram_set("modelname", "ZENWIFICT8");
-#elif defined(RTAX56XD4)
-		nvram_set("modelname", "ZENWIFIXD4");
-#elif defined(RTAX82_XD6)
-		nvram_set("modelname", "ZENWIFIXD6");
-#elif defined(RTAX95Q)
-		nvram_set("modelname", "ZENWIFIXT8");
-#elif defined(RTAXE95Q)
-		nvram_set("modelname", "ZENWIFIET8");
-#elif defined(XT12)
-		nvram_set("modelname", "ZENWIFIXT12");
-#elif defined(ET12)
-		nvram_set("modelname", "ZENWIFIET12");
-#elif defined(XD4PRO)
-		nvram_set("modelname", "ZENWIFIXD4PRO");
-#elif defined(XT8PRO)
-		nvram_set("modelname", "ZENWIFIXT8PRO");
-#elif defined(ET8PRO)
-		nvram_set("modelname", "ZENWIFIET8PRO");
-#elif defined(PLAX56_XP4)
-		nvram_set("modelname", "ZENWIFIXP4");
-#elif defined(ETJ)
-		nvram_set("modelname", "ZENWIFIET10");
 #endif
 #if defined(R8000P)
 	nvram_set("ping_target", "www.taobao.com");
@@ -943,3 +950,233 @@ void start_entware(void)
 }
 #endif
 
+#if defined(R6800)
+#define NETGEAR_BOARD_MAC 0xB0		//6
+#define NETGEAR_BOARD_SN 0xB7		//42
+#define NETGEAR_BOARD_PIN 0xE1		//12
+#define NETGEAR_BOARD_DOMAIN 0xF2	//2
+#define NETGEAR_BOARD_PCBA_SN 0xF6	//12
+#define NETGEAR_BOARD_SSID 0x106	//20
+#define NETGEAR_BOARD_PASSWD 0x120	//64
+#define NETGEAR_BOARD_MODULE 0x200	//2
+void show_boraddata(void)
+{
+	FILE *fp = NULL;
+	int mtd_part = 0, mtd_size = 0, i;
+	char dev_mtd[] = "/dev/mtdblockXXX";
+	unsigned char factory_var_buf[256];
+
+	mtd_getinfo("boarddata", &mtd_part, &mtd_size);
+	snprintf(dev_mtd, sizeof(dev_mtd), "/dev/mtdblock%d", mtd_part);
+	if((fp = fopen(dev_mtd, "rb")) != NULL){
+		memset(factory_var_buf, 0, sizeof(factory_var_buf));
+		fseek(fp, NETGEAR_BOARD_MAC, SEEK_SET);
+		fread(factory_var_buf, 1, 6, fp);
+		if(factory_var_buf[0] == 0x0 || factory_var_buf[0] == 0xff)
+			printf("mac is invalid, type 'toolbox fix MAC AA1122334455' to fix it, 17 bytes\n");
+		else
+			printf("mac:%s\n", factory_var_buf);
+		memset(factory_var_buf, 0, sizeof(factory_var_buf));
+		fseek(fp, NETGEAR_BOARD_SN, SEEK_SET);
+		fread(factory_var_buf, 1, 42, fp);
+		if(factory_var_buf[0] == 0x0 || factory_var_buf[0] == 0xff)
+			printf("sn is invalid, type 'toolbox fix SN 123456789' to fix it\n");
+		else{
+			for(i = 0; i < 42; i++){
+				if(factory_var_buf[i] == 0xff)
+					factory_var_buf[i] = 0x0;
+			}
+			printf("sn:%s\n", factory_var_buf);
+		}
+		memset(factory_var_buf, 0, sizeof(factory_var_buf));
+		fseek(fp, NETGEAR_BOARD_PIN, SEEK_SET);
+		fread(factory_var_buf, 1, 12, fp);
+		if(factory_var_buf[0] == 0x0 || factory_var_buf[0] == 0xff)
+			printf("pin is invalid, type 'toolbox fix PIN 12345678' to fix it, 8 bytes\n");
+		else{
+			for(i = 0; i < 12; i++){
+				if(factory_var_buf[i] == 0xff)
+					factory_var_buf[i] = 0x0;
+			}
+			printf("pin:%s\n", factory_var_buf);
+		}
+		memset(factory_var_buf, 0, sizeof(factory_var_buf));
+		fseek(fp, NETGEAR_BOARD_DOMAIN, SEEK_SET);
+		fread(factory_var_buf, 1, 2, fp);
+		if(factory_var_buf[0] == 0x0 || factory_var_buf[0] == 0xff)
+			printf("domain is invalid, type 'toolbox fix DOMAIN 11' to fix it, 2 bytes\n");
+		else{
+			for(i = 0; i < 2; i++){
+				if(factory_var_buf[i] == 0xff)
+					factory_var_buf[i] = 0x0;
+			}
+			printf("domain:%d%d\n", factory_var_buf[0], factory_var_buf[1]);
+		}
+		memset(factory_var_buf, 0, sizeof(factory_var_buf));
+		fseek(fp, NETGEAR_BOARD_PCBA_SN, SEEK_SET);
+		fread(factory_var_buf, 1, 12, fp);
+		if(factory_var_buf[0] == 0x0 || factory_var_buf[0] == 0xff)
+			printf("PCBA_SN is invalid, type 'toolbox fix PCBA_SN R.BZV8AE0A4D' to fix it, 12 bytes\n");
+		else{
+			for(i = 0; i < 12; i++){
+				if(factory_var_buf[i] == 0xff)
+					factory_var_buf[i] = 0x0;
+			}
+			printf("PCBA_SN:%s\n", factory_var_buf);
+		}
+		memset(factory_var_buf, 0, sizeof(factory_var_buf));
+		fseek(fp, NETGEAR_BOARD_SSID, SEEK_SET);
+		fread(factory_var_buf, 1, 20, fp);
+		if(factory_var_buf[0] == 0x0 || factory_var_buf[0] == 0xff)
+			printf("ssid is invalid, type 'toolbox fix SSID NETGEAR28' to fix it\n");
+		else{
+			for(i = 0; i < 20; i++){
+				if(factory_var_buf[i] == 0xff)
+					factory_var_buf[i] = 0x0;
+			}
+			printf("ssid:%s\n", factory_var_buf);
+		}
+		memset(factory_var_buf, 0, sizeof(factory_var_buf));
+		fseek(fp, NETGEAR_BOARD_PASSWD, SEEK_SET);
+		fread(factory_var_buf, 1, 64, fp);
+		if(factory_var_buf[0] == 0x0 || factory_var_buf[0] == 0xff)
+			printf("password is invalid, type 'toolbox fix PSWD slowjungle499' to fix it\n");
+		else{
+			for(i = 0; i < 64; i++){
+				if(factory_var_buf[i] == 0xff)
+					factory_var_buf[i] = 0x0;
+			}
+			printf("password:%s\n", factory_var_buf);
+		}
+		memset(factory_var_buf, 0, sizeof(factory_var_buf));
+		fseek(fp, NETGEAR_BOARD_MODULE, SEEK_SET);
+		fread(factory_var_buf, 1, 2, fp);
+		if(factory_var_buf[0] == 0x0 || factory_var_buf[0] == 0xff)
+			printf("MODULE is invalid, type 'toolbox fix MODULE 09' to fix it, 2 bytes\n");
+		else{
+			for(i = 0; i < 2; i++){
+				if(factory_var_buf[i] == 0xff)
+					factory_var_buf[i] = 0x0;
+			}
+			printf("MODULE:%s\n", factory_var_buf);
+		}
+		fclose(fp);
+	}else
+		printf("can't open boarddata\n");
+}
+
+void fix_boraddata(char *key, char *value)
+{
+	FILE *fp = NULL;
+	int mtd_part = 0, mtd_size = 0, i;
+	char dev_mtd[] = "/dev/mtdblockXXX";
+	unsigned char factory_var_buf[256];
+
+	if(key == NULL || value == NULL){
+		printf("key or value is null\n");
+		printf("for example:toolbox fix MODULE 09\n");
+		return;
+	}
+	memset(factory_var_buf, 0, sizeof(factory_var_buf));
+	mtd_getinfo("boarddata", &mtd_part, &mtd_size);
+	snprintf(dev_mtd, sizeof(dev_mtd), "/dev/mtdblock%d", mtd_part);
+	if(!strcmp(key, "MAC")){
+		int l;
+		unsigned char mac_binary[6];
+		l = strlen(value);
+		if(l != 17 && l != 12){
+			printf("The mac is wrong:%s\ntoolbox fix MAC AABB22334455\n", value);
+			return -1;
+		}
+		for(i=0; i < l; i++){
+			if(!isxdigit(value[i]) && value[i] != ':' && value[i] != '-'){
+				printf("The mac is wrong:%s\ntoolbox fix MAC AABB22334455\n", value);
+				return -1;
+			}
+		}
+		ether_atoe(value, mac_binary);
+		if((fp = fopen(dev_mtd, "rb")) != NULL){
+			fseek(fp, NETGEAR_BOARD_MAC, SEEK_SET);
+			fwrite(mac_binary, 1, 6, fp);
+			fclose(fp);
+			
+		}
+	}else if(!strcmp(key, "SN")){
+		snprintf(factory_var_buf, sizeof(factory_var_buf), "%s", value);
+		for(i = 0; i < 42; i++){
+			if(factory_var_buf[i] == 0x0)
+				factory_var_buf[i] = 0xff;
+		}
+		if((fp = fopen(dev_mtd, "rb")) != NULL){
+			fseek(fp, NETGEAR_BOARD_SN, SEEK_SET);
+			fwrite(factory_var_buf, 1, 42, fp);
+			fclose(fp);
+		}
+	}else if(!strcmp(key, "PIN")){
+		snprintf(factory_var_buf, sizeof(factory_var_buf), "%s", value);
+		for(i = 0; i < 12; i++){
+			if(factory_var_buf[i] == 0x0 || i > 7)
+				factory_var_buf[i] = 0xff;
+		}
+		if((fp = fopen(dev_mtd, "rb")) != NULL){
+			fseek(fp, NETGEAR_BOARD_PIN, SEEK_SET);
+			fwrite(factory_var_buf, 1, 12, fp);
+			fclose(fp);
+		}
+	}else if(!strcmp(key, "DOMAIN")){
+		i = atoi(value);
+		if(i > 254)
+			i = 254;
+		factory_var_buf[1] = i;
+		if((fp = fopen(dev_mtd, "rb")) != NULL){
+			fseek(fp, NETGEAR_BOARD_DOMAIN, SEEK_SET);
+			fwrite(factory_var_buf, 1, 2, fp);
+			fclose(fp);
+		}
+	}else if(!strcmp(key, "PCBA_SN")){
+		snprintf(factory_var_buf, sizeof(factory_var_buf), "%s", value);
+		for(i = 0; i < 12; i++){
+			if(factory_var_buf[i] == 0x0)
+				factory_var_buf[i] = 0xff;
+		}
+		if((fp = fopen(dev_mtd, "rb")) != NULL){
+			fseek(fp, NETGEAR_BOARD_PCBA_SN, SEEK_SET);
+			fwrite(factory_var_buf, 1, 12, fp);
+			fclose(fp);
+		}
+	}else if(!strcmp(key, "SSID")){
+		snprintf(factory_var_buf, sizeof(factory_var_buf), "%s", value);
+		for(i = 0; i < 20; i++){
+			if(factory_var_buf[i] == 0x0)
+				factory_var_buf[i] = 0xff;
+		}
+		if((fp = fopen(dev_mtd, "rb")) != NULL){
+			fseek(fp, NETGEAR_BOARD_SSID, SEEK_SET);
+			fwrite(factory_var_buf, 1, 20, fp);
+			fclose(fp);
+		}
+	}else if(!strcmp(key, "PSWD")){
+		snprintf(factory_var_buf, sizeof(factory_var_buf), "%s", value);
+		for(i = 0; i < 64; i++){
+			if(factory_var_buf[i] == 0x0)
+				factory_var_buf[i] = 0xff;
+		}
+		if((fp = fopen(dev_mtd, "rb")) != NULL){
+			fseek(fp, NETGEAR_BOARD_PASSWD, SEEK_SET);
+			fwrite(factory_var_buf, 1, 64, fp);
+			fclose(fp);
+		}
+	}else if(!strcmp(key, "MODULE")){
+		snprintf(factory_var_buf, sizeof(factory_var_buf), "%s", value);
+		for(i = 0; i < 2; i++){
+			if(factory_var_buf[i] == 0x0)
+				factory_var_buf[i] = 0xff;
+		}
+		if((fp = fopen(dev_mtd, "rb")) != NULL){
+			fseek(fp, NETGEAR_BOARD_MODULE, SEEK_SET);
+			fwrite(factory_var_buf, 1, 2, fp);
+			fclose(fp);
+		}
+	}
+}
+#endif
