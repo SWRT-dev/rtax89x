@@ -281,8 +281,7 @@ void add_usb_host_modules(void)
 	if (!module_loaded(USB30_MOD)) {
 		logmessage("USB", "Turn off USB power.");
 		pwr_off = 1;
-		led_control(PWR_USB, LED_OFF);
-		led_control(PWR_USB2, LED_OFF);
+		set_pwr_usb(0);
 	}
 #endif
 
@@ -403,8 +402,7 @@ void add_usb_host_modules(void)
 
 #if defined(RTAX89U) || defined(GTAXY16000)
 	if (pwr_off) {
-		led_control(PWR_USB, LED_ON);
-		led_control(PWR_USB2, LED_ON);
+		set_pwr_usb(1);
 		logmessage("USB", "Turn on USB power.");
 	}
 #endif

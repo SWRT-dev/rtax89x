@@ -690,7 +690,7 @@ dump_ledtable()
 }
 #endif
 
-#ifdef RTCONFIG_BCMARM
+#if defined(RTCONFIG_BCMARM) || defined(RTAX89U)
 int set_pwr_usb(int boolOn) {
 	int use_gpio, gpio_pin;
 #ifdef RTCONFIG_HND_ROUTER_AX_6756
