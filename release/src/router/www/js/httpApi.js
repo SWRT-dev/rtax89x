@@ -938,8 +938,16 @@ var httpApi ={
 		return transformName;
 	},
 
+	"swrtupdateserver": function(model_info){
+		var modelName = (model_info.model_name != undefined) ? model_info.model_name : "";
+		if(modelName == "RAX120" || modelName == "RAX70" || modelName == "MR60" || modelName == "MS60" || modelName == "R8000P" || modelName == "360V6" || modelName == "RGMA2820A" || modelName == "RGMA2820B")
+			return "https://update.paldier.com";
+		else
+			return "https://nw-dlcdnet.asus.com";
+	},
+
 	"checkCloudModelIcon": function(model_info, callBackSuccess, callBackError){
-		var server = "https://nw-dlcdnet.asus.com";
+		var server = httpApi.swrtupdateserver(model_info);
 		var cloudModelName = "";
 		if(model_info.cloudModelName != undefined && model_info.cloudModelName != "")
 			cloudModelName = model_info.cloudModelName;
