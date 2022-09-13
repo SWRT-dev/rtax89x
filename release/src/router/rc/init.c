@@ -3618,6 +3618,10 @@ int init_nvram(void)
         nvram_unset("wgn_wloff_vifs");
 #endif  // RTCONFIG_AMAS_WGN
 
+#if defined(RTCONFIG_SWRT)
+	swrt_init_pre();
+#endif
+
 	switch (model) {
 #ifdef RTCONFIG_RALINK
 	case MODEL_EAN66:
@@ -6877,7 +6881,6 @@ int init_nvram(void)
 #if defined(RTCONFIG_FANCTRL)
 		add_rc_support("fanctrl");
 #endif
-		swrt_init();
 		if (get_soc_version_major() == 1)
 			add_rc_support("DL_OFDMA");		/* DL OFDMA only; UL OFDMA is not supported. */
 #if defined(RTCONFIG_QCA_LBD)
@@ -18495,8 +18498,9 @@ _dprintf("%s %d turnning on power on ethernet here\n", __func__, __LINE__);
 
 			extern int start_misc_services(void);
 			start_misc_services();
-			swrt_init_done();
-
+#if defined(RTCONFIG_SWRT)
+			swrt_init_post();
+#endif
 #ifdef RTCONFIG_AMAS
 			nvram_set("start_service_ready", "1");
 #endif
