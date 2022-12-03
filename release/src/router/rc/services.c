@@ -3910,15 +3910,7 @@ static char *get_ddns_macaddr(void)
 	ether_etoa(mac_buf, mac_buf_str);
 	mac = mac_buf_str;
 #endif
-	if(is_swrt_mod())
-	{
-		ether_atoe(mac, mac_buf);
-		mac_buf[0] = 0x74;
-		mac_buf[1] = 0xD0;
-		mac_buf[2] = 0x2B;
-		ether_etoa(mac_buf, mac_buf_str);
-		mac = mac_buf_str;
-	}
+
 	return mac;
 }
 #endif	/* RTCONFIG_INADYN */
