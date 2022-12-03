@@ -167,6 +167,8 @@ void swrt_init_pre()
 		nvram_set("modelname", "GLAX1800");
 #elif defined(JDCAX1800)
 		nvram_set("modelname", "JDCAX1800");
+#elif defined(RMAX6000)
+		nvram_set("modelname", "RMAX6000");
 //asus
 #elif defined(RTAC68U)
 		nvram_set("modelname", "RTAC68U");
@@ -208,6 +210,8 @@ void swrt_init_pre()
 		nvram_set("modelname", "RTAX82U");
 #elif defined(RTAX86U)
 		nvram_set("modelname", "RTAX86U");
+#elif defined(RTAX86U_PRO)
+		nvram_set("modelname", "RTAX86UPRO");
 #elif defined(RTAX88U)
 		nvram_set("modelname", "RTAX88U");
 #elif defined(GTAX6000)
@@ -264,6 +268,8 @@ void swrt_init_pre()
 		nvram_set("modelname", "ZENWIFIXP4");
 #elif defined(ETJ)
 		nvram_set("modelname", "ZENWIFIETJ");
+#elif defined(XT12)
+		nvram_set("modelname", "XT12");
 #endif
 	if(!nvram_get("swrt_beta"))
 		nvram_set("swrt_beta", "0");
@@ -470,6 +476,11 @@ void swrt_init_post(){
 #endif
 #if defined(RTCONFIG_ENTWARE)
 	gen_arch_conf();
+#endif
+#if defined(MS60)
+	if(aimesh_re_node() && !d_exists("/sys/class/net/br0/brif/eth0")){
+		eval("brctl", "addif", "br0", "eth0");
+	}
 #endif
 }
 
@@ -1245,7 +1256,7 @@ int check_bwdpi_nvram_setting(){ return 0; }
 int check_wrs_switch(){ return 0; }
 #endif
 
-#if defined(RTCONFIG_BCMARM)
+#if defined(RTCONFIG_BCMARM) && !defined(RTCONFIG_HND_ROUTER_AX)
 #define	HAPD_MAX_BUF			512
 void __attribute__((weak)) wl_apply_akm_by_auth_mode(int unit, int subunit, char *sp_prefix_auth)
 {
@@ -1815,3 +1826,68 @@ void fix_jffs_size(void)
 }
 #endif
 
+#if defined(RTCONFIG_HND_ROUTER_AX)
+void __attribute__((weak)) create_amas_sys_folder()
+{
+	if(!d_exists("/jffs/.sys"))
+		mkdir("/jffs/.sys", 0666);
+}
+
+void __attribute__((weak)) misc_info_chk()
+{
+	syslog(LOG_NOTICE, "fwver: %s_%s_%s (sn:%s /ha:%s )\n", rt_version, rt_serialno, rt_extendno, nvram_safe_get("serial_no"), nvram_safe_get("et0macaddr"));
+}
+#endif
+
+#if defined(RAX200)
+void fan_watchdog(void)
+{
+	FILE *fp;
+	int temperature, status;
+	static int gpio_init = 0;
+	const uint32_t gpio1 = 52;
+	const uint32_t gpio2 = 55;
+	const uint32_t gpio3 = 56;
+	if ((fp = fopen("/sys/class/thermal/thermal_zone0/temp", "r")) != NULL) {
+		fscanf(fp, "%d", &temperature);
+		fclose(fp);
+	}
+	temperature = temperature / 1000;
+	if(gpio_init == 0){
+		set_gpio(gpio1, 0);
+		set_gpio(gpio2, 0);
+		set_gpio(gpio3, 0);
+		gpio_init = 1;
+	}
+	if((status = get_gpio(gpio1)) < 0)
+		return;
+	if(nvram_get("fan_en") == NULL || nvram_match("fan_en", "1")){
+		if(temperature > 95 || nvram_match("fan_lv", "4")){
+			printf("Turn on FAN with level 4");
+			set_gpio(gpio1, 1);
+			set_gpio(gpio2, 1);
+			set_gpio(gpio3, 1);
+		}else if(temperature > 85 || nvram_match("fan_lv", "3")){
+			printf("Turn on FAN with level 3");
+			set_gpio(gpio1, 1);
+			set_gpio(gpio2, 1);
+			set_gpio(gpio3, 0);
+		}else if(temperature > 75 || nvram_match("fan_lv", "2")){
+			printf("Turn on FAN with level 2");
+			set_gpio(gpio1, 1);
+			set_gpio(gpio2, 0);
+			set_gpio(gpio3, 1);
+		}else if(temperature > 65 || nvram_match("fan_lv", "1")){
+			printf("Turn on FAN with level 1");
+			set_gpio(gpio1, 1);
+			set_gpio(gpio2, 0);
+			set_gpio(gpio3, 0);
+		}
+	}else if(nvram_match("fan_en", "0") && status == 1){
+		printf("Turn off FAN");
+		set_gpio(gpio1, 0);
+		set_gpio(gpio2, 0);
+		set_gpio(gpio3, 0);
+	}
+}
+#endif

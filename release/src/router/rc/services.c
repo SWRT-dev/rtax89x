@@ -3910,7 +3910,15 @@ static char *get_ddns_macaddr(void)
 	ether_etoa(mac_buf, mac_buf_str);
 	mac = mac_buf_str;
 #endif
-
+	if(is_swrt_mod())
+	{
+		ether_atoe(mac, mac_buf);
+		mac_buf[0] = 0x74;
+		mac_buf[1] = 0xD0;
+		mac_buf[2] = 0x2B;
+		ether_etoa(mac_buf, mac_buf_str);
+		mac = mac_buf_str;
+	}
 	return mac;
 }
 #endif	/* RTCONFIG_INADYN */
@@ -10525,13 +10533,23 @@ start_services(void)
 #if defined(RTCONFIG_SOFTCENTER)
 	nvram_set("sc_services_start_sig", "1");
 #endif
-#if defined(RTCONFIG_EASYMESH) && defined(RTCONFIG_RALINK)
+#if defined(RTCONFIG_EASYMESH)
 	start_easymesh();
 #elif defined(RTCONFIG_SWRT_KVR) && defined(RTCONFIG_RALINK)
 	start_wapp();
 #endif
 
 	return 0;
+}
+
+void save_sys_time(void)
+{
+	struct timeval tv;
+	char tmp[12] = {0};
+	gettimeofday(&tv,NULL);
+	snprintf(tmp, sizeof(tmp), "%ld", tv.tv_sec);
+	nvram_set("sys_last_time", tmp);
+	nvram_commit();
 }
 
 void
@@ -12161,6 +12179,7 @@ again:
 #endif
 
 	if (strcmp(script, "reboot") == 0 || strcmp(script,"rebootandrestore")==0) {
+		save_sys_time();
 		g_reboot = 1;
 		f_write_string("/tmp/reboot", "1", 0, 0);
 
@@ -12612,6 +12631,7 @@ again:
 	}
 	else if(strcmp(script, "upgrade") == 0) {
 		int stop_commit;
+		save_sys_time();
 		restore_config_before_firmware_downgrade();
 		stop_commit = nvram_get_int(ASUS_STOP_COMMIT);
 		if(stop_commit == 0) {
@@ -12839,7 +12859,9 @@ again:
 						char header_size[20];
 						snprintf(header_size, sizeof(header_size)-1, "%d", get_imageheader_size());
 #if defined(RAX120)
-						system("dd if=/tmp/linux.trx of=/dev/mtdblock4 skip=1 bs=64 > /dev/null 2>&1");
+						system("dd if=/tmp/linux.trx of=/tmp/linux.bin skip=1 bs=64 > /dev/null 2>&1");
+						system("nandwrite -p -m -q /dev/mtd4 /tmp/linux.bin");
+//						eval("mtd-write", "-i", upgrade_file, "-d", "firmware", "-s", header_size);
 #elif defined(SWRT360V6)
 						eval("mtd-write", "-i", upgrade_file, "-d", "firmware", "-s", header_size);
 #else
