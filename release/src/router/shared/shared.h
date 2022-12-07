@@ -489,6 +489,11 @@ enum {
 #define S_RTL8365MB		8365
 #define S_RTL8370MB		8370
 
+#define CFG_BW_20M	(1U << 0)
+#define CFG_BW_40M	(1U << 1)
+#define CFG_BW_80M	(1U << 2)
+#define CFG_BW_160M	(1U << 3)
+
 #ifdef RTCONFIG_CFGSYNC
 #define CFG_PREFIX      "CFG"
 #define AMAS_PORTSTATUS_PREFIX	"PORTSTATUS"
@@ -2149,6 +2154,7 @@ extern void post_start_lan_wl(void);
 extern void upgrade_aqr113c_fw(void);
 extern void __pre_config_switch(void) __attribute__((weak));
 extern void __post_config_switch(void) __attribute__((weak));
+extern void __post_ecm(void) __attribute__((weak));
 extern void __post_start_lan(void) __attribute__((weak));
 extern void __post_start_lan_wl(void) __attribute__((weak));
 extern int sw_based_iptv(void);

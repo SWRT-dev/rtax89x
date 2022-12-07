@@ -1247,11 +1247,12 @@ show_wliface_info(webs_t wp, int unit, char *ifname, char *op_mode)
 #if defined(GTAXY16000)
 	unsigned int edmg_channel;
 #endif
-	int ret = 0, cac = 0;
+	int i, ret = 0, cac = 0, radar_cnt = 0, radar_list[32];
+	uint64_t m = 0;
 	FILE *fp;
 	unsigned char mac_addr[ETHER_ADDR_LEN];
 	char tmpstr[1024], cmd[] = "iwconfig staXYYYYYY";
-	char *p, ap_bssid[] = "00:00:00:00:00:00XXX";
+	char *p, ap_bssid[] = "00:00:00:00:00:00XXX", vphy[IFNAMSIZ];
 
 	if (unit < 0 || !ifname || !op_mode)
 		return 0;
@@ -1296,13 +1297,22 @@ show_wliface_info(webs_t wp, int unit, char *ifname, char *op_mode)
 	getVAPBitRate(unit, ifname, tmpstr, sizeof(tmpstr));
 	if (unit == WL_5G_BAND || unit == WL_5G_2_BAND) {
 		cac = safe_atoi(iwpriv_get(ifname, "get_cac_state"));
+		strcpy(vphy, get_vphyifname(swap_5g_band(unit)));
+		radar_cnt = get_radar_channel_list(vphy, radar_list, ARRAY_SIZE(radar_list));
+		for (i = 0; i < radar_cnt; ++i) {
+			m |= ch5g2bitmask(radar_list[i]);
+		}
 	}
 	ret += websWrite(wp, "Bit Rate	: %s%s", tmpstr, cac? " (CAC scan)" : "");
 	getVAPBandwidth(unit, ifname, tmpstr, sizeof(tmpstr));
 	if (*tmpstr != '\0')
 		ret += websWrite(wp, ", %sMHz", tmpstr);
 	ret += websWrite(wp, "\n");
-	ret += websWrite(wp, "Channel		: %u\n", getAPChannel(unit));
+	ret += websWrite(wp, "Channel		: %u", getAPChannel(unit));
+	if (radar_cnt > 0) {
+		ret += websWrite(wp, " (Radar: %s)", bitmask2chlist5g(m, ","));
+	}
+	ret += websWrite(wp, "\n");
 #if defined(GTAXY16000)
 	if (unit == WL_60G_BAND) {
 		edmg_channel = getEDMGChannel();
@@ -1491,6 +1501,9 @@ static int ej_wl_sta_list(int unit, webs_t wp)
 
 	from_app = check_user_agent(user_agent);
 
+	if(hook_get_json == 1)
+		websWrite(wp, "{");
+
 	if ((sta_info = malloc(sizeof(*sta_info))) != NULL)
 	{
 		getSTAInfo(unit, sta_info);
@@ -1501,43 +1514,45 @@ static int ej_wl_sta_list(int unit, webs_t wp)
 			else
 				websWrite(wp, ", ");
 
-			if (from_app == 0)
+			if (from_app == 0 && hook_get_json == 0)
 				websWrite(wp, "[");
 
 			websWrite(wp, "\"%s\"", sta_info->Entry[i].addr);
 
-			if (from_app != 0) {
+			if (from_app != 0 || hook_get_json == 1) {
 				websWrite(wp, ":{");
 				websWrite(wp, "\"isWL\":");
 			}
 
 			value = "Yes";
-			if (from_app == 0)
+			if (from_app == 0 && hook_get_json == 0)
 				websWrite(wp, ", \"%s\"", value);
 			else
 				websWrite(wp, "\"%s\"", value);
 
 			value = "";
 
-			if (from_app == 0)
+			if (from_app == 0 && hook_get_json == 0)
 				websWrite(wp, ", \"%s\"", value);
 	
-			if (from_app != 0) {
+			if (from_app != 0 || hook_get_json == 1) {
 				websWrite(wp, ",\"rssi\":");
 			}
 
-			if (from_app == 0)
+			if (from_app == 0 && hook_get_json == 0)
 				websWrite(wp, ", \"%d\"", sta_info->Entry[i].rssi);
 			else
 				websWrite(wp, "\"%d\"", sta_info->Entry[i].rssi);
 
-			if (from_app == 0)
+			if (from_app == 0 && hook_get_json == 0)
 				websWrite(wp, "]");
 			else
 				websWrite(wp, "}");
 		}
 		free(sta_info);
 	}
+	if(hook_get_json == 1)
+		websWrite(wp, "}");
 	return 0;
 }
 
@@ -1559,6 +1574,8 @@ int ej_wl_sta_list_5g_2(int eid, webs_t wp, int argc, char_t **argv)
 	/* FIXME: I think it's not good to report 2-nd 5G station list in 1-st 5G station list. */
 	ej_wl_sta_list(2, wp);
 #endif
+	if(hook_get_json == 1)
+		websWrite(wp, "{}");
 	return 0;
 }
 
@@ -1575,8 +1592,14 @@ static int wl_stainfo_list(int unit, webs_t wp)
 	char idx_str[8], s;
 	int i, firstRow = 1;
 
-	if ((sta_info = malloc(sizeof(*sta_info))) == NULL)
+	if ((sta_info = malloc(sizeof(*sta_info))) == NULL){
+		if(hook_get_json == 1)
+			websWrite(wp, "[]");
 		return 0 ;
+	}
+
+	if(hook_get_json == 1)
+		websWrite(wp, "[");
 
 	getSTAInfo(unit, sta_info);
 	for(i = 0, r = &sta_info->Entry[0]; i < sta_info->Num; i++, r++) {
@@ -1602,6 +1625,8 @@ static int wl_stainfo_list(int unit, webs_t wp)
 		websWrite(wp, ", \"%s\"", idx_str);
 		websWrite(wp, "]");
 	}
+	if(hook_get_json == 1)
+		websWrite(wp, "]");
 	free(sta_info);
 	return 0;
 }
@@ -2292,7 +2317,7 @@ static int ej_wl_rate(int eid, webs_t wp, int argc, char_t **argv, int unit)
 		snprintf(rate_buf, sizeof(rate_buf), "%d Mbps", rate[1]);
 
 ERROR:
-	if(from_app == 0)
+	if(from_app == 0 && hook_get_json == 0)
 		retval += websWrite(wp, "%s", rate_buf);
 	else
 		retval += websWrite(wp, "\"%s\"", rate_buf);
@@ -2323,6 +2348,15 @@ ej_wl_rate_5g_2(int eid, webs_t wp, int argc, char_t **argv)
 {
 	if(sw_mode() == SW_MODE_REPEATER)
 		return ej_wl_rate(eid, wp, argc, argv, 2);
+	else
+		return 0;
+}
+
+int
+ej_wl_rate_6g(int eid, webs_t wp, int argc, char_t **argv)
+{
+	if(sw_mode() == SW_MODE_REPEATER)
+		return ej_wl_rate(eid, wp, argc, argv, 3);
 	else
 		return 0;
 }
@@ -2421,10 +2455,11 @@ const char *syslog_msg_filter[] = {
 	"net_ratelimit",
 #if defined(RTCONFIG_SOC_IPQ8074)
 	"[AUTH] vap", "[MLME] vap", "[ASSOC] vap", "[INACT] vap", "LBDR ", "npu_corner", "apc_corner", "Sync active EEPROM set",
-	"wlan_send_mgmt", "hapdevent_proc_event", "HAPD:", "WSUP:",
+	"wlan_send_mgmt", "hapdevent_proc_event", "HAPD:", "WSUP:", "APSTATS:", "THERMAL:", "skb recycler",
 #elif defined(RTCONFIG_SOC_IPQ8064)
 	"[AUTH] vap", "[MLME] vap", "[ASSOC] vap", "[INACT] vap",
 #endif
-	"exist in UDB, can't", "is used by someone else, can't use it", "not mesh client, can't update it",
+	"exist in UDB, can't", "is used by someone else, can't use it", "not mesh client, can't update it", "not mesh client, can't delete it",
+	"ERROR: [send_redir_page",
 	NULL
 };
