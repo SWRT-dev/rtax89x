@@ -2138,8 +2138,7 @@ static int update_daemon_coldboot_qdss_support_variables(int *cold_boot, int *da
 	snprintf(board_name, sizeof(board_name), "ap-cp03-c1");
 	fw_ini_file = "/lib/firmware/IPQ6018/firmware_rdp_feature.ini";
 #elif defined(RTCONFIG_SOC_IPQ8074)
-//	strlcpy(board_name, "ap-hk01-c2", sizeof(board_name));
-	snprintf(board_name, sizeof(board_name), "ap-hk_v%d", (soc_ver == 1)? 1 : 2);
+	strlcpy(board_name, "ap-hk01-c2", sizeof(board_name));
 #if defined(RTCONFIG_SPF11_3_QSDK) || defined(RTCONFIG_SPF11_4_QSDK)
 	if (total_mem <= (512 * 1024)) {
 		/* 256MB profile will use the same file as 512MB profile,
