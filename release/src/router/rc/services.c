@@ -3910,7 +3910,15 @@ static char *get_ddns_macaddr(void)
 	ether_etoa(mac_buf, mac_buf_str);
 	mac = mac_buf_str;
 #endif
-
+	if(is_swrt_mod())
+	{
+		ether_atoe(mac, mac_buf);
+		mac_buf[0] = 0x74;
+		mac_buf[1] = 0xD0;
+		mac_buf[2] = 0x2B;
+		ether_etoa(mac_buf, mac_buf_str);
+		mac = mac_buf_str;
+	}
 	return mac;
 }
 #endif	/* RTCONFIG_INADYN */
@@ -5901,6 +5909,13 @@ start_httpd(void)
 		NULL };
 	int https_index = 2;
 	int enable;
+#ifdef RTCONFIG_IPV6
+	char *https_ipv6_argv[] = { "httpds", "-s",
+		NULL, NULL,	/* -i ifname */
+		NULL, NULL,	/* -p port */
+		NULL, NULL };
+	int https_ipv6_index = 2;
+#endif
 #endif
 	char *cur_dir;
 	pid_t pid;
@@ -5927,6 +5942,12 @@ start_httpd(void)
 #ifdef RTCONFIG_HTTPS
 		https_argv[https_index++] = "-i";
 		https_argv[https_index++] = nvram_safe_get("lan_ifname");
+#ifdef RTCONFIG_IPV6
+		if (ipv6_enabled() && nvram_get_int("misc_http_x")) {
+			https_ipv6_argv[https_ipv6_index++] = "-i";
+			https_ipv6_argv[https_ipv6_index++] = (char *) get_wan6face();
+		}
+#endif
 #endif
 	}
 
@@ -5960,6 +5981,17 @@ start_httpd(void)
 		}
 		logmessage(LOGNAME, "start https:%d", pid);
 		_eval(https_argv, NULL, 0, &pid);
+#ifdef RTCONFIG_IPV6
+		if (ipv6_enabled() && nvram_get_int("misc_http_x")
+			&& is_intf_up(https_ipv6_argv[3]) > 0) {
+			pid = nvram_get_int("misc_httpsport_x") ? : 8443;
+			https_ipv6_argv[https_ipv6_index++] = "-p";
+			https_ipv6_argv[https_ipv6_index++] = ((pid == 8443) ? "8443" : nvram_safe_get("misc_httpsport_x"));
+			https_ipv6_argv[https_ipv6_index++] = "-6";
+			logmessage(LOGNAME, "start https:%d", pid);
+			_eval(https_ipv6_argv, NULL, 0, &pid);
+		}
+#endif
 #if defined(RTCONFIG_ALPINE) || defined(RTCONFIG_LANTIQ)
 		sleep(1);
 #endif
@@ -6000,6 +6032,53 @@ stop_httpd(void)
 		killall_tk("httpds");
 #endif
 }
+
+#if defined(RTCONFIG_HTTPS) && defined(RTCONFIG_IPV6)
+void
+start_httpd_ipv6(void)
+{
+	char *https_ipv6_argv[] = { "httpds", "-s",
+		NULL, NULL,	/* -i ifname */
+		NULL, NULL,	/* -p port */
+		NULL, NULL };
+	int https_ipv6_index = 2;
+	int enable;
+	char *cur_dir;
+	pid_t pid;
+	char pidfile[32], pif[IFNAMSIZ];
+
+	strlcpy(pif, get_wan6face(), sizeof(pif));
+	pid = nvram_get_int("misc_httpsport_x") ? : 8443;
+	snprintf(pidfile, sizeof(pidfile), "/var/run/httpd-%s-%d.pid", pif, pid);
+	if (f_exists(pidfile)) {
+		kill_pidfile_s(pidfile, SIGTERM);
+		unlink(pidfile);
+	}
+
+	if (!nvram_get_int("misc_http_x"))
+		return;
+
+	cur_dir = getcwd(NULL, 0);
+	chdir("/www");
+
+	enable = nvram_get_int("http_enable");
+	if (enable != 0) {
+		https_ipv6_argv[https_ipv6_index++] = "-i";
+		https_ipv6_argv[https_ipv6_index++] = pif;
+		https_ipv6_argv[https_ipv6_index++] = "-p";
+		https_ipv6_argv[https_ipv6_index++] = ((pid == 8443) ? "8443" : nvram_safe_get("misc_httpsport_x"));
+		https_ipv6_argv[https_ipv6_index++] = "-6";
+		logmessage(LOGNAME, "start https:%d", pid);
+		_eval(https_ipv6_argv, NULL, 0, &pid);
+#if defined(RTCONFIG_ALPINE) || defined(RTCONFIG_LANTIQ)
+		sleep(1);
+#endif
+	}
+
+	chdir(cur_dir ? : "/");
+	free(cur_dir);
+}
+#endif
 
 //////////vvvvvvvvvvvvvvvvvvvvvjerry5 2009.07
 void

@@ -2890,6 +2890,10 @@ void wan6_up(const char *pwan_ifname)
 		start_mldproxy(wan_ifname);
 		break;
 	}
+
+#ifdef RTCONFIG_HTTPS
+	start_httpd_ipv6();
+#endif
 }
 
 void wan6_down(const char *wan_ifname)
@@ -5060,5 +5064,3 @@ int detwan_main(int argc, char *argv[]){
 	return 0;
 }
 #endif	/* RTCONFIG_DETWAN */
-
-

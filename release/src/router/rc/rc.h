@@ -15,7 +15,9 @@
 #ifndef __RC_H__
 #define __RC_H__
 
+#ifndef _GNU_SOURCE
 #define _GNU_SOURCE
+#endif
 
 #include <rtconfig.h>
 #include <stdio.h>
@@ -2351,6 +2353,9 @@ extern int wps_band_ssid_broadcast_off(int wps_band);
 extern void start_plcdet(void);
 #endif
 extern void start_httpd(void);
+#if defined(RTCONFIG_HTTPS) && defined(RTCONFIG_IPV6)
+extern void start_httpd_ipv6(void);
+#endif
 extern int wl_wpsPincheck(char *pin_string);
 extern int start_wps_pbc(int unit);
 #if defined(RTCONFIG_RALINK)
@@ -3304,4 +3309,3 @@ extern int is_wg_enabled();
 #endif /* RTCONFIG_QCA_PLC2 */
 
 #endif	/* __RC_H__ */
-

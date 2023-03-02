@@ -82,6 +82,7 @@ typedef unsigned int __u32;   // 1225 ham
 //#include "etioctl.h"
 
 #include <shutils.h>
+#include <swrt.h>
 
 #ifdef RTCONFIG_HTTPS
 #include <syslog.h>
@@ -135,6 +136,7 @@ int do_ssl = 0; 	// use Global for HTTPS upgrade judgment in web.c
 int ssl_stream_fd; 	// use Global for HTTPS stream fd in web.c
 int json_support = 0;
 char wl_band_list[8][8] = {{0}};
+char pidfile[32];
 
 #ifdef TRANSLATE_ON_FLY
 char Accept_Language[16];
@@ -261,6 +263,9 @@ int skip_auth = 0;
 char url[128];
 int http_port = 0;
 char *http_ifname = NULL;
+#ifdef RTCONFIG_IPV6
+int http_ipv6_only = 0;
+#endif
 time_t login_dt=0;
 char login_url[128];
 int login_error_status = 0;
@@ -1273,7 +1278,7 @@ handle_request(void)
 
 	memset(user_agent, 0, sizeof(user_agent));
 	if(useragent != NULL)
-		strncpy(user_agent, useragent, sizeof(user_agent)-1);
+		strlcpy(user_agent, useragent, sizeof(user_agent));
 	else
 		strlcpy(user_agent, "", sizeof(user_agent));
 
@@ -1307,7 +1312,7 @@ handle_request(void)
 	{
 		if(!check_if_file_exist(file)){
 			snprintf(scPath, sizeof(scPath), "/jffs/softcenter/webs/");
-			strcat(scPath, file);
+			strlcat(scPath, file, sizeof(scPath));
 			if(check_if_file_exist(scPath)){
 				file = scPath;
 			}
@@ -1317,7 +1322,7 @@ handle_request(void)
 	{
 		if(!check_if_file_exist(file)){
 			snprintf(scPath, sizeof(scPath), "/jffs/softcenter/");
-			strcat(scPath, file);
+			strlcat(scPath, file, sizeof(scPath));
 			if(check_if_file_exist(scPath)){
 				file = scPath;
 			}
@@ -1342,9 +1347,6 @@ handle_request(void)
 #endif
 			}else{
 				if((strncmp(file, "Main_Login.asp", 14)==0 && login_error_status == LOGINLOCK)|| strstr(url, ".png")){
-#if defined(RTCONFIG_SOFTCENTER)
-				}else if(strstr(url, "_resp") || strstr(url, "_result")){
-#endif
 				}else{
 					send_login_page(fromapp, LOGINLOCK, url, NULL, login_dt, NOLOGINTRY);
 					return;
@@ -1365,9 +1367,6 @@ handle_request(void)
 #endif
 			}else{
 				if((strncmp(file, "Main_Login.asp", 14)==0 && login_error_status == LOGINLOCK)|| strstr(url, ".png")){
-#if defined(RTCONFIG_SOFTCENTER)
-				}else if(strstr(url, "_resp") || strstr(url, "_result")){
-#endif
 				}else{
 					send_login_page(fromapp, LOGINLOCK, url, NULL, login_dt, NOLOGINTRY);
 					return;
@@ -2334,6 +2333,12 @@ void check_alive()
 	alarm(20);
 }
 
+void httpd_exit(int sig)
+{
+        remove(pidfile);
+        exit(0);
+}
+
 int enabled_http_ifname()
 {
 #ifdef DSL_AX82U
@@ -2354,7 +2359,6 @@ int main(int argc, char **argv)
 {
 	usockaddr usa;
 	int listen_fd[3];
-	char pidfile[32];
 	fd_set active_rfds;
 	conn_list_t pool;
 	int i, c;
@@ -2391,6 +2395,11 @@ int main(int argc, char **argv)
 		case 'i':
 			http_ifname = optarg;
 			break;
+#ifdef RTCONFIG_IPV6
+		case '6':
+			http_ipv6_only = 1;
+			break;
+#endif
 		default:
 			fprintf(stderr, "ERROR: unknown option %c\n", c);
 			break;
@@ -2420,6 +2429,7 @@ int main(int argc, char **argv)
 	signal(SIGCHLD, chld_reap);
 	signal(SIGUSR1, update_wlan_log);
 	signal(SIGALRM, check_alive);
+	signal(SIGTERM, httpd_exit);
 
 	alarm(20);
 
@@ -2434,7 +2444,11 @@ int main(int argc, char **argv)
 	i = 0;
 
 	{
-		if (enabled_http_ifname() && (listen_fd[i++] = initialize_listen_socket(AF_INET, &usa, http_ifname)) < 0) {
+		if (
+#ifdef RTCONFIG_IPV6
+			!http_ipv6_only &&
+#endif
+			enabled_http_ifname() && (listen_fd[i++] = initialize_listen_socket(AF_INET, &usa, http_ifname)) < 0) {
 			fprintf(stderr, "can't bind to %s ipv4 address\n", http_ifname ? : "any");
 			return errno;
 		}
@@ -2457,7 +2471,7 @@ int main(int argc, char **argv)
 	if (http_port == SERVER_PORT)
 		strlcpy(pidfile, "/var/run/httpd.pid", sizeof(pidfile));
 	else
-		snprintf(pidfile, sizeof(pidfile), "/var/run/httpd-%d.pid", http_port);
+		snprintf(pidfile, sizeof(pidfile), "/var/run/httpd-%s-%d.pid", http_ifname, http_port);
 	if (!(pid_fp = fopen(pidfile, "w"))) {
 		perror(pidfile);
 		return errno;

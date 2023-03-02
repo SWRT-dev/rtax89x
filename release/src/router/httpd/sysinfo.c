@@ -104,7 +104,7 @@ void GetPhyStatus_rtk(int *states);
 #endif
 
 
-#define MBYTES 1024 / 1024
+#define MBYTES (1024 * 1024)
 #define KBYTES 1024
 
 #define SI_WL_QUERY_ASSOC 1
@@ -134,7 +134,9 @@ int ej_show_sysinfo(int eid, webs_t wp, int argc, char_t ** argv)
 			if (buffer) {
 				int count = 0;
 				char model[64];
-#if defined(RTCONFIG_BCMARM) || defined(RTCONFIG_HND_ROUTER) || defined(RTCONFIG_QCA) || defined(RTCONFIG_RALINK_MT7622)
+#if defined(BCM4912)
+					strcpy(model, "BCM4912 - Cortex A53 ARMv8");
+#elif defined(RTCONFIG_BCMARM) || defined(RTCONFIG_HND_ROUTER) || defined(RTCONFIG_QCA) || defined(RTCONFIG_RALINK_MT7622) || defined(RTCONFIG_MT798X)
 					char impl[8], arch[8], variant[8], part[10], revision[4];
 					impl[0]='\0'; arch[0]='\0'; variant[0]='\0'; part[0]='\0';
 					strcpy(revision,"0");
@@ -174,12 +176,29 @@ int ej_show_sysinfo(int eid, webs_t wp, int argc, char_t ** argv)
 					    && !strcmp(part, "0xd03")
 					    && !strcmp(arch, "7"))
 						sprintf(model, "IPQ806x - Cortex A15 ARMv7 revision %s", revision);
-#elif defined(RTCONFIG_RALINK_MT7622)
+#elif defined(RTCONFIG_RALINK_MT7622) || defined(RTCONFIG_MT798X)
 					if (!strcmp(impl, "0x41")//kernel:32/64
 					    && !strcmp(variant, "0x0")
 					    && !strcmp(part, "0xd03")
-					    && (!strcmp(arch, "7") || !strcmp(arch, "8")))
-						sprintf(model, "MT7622 - Cortex A53 ARMv8 revision %s", revision);
+					    && (!strcmp(arch, "7") || !strcmp(arch, "8"))){
+#if defined(RTCONFIG_RALINK_MT7622)
+					sprintf(model, "MT7622 - Cortex A53 ARMv8 revision %s", revision);
+#elif defined(RTCONFIG_MT798X)
+						char *buffer;
+						doSystem("devmem 0x8000000 16 > /tmp/mtk_chip");
+						buffer = read_whole_file("/tmp/mtk_chip");
+						if(buffer){
+							if(strstr(buffer, "7986"))
+								sprintf(model, "MT7986X - Cortex A53 ARMv8 revision %s", revision);
+							else if(strstr(buffer, "7981"))
+								sprintf(model, "MT7981X - Cortex A53 ARMv8 revision %s", revision);
+							else
+								sprintf(model, "MT%s - Cortex A53 ARMv8 revision %s", buffer + 2, revision);
+							free(buffer);
+						}
+						unlink("/tmp/mtk_chip");
+#endif
+					}
 #else
 					if (!strcmp(impl, "0x42")
 					    && !strcmp(variant, "0x0")
@@ -226,7 +245,11 @@ int ej_show_sysinfo(int eid, webs_t wp, int argc, char_t ** argv)
 
 		} else if(strcmp(type,"cpu.freq") == 0) {
 #if defined(RTCONFIG_HND_ROUTER) || defined(RTCONFIG_BCMARM)
-#if defined(RTCONFIG_HND_ROUTER)
+#if defined(BCM4912)
+			if (1)
+				strcpy(result, "2000");
+			else
+#elif defined(RTCONFIG_HND_ROUTER)
 			int freq = 0;
 			char *buffer;
 
@@ -237,9 +260,12 @@ int ej_show_sysinfo(int eid, webs_t wp, int argc, char_t ** argv)
 				free(buffer);
 				sprintf(result, "%d", freq);
 			}
-#if (defined(RTCONFIG_HND_ROUTER_AX_675X) && !defined(RTCONFIG_HND_ROUTER_AX_6710)) || defined(RTCONFIG_HND_ROUTER_AX_6756)
+#if (defined(RTCONFIG_HND_ROUTER_AX_675X) && !defined(RTCONFIG_HND_ROUTER_AX_6710))
 			else if (1)
 				strcpy(result, "1500");
+#elif defined(RTCONFIG_HND_ROUTER_AX_6756)
+			else if (1)
+				strcpy(result, "1700");
 #endif
 			else
 #endif
@@ -261,6 +287,10 @@ int ej_show_sysinfo(int eid, webs_t wp, int argc, char_t ** argv)
 			}
 			else
 				strcpy(result, "0");//bug?
+#elif defined(RTCONFIG_SOC_MT7981)
+			strcpy(result, "1800");//1800/1300
+#elif defined(RTCONFIG_MT798X)
+			strcpy(result, "2000");//2000/1600
 #elif defined(RTCONFIG_RALINK)
 			int freq = 0;
 			char *buffer = read_whole_file("/sys/kernel/debug/clk/cpuclock/clk_rate");
@@ -274,19 +304,19 @@ int ej_show_sysinfo(int eid, webs_t wp, int argc, char_t ** argv)
 #endif
 		} else if(strcmp(type,"memory.total") == 0) {
 			sysinfo(&sys);
-			sprintf(result,"%.2f",(sys.totalram/(float)MBYTES));
+			sprintf(result,"%.2f",(float) sys.totalram * sys.mem_unit / MBYTES);
 		} else if(strcmp(type,"memory.free") == 0) {
 			sysinfo(&sys);
-			sprintf(result,"%.2f",(sys.freeram/(float)MBYTES));
+			sprintf(result,"%.2f",(float) sys.freeram * sys.mem_unit / MBYTES);
 		} else if(strcmp(type,"memory.buffer") == 0) {
 			sysinfo(&sys);
-			sprintf(result,"%.2f",(sys.bufferram/(float)MBYTES));
+			sprintf(result,"%.2f",(float) sys.bufferram * sys.mem_unit / MBYTES);
 		} else if(strcmp(type,"memory.swap.total") == 0) {
 			sysinfo(&sys);
-			sprintf(result,"%.2f",(sys.totalswap/(float)MBYTES));
+			sprintf(result,"%.2f",(float) sys.totalswap * sys.mem_unit / MBYTES);
 		} else if(strcmp(type,"memory.swap.used") == 0) {
 			sysinfo(&sys);
-			sprintf(result,"%.2f",((sys.totalswap - sys.freeswap) / (float)MBYTES));
+			sprintf(result,"%.2f",(float) (sys.totalswap - sys.freeswap) * sys.mem_unit / MBYTES);
 		} else if(strcmp(type,"memory.cache") == 0) {
 			int size = 0;
 			char *buffer = read_whole_file("/proc/meminfo");
@@ -310,19 +340,29 @@ int ej_show_sysinfo(int eid, webs_t wp, int argc, char_t ** argv)
 			sysinfo(&sys);
 			sprintf(result,"%.2f",(sys.loads[2] / (float)(1<<SI_LOAD_SHIFT)));
 		} else if(strcmp(type,"nvram.total") == 0) {
-			sprintf(result,"%d",NVRAM_SPACE);
+			sprintf(result,"%d",MAX_NVRAM_SPACE);
 		} else if(strcmp(type,"nvram.used") == 0) {
-			char *buf;
 			int size = 0;
+#ifdef HND_ROUTER
+			size = f_size("/data/.kernel_nvram.setting");
+			if (size == -1)
+#endif
+			{
+				char *buf;
 
-			buf = malloc(NVRAM_SPACE);
+			buf = malloc(MAX_NVRAM_SPACE);
 			if (buf) {
-				nvram_getall(buf, NVRAM_SPACE);
+#if defined(RTCONFIG_HND_ROUTER) || defined(RTCONFIG_LANTIQ) || defined(RTCONFIG_QCA) || defined(RTCONFIG_RALINK)
+				nvram_getall(buf, MAX_NVRAM_SPACE);
+#else
+				dev_nvram_getall(buf, MAX_NVRAM_SPACE);
+#endif
 				tmp = buf;
 				while (*tmp) tmp += strlen(tmp) +1;
 
-				size = sizeof(struct nvram_header) + (int) tmp - (int) buf;
-				free(buf);
+					size = sizeof(struct nvram_header) + (int) tmp - (int) buf;
+					free(buf);
+				}
 			}
 			sprintf(result,"%d",size);
 
@@ -332,7 +372,7 @@ int ej_show_sysinfo(int eid, webs_t wp, int argc, char_t ** argv)
 			char *mount_info = read_whole_file("/proc/mounts");
 
 			if ((mount_info) && (strstr(mount_info, "/jffs")) && (statvfs("/jffs",&fiData) == 0 )) {
-				sprintf(result,"%.2f / %.2f MB",((fiData.f_blocks-fiData.f_bfree) * fiData.f_frsize / (float)MBYTES) ,(fiData.f_blocks * fiData.f_frsize / (float)MBYTES));
+				sprintf(result,"%.2f / %.2f MB",((float) (fiData.f_blocks-fiData.f_bfree) * fiData.f_frsize / MBYTES) ,((float) fiData.f_blocks * fiData.f_frsize / MBYTES));
 			} else {
 				strcpy(result,"<i>Unmounted</i>");
 			}
@@ -348,7 +388,7 @@ int ej_show_sysinfo(int eid, webs_t wp, int argc, char_t ** argv)
 			else
 			{
 #ifdef RTCONFIG_QTN
-				if (radio == 5)
+				if (radio == 1)
 					temperature = get_qtn_temperature();
 				else
 #endif
@@ -361,8 +401,11 @@ int ej_show_sysinfo(int eid, webs_t wp, int argc, char_t ** argv)
 
 		} else if(strcmp(type,"conn.total") == 0) {
 			FILE* fp;
-
-			fp = fopen ("/proc/sys/net/ipv4/netfilter/ip_conntrack_count", "r");
+#if defined(RTCONFIG_HND_ROUTER) || defined(RTCONFIG_QCA) || defined(RTCONFIG_RALINK) || defined(RTCONFIG_LANTIQ)
+			fp = fopen("/proc/sys/net/netfilter/nf_conntrack_count", "r");//kernel3+
+#else
+			fp = fopen("/proc/sys/net/ipv4/netfilter/ip_conntrack_count", "r");//kernel2.6
+#endif
 			if (fp) {
 				if (fgets(result, sizeof(result), fp) == NULL)
 					strcpy(result, "error");
@@ -387,8 +430,11 @@ int ej_show_sysinfo(int eid, webs_t wp, int argc, char_t ** argv)
 
 		} else if(strcmp(type,"conn.max") == 0) {
 			FILE* fp;
-
-			fp = fopen ("/proc/sys/net/ipv4/netfilter/ip_conntrack_max", "r");
+#if defined(RTCONFIG_HND_ROUTER) || defined(RTCONFIG_QCA) || defined(RTCONFIG_RALINK) || defined(RTCONFIG_LANTIQ)
+			fp = fopen("/proc/sys/net/netfilter/nf_conntrack_max", "r");//kernel3+
+#else
+			fp = fopen("/proc/sys/net/ipv4/netfilter/ip_conntrack_max", "r");//kernel2.6
+#endif
 			if (fp) {
 				if (fgets(result, sizeof(result), fp) == NULL)
 					strcpy(result, "error");
@@ -460,7 +506,7 @@ int ej_show_sysinfo(int eid, webs_t wp, int argc, char_t ** argv)
 				if(*buffer)
 					strcpy(result,buffer);
 			} else
-				strcpy(result,"5.0.4.0");
+				strcpy(result,"Unknow");
 #endif
 #ifdef RTCONFIG_QTN
                 } else if(strcmp(type,"qtn_version") == 0 ) {
@@ -551,7 +597,6 @@ int ej_show_sysinfo(int eid, webs_t wp, int argc, char_t ** argv)
 					}
 				}
 			}
-#if defined(RTCONFIG_BCMARM) || defined(RTCONFIG_HND_ROUTER)
 		} else if(strcmp(type,"ethernet.rtk") == 0 ) {
 #ifdef RTCONFIG_EXT_RTL8365MB
 			int states[4];
@@ -570,7 +615,6 @@ int ej_show_sysinfo(int eid, webs_t wp, int argc, char_t ** argv)
 			                                 8, states[3]);
 #else
 			strcpy(result, "[]");
-#endif
 #endif
 		} else if(strcmp(type,"ethernet") == 0 ) {
 #if defined(RTCONFIG_BCMARM) || defined(RTCONFIG_HND_ROUTER)
@@ -602,7 +646,7 @@ int ej_show_sysinfo(int eid, webs_t wp, int argc, char_t ** argv)
 			strcpy(result, "[]");
 #endif
 #elif defined(RTCONFIG_LANTIQ) || defined(RTCONFIG_QCA) || defined(RTCONFIG_RALINK)
-			strcpy(result,"<i>off</i>");
+			strcpy(result,"[]");
 #endif
 #if defined(RTCONFIG_BCMARM) || defined(RTCONFIG_HND_ROUTER)
 		} else if(strlen(type) > 8 && strncmp(type,"hwaccel", 7) == 0 ) {
@@ -613,8 +657,11 @@ int ej_show_sysinfo(int eid, webs_t wp, int argc, char_t ** argv)
 				system("/bin/fc status | grep \"HW Acceleration\" >/tmp/output.txt");
 #endif
 			else if (!strcmp(&type[8], "fc"))
+#if defined(RTCONFIG_HND_ROUTER_AX_6756)
+				system("/bin/fc status | grep \"Flow Ucast Learning\" >/tmp/output.txt");
+#else
 				system("/bin/fc status | grep \"Flow Learning\" >/tmp/output.txt");
-
+#endif
 			char *buffer = read_whole_file("/tmp/output.txt");
 			if (buffer) {
 				if (strstr(buffer, "Enabled"))
@@ -701,13 +748,17 @@ unsigned int get_phy_temperature(int radio)
 
 	strcpy(buf, "phy_tempsense");
 
-	if (radio == 2) {
+	if (radio == 0) {
 		interface = nvram_safe_get("wl0_ifname");
-	} else if (radio == 5) {
+	} else if (radio == 1) {
 		interface = nvram_safe_get("wl1_ifname");
-#if defined(RTAC3200) || defined(RTAC5300) || defined(GTAC5300) || defined(GTAX11000) || defined(RTAX92U) || defined(RTAX95Q)
-	} else if (radio == 52) {
+#if defined(RTCONFIG_HAS_5G_2) || defined(RTCONFIG_WIFI6E)
+	} else if (radio == 2) {
 		interface = nvram_safe_get("wl2_ifname");
+#endif
+#if defined(GTAXE16000)
+	} else if (radio == 3) {
+		interface = nvram_safe_get("wl3_ifname");
 #endif
 	} else {
 		return 0;
@@ -723,14 +774,14 @@ unsigned int get_phy_temperature(int radio)
 	int temp = 0, retval = 0;
 	FILE *fp;
 
-	if (radio == 2 || radio == 5) {
+	if (radio == 0 || radio == 1) {
 		char buffer[99];
 		char iw[]="iwpriv wlan0 gTemperature";
 		char s[]="wlan0     gTemperature:%%d %%*[0-9 ]";
-		if (radio == 2) {
+		if (radio == 0) {
 			snprintf(iw, sizeof(iw), "iwpriv wlan0 gTemperature");
 			snprintf(s, sizeof(s), "wlan0     gTemperature:%%d %%*[0-9 ]");
-		} else if (radio == 5) {
+		} else if (radio == 1) {
 			snprintf(iw, sizeof(iw), "iwpriv wlan2 gTemperature");
 			snprintf(s, sizeof(s), "wlan2     gTemperature:%%d %%*[0-9 ]");
 		}
@@ -741,12 +792,6 @@ unsigned int get_phy_temperature(int radio)
 			pclose(fp);
 			retval = temp;
 		}
-	} else if (radio == 7) {
-		if ((fp = fopen("/sys/kernel/debug/ltq_tempsensor/allsensors", "r")) != NULL) {
-			fscanf(fp, "TS_CODE= %*[0-9]; TEMP   = %d; CH_SEL = %*[0-9]", &temp);
-			fclose(fp);
-			retval = (temp/1000);
-		}
 	}
 	return retval;
 #elif defined(RTCONFIG_QCA)
@@ -756,15 +801,17 @@ unsigned int get_phy_temperature(int radio)
 	int len, band;
 
     switch(radio){
-        case 2:
+        case 0:
             band = 0;
             break;
-        case 5:
+        case 1:
             band = 1;
             break;
-        case 52:
+#if defined(RTCONFIG_HAS_5G_2) || defined(RTCONFIG_WIFI6E)
+        case 2:
             band = 2;
             break;
+#endif
         default:
             band = 0;
             break;
@@ -783,13 +830,17 @@ unsigned int get_phy_temperature(int radio)
 	char temp[18];
 	char *interface = NULL;
 
-	if (radio == 2) {
-		interface = nvram_safe_get("wl0_ifname");
-	} else if (radio == 5) {
-		interface = nvram_safe_get("wl1_ifname");
-	} else if (radio == 52) {
-		interface = nvram_safe_get("wl2_ifname");
-	}
+	if (radio == 0)
+		interface = nvram_get("wl0_ifname");
+	else if (radio == 1)
+		interface = nvram_get("wl1_ifname");
+#if defined(RTCONFIG_HAS_5G_2) || defined(RTCONFIG_WIFI6E)
+	else if (radio == 2)
+		interface = nvram_get("wl2_ifname");
+#endif
+
+	if(interface == NULL || *interface == 0)
+		return 0;
 	memset(temp, 0, 18);
 	memset(&wrq, 0, sizeof(wrq));
 	wrq.u.data.pointer = &temp;

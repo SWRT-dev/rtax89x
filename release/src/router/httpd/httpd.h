@@ -36,7 +36,6 @@
 #include <dmalloc.h>
 #endif
 #include <rtconfig.h>
-#include "swrt.h"
 
 /* Basic authorization userid and passwd limit */
 #define AUTH_MAX 64
@@ -566,4 +565,3 @@ extern int check_chpass_auth(char *cur_username, char *cur_passwd);
 extern void reg_default_final_token();
 extern int get_wl_nband_list();
 #endif /* _httpd_h_ */
-
