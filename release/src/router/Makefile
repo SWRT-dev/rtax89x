@@ -3745,7 +3745,7 @@ ipset-clean:
 	-@rm -rf ipset/Makefile ipset/stamp-h1
 
 lua:
-	$(MAKE) -C lua/src CFLAGS="$(CFLAGS) -DLUA_USE_LINUX -std=gnu99 -fPIC -I./ -DNO_TLS" PKG_VERSION="5.1.5" MYLDFLAGS="$(LDFLAGS) $(if $(RTCONFIG_HND_ROUTER),-ldl -lm -lcrypt)" linux
+	$(MAKE) -C lua/src CFLAGS="$(CFLAGS) -DLUA_USE_LINUX -std=gnu99 -fPIC -I./ -DNO_TLS" PKG_VERSION="5.1.5" MYLDFLAGS="$(LDFLAGS) $(if $(RTCONFIG_HND_ROUTER),-ldl -lm -lcrypt)  $(if $(RTCONFIG_SOC_IPQ8074),-ldl -lm -lcrypt)" linux
 
 lua-clean:
 	$(MAKE) -C lua/src clean

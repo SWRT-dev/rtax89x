@@ -1757,10 +1757,14 @@ struct nvram_tuple router_defaults[] = {
 #endif
 	{ "bonding_policy", "0", CKN_STR1, CKN_TYPE_DEFAULT, CKN_ACC_LEVEL_DEFAULT, CKN_ENC_DEFAULT, 0 },	/* bonding policy */
 #if defined(RTCONFIG_SWITCH_QCA8075_QCA8337_PHY_AQR107_AR8035_QCA8033)
+	/* 0/1/2: auto (if 10G base-T is one of WAN port)/PPE + NSS/NSS only */
+	{ "aqr_hwnat_type", "0", CKN_STR1, CKN_TYPE_DEFAULT, CKN_ACC_LEVEL_DEFAULT, CKN_ENC_DEFAULT, 0 },
 	/* 0/1000/2500/5000/10000: auto/1G/2.5G/5G/10G, 10G base-T link speed */
 	{ "aqr_link_speed", "0", CKN_STR8, CKN_TYPE_DEFAULT, CKN_ACC_LEVEL_DEFAULT, CKN_ENC_DEFAULT, 0 },
 	/* 96 (default)/128: Interpacket gap of 10G base-T */
 	{ "aqr_ipg", "96", CKN_STR4, CKN_TYPE_DEFAULT, CKN_ACC_LEVEL_DEFAULT, CKN_ENC_DEFAULT, 0 },
+	/* 0/1/2: auto (if 10G SFP+ is one of WAN port)/PPE + NSS/NSS only */
+	{ "sfpp_hwnat_type", "0", CKN_STR1, CKN_TYPE_DEFAULT, CKN_ACC_LEVEL_DEFAULT, CKN_ENC_DEFAULT, 0 },
 	/* 0/1000/10000: auto/1G/10G, SFP+ maximum link speed */
 	{ "sfpp_max_speed", "0", CKN_STR8, CKN_TYPE_DEFAULT, CKN_ACC_LEVEL_DEFAULT, CKN_ENC_DEFAULT, 0 },
 	{ "sfpp_force_on", "0", CKN_STR1, CKN_TYPE_DEFAULT, CKN_ACC_LEVEL_DEFAULT, CKN_ENC_DEFAULT, 0 },	/* auto/force SFP+ TX clock */

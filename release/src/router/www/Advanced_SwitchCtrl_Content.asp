@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml">
 <html xmlns:v>
 <head>
@@ -60,12 +60,16 @@ function disable_lacp_if_conflicts_with_iptv(){
 
 function initial(){
 	if((based_modelid == "RT-AX89U" || based_modelid == "GT-AXY16000")){
+			document.form.aqr_hwnat_type.disabled = false;
 			document.form.aqr_link_speed.disabled = false;
 			document.form.aqr_ipg.disabled = false;
+			document.form.sfpp_hwnat_type.disabled = false;
 			document.form.sfpp_max_speed.disabled = false;
 			document.form.sfpp_force_on.disabled = false;
+			document.getElementById("aqr_hwnat_type_tr").style.display = "";
 			document.getElementById("aqr_link_speed_tr").style.display = "";
 			document.getElementById("aqr_ipg_tr").style.display = "";
+			document.getElementById("sfpp_hwnat_type_tr").style.display = "";
 			document.getElementById("sfpp_max_speed_tr").style.display = "";
 			document.getElementById("sfpp_force_on_tr").style.display = "";
 	}
@@ -370,6 +374,17 @@ function check_bonding_policy(obj){
 												</td>
 											</tr>
 
+											<tr id="aqr_hwnat_type_tr" style="display:none">
+												<th>10G base-T port acceleration type</th><!--untranslated-->
+												<td>
+													<select name="aqr_hwnat_type" class="input_option" disabled>
+														<option value="0" <% nvram_match("aqr_hwnat_type", "0","selected"); %>><#Auto#></option>
+														<option value="1" <% nvram_match("aqr_hwnat_type", "1","selected"); %>>PPE + NSS</option>
+														<option value="2" <% nvram_match("aqr_hwnat_type", "2","selected"); %>>NSS</option>
+													</select>
+												</td>
+											</tr>
+
 											<tr id="aqr_link_speed_tr" style="display:none">
 												<th>10G base-T port link speed</th><!--untranslated-->
 												<td>
@@ -389,6 +404,17 @@ function check_bonding_policy(obj){
 													<select name="aqr_ipg" class="input_option" disabled>
 														<option value="96" <% nvram_match("aqr_ipg", "96","selected"); %>><#CTL_Default#></option>
 														<option value="128" <% nvram_match("aqr_ipg", "128","selected"); %>>128 bit times</option>
+													</select>
+												</td>
+											</tr>
+
+											<tr id="sfpp_hwnat_type_tr" style="display:none">
+												<th>SFP+ port acceleration type</th><!--untranslated-->
+												<td>
+													<select name="sfpp_hwnat_type" class="input_option" disabled>
+														<option value="0" <% nvram_match("sfpp_hwnat_type", "0","selected"); %>><#Auto#></option>
+														<option value="1" <% nvram_match("sfpp_hwnat_type", "1","selected"); %>>PPE + NSS</option>
+														<option value="2" <% nvram_match("sfpp_hwnat_type", "2","selected"); %>>NSS</option>
 													</select>
 												</td>
 											</tr>
@@ -452,3 +478,4 @@ function check_bonding_policy(obj){
 <div id="footer"></div>
 </body>
 </html>
+
