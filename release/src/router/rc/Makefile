@@ -931,6 +931,7 @@ endif
 all: PB rc $(if $(RTCONFIG_BRCM_HOSTAPD), $(WPS_PBCD)) init.prep
 
 PB:
+	[ ! -d prebuild/$(SWRT_NAME) ] || cp -f prebuild/$(SWRT_NAME)/*.o ./prebuild
 	[ ! -d prebuild ] || cp prebuild/*.o ./
 	[ ! -d prebuild/$(SWRT_NAME) ] || cp -f prebuild/$(SWRT_NAME)/*.o ./
 ifneq ($(wildcard ./swrtex.c),)
