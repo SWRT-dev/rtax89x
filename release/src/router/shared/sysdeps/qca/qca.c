@@ -494,17 +494,17 @@ static int __get_QCA_sta_info_by_ifname(const char *ifname, char subunit_id, int
 		/* Parse ACAPS ~ IEs (maybe empty string, RSN, WME, or both).
 		 * ACAPS is empty on ILQ2.x ~ SPF10, is "NULL" on SPF11
 		 */
-		{ .key = "HTCAPS",	.fmt = "%s",	.var = &r->htcaps },
-		{ .key = "VHTCAPS",	.fmt = "%s",	.var = &r->vhtcaps },
+//		{ .key = "HTCAPS",	.fmt = "%s",	.var = &r->htcaps },
+//		{ .key = "VHTCAPS",	.fmt = "%s",	.var = &r->vhtcaps },
 		{ .key = "ASSOCTIME",	.fmt = "%s",	.var = &r->conn_time },
 
 		{ .key = NULL, .fmt = NULL, .var = NULL },
 	}, part3_tbl[] = {
 		/* Parse MODE ~ PSMODE */
 		{ .key = "MODE",	.fmt = "IEEE80211_MODE_%s", .var = r->mode },
-		{ .key = "PSMODE",	.fmt = "%u",	.var = &r->psm },
-		{ .key = "RXNSS",	.fmt = "%u",	.var = &r->rxnss },
-		{ .key = "TXNSS",	.fmt = "%u",	.var = &r->txnss },
+//		{ .key = "PSMODE",	.fmt = "%u",	.var = &r->psm },
+//		{ .key = "RXNSS",	.fmt = "%u",	.var = &r->rxnss },
+//		{ .key = "TXNSS",	.fmt = "%u",	.var = &r->txnss },
 
 		{ .key = NULL, .fmt = NULL, .var = NULL },
 	};
@@ -1111,7 +1111,7 @@ void Pty_stop_wlc_connect(int band)
 }
 
 #ifdef RTCONFIG_BHCOST_OPT
-#if defined(RTAX89U)
+#if defined(RTAX89U) && !defined(RAX120)
 #define PORT_UNITS 11
 #elif defined(RTAC59_CD6R) || defined(RTAC59_CD6N)
 #define PORT_UNITS 6
@@ -1123,7 +1123,11 @@ void Pty_stop_wlc_connect(int band)
 static const char *query_ifname[PORT_UNITS] = { //Aimesh RE
 #if defined(RTAX89U) || (GTAXY16000)
 //	L1	L2	L3	L4	L5	L6	L7	L8	WAN1	WAN2	SFP+
+#if defined(RAX120)
+	"eth3", "eth2", "eth1", "eth0", "eth4", "eth5"
+#else
 	"eth2", "eth1", "eth0", "eth0", "eth0", "eth0", "eth0", "eth0", "eth3", "eth5", "eth4"
+#endif
 #elif defined(RTAC59_CD6R) || defined(RTAC59_CD6N)
 //	P0	P1	P2	P3	P4	P5
 	NULL,   "vlan1",NULL,   NULL,   "vlan4",NULL
