@@ -6872,7 +6872,6 @@ int init_nvram(void)
 		//nvram_set("vlan2hwname", "et0");  // vlan. used to get "%smacaddr" for compare and find parent interface.
 		nvram_set("lan_ifname", "br0");
 #if defined(RAX120)
-		patch_Factory();
 		wan0 = "eth4";				/*  1G RJ-45 */
 #else
 		wan0 = "eth3";				/*  1G RJ-45 */
@@ -17475,7 +17474,10 @@ static void sysinit(void)
 #endif
 
 #ifdef RTCONFIG_ASD
-	nvram_set("3rd-party", "merlin");
+	if(is_swrt_mod())
+		nvram_set("3rd-party", "swrt");
+	else
+		nvram_set("3rd-party", "merlin");
 #endif
 
 #ifdef DSL_AX82U
@@ -18501,6 +18503,7 @@ _dprintf("%s %d turnning on power on ethernet here\n", __func__, __LINE__);
 #if defined(RTCONFIG_SWRT)
 			swrt_init_post();
 #endif
+
 #ifdef RTCONFIG_AMAS
 			nvram_set("start_service_ready", "1");
 #endif

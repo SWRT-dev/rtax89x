@@ -42,6 +42,7 @@
 extern int bg;
 #endif
 #endif
+#include <swrt.h>
 
 #if defined(RTCONFIG_NEW_REGULATION_DOMAIN)
 #error !!!!!!!!!!!QCA driver must use country code!!!!!!!!!!!
