@@ -7057,6 +7057,10 @@ void dnsmasq_check()
 extern void start_smartdns();
 void smartdns_check()
 {
+#if defined(RTCONFIG_AMAS)
+	if(aimesh_re_node())
+		return;
+#endif
 	if(!nvram_match("smartdns_enable", "1"))
 		return;
 	if (!pids("smartdns")) {
@@ -9871,12 +9875,8 @@ wdp:
 #if defined(RTCONFIG_QCA_PLC2)
 	check_process_plc();
 #endif
-
-#if defined(SBRAC1900P) || defined(SBRAC3200P) || defined(K3C) || defined(K3) || defined(XWR3100) || defined(R8000P) || defined(EA6700) || defined(DIR868L) || defined(R6300V2) || defined(TY6201_BCM) || defined(TY6201_RTK) || defined(R8500) || defined(F9K1118)
-#if defined(SWRT_VER_MAJOR_R) || defined(SWRT_VER_MAJOR_X)
-	check_auth_code();
-#endif
-#endif
+	if(check_auth_code)
+		check_auth_code();
 }
 
 #if ! (defined(RTCONFIG_QCA) || defined(RTCONFIG_RALINK))

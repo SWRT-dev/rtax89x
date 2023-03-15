@@ -845,14 +845,25 @@ void init_devs(void)
     defined(RTCONFIG_SWITCH_RTL8370MB_PHY_QCA8033_X2)
 	__mknod("/dev/rtkswitch", S_IFCHR | 0666, makedev(206, 0));
 #endif
+	if(patch_Factory)
+		patch_Factory();
 #if defined(RTCONFIG_QCA953X) || \
     defined(RTCONFIG_QCA956X) || \
     defined(RTCONFIG_QCN550X)
 	eval("ln", "-sf", "/dev/mtdblock2", "/dev/caldata");	/* mtdblock2 = SPI flash, Factory MTD partition */
 #else
+#if defined(RAX120)
+	int mtd_part = 0, mtd_size = 0;
+	char dev_mtd[] = "/dev/mtdblockXXX";
+	if (mtd_getinfo("Factory", &mtd_part, &mtd_size)){
+		snprintf(dev_mtd, sizeof(dev_mtd), "/dev/mtdblock%d", mtd_part);
+		eval("ln", "-sf", dev_mtd, "/dev/caldata");
+	}else
+		printf("init_devs: can't find Factory MTD partition\n");
+#else
 	eval("ln", "-sf", "/dev/mtdblock3", "/dev/caldata");	/* mtdblock3 = cal in NAND flash, Factory MTD partition */
 #endif
-
+#endif
 	if ((status = WEXITSTATUS(modprobe("nvram_linux"))))
 		printf("## modprove(nvram_linux) fail status(%d)\n", status);
 
@@ -963,12 +974,21 @@ static void set_wanifaces_hwaddr(void)
 	switch (get_model()) {
 	case MODEL_GTAXY16000:
 	case MODEL_RTAX89U:
+#if defined(RAX120)
+		wan_ifaces[0] = "eth4";
+		wan_ifaces[1] = "eth5";
+#else
 		wan_ifaces[0] = "eth3";
 		wan_ifaces[1] = "eth5";
 		wan_ifaces[2] = "eth4";
+#endif
 		break;
 	}
+#if defined(RAX120)
+	for (i = 0; i < 2; ++i) {
+#else
 	for (i = 0; i < 3; ++i) {
+#endif
 		if (wan_ifaces[i] == NULL)
 			break;
 
@@ -1119,7 +1139,7 @@ static void init_switch_qca(void)
 			if (nvram_get_int("ipsec_hw_crypto_enable") == 0)
 			continue;
 		}
-#if defined(RTCONFIG_SOC_IPQ8074)
+#if defined(RTCONFIG_SOC_IPQ8074) && !defined(RAX120)
 		if (!strcmp(*qmod, "qca-ssdk")) {
 			max_speed = nvram_get_int("sfpp_max_speed");
 			if (max_speed == 1000 || max_speed == 10000) {
@@ -1177,6 +1197,11 @@ static void init_switch_qca(void)
 		*v++ = NULL;
 		_eval(argv, NULL, 0, NULL);
 	}
+#if defined(RAX120)
+	doSystem("aq-fw-download /lib/firmware/RAX120_aqr111.cld miireg 7\n");
+	doSystem("sleep 1\n");
+	doSystem("ssdk_sh sw0 debug phy set 7 0x4004c441 0x8\n");
+#endif
 	char *wan0_ifname = nvram_safe_get("wan0_ifname");
 	char *lan_ifname, *lan_ifnames, *ifname, *p;
 
@@ -1909,16 +1934,30 @@ int switch_exist(void)
 	return (!ret && id[0] == 0x004dd074 && id[1] == 0x004dd074);
 #elif defined(RTCONFIG_SWITCH_QCA8075_QCA8337_PHY_AQR107_AR8035_QCA8033)
 #if defined(GTAXY16000) || defined(RTAX89U)
+#if defined(RAX120)
+	static const uint32_t     aqr_id[] = { 0x03a1b610, 0x03a1b612, 0 };	/* AQR111, AQR111B0 */
+#else
 	static const uint32_t     aqr_id[] = { 0x03a1b4e2, 0x31c31c41, 0x31c31c12, 0 };	/* AQR107, AQR113, AQR113C */
+#endif
 	static const uint32_t qca8075_id[] = { 0x004dd0b1, 0 };
+#if !defined(RAX120)
 	static const uint32_t qca8337_id[] = { 0x004dd036, 0 };
 	static const uint32_t  ar8033_id[] = { 0x004dd074, 0 };
+#endif
 	static const struct phy_id_list_s {
 		int phy;
 		int phy_type;	/* 0: General; 1: AQR C45 PHY */
 		const uint32_t *pval;
 		uint32_t mask;
 	} phy_id_lists[] = {
+#if defined(RAX120)
+		{ 7, 1,     aqr_id, 0xfffffff0 },	/*  AQR111: WAN2, 5G RJ-45 */
+		{ 4, 0, qca8075_id, 0xffffffff },	/* QCA8075: WAN1 */
+		{ 3, 0, qca8075_id, 0xffffffff },	/* QCA8075: LAN1 */
+		{ 2, 0, qca8075_id, 0xffffffff },	/* QCA8075: LAN2 */
+		{ 1, 0, qca8075_id, 0xffffffff },	/* QCA8075: LAN3 */
+		{ 0, 0, qca8075_id, 0xffffffff },	/* QCA8075: LAN4 */
+#else
 		{  7, 1,     aqr_id, 0xfffffff0 },	/*  AQR1xx: WAN2, 10G RJ-45 */
 		{ 11, 0, qca8075_id, 0xffffffff },	/* QCA8075: WAN1 */
 		{ 10, 0, qca8075_id, 0xffffffff },	/* QCA8075: LAN1 */
@@ -1929,8 +1968,10 @@ int switch_exist(void)
 		{  1, 0, qca8337_id, 0xffffffff },	/* QCA8337: LAN6 */
 		{  0, 0, qca8337_id, 0xffffffff },	/* QCA8337: LAN7 */
 		{  6, 0,  ar8033_id, 0xffffffff },	/*  AR8033: LAN8 */
+#endif
 		{ -1, 0, NULL, 0 },
 	}, *p;
+#if !defined(RAX120)
 	static const struct gmac_spd_s {
 		int port;			/* IPQ8074 GMAC port. */
 		int min_speed;			/* minimal speed of the GMAC. */
@@ -1938,13 +1979,16 @@ int switch_exist(void)
 		{ 1, 1000 },			/* port 1, QCA8337 */
 		{ -1, -1},
 	}, *q;
+#endif
 	time_t t1;
 	uint32_t r, id1, id2;
 	const uint32_t *pval;
 	unsigned int id_reg_addr;
 	int i, r1, ret = 1, val, retry, fw, build, right, phy;
 	char iface[IFNAMSIZ];
+#if !defined(RAX120)
 	char speed_cmd[sizeof("ssdk_sh swX port speed get XYYYYYY")];
+#endif
 	/* Check all switch/PHY ports, except SFP+ */
 	for (p = &phy_id_lists[0]; p->phy >= 0; ++p) {
 		if (p->phy_type) {
@@ -1998,6 +2042,7 @@ int switch_exist(void)
 		sleep(1);
 	}
 
+#if !defined(RAX120)
 	/* Check GMAC that are connected to QCA8337 switch.
 	 * For those ports that are connected to Malibu (PHY) and AQR107,
 	 * GMAC speed is negotiated at run-time.  Don't check them.
@@ -2052,6 +2097,7 @@ int switch_exist(void)
 			}
 		}
 	}
+#endif
 
 	if (!ret)
 		return ret;
@@ -5094,104 +5140,3 @@ void set_tagged_based_vlan_config(char *interface)
 
 #endif
 
-#if defined(RTCONFIG_UUPLUGIN)
-void exec_uu()
-{
-	FILE *fp = NULL;
-	int n;
-	static int once = 0;
-	char *pvalue = NULL, *pp = NULL;
-	char values[2][100];
-	char buf[128] = {0};
-	char *model = get_productid();
-#if 0
-	switch(get_model())
-	{
-		case MODEL_RTAC68U:
-			if(!strcmp(model, "RP-AC1900"))
-				return;
-			break;
-		case MODEL_RTAX58U:
-			if(strcmp(model, "TUF-AX3000") && strcmp(model, "TUF-AX5400") && strcmp(model, "RT-AX82U") && strcmp(model, "ZenWiFi_XD6") &&
-				strcmp(model, "GS-AX3000") && strcmp(model, "GS-AX5400"))
-				return;
-			break;
-		case MODEL_RTAC82U:
-//			if(strcmp(model, "RT-AC2200"))
-//				return;
-			break;
-		default:
-			break;
-	}
-#endif
-	if(is_CN_sku() && (!nvram_get("sw_mode") || nvram_get_int("sw_mode") == 1) && !once && nvram_get_int("ntp_ready"))
-	{
-		once = 1;
-		if((fp = fopen("/var/model", "w")))
-		{
-			fprintf(fp, "%s", model);
-			fclose(fp);
-		}
-		if((fp = fopen("/var/label_macaddr", "w")))
-		{
-			strncpy(buf, get_label_mac(), 17);
-			toLowerCase(buf);
-			fprintf(fp, "%s", buf);
-			fclose(fp);
-		}
-		if((fp = fopen("/var/uu_plugin_dir", "w")))
-		{
-			fprintf(fp, "/jffs");
-			fclose(fp);
-		}
-		system("mkdir -p /tmp/uu");
-		n = system("wget -t 2 -T 30 --dns-timeout=120 --header=Accept:text/plain -q --no-check-certificate 'https://router.uu.163.com/api/script/monitor?type=asuswrt' -O /tmp/uu/script_url");
-		if(!n)
-		{
-			_dprintf("download uuplugin script info successfully\n");
-			if((fp = fopen("/tmp/uu/script_url", "r")))
-			{
-				fgets(buf, sizeof(buf), fp);
-				fclose(fp);
-				unlink("/tmp/uu/script_url");
-				pvalue = strdup(buf);
-				pp = strtok(pvalue, ",");
-				while(pp != NULL){
-						strcpy(values[n], pp);
-						++n;
-						pp = strtok(NULL, ",");
-				}
-				if(n == 2)
-				{
-					_dprintf("URL: %s\n", values[0]);
-					_dprintf("MD5: %s\n", values[1]);
-					if(!doSystem("wget -t 2 -T 30 --dns-timeout=120 --header=Accept:text/plain -q --no-check-certificate %s -O /tmp/uu/u"
-						"uplugin_monitor.sh", values[0]))
-					{
-						_dprintf("download uuplugin script successfully\n");
-						if((fp=popen("md5sum /tmp/uu/uuplugin_monitor.sh | sed 's/[ ][ ]*/ /g' | cut -d' ' -f1", "r")))
-						{
-							memset(buf, 0, sizeof(buf));
-							if((fread(buf, 1, 128, fp)))
-							{
-								buf[32]='\0';
-								buf[33]='\0';
-								if(!strcasecmp(buf, values[1]))
-								{
-									pid_t pid;
-									char *uu_argv[] = { "/tmp/uu/uuplugin_monitor.sh", NULL };
-									_dprintf("prepare to execute uuplugin stript...\n");
-									chmod("/tmp/uu/uuplugin_monitor.sh", 0755);
-									_eval(uu_argv, NULL, 0, &pid);
-								}
-							}
-							pclose(fp);
-						}
-					}
-				}
-				free(pvalue);
-			}
-		}
-	}
-}
-#endif
