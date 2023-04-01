@@ -314,6 +314,8 @@ var bwdpi_app_rulelist = "<% nvram_get("bwdpi_app_rulelist"); %>".replace(/&#60/
 var qos_type_flag = "<% nvram_get("qos_type"); %>";
 var exist_firmver="<% nvram_get("firmver"); %>";
 var CoBrand_flag = '<% nvram_get("CoBrand"); %>';
+var SWRT_GD = '<% nvram_get("SWRT_GD"); %>';
+var SWRT_Kimetsu = '<% nvram_get("SWRT_Kimetsu"); %>';
 
 //territory_code sku
 function in_territory_code(_ptn){
@@ -332,13 +334,17 @@ var is_SG_sku = in_territory_code("SG");
 var is_EU_sku = in_territory_code("EU");
 var SG_mode = ('<% nvram_get("SG_mode"); %>' == 1);
 
-var isGundam = in_territory_code("GD") || CoBrand_flag == 1;
-var isKimetsu = (CoBrand_flag == '2');
+var isGundam = in_territory_code("GD") || CoBrand_flag == 1 || SWRT_GD == 1;
+var isKimetsu = (CoBrand_flag == '2' || SWRT_Kimetsu == 1);
+var isEva = (CoBrand_flag == '3');
 if(isGundam){
 	document.write('<link rel="stylesheet" type="text/css" href="/css/gundam.css"></link>');
 }
 else if(isKimetsu){
 	document.write('<link rel="stylesheet" type="text/css" href="/css/kimetsu.css"></link>');
+}
+else if(isEva){
+	document.write('<link rel="stylesheet" type="text/css" href="/css/eva.css"></link>');
 }
 
 var is_RU_sku = (function(){
@@ -630,6 +636,9 @@ var softcenter_support = isSupport('softcenter');
 var entware_support = isSupport('entware');
 var swrt_fullcone_support = isSupport('swrt_fullcone');
 var smartdns_support = isSupport('smartdns');
+var swrt_kv_support = isSupport('swrt_kv');
+var swrt_ft_support = isSupport('swrt_ft');
+var swrtmesh_support = isSupport('swrtmesh');
 var QISWIZARD = "QIS_wizard.htm";
 
 var wl_version = "<% nvram_get("wl_version"); %>";
@@ -960,6 +969,10 @@ function show_banner(L3){// L3 = The third Level of Menu
 			banner_code +='<div class="banner1" align="center"><img src="images/New_ui/logo_ROG_COD.png" align="left" style="width:400px;height:96px;margin-left:45px;">\n';
 		}
 		else if(isGundam){
+			banner_code +='<div class="gundam-header-1"></div>';
+			banner_code +='<div class="banner1" align="center"><img src="images/New_ui/logo_ROG.png" align="left" style="width:450px;height:96px;margin-left:45px;">\n';
+		}
+		else if(isEva){
 			banner_code +='<div class="gundam-header-1"></div>';
 			banner_code +='<div class="banner1" align="center"><img src="images/New_ui/logo_ROG.png" align="left" style="width:450px;height:96px;margin-left:45px;">\n';
 		}
@@ -1387,8 +1400,7 @@ function show_menu(){
 		show_footer();
 	show_selected_language();
 	autoFocus('<% get_parameter("af"); %>');
-
-	if(isGundam || isKimetsu){
+	if(isGundam || isKimetsu || isEva){
 		calGDpostion(); 
 		if(window.top === window.self){
 			var banner = document.getElementsByClassName('banner1')[0];
@@ -1398,7 +1410,9 @@ function show_menu(){
 			else if(isKimetsu){
 				banner.style.backgroundImage = 'url(images/kimetsu_no_yaiba_header_bg.png)';	
 			}
-					
+			else if(isEva){
+				banner.style.backgroundImage = 'url(images/eva01_header_bg.png)';	
+			}	
 		}
 	}
 
@@ -2983,12 +2997,12 @@ function refreshStatus(xhr){
 				
 					$("#wan_state").html(connect_state);
 					if(NM_connect_status.primary.hasInternet || NM_connect_status.secondary.hasInternet){
-						if(!odm_support && !isGundam　&& !isKimetsu){
+						if(!odm_support && !isGundam　&& !isKimetsu && !isEva){
 							$("#wan_state_icon").removeClass("wan_icon_disconnect").addClass("wan_icon_connect");
 						}
 					}
 					else{
-						if(!odm_support && !isGundam && !isKimetsu){
+						if(!odm_support && !isGundam && !isKimetsu && !isEva){
 							$("#wan_state_icon").removeClass("wan_icon_connect").addClass("wan_icon_disconnect");
 						}
 					}
@@ -3017,12 +3031,12 @@ function refreshStatus(xhr){
 				if(rog_support && current_url.indexOf("GameDashboard") != -1){
 					$("#wan_state").html(NM_connect_status.hint);
 					if(NM_connect_status.hasInternet){
-						if(!odm_support && !isGundam && !isKimetsu){
+						if(!odm_support && !isGundam && !isKimetsu && !isEva){
 							$("#wan_state_icon").removeClass("wan_icon_disconnect").addClass("wan_icon_connect");
 						}
 					}
 					else{
-						if(!odm_support && !isGundam && !isKimetsu){
+						if(!odm_support && !isGundam && !isKimetsu && !isEva){
 							$("#wan_state_icon").removeClass("wan_icon_connect").addClass("wan_icon_disconnect");
 						}
 					}
@@ -3080,7 +3094,7 @@ function refreshStatus(xhr){
 				document.getElementById('single_wan').className = "single_wan_connected";
 			}
 
-			if(rog_support && !isGundam && !isKimetsu  && current_url.indexOf("GameDashboard") != -1){
+			if(rog_support && !isGundam && !isKimetsu && !isEva && current_url.indexOf("GameDashboard") != -1){
 				$("#wan_state_icon").removeClass("wan_icon_disconnect").addClass("wan_icon_connect");
 				$("#wan_state").html("<#Connected#>");
 			}
@@ -3094,7 +3108,7 @@ function refreshStatus(xhr){
 				document.getElementById('single_wan').className = "single_wan_disconnected";				
 			}
 
-			if(rog_support && !isGundam && !isKimetsu && current_url.indexOf("GameDashboard") != -1){
+			if(rog_support && !isGundam && !isKimetsu && !isEva && current_url.indexOf("GameDashboard") != -1){
 				$("#wan_state_icon").removeClass("wan_icon_connect").addClass("wan_icon_disconnect");
 				$("#wan_state").html("<#Disconnected#>");
 			}
@@ -4131,7 +4145,7 @@ function calGDpostion(){
 	}
 }
 
-if(isGundam || isKimetsu){
+if(isGundam || isKimetsu || isEva){
 	window.addEventListener('resize', function(event){
 		calGDpostion();	
 	});
