@@ -17062,7 +17062,8 @@ static void sysinit(void)
 	reset_abmac();
 #endif
 #if defined(RTAX89U)
-	pre_syspara();
+//	pre_syspara();
+	pre_syspara_swrt();
 #endif
 
 	init_syspara();// for system dependent part (befor first get_model())
