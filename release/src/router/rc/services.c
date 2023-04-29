@@ -185,9 +185,12 @@ static void start_toads(void);
 static void stop_toads(void);
 #endif
 
-#if defined(RTCONFIG_HND_ROUTER) || defined(RTCONFIG_QCA) || defined(RTCONFIG_LANTIQ) || defined(RTCONFIG_RALINK)
+#if 0
 void start_jitterentropy(void);
 void stop_jitterentropy(void);
+#else
+void start_haveged(void);
+void stop_haveged(void);
 #endif
 
 #ifndef MS_MOVE
@@ -10211,8 +10214,10 @@ start_aura_rgb_sw(void)
 int
 start_services(void)
 {
-#if defined(RTCONFIG_HND_ROUTER) || defined(RTCONFIG_QCA) || defined(RTCONFIG_LANTIQ) || defined(RTCONFIG_RALINK)
+#if 0
 	start_jitterentropy();
+#else
+	start_haveged();
 #endif
 #if defined(RTAX82U) || defined(DSL_AX82U) || defined(GSAX3000) || defined(GSAX5400) || defined(TUFAX5400) || defined(GTAX11000_PRO) || defined(GTAXE16000) || defined(GTAX6000)
 	start_ledg();
@@ -10907,12 +10912,14 @@ stop_services(void)
 #if defined(RTCONFIG_CFEZ) && defined(RTCONFIG_BCMARM)
 	stop_envrams();
 #endif
-#if defined(RTCONFIG_HND_ROUTER) || defined(RTCONFIG_QCA) || defined(RTCONFIG_LANTIQ) || defined(RTCONFIG_RALINK)
+#if 0
 	stop_jitterentropy();
+#else
+	stop_haveged();
 #endif
 }
 
-#if defined(RTCONFIG_HND_ROUTER) || defined(RTCONFIG_QCA) || defined(RTCONFIG_LANTIQ) || defined(RTCONFIG_RALINK)
+#if 0
 void start_jitterentropy()
 {
 	pid_t pid;
@@ -10927,6 +10934,27 @@ void stop_jitterentropy()
 	pid_t pid;
 	char *cmd_argv[] = { "killall", "jitterentropy-rngd", NULL};
 	_eval(cmd_argv, NULL, 0, &pid);
+}
+#else
+void start_haveged()
+{
+	pid_t pid;
+	char *cmd_argv[] = { "/usr/sbin/haveged",
+	                     "-r", "0",
+	                     "-w", "1024",
+#if 1	// All supported models use 32 KB so far
+	                     "-d", "32",
+	                     "-i", "32",
+#endif
+	                     NULL };
+
+	_eval(cmd_argv, NULL, 0, &pid);
+}
+
+void stop_haveged()
+{
+	if (pids("haveged"))
+		killall_tk("haveged");
 }
 #endif
 
@@ -12333,7 +12361,7 @@ again:
 	{
 		factory_reset();
 	}
-#if defined(RTCONFIG_HND_ROUTER) || defined(RTCONFIG_QCA) || defined(RTCONFIG_LANTIQ) || defined(RTCONFIG_RALINK)
+#if 0
 	else if(strcmp(script, "jitterentropy") == 0)
 	{
 		if(action & RC_SERVICE_STOP)
@@ -12793,7 +12821,7 @@ again:
 			stop_jffs2(1);
 			stop_misc();
 
-#if defined(RTCONFIG_HND_ROUTER) || defined(RTCONFIG_QCA) || defined(RTCONFIG_LANTIQ) || defined(RTCONFIG_RALINK)
+#if 0
 			stop_jitterentropy();
 #endif
 			// TODO free necessary memory here
