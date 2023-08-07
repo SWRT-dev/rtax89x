@@ -29,7 +29,7 @@ mbn_v6 = ""
 def print_help():
 	print "\nUsage: python prepareSingleImage.py <option> <value>\n"
 
-	print "--arch \t\tArch(e.g ipq40xx/ipq807x/ipq807x_64/ipq6018/ipq6018_64/ipq5018/ipq5018_64)\n"
+	print "--arch \t\tArch(e.g ipq40xx/ipq807x/ipq807x_64/ipq6018/ipq6018_64/ipq5018/ipq5018_64/ipq9048/ipq9048_64)\n"
 	print " \t\te.g python prepareSingleImage.py --arch ipq807x\n\n"
 
 	print "--fltype \tFlash Type (nor/nand/emmc/norplusnand/norplusemmc)"
@@ -89,6 +89,11 @@ def print_help():
 	print "\t\tThis Argument does not take any value"
         print "\t\tThis option depends on '--genmbn'\n"
 	print "\t\te.g python prepareSingleImage.py --genmbn --lk\n\n"
+
+	print "--genbootldr \tWhether bootldr binaries to be generated"
+	print "\t\tIf not specified bootldr binaries will not be generated"
+	print "\t\tThis Argument does not take any value\n"
+	print "\t\te.g python prepareSingleImage.py --genbootldr\n\n"
 
 	print "--help \t\tPrint This Message\n\n"
 
@@ -153,17 +158,40 @@ def gen_bootconfig():
 		return prc.returncode
 	return 0
 
+def gen_bootldr():
+	global srcDir
+	global configDir
+	global memory
+
+	bootldr_path = srcDir + '/gen_bootldr_bin.py'
+	print "Creating bootldr"
+	prc = subprocess.Popen(['python', bootldr_path, '-c', configDir, '-o', inDir, '-m', memory], cwd=cdir)
+	prc.wait()
+
+	if prc.returncode != 0:
+		print 'ERROR: unable to create bootldr binary'
+		return prc.returncode
+	return 0
+
 def gen_mbn():
 	global srcDir
 	global mbn_v6
 
 	bootconfig_path = srcDir + '/elftombn.py'
 	print "Converting u-boot elf to mbn ..."
+	tiny_path=inDir + "/openwrt-" + arch + "_tiny" + "-u-boot.elf"
 
 	if mbn_v6 != "true":
 		prc = subprocess.Popen(['python2', bootconfig_path, '-f', inDir + "/../../u-boot", '-o', inDir + "/openwrt-" + arch + "-u-boot.mbn"], cwd=cdir)
+		if os.path.exists(tiny_path):
+			prc = subprocess.Popen(['python', bootconfig_path, '-f', inDir + "/openwrt-" + arch + "_tiny" + "-u-boot.elf", '-o', inDir + "/openwrt-" + arch + "_tiny" + "-u-boot.mbn"], cwd=cdir)
+
 	else:
 		prc = subprocess.Popen(['python2', bootconfig_path, '-f', inDir + "/../../u-boot", '-o', inDir + "/openwrt-" + arch + "-u-boot.mbn", '-v', "6"], cwd=cdir)
+
+		if os.path.exists(tiny_path):
+			 prc = subprocess.Popen(['python', bootconfig_path, '-f', inDir + "/openwrt-" + arch + "_tiny" + "-u-boot.elf", '-o', inDir + "/openwrt-" + arch + "_tiny" + "-u-boot.mbn", '-v', "6"], cwd=cdir)
+
 	prc.wait()
 
 	if prc.returncode != 0:
@@ -211,11 +239,12 @@ def main():
 	to_generate_bootconf = "false"
 	to_generate_mbn = "false"
 	to_generate_lk_mbn = "false"
+	to_generate_bootldr = "false"
 	memory = "default"
 
 	if len(sys.argv) > 1:
 		try:
-			opts, args = getopt(sys.argv[1:], "h", ["arch=", "fltype=", "in=", "bootimg=", "tzimg=", "nhssimg=", "rpmimg=", "wififwimg", "gencdt", "memory=", "genpart", "genbootconf", "genmbn", "lk", "help"])
+			opts, args = getopt(sys.argv[1:], "h", ["arch=", "fltype=", "in=", "bootimg=", "tzimg=", "nhssimg=", "rpmimg=", "wififwimg", "gencdt", "memory=", "genpart", "genbootconf", "genmbn", "lk", "genbootldr", "help"])
 		except GetoptError, e:
 			print_help()
 			raise
@@ -223,11 +252,12 @@ def main():
 		for option, value in opts:
 			if option == "--arch":
 				arch = value
-				if arch == "ipq807x" or arch == "ipq5018":
+				if arch == "ipq807x" or arch == "ipq5018" or arch == "ipq9048":
 					mode = "32"
-				elif arch == "ipq807x_64" or arch == "ipq5018_64":
+				elif arch == "ipq807x_64" or arch == "ipq5018_64" or arch == "ipq9048_64":
 					mode = "64"
 					arch = arch[:-3]
+
 				if arch == "ipq6018":
 					mode = "32"
 				elif arch == "ipq6018_64":
@@ -237,7 +267,7 @@ def main():
 			elif option == "--fltype":
 				flash = value
 				for flash_type in flash.split(","):
-					if flash_type not in ["nor", "tiny-nor", "nand", "norplusnand", "emmc", "norplusemmc"]:
+					if flash_type not in ["nor", "tiny-nor", "nand", "norplusnand", "emmc", "norplusemmc", "tiny-nor-debug"]:
 						print "Invalid flash type: " + flash_type
 						print_help()
 						return -1
@@ -265,6 +295,8 @@ def main():
 				to_generate_mbn = "true"
                         elif option == "--lk":
                                 to_generate_lk_mbn = "true"
+			elif option == "--genbootldr":
+				to_generate_bootldr = "true"
 
 			elif (option == "-h" or option == "--help"):
 				print_help()
@@ -307,14 +339,17 @@ def main():
 			if gen_part(flash) != 0:
 				return -1
 
-		if to_generate_mbn == "true":
-			if arch == "ipq6018":
-				mbn_v6 = "true"
-                        if gen_mbn() != 0:
-                                return -1
-                        if to_generate_lk_mbn == "true" and gen_lk_mbn() != 0:
-                                return -1
+		if to_generate_bootldr == "true":
+			if gen_bootldr() != 0:
+				return -1
 
+		if to_generate_mbn == "true":
+				if arch == "ipq6018":
+					mbn_v6 = "true"
+				if gen_mbn() != 0:
+					return -1
+                if to_generate_lk_mbn == "true" and gen_lk_mbn() != 0:
+                    return -1
 		return 0
 	else:
 		print_help()

@@ -76,11 +76,17 @@ int saveenv(void)
 
 void env_relocate_spec(void)
 {
-	ALLOC_CACHE_ALIGN_BUFFER(char, buf, CONFIG_ENV_SIZE);
+	char *buf = NULL;
 	block_dev_desc_t *dev_desc = NULL;
 	disk_partition_t info;
 	int dev, part;
 	int err;
+
+	buf = (char *)memalign(ARCH_DMA_MINALIGN, CONFIG_ENV_SIZE);
+	if (!buf) {
+		printf("Error: Cannot allocate %d bytes\n", CONFIG_ENV_SIZE);
+		goto err_env_relocate;
+	}
 
 	part = get_device_and_partition(FAT_ENV_INTERFACE,
 					FAT_ENV_DEVICE_AND_PART,
@@ -103,8 +109,11 @@ void env_relocate_spec(void)
 	}
 
 	env_import(buf, 1);
+	free(buf);
 	return;
 
 err_env_relocate:
 	set_default_env(NULL);
+	if (buf)
+		free(buf);
 }

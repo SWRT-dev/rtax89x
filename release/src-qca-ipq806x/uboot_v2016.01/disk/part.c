@@ -20,6 +20,9 @@
 #define PRINTF(fmt,args...)
 #endif
 
+DECLARE_GLOBAL_DATA_PTR;
+
+#ifdef HAVE_BLOCK_DEVICE
 struct block_drvr {
 	char *name;
 	block_dev_desc_t* (*get_dev)(int dev);
@@ -55,9 +58,6 @@ static const struct block_drvr block_drvr[] = {
 	{ },
 };
 
-DECLARE_GLOBAL_DATA_PTR;
-
-#ifdef HAVE_BLOCK_DEVICE
 static block_dev_desc_t *get_dev_hwpart(const char *ifname, int dev, int hwpart)
 {
 	const struct block_drvr *drvr = block_drvr;

@@ -814,7 +814,7 @@ function sig_version_check(){
 	document.getElementById("sig_check").disabled = true;
 	$("#sig_status").show();
 	document.sig_update.submit();
-	$("#sig_status").html("Signature checking ...");	/* Untranslated */
+	$("#sig_status").html("<#sig_checking#>");
 	document.getElementById("sig_update_scan").style.display = "";
 	setTimeout("sig_check_status();", 8000);
 }
@@ -839,13 +839,13 @@ function sig_check_status(){
 			--sig_chk_count;
 			$("#sig_status").show();
 			if(sig_state_flag == 0 && sig_state_error == 0 && sig_state_update == 1){		// no need upgrade
-				$("#sig_status").html("Signature is up to date");	/* Untranslated */
+				$("#sig_status").html("<#sig_up2date#>");
 				document.getElementById("sig_update_scan").style.display = "none";
 				document.getElementById("sig_check").disabled = false;
 			}
 			else{
 				if(sig_state_error != 0){		// update error
-					$("#sig_status").html("Signature update failed");	/* Untranslated */
+					$("#sig_status").html("<#sig_failed#>");
 					document.getElementById("sig_update_scan").style.display = "none";
 					document.getElementById("sig_check").disabled = false;
 				}
@@ -860,7 +860,7 @@ function sig_check_status(){
 							document.getElementById("sig_check").disabled = false;
 						}
 						else{
-							$("#sig_status").html("Signature is updating");	/* Untranslated */
+							$("#sig_status").html("<#sig_updating#>");
 							setTimeout("sig_check_status();", 1000);
 						}
 					}
@@ -882,7 +882,7 @@ function update_sig_ver(){
     		document.getElementById("sig_update_date").innerHTML = "";
     		document.getElementById("sig_update_scan").style.display = "none";
 			document.getElementById("sig_check").disabled = false;
-    		$("#sig_status").html("Signature update completed.");	/* Untranslated */
+    		$("#sig_status").html("<#sig_completed#>");
     		$("#sig_ver_word").html(sig_ver);
   		}
   	});
@@ -1113,7 +1113,7 @@ function show_current_release_note_result(_status) {
 		$(".confirm_block").children().find("#status_iframe").load();
 	}
 	else
-		$(".confirm_block").children().find("#status_iframe").contents().find("#amas_release_note_hint").val("Fail to grab release note");/* untranslated */
+		$(".confirm_block").children().find("#status_iframe").contents().find("#amas_release_note_hint").val("<#FW_rlnote_failed#>");
 }
 
 function show_fw_release_note(event) {
@@ -1170,7 +1170,7 @@ function show_fw_release_note_result(_status) {
 		$(".confirm_block").children().find("#status_iframe").load();
 	}
 	else
-		$(".confirm_block").children().find("#status_iframe").contents().find("#amas_release_note_hint").val("Fail to grab release note");/* untranslated */
+		$(".confirm_block").children().find("#status_iframe").contents().find("#amas_release_note_hint").val("<#FW_rlnote_failed#>");
 }
 function open_AiMesh_node_fw_upgrade(event) {
 	var url = httpApi.aimesh_get_win_open_url(event.data, "AiMesh_Node_FirmwareUpgrade.asp");

@@ -880,7 +880,9 @@ int do_led_control(int which, int mode)
 {
 	int use_gpio, gpio_nr;
 	int v = (mode == LED_OFF)? 0:1;
-
+#ifndef HND_ROUTER
+	char *led_gpio = NULL;
+#endif
 	if ((mode == LED_ON) && (nvram_get_int("led_disable") == 1))
 		return 0;
 
@@ -922,8 +924,13 @@ int do_led_control(int which, int mode)
 		v ^= 1;
 
 #ifndef HND_ROUTER
+	if (which == LED_2G)
+		led_gpio = "led_2g_gpio";
+	else if (which == LED_5G)
+		led_gpio = "led_5g_gpio";
+
 	if (mode == LED_OFF) {
-		stop_bled(use_gpio);
+		__stop_bled(led_gpio, use_gpio);
 	}
 #endif
 #if defined(RTCONFIG_SWRT_I2CLED)
@@ -965,7 +972,7 @@ int do_led_control(int which, int mode)
 #endif
 #ifndef HND_ROUTER
 	if (mode == LED_ON) {
-		start_bled(use_gpio);
+		__start_bled(led_gpio, use_gpio);
 	}
 #endif
 	return 0;
@@ -1386,4 +1393,3 @@ void i2cled_control(int which, int onoff)
 #endif
 }
 #endif
-

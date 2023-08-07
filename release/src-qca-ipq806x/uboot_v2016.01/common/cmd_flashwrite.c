@@ -202,8 +202,9 @@ char * const argv[])
 #endif
 	disk_partition_t disk_info = {0};
 	qca_smem_flash_info_t *sfi = &qca_smem_flash_info;
+#ifdef CONFIG_CMD_NAND
 	nand_info_t *nand = &nand_info[CONFIG_NAND_FLASH_INFO_IDX];
-
+#endif
 	if (strcmp(argv[0], "flash") == 0)
 		flash_cmd = 1;
 
@@ -350,7 +351,7 @@ char * const argv[])
 	}
 
 	if (flash_cmd) {
-
+#ifdef CONFIG_CMD_NAND
 		if (((flash_type == SMEM_BOOT_NAND_FLASH) ||
 			(flash_type == SMEM_BOOT_QSPI_NAND_FLASH))) {
 
@@ -358,7 +359,7 @@ char * const argv[])
 			if (adj_size)
 				file_size = file_size + (nand->writesize - adj_size);
 		}
-
+#endif
 		if (flash_type == SMEM_BOOT_MMC_FLASH) {
 
 			if (disk_info.blksz) {

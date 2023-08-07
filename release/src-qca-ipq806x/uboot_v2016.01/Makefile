@@ -563,6 +563,12 @@ else
 include/config/auto.conf: ;
 endif # $(dot-config)
 
+ifndef DTBLDSCRIPT
+	ifeq ($(wildcard $(DTBLDSCRIPT)),)
+		DTBLDSCRIPT := $(srctree)/arch/$(ARCH)/dts/combined_dtb.lds
+	endif
+endif
+
 ifdef CONFIG_CC_OPTIMIZE_FOR_SIZE
 KBUILD_CFLAGS	+= -Os
 else
@@ -707,6 +713,9 @@ libs-y		:= $(patsubst %/, %/built-in.o, $(libs-y))
 u-boot-init := $(head-y)
 u-boot-main := $(libs-y)
 
+ifneq ($(CONFIG_COMPRESSED_DTB_BASE),)
+compressed_dtb-dirs := arch/$(ARCH)/dts/compressed_dtb
+endif
 
 # Add GCC lib
 ifeq ($(CONFIG_USE_PRIVATE_LIBGCC),y)
@@ -815,6 +824,17 @@ ifneq ($(CONFIG_SYS_TEXT_BASE),)
 LDFLAGS_u-boot += -Ttext $(CONFIG_SYS_TEXT_BASE)
 endif
 
+
+ifneq ($(CONFIG_COMPRESSED_DTB_BASE),)
+LDFLAGS_dtb_combine += $(LDFLAGS_FINAL)
+COMPRESS_DTB_BASE = $(shell printf "0x%x" $$(( $(CONFIG_SYS_TEXT_BASE) - $(CONFIG_COMPRESSED_DTB_MAX_SIZE))))
+LDFLAGS_dtb_combine += -Ttext $(COMPRESS_DTB_BASE)
+
+# Normal objcopy without filter the sections
+quiet_cmd_nobjcopy = OBJCOPY $@
+cmd_nobjcopy = $(OBJCOPY) --gap-fill=0xff -O binary $< $@
+endif
+
 # Normally we fill empty space with 0xff
 quiet_cmd_objcopy = OBJCOPY $@
 cmd_objcopy = $(OBJCOPY) --gap-fill=0xff $(OBJCOPYFLAGS) \
@@ -899,6 +919,11 @@ u-boot.bin: u-boot FORCE
 	$(call if_changed,objcopy)
 	$(call DO_STATIC_RELA,$<,$@,$(CONFIG_SYS_TEXT_BASE))
 	$(BOARD_SIZE_CHECK)
+
+ifneq ($(CONFIG_COMPRESSED_DTB_BASE),)
+dtb_combined.bin: dtb_combined  FORCE
+	$(call if_changed,nobjcopy)
+endif
 
 ifneq ($(shell echo $(CONFIG_METATOOLDIR)),)
 METATOOLDIR=$(shell echo $(CONFIG_METATOOLDIR))
@@ -1229,6 +1254,23 @@ quiet_cmd_u-boot__ ?= LD      $@
       --start-group $(u-boot-main) --end-group                 \
       $(PLATFORM_LIBS) -Map u-boot.map
 
+ifneq ($(CONFIG_COMPRESSED_DTB_BASE),)
+# Rule to link combined_dtb.lds
+quiet_cmd_dtb_combined__ ?= LD      $@
+      cmd_dtb_combined__ ?= $(LD) $(LDFLAGS) $(LDFLAGS_dtb_combine) -o dtb_combined \
+      -T combined_dtb.lds $(u-boot-init)                             \
+      --start-group arch/$(ARCH)/dts/built-in.o --end-group                 \
+      $(PLATFORM_LIBS) -Map dtb_combined.map
+
+combine_dtb_Linker: combined_dtb.lds
+	$(call if_changed,dtb_combined__)
+
+compress_dtb: combine_dtb_Linker dtb_combined.bin $(compressed_dtb-dirs)
+	cp arch/$(ARCH)/dts/compressed_dtb/dtbcombined.o arch/$(ARCH)/dts/built-in.o
+else
+compress_dtb:
+endif
+
 quiet_cmd_smap = GEN     common/system_map.o
 cmd_smap = \
 	smap=`$(call SYSTEM_MAP,u-boot) | \
@@ -1236,7 +1278,7 @@ cmd_smap = \
 	$(CC) $(c_flags) -DSYSTEM_MAP="\"$${smap}\"" \
 		-c $(srctree)/common/system_map.c -o common/system_map.o
 
-u-boot:	$(u-boot-init) $(u-boot-main) u-boot.lds
+u-boot:	$(u-boot-init) $(u-boot-main) u-boot.lds compress_dtb
 	$(call if_changed,u-boot__)
 ifeq ($(CONFIG_KALLSYMS),y)
 	$(call cmd,smap)
@@ -1253,9 +1295,15 @@ $(sort $(u-boot-init) $(u-boot-main)): $(u-boot-dirs) ;
 # make menuconfig etc.
 # Error messages still appears in the original language
 
+
 PHONY += $(u-boot-dirs)
 $(u-boot-dirs): prepare scripts
 	$(Q)$(MAKE) $(build)=$@
+
+ifneq ($(CONFIG_COMPRESSED_DTB_BASE),)
+$(compressed_dtb-dirs): prepare scripts
+	$(Q)$(MAKE) $(build)=$@
+endif
 
 tools: prepare
 # The "tools" are needed early
@@ -1370,6 +1418,13 @@ cmd_cpp_lds = $(CPP) -Wp,-MD,$(depfile) $(cpp_flags) $(LDPPFLAGS) -ansi \
 
 u-boot.lds: $(LDSCRIPT) prepare FORCE
 	$(call if_changed_dep,cpp_lds)
+
+quiet_cmd_cpp_dtb_lds = LDS     $@
+cmd_cpp_dtb_lds = $(CPP) -Wp,-MD,$(depfile) $(cpp_flags) $(LDPPFLAGS) -ansi \
+		-D__ASSEMBLY__ -x assembler-with-cpp -P -o $@ $<
+
+combined_dtb.lds: $(DTBLDSCRIPT) prepare FORCE
+	$(call if_changed_dep,cpp_dtb_lds)
 
 spl/u-boot-spl.bin: spl/u-boot-spl
 	@:

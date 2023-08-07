@@ -23,9 +23,51 @@
  */
 
 #include <linux/thermal.h>
+#include <linux/rtc.h>
 #include <trace/events/thermal.h>
 
 #include "thermal_core.h"
+
+/* Return 0 if FAN should be turn off during inactive time, otherwise, return THERMAL_NO_TARGET.
+ * HH:MM ~ HH:MM: New target is selected by get_target_state().
+ * hh:mm ~ HH:MM: FAN is turn off during hh:mm ~ HH:MM, across to next day ok.
+ */
+static unsigned long fan_inact_target(struct thermal_cooling_device *cdev)
+{
+	int now;	/* unit: minute */
+	struct rtc_time tm;
+	struct timeval time;
+	unsigned long local_time;
+
+	if (!cdev)
+		return THERMAL_NO_TARGET;
+
+	if (cdev->stime == cdev->etime) {
+		/* Same start/end time, new target is selected by get_target_state(). */
+		return THERMAL_NO_TARGET;
+	}
+
+	do_gettimeofday(&time);
+	local_time = (u32)(time.tv_sec - (sys_tz.tz_minuteswest * 60));
+	rtc_time_to_tm(local_time, &tm);
+	now = tm.tm_hour * 3600 + tm.tm_min * 60 + tm.tm_sec;
+
+	if (cdev->stime < cdev->etime) {
+		if (now < cdev->stime || now > cdev->etime) {
+			return THERMAL_NO_TARGET;
+		} else {
+			return 0;
+		}
+	} else {
+		if (now < cdev->stime && now > cdev->etime) {
+			return THERMAL_NO_TARGET;
+		} else {
+			return 0;
+		}
+	}
+
+	return THERMAL_NO_TARGET;
+}
 
 /*
  * If the temperature is higher than a trip point,
@@ -52,7 +94,7 @@ static unsigned long get_target_state(struct thermal_instance *instance,
 {
 	struct thermal_cooling_device *cdev = instance->cdev;
 	unsigned long cur_state;
-	unsigned long next_target;
+	unsigned long next_target, t;
 
 	/*
 	 * We keep this instance the way it is by default.
@@ -62,6 +104,9 @@ static unsigned long get_target_state(struct thermal_instance *instance,
 	cdev->ops->get_cur_state(cdev, &cur_state);
 	next_target = instance->target;
 	dev_dbg(&cdev->device, "cur_state=%ld\n", cur_state);
+	if ((t = fan_inact_target(cdev)) != THERMAL_NO_TARGET) {
+		return t;
+	}
 
 	if (!instance->initialized) {
 		if (throttle) {
@@ -106,6 +151,10 @@ static unsigned long get_target_state(struct thermal_instance *instance,
 		} else
 			next_target = instance->lower;
 		break;
+	case THERMAL_TREND_STABLE:
+		if (throttle) {
+			next_target = instance->upper;
+		}
 	default:
 		break;
 	}
@@ -178,7 +227,9 @@ static void thermal_zone_trip_update(struct thermal_zone_device *tz, int trip)
 			update_passive_instance(tz, trip_type, -1);
 
 		instance->initialized = true;
+		mutex_lock(&instance->cdev->lock);
 		instance->cdev->updated = false; /* cdev needs update */
+		mutex_unlock(&instance->cdev->lock);
 	}
 
 	mutex_unlock(&tz->lock);

@@ -909,6 +909,9 @@ void *realloc_simple(void *ptr, size_t size);
 /* Set up pre-relocation malloc() ready for use */
 int initf_malloc(void);
 
+# ifdef CONFIG_COMPRESSED_DTB_BASE
+int initf_pre_malloc(void);
+# endif
 /* Public routines */
 
 /* Simple versions which can be used when space is tight */

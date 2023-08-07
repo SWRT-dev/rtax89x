@@ -126,7 +126,7 @@ char host_name[64];
 char referer_host[64];
 char current_page_name[128];
 char user_agent[1024];
-char gen_token[32];
+char gen_token[33];
 time_t login_timestamp_cache = 0;
 int url_do_auth = 0;
 int spam_count = 0;
@@ -349,7 +349,9 @@ void Debug2File(const char *path, const char *fmt, ...)
 
 	fp = fopen(path, "a+");
 	if (fp) {
+#ifndef RTCONFIG_AVOID_TZ_ENV
 		setenv("TZ", nvram_safe_get_x("", "time_zone_x"), 1);
+#endif
 		now = time(NULL);
 		localtime_r(&now, &tm);
 		strftime(timebuf, sizeof(timebuf), "%b %d %H:%M:%S", &tm);
@@ -500,7 +502,7 @@ send_login_page(int fromapp_flag, int error_status, char* url, char* file, int l
 	//char url_tmp[64]={0};
 	char *cp, *file_var=NULL;
 
-	HTTPD_DBG("error_status = %d\n", error_status);
+	HTTPD_DBG("error_status = %d, logintry = %d\n", error_status, logintry);
 
 	if(logintry){
 		if(!cur_login_ip_type)
@@ -549,7 +551,7 @@ send_login_page(int fromapp_flag, int error_status, char* url, char* file, int l
 				}
 			}
 		}
-		snprintf(inviteCode, sizeof(inviteCode), "<script>top.location.href='/Main_Login.asp';</script>");
+		snprintf(inviteCode, sizeof(inviteCode), "<script>window.top.location.href='/Main_Login.asp';</script>");
 	}else{
 		snprintf(inviteCode, sizeof(inviteCode), "\"error_status\":\"%d\"", error_status);
 		if(error_status == LOGINLOCK){
@@ -769,36 +771,6 @@ int web_write(const char *buffer, int len, FILE *stream)
 		n -= r;
 	}
 	return r;
-}
-
-int check_user_agent(char* user_agent){
-
-	int fromapp = 0;
-
-	if(user_agent != NULL){
-		char *cp1=NULL, *app_router=NULL, *app_platform=NULL, *app_framework=NULL, *app_verison=NULL;
-		cp1 = strdup(user_agent);
-
-		vstrsep(cp1, "-", &app_router, &app_platform, &app_framework, &app_verison);
-
-		if(app_router != NULL && app_framework != NULL && strcmp( app_router, "asusrouter") == 0){
-				fromapp=FROM_ASUSROUTER;
-			if(strcmp( app_framework, "DUTUtil") == 0)
-				fromapp=FROM_DUTUtil;
-			else if(strcmp( app_framework, "ASSIA") == 0)
-				fromapp=FROM_ASSIA;
-			else if(strcmp( app_framework, "IFTTT") == 0)
-				fromapp=FROM_IFTTT;
-			else if(strcmp( app_framework, "Alexa") == 0)
-				fromapp=FROM_ALEXA;
-			else if(strcmp( app_framework, "WebView") == 0)
-				fromapp=FROM_WebView;
-			else
-				fromapp=FROM_UNKNOWN;
-		}
-		if(cp1) free(cp1);
-	}
-	return fromapp;
 }
 
 #if defined(RTCONFIG_IFTTT) || defined(RTCONFIG_ALEXA) || defined(RTCONFIG_GOOGLE_ASST)
@@ -2369,7 +2341,9 @@ int main(int argc, char **argv)
 	/* set initial TZ to avoid mem leaks
 	 * it suppose to be convert after applying
 	 * time_zone_x_mapping(); */
+#ifndef RTCONFIG_AVOID_TZ_ENV
 	setenv("TZ", nvram_safe_get_x("", "time_zone_x"), 1);
+#endif
 
 #ifdef RTCONFIG_LETSENCRYPT
 	nvram_unset("le_restart_httpd");

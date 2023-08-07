@@ -233,7 +233,7 @@ extern struct mime_referer mime_referers[];
 typedef struct asus_token_table asus_token_t;
 struct asus_token_table{
 	char useragent[1024];
-	char token[32];
+	char token[33];
 	char ipaddr[16];
 	char login_timestampstr[32];
 	char host[64];
@@ -469,7 +469,7 @@ extern const char *syslog_msg_filter[];
 extern char referer_host[64];
 extern char host_name[64];
 extern char user_agent[1024];
-extern char gen_token[32];
+extern char gen_token[33];
 extern char indexpage[128];
 extern char url[128];
 extern unsigned int login_ip; // the logined ip

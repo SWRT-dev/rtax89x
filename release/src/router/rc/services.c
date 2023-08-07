@@ -1839,7 +1839,20 @@ void start_dnsmasq(void)
 #endif
 
 		/* DNS server */
-		fprintf(fp, "dhcp-option=lan,option6:23,[::]\n");
+		value = nvram_safe_get("ipv6_dns1_x");
+		value2 = nvram_safe_get("ipv6_dns2_x");
+#if defined(RTCONFIG_SMARTDNS)
+		if(nvram_match("smartdns_enable", "1") && nvram_match("smartdns_dis_ipv6", "0") && nvram_match("smartdns_dualstackip", "1")/* && nvram_match("ipv6_dnsenable", "1")*/)
+			fprintf(fp, "dhcp-option=lan,option6:23,[::]\n");
+		else
+#endif
+		if ((*value && ipv6_address(value)) || (*value2 && ipv6_address(value2)))
+			fprintf(fp, "dhcp-option=lan,option6:23,%s%s%s\n",
+				(*value && ipv6_address(value) ? value : "0.0.0.0"),
+				(*value && ipv6_address(value) && *value2 && ipv6_address(value2) ? "," : ""),
+				(*value2 && ipv6_address(value2) ? value2 : ""));
+		else
+			fprintf(fp, "dhcp-option=lan,option6:23,[::]\n");
 
 		/* LAN Domain */
 		value = nvram_safe_get("lan_domain");
@@ -2477,6 +2490,41 @@ void restart_s46map_rptd(void)
 }
 #endif
 
+#define RDISC6_RETRY_MAX "2147483647"
+
+void start_rdisc6(void)
+{
+	int service;
+	pid_t pid;
+	char *rdisc6_argv[] = { "rdisc6", "-r", RDISC6_RETRY_MAX, (char*) get_wan6face(), NULL };
+
+	if (getpid() != 1) {
+		notify_rc("start_rdisc6");
+		return;
+	}
+
+/* Check if enabled */
+	service = get_ipv6_service();
+	if (
+#ifdef RTCONFIG_6RELAYD
+	    service != IPV6_PASSTHROUGH &&
+#endif
+	    service != IPV6_NATIVE_DHCP)
+		return;
+
+	if (nvram_get_int("ipv6_no_rdisc6"))
+		return;
+
+	stop_rdisc6();
+
+	_eval(rdisc6_argv, NULL, 0, &pid);
+}
+
+void stop_rdisc6(void)
+{
+	killall_tk("rdisc6");
+}
+
 void start_ipv6(void)
 {
 	int service = get_ipv6_service();
@@ -2803,6 +2851,11 @@ check_wps_enable()
 {
 	int wps_enable = nvram_get_int("wps_enable_x");
 	int unit = nvram_get_int("wps_band_x");
+
+#ifdef RTCONFIG_AMAS
+	if (nvram_get_int("re_mode") == 1)
+		return;
+#endif
 
 	if (no_need_to_start_wps() ||
 		wps_band_ssid_broadcast_off(get_radio_band(unit))) {
@@ -6018,7 +6071,7 @@ start_httpd(void)
 		_eval(https_argv, NULL, 0, &pid);
 #ifdef RTCONFIG_IPV6
 		if (ipv6_enabled() && nvram_get_int("misc_http_x")
-			&& is_intf_up(https_ipv6_argv[3]) > 0) {
+			&& is_intf_up(https_ipv6_argv[3])) {
 			pid = nvram_get_int("misc_httpsport_x") ? : 8443;
 			https_ipv6_argv[https_ipv6_index++] = "-p";
 			https_ipv6_argv[https_ipv6_index++] = ((pid == 8443) ? "8443" : nvram_safe_get("misc_httpsport_x"));
@@ -6050,6 +6103,8 @@ start_httpd(void)
 
 	chdir(cur_dir ? : "/");
 	free(cur_dir);
+
+	nvram_set_int("wait_httpd", 0);
 }
 
 void
@@ -6059,6 +6114,8 @@ stop_httpd(void)
 		notify_rc("stop_httpd");
 		return;
 	}
+
+	nvram_set_int("wait_httpd", 1);
 
 	if (pids("httpd"))
 		killall_tk("httpd");
@@ -6080,9 +6137,9 @@ start_httpd_ipv6(void)
 	int enable;
 	char *cur_dir;
 	pid_t pid;
-	char pidfile[32], pif[IFNAMSIZ];
+	char pidfile[32];
+	char *pif = get_wan6face();
 
-	strlcpy(pif, get_wan6face(), sizeof(pif));
 	pid = nvram_get_int("misc_httpsport_x") ? : 8443;
 	snprintf(pidfile, sizeof(pidfile), "/var/run/httpd-%s-%d.pid", pif, pid);
 	if (f_exists(pidfile)) {
@@ -10808,7 +10865,7 @@ stop_services(void)
 	stop_mdns();
 #endif
 #ifdef RTCONFIG_IPV6
-	/* what? */
+	stop_rdisc6();
 #endif
 #ifdef RTCONFIG_BCMWL6
 #ifdef BCM_ASPMD
@@ -15180,10 +15237,8 @@ check_ddr_done:
 #if defined(RTCONFIG_SWITCH_QCA8075_QCA8337_PHY_AQR107_AR8035_QCA8033)
 	else if (strcmp(script, "upgrade_aqr113c_fw") == 0)
 	{
-#if !defined(RAX120)
 		if (action & RC_SERVICE_START)
 			upgrade_aqr113c_fw();
-#endif
 	}
 #endif
 #ifdef RTCONFIG_LETSENCRYPT
@@ -15240,6 +15295,12 @@ check_ddr_done:
 			stop_ipv6();
 		if (action & RC_SERVICE_START)
 			start_ipv6();
+	}
+	else if (strcmp(script, "rdisc6") == 0) {
+		if (action & RC_SERVICE_STOP)
+			stop_rdisc6();
+		if (action & RC_SERVICE_START)
+			start_rdisc6();
 	}
 	else if (strcmp(script, "dhcp6c") == 0) {
 		if (action & RC_SERVICE_STOP) {
@@ -16221,7 +16282,7 @@ retry_wps_enr:
 #if defined(RTCONFIG_OPENVPN)
 			}
 #endif
-#if defined(RTCONFIG_SOC_IPQ8064) || defined(RTCONFIG_SOC_IPQ8074)
+#if defined(RTCONFIG_BWDPI) && defined(RTCONFIG_QCA)
 		/* It's a workaround for QCA platform due to accelerator / module / vpn can't work together */
 		start_dpi_engine_service();
 #endif
@@ -16417,7 +16478,7 @@ _dprintf("test 2. turn off the USB power during %d seconds.\n", reset_seconds[re
             rc_ipsec_set(IPSEC_SET,PROF_SVR);
 			start_firewall(wan_primary_ifunit(), 0);
 			start_dnsmasq();
-#if defined(RTCONFIG_SOC_IPQ8064) || defined(RTCONFIG_SOC_IPQ8074)
+#if defined(RTCONFIG_BWDPI) && defined(RTCONFIG_QCA)
 		/* It's a workaround for QCA platform due to accelerator / module / vpn can't work together */
 		start_dpi_engine_service();
 #endif
@@ -16428,7 +16489,7 @@ _dprintf("test 2. turn off the USB power during %d seconds.\n", reset_seconds[re
             rc_ipsec_set(IPSEC_START,PROF_SVR);
 			start_firewall(wan_primary_ifunit(), 0);
 			start_dnsmasq();
-#if defined(RTCONFIG_SOC_IPQ8064) || defined(RTCONFIG_SOC_IPQ8074)
+#if defined(RTCONFIG_BWDPI) && defined(RTCONFIG_QCA)
 		/* It's a workaround for QCA platform due to accelerator / module / vpn can't work together */
 		start_dpi_engine_service();
 #endif
@@ -16454,7 +16515,7 @@ start_write_smb_conf();
             rc_ipsec_set(IPSEC_SET,PROF_SVR);
             start_firewall(wan_primary_ifunit(), 0);
             start_dnsmasq();
-#if defined(RTCONFIG_SOC_IPQ8064) || defined(RTCONFIG_SOC_IPQ8074)
+#if defined(RTCONFIG_BWDPI) && defined(RTCONFIG_QCA)
 		/* It's a workaround for QCA platform due to accelerator / module / vpn can't work together */
 		start_dpi_engine_service();
 #endif
@@ -16465,7 +16526,7 @@ start_write_smb_conf();
             rc_ipsec_set(IPSEC_SET,PROF_CLI);
         } else if(0 == strcmp(script, "ipsec_start_cli")){
             rc_ipsec_set(IPSEC_START,PROF_CLI);
-#if defined(RTCONFIG_SOC_IPQ8064) || defined(RTCONFIG_SOC_IPQ8074)
+#if defined(RTCONFIG_BWDPI) && defined(RTCONFIG_QCA)
 		/* It's a workaround for QCA platform due to accelerator / module / vpn can't work together */
 		start_dpi_engine_service();
 #endif
@@ -17615,6 +17676,10 @@ void start_amas_lldpd(void)
 
 	stop_amas_lldpd();
 
+#ifdef RTCONFIG_AVOID_TZ_ENV
+	#define CHROOTDIR_LLDPD "/var/run/lldpd"
+	doSystem("mkdir -p %s/etc ; ln -f /tmp/TZ %s/etc/TZ", CHROOTDIR_LLDPD, CHROOTDIR_LLDPD);	/* add a hard link to /tmp/TZ at /var/run/lldpd/etc/TZ */
+#endif
 	FILE *fp = NULL;
 	fp = fopen("/tmp/run_lldpd.sh", "w+");
 	if (!fp) {
@@ -20936,4 +21001,3 @@ int set_cable_media(const char *eth_inf, const char *media_type){
 	return 0;
 }
 #endif
-

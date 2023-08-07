@@ -2,4 +2,4 @@ swrtex.c
 swrtex.h
 stamp-h1
 tcode.c
-release/src-qca-ipq806x/linux/linux-4.4.x/net/swrt_fastpath/*.c
+release/src-qca-ipq806x/linux/linux-4.4.*/net/swrt_fastpath/*.c

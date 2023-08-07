@@ -2700,6 +2700,7 @@ void wan6_up(const char *pwan_ifname)
 		/* fall through */
 #endif
 	case IPV6_NATIVE_DHCP:
+		start_rdisc6();
 		start_dhcp6c();
 
 		if (nvram_match(ipv6_nvname("ipv6_ifdev"), "ppp")) {
@@ -2900,11 +2901,17 @@ void wan6_up(const char *pwan_ifname)
 #ifdef RTCONFIG_HTTPS
 	start_httpd_ipv6();
 #endif
+
+#ifdef RTCONFIG_OPENVPN
+	stop_ovpn_serverall();
+	start_ovpn_serverall();
+#endif
 }
 
 void wan6_down(const char *wan_ifname)
 {
 	set_intf_ipv6_dad(wan_ifname, 0, 0);
+	stop_rdisc6();
 #if 0
 	stop_ecmh();
 #endif
@@ -4185,6 +4192,7 @@ start_wan(void)
 	symlink("/sbin/rc", "/etc/openvpn/ovpnc-up");
 	symlink("/sbin/rc", "/etc/openvpn/ovpnc-down");
 	symlink("/sbin/rc", "/etc/openvpn/ovpnc-route-up");
+	symlink("/sbin/rc", "/etc/openvpn/ovpnc-route-pre-down");
 #endif
 #endif
 	symlink("/sbin/rc", "/tmp/udhcpc");

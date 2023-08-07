@@ -28,9 +28,11 @@
 	ess-switch {
 		switch_mac_mode = <0x0>;
 		switch_mac_mode1 = <0x2>;
-		switch_mac_mode2 = <0x6>;
+		switch_mac_mode2 = <0x7>;
 		aquantia_port = <4>;
 		aquantia_gpio = <44>;
+		sfp_port = <5>;
+		sfp_gpio = <59>;
 		port_phyinfo {
 			port@0 {
 				phy_address = <0>;
@@ -51,6 +53,10 @@
 			port@4 {
 				phy_address = <7>;
 				phy_type = <3>;
+			};
+			port@5 {
+				phy_address = <30>;
+				phy_type = <5>;
 			};
 		};
 	};

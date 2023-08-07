@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
 ===========================================================================
-Copyright (c) 2017-2019 Qualcomm Technologies, Inc.
+Copyright (c) 2017-2020 Qualcomm Technologies, Inc.
 All Rights Reserved.
 Confidential and Proprietary - Qualcomm Technologies, Inc.
 ===========================================================================
@@ -16,7 +16,7 @@ Confidential and Proprietary - Qualcomm Technologies, Inc.
 	<partitions>
 		<partition>
 			<name length="16" type="string">0:SBL1</name>
-			<size_kb length="4">256</size_kb>
+			<size_kb length="4">192</size_kb>
 			<pad_kb length="2">0</pad_kb>
 			<which_flash length="2">0</which_flash>
 			<attr>0xFF</attr>
@@ -38,7 +38,7 @@ Confidential and Proprietary - Qualcomm Technologies, Inc.
 		</partition>
 		<partition>
 			<name length="16" type="string">0:QSEE</name>
-			<size_kb length="4">1408</size_kb>
+			<size_kb length="4">640</size_kb>
 			<pad_kb length="2">0</pad_kb>
 			<which_flash length="2">0</which_flash>
 			<attr>0xFF</attr>
@@ -92,7 +92,7 @@ Confidential and Proprietary - Qualcomm Technologies, Inc.
 		</partition>
 		<partition>
 			<name length="16" type="string">0:ART</name>
-			<size_kb length="4">256</size_kb>
+			<size_kb length="4">448</size_kb>
 			<pad_kb length="2">0</pad_kb>
 			<which_flash length="2">0</which_flash>
 			<attr>0xFF</attr>
@@ -102,7 +102,7 @@ Confidential and Proprietary - Qualcomm Technologies, Inc.
 		</partition>
 		<partition>
 			<name length="16" type="string">0:HLOS</name>
-			<size_kb length="4">6144</size_kb>
+			<size_kb length="4">5120</size_kb>
 			<pad_kb length="2">0</pad_kb>
 			<which_flash length="2">0</which_flash>
 			<attr>0xFF</attr>
@@ -114,7 +114,7 @@ Confidential and Proprietary - Qualcomm Technologies, Inc.
 		</partition>
 		<partition>
 			<name length="16" type="string">rootfs</name>
-			<size_kb length="4">20992</size_kb>
+			<size_kb length="4">20480</size_kb>
 			<pad_kb length="2">0</pad_kb>
 			<which_flash length="2">0</which_flash>
 			<attr>0xFF</attr>
@@ -126,18 +126,19 @@ Confidential and Proprietary - Qualcomm Technologies, Inc.
 		</partition>
 		<partition>
 			<name length="16" type="string">0:WIFIFW</name>
-			<size_kb length="4">2304</size_kb>
+			<size_kb length="4">4096</size_kb>
 			<pad_kb length="2">0</pad_kb>
 			<which_flash length="2">0</which_flash>
 			<attr>0xFF</attr>
 			<attr>0xFF</attr>
 			<attr>0x00</attr>
 			<attr>0xFF</attr>
-			<img_name type="string" soc_version="1" optional="true" image_type="hlos">wifi_fw_squashfs.img</img_name>
-			<img_name type="string" soc_version="2" optional="true" image_type="hlos">wifi_fw_squashfs_v2.img</img_name>
+			<img_name type="string" image_type="hlos" wififw_type="2">wifi_fw_ipq5018_qcn9000_squashfs.img</img_name>
+			<img_name type="string" image_type="hlos" wififw_type="3">wifi_fw_ipq5018_qcn9000_qcn6122_squashfs.img</img_name>
+			<img_name type="string" image_type="hlos" wififw_type="1">wifi_fw_ipq5018_qcn6122cs_squashfs.img</img_name>
 		</partition>
 		<partition>
-			<name length="16" type="string">0:ETHPHYFW</name>
+			<name length="16" type="string">0:BTFW</name>
 			<size_kb length="4">256</size_kb>
 			<pad_kb length="2">0</pad_kb>
 			<which_flash length="2">0</which_flash>
@@ -145,6 +146,7 @@ Confidential and Proprietary - Qualcomm Technologies, Inc.
 			<attr>0xFF</attr>
 			<attr>0x00</attr>
 			<attr>0xFF</attr>
+			<img_name type="string" image_type="hlos">bt_fw_patch_squashfs.img</img_name>
 		</partition>
 	</partitions>
 </norboot>

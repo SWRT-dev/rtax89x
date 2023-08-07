@@ -720,7 +720,10 @@ image_set_hdr_b(comp)		/* image_set_comp */
 
 static inline void image_set_name(image_header_t *hdr, const char *name)
 {
-	strncpy(image_get_name(hdr), name, IH_NMLEN);
+	char tmp[IH_NMLEN + 1] = { 0 };
+	/* image_get_name(hdr) could be non-ASCIIZ string if it's length equal to IH_NMLEN. */
+	strlcpy(tmp, name, sizeof(tmp));
+	memmove(image_get_name(hdr), name, IH_NMLEN);
 }
 
 int image_check_hcrc(const image_header_t *hdr);

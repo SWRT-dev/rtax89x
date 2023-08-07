@@ -874,6 +874,11 @@ void parse_openvpn_status(int unit)
 	char buf[512];
 	char *token;
 	ovpn_sconf_t conf;
+	char word[64] = {0};
+	char *next = NULL;
+	int i = 0, count = 0;
+	int i_raddr = 0, i_vaddr = 0, i_user = 0;
+	char raddr[64] = {0}, vaddr[64] = {0}, user[64] = {0};
 
 	snprintf(buf, sizeof(buf), "/etc/openvpn/server%d/status", unit);
 	fpi = fopen(buf, "r");
@@ -888,35 +893,53 @@ void parse_openvpn_status(int unit)
 			CLEAR(buf);
 			if (!fgets(buf, sizeof(buf), fpi))
 				break;
-			if(!strncmp(buf, "CLIENT_LIST", 11) && conf.auth_mode == OVPN_AUTH_TLS) {
-				//printf("%s", buf);
-				token = strtok(buf, ",");	//CLIENT_LIST
-				token = strtok(NULL, ",");	//Common Name
-				token = strtok(NULL, ",");	//Real Address
-				if(token)
-					fprintf(fpo, "%s ", token);
-				else
-					fprintf(fpo, "NoRealAddress ");
+			if(!strncmp(buf, "HEADER,CLIENT_LIST", 18) && conf.auth_mode == OVPN_AUTH_TLS) {
+				i = 0;
+				foreach_44(word, buf, next) {
+					if (!strcmp(word, "Real Address"))
+						i_raddr = i - 1;
+					else if (!strcmp(word, "Virtual Address"))
+						i_vaddr = i - 1;
+					else if (!strcmp(word, "Username"))
+						i_user = i - 1;
+					i++;
+				}
+			}
+			else if(!strncmp(buf, "CLIENT_LIST", 11) && conf.auth_mode == OVPN_AUTH_TLS) {
+				i = 0;
+				foreach_44_keep_empty_string(count, word, buf, next) {
+					if (i == i_raddr)
+						strlcpy(raddr, word, sizeof(raddr));
+					else if (i == i_vaddr)
+						strlcpy(vaddr, word, sizeof(vaddr));
+					else if (i == i_user)
+						strlcpy(user, word, sizeof(user));
+					i++;
+				}
 
+				//Real Address
+				if (raddr[0] == '\0')
+					fprintf(fpo, "NoRealAddress ");
+				else
+					fprintf(fpo, "%s ", raddr);
+
+				//Virtual Address
 				if( conf.if_type == OVPN_IF_TAP && conf.dhcp == 1) {
 					fprintf(fpo, "VirtualAddressAssignedByDhcp ");
 				}
 				else {
-					token = strtok(NULL, ",");	//Virtual Address
-					if(token)
-						fprintf(fpo, "%s ", token);
-					else
+					if (vaddr[0] == '\0')
 						fprintf(fpo, "NoVirtualAddress ");
+					else
+						fprintf(fpo, "%s ", vaddr);
 				}
-				token = strtok(NULL, ",");	//Bytes Received
-				token = strtok(NULL, ",");	//Bytes Sent
-				token = strtok(NULL, ",");	//Connected Since
-				token = strtok(NULL, ",");	//Connected Since (time_t)
-				token = strtok(NULL, ",");	//Username
-				if(token)
-					fprintf(fpo, "%s", token);
-				else
+
+				//Username
+				if (user[0] == '\0')
 					fprintf(fpo, "NoUsername");
+				else
+					fprintf(fpo, "%s", user);
+
 				fprintf(fpo, "\n");
 			}
 			else if(!strncmp(buf, "REMOTE", 6) && conf.auth_mode == OVPN_AUTH_STATIC) {

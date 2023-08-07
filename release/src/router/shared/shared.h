@@ -220,7 +220,8 @@ extern int PS_pclose(FILE *);
 #define SYS_CLASS_MTD		"/sys/class/mtd"
 #define SYS_CLASS_NET		"/sys/class/net"
 #define SYS_CLASS_THERMAL	"/sys/class/thermal"
-#define FAN_CUR_STATE		"/sys/class/thermal/cooling_device0/cur_state"
+#define SYS_COOLINGDEV		"/sys/class/thermal/cooling_device0"
+#define FAN_CUR_STATE		SYS_COOLINGDEV "/cur_state"
 #define FAN_RPM			"/sys/devices/platform/gpio-fan/hwmon/hwmon0/fan1_input"
 
 #define LINUX_MTD_NAME		"linux"
@@ -634,6 +635,7 @@ enum {
 	FROM_IFTTT,
 	FROM_ALEXA,
 	FROM_WebView,
+	FROM_ATE,
 	FROM_UNKNOWN
 };
 
@@ -1920,7 +1922,7 @@ static inline int eth_wantype(int unit)
 #ifdef CONFIG_BCMWL5
 extern int get_ifname_unit(const char* ifname, int *unit, int *subunit);
 
-static inline int guest_wlif(char *ifname)
+static inline int guest_wlif(const char *ifname)
 {
 	int unit = -1, subunit = -1;
 
@@ -1939,7 +1941,7 @@ static inline int guest_wlif(char *ifname)
 #endif
 }
 #elif defined RTCONFIG_RALINK
-static inline int guest_wlif(char *ifname)
+static inline int guest_wlif(const char *ifname)
 {
 	return strncmp(ifname, "ra", 2) == 0 && !strchr(ifname, '0');
 }
@@ -1951,10 +1953,10 @@ static inline int guest_wlif(char *ifname)
  * 	0:	@ifname is not any guest network interface name.
  *  otherwise:	@ifname is one of gueset network interface name.
  */
-static inline int guest_wlif(char *ifname)
+static inline int guest_wlif(const char *ifname)
 {
 	int r, r1, v;
-	char *p = ifname + 4;
+	const char *p = ifname + 4;
 
 	r = !strncmp(ifname, "ath0", 4) || !strncmp(ifname, "ath1", 4) || !strncmp(ifname, "ath2", 4);
 	if (r) {
@@ -2303,6 +2305,14 @@ extern int get_wl_sta_list(void);
 extern int get_psta_status(int unit);
 #endif
 extern int wl_get_bw(int unit);
+#if defined(RTCONFIG_QCA)
+extern int get_cfg_bw_mask_by_bw(int bw);
+extern int __wl_get_bw_cap(int unit, int *bwcap);
+extern char *get_mode_str_by_bw(int unit, int channel, int bw, int nctrlsb);
+extern const char *phymode_str(int phymode);
+extern int get_bw_by_mode_str(char *mode);
+extern int get_bw_by_phymode(int unit, int phymode);
+#endif
 extern int wl_get_bw_cap(int unit, int *bwcap);
 
 #if defined(RTCONFIG_BCMWL6) && defined(RTCONFIG_PROXYSTA)
@@ -3172,9 +3182,12 @@ extern int set_bled_udef_pattern(const char *led_gpio, unsigned int interval, co
 extern int set_bled_udef_tigger(const char *main_led_gpio, const char *tigger);
 extern int set_bled_normal_mode(const char *led_gpio);
 extern int set_bled_udef_pattern_mode(const char *led_gpio);
-extern int start_bled(unsigned int gpio_nr);
-extern int stop_bled(unsigned int gpio_nr);
-extern int del_bled(unsigned int gpio_nr);
+extern int __start_bled(const char *led_gpio, unsigned int gpio_nr);
+extern int __stop_bled(const char *led_gpio, unsigned int gpio_nr);
+extern int __del_bled(const char *led_gpio, unsigned int gpio_nr);
+static inline int start_bled(unsigned int gpio_nr) { return __start_bled(NULL, gpio_nr); }
+static inline int stop_bled(unsigned int gpio_nr) { return __stop_bled(NULL, gpio_nr); }
+static inline int del_bled(unsigned int gpio_nr) { return __del_bled(NULL, gpio_nr); }
 extern int append_netdev_bled_if(const char *led_gpio, const char *ifname);
 extern int remove_netdev_bled_if(const char *led_gpio, const char *ifname);
 extern int __config_swports_bled(const char *led_gpio, unsigned int port_mask, unsigned int min_blink_speed, unsigned int interval, int sleep);
@@ -3350,6 +3363,9 @@ static inline int set_bled_udef_pattern(__attribute__ ((unused)) const char *led
 static inline int set_bled_udef_tigger(__attribute__ ((unused)) const char *main_led_gpio, __attribute__ ((unused)) const char *tigger) { return 0; }
 static inline int set_bled_normal_mode(__attribute__ ((unused)) const char *led_gpio) { return 0; }
 static inline int set_bled_udef_pattern_mode(__attribute__ ((unused)) const char *led_gpio) { return 0; }
+static inline int __start_bled(__attribute__ ((unused)) const char *led_gpio, __attribute__ ((unused)) unsigned int gpio_nr) { return 0; }
+static inline int __stop_bled(__attribute__ ((unused)) const char *led_gpio, __attribute__ ((unused)) unsigned int gpio_nr) { return 0; }
+static inline int __del_bled(__attribute__ ((unused)) const char *led_gpio, __attribute__ ((unused)) unsigned int gpio_nr) { return 0; }
 static inline int start_bled(__attribute__ ((unused)) unsigned int gpio_nr) { return 0; }
 static inline int stop_bled(__attribute__ ((unused)) unsigned int gpio_nr) { return 0; }
 static inline int chg_bled_state(__attribute__ ((unused)) unsigned int gpio_nr) { return 0; }
@@ -3445,7 +3461,7 @@ static inline int is_m2ssd_port(__attribute__ ((unused)) char *usb_node) { retur
 
 #ifdef RTCONFIG_CAPTIVE_PORTAL
 extern void deauth_guest_sta(char *, char *);
-extern int FindBrifByWlif(char *wl_ifname, char *brif_name, int size);
+extern int FindBrifByWlif(const char *wl_ifname, char *brif_name, int size);
 #endif
 
 #ifdef RTCONFIG_HTTPS
@@ -3923,4 +3939,3 @@ enum {
 extern void i2cled_control(int which, int onoff);
 #endif
 #endif	/* !__SHARED_H__ */
-

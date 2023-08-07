@@ -46,7 +46,7 @@ $(function () {
 	}
 });
 
-var vpnc_dev_policy_list_array = []
+var vpnc_dev_policy_list_array = [];
 var vpnc_dev_policy_list_array_ori = [];
 
 var dhcp_staticlist_array = '<% nvram_get("dhcp_staticlist"); %>';
@@ -77,6 +77,7 @@ if(yadns_support){
 	var yadns_enable = '<% nvram_get("yadns_enable_x"); %>';
 	var yadns_mode = '<% nvram_get("yadns_mode"); %>';
 }
+var ipv6_proto_orig = httpApi.nvramGet(["ipv6_service"]).ipv6_service;
 var MaxRule_extend_limit = ((isSupport("MaxRule_extend_limit") != "") ? isSupport("MaxRule_extend_limit") : 64);
 var manually_dhcp_sort_type = 0;//0:increase, 1:decrease
 
@@ -131,6 +132,15 @@ function initial(){
 
 	document.form.sip_server.disabled = true;
 	document.form.sip_server.parentNode.parentNode.style.display = "none";	
+
+	if(IPv6_support && ipv6_proto_orig != "disabled"){
+		document.form.ipv6_dns1_x.disabled = false;
+		document.form.ipv6_dns1_x.parentNode.parentNode.style.display = "";
+	}
+	else{
+		document.form.ipv6_dns1_x.disabled = true;
+		document.form.ipv6_dns1_x.parentNode.parentNode.style.display = "none";
+	}
 
 	if(vpn_fusion_support) {
 		vpnc_dev_policy_list_array = parse_vpnc_dev_policy_list('<% nvram_char_to_ascii("","vpnc_dev_policy_list"); %>');
@@ -485,6 +495,12 @@ function validForm(){
 	document.form.dhcp_start.value = ipFilterZero(document.form.dhcp_start.value);
         document.form.dhcp_end.value = ipFilterZero(document.form.dhcp_end.value);
 
+	if(IPv6_support && ipv6_proto_orig != "disabled"){
+		if(document.form.ipv6_dns1_x.value != ""){
+			if(!validator.isLegal_ipv6(document.form.ipv6_dns1_x)) return false;
+		}
+	}
+
 	return true;
 }
 
@@ -778,7 +794,12 @@ function sortClientIP(){
 				  <div id="yadns_hint" style="display:none;"></div>
 				</td>
 			  </tr>
-			  
+			<tr style="display:none;">
+				<th width="200"><#ipv6_dns_serv#></th>
+				<td>
+					<input type="text" maxlength="39" class="input_32_table" name="ipv6_dns1_x" value="<% nvram_get("ipv6_dns1_x"); %>" autocorrect="off" autocapitalize="off">
+				</td>
+			</tr>
 			  <tr>
 				<th><a class="hintstyle" href="javascript:void(0);" onClick="openHint(5,8);"><#LANHostConfig_x_WINSServer_itemname#></a></th>
 				<td>

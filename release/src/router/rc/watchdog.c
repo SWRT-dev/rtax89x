@@ -261,7 +261,9 @@ static void *fn_acts[_NSIG];
 static int ddns_check_count = 0;
 static int freeze_duck_count = 0;
 
+#ifndef RTCONFIG_AVOID_TZ_ENV
 static char time_zone_t[32]={0};
+#endif
 
 static const struct mfg_btn_s {
 	enum btn_id id;
@@ -4499,7 +4501,9 @@ int timecheck_item(char *activeTime)
 	int x=0, y=0, z=0;	//for loop usage
 
 	/* current router time */
+#ifndef RTCONFIG_AVOID_TZ_ENV
 	setenv("TZ", nvram_safe_get("time_zone_x"), 1);
+#endif
 	time(&now);
 	tm = localtime(&now);
 	now_dow = tm->tm_wday;
@@ -4614,7 +4618,9 @@ int timecheck_reboot(char *activeSchedule)
 	struct tm *tm;
 	int i;
 
+#ifndef RTCONFIG_AVOID_TZ_ENV
 	setenv("TZ", nvram_safe_get("time_zone_x"), 1);
+#endif
 
 	time(&now);
 	tm = localtime(&now);
@@ -6678,12 +6684,15 @@ void regular_ddns_check(void)
 	if (!nvram_match("wans_mode", "lb") && !is_wan_connect(wan_unit))
 		return;
 
-	snprintf(prefix, sizeof(prefix), "wan%d_", wan_unit);
-	ip_addr.s_addr = *(unsigned long *)hostinfo -> h_addr_list[0];
-	//_dprintf("%s ?= %s\n", nvram_pf_get(prefix, "ipaddr"), inet_ntoa(ip_addr));
-	if (nvram_pf_match(prefix, "ipaddr", inet_ntoa(ip_addr)))
-		return;
-
+	// Only check nvram IP for internal IP check mode
+	if (nvram_get_int("ddns_realip_x") == 0) {
+		snprintf(prefix, sizeof(prefix), "wan%d_", wan_unit);
+		ip_addr.s_addr = *(unsigned long *)hostinfo -> h_addr_list[0];
+		//_dprintf("%s ?= %s\n", nvram_pf_get(prefix, "ipaddr"), inet_ntoa(ip_addr));
+		if (nvram_pf_match(prefix, "ipaddr", inet_ntoa(ip_addr)))
+			return;
+	}
+	
 	//_dprintf("WAN IP change!\n");
 	nvram_set("ddns_update_by_wdog", "1");
 	if (wan_unit != last_unit) {
@@ -6818,6 +6827,9 @@ void networkmap_check()
 
 void httpd_check()
 {
+	if (nvram_get_int("wait_httpd"))
+		return;
+
 #ifdef RTCONFIG_HTTPS
 	int enable = nvram_get_int("http_enable");
 	if ((enable != 1 && !pids("httpd")) ||
@@ -8318,8 +8330,13 @@ static void bt_turn_off_service()
 				sleep(1);
 			}
 
-			if (strncmp(tmp, "ble_qis_done", strlen(tmp))) 
-				notify_rc_and_wait(tmp);
+			if (strncmp(tmp, "ble_qis_done", strlen(tmp))) {
+				if (!strncmp(tmp, "restart_wireless", strlen(tmp)) && nvram_invmatch("ipv6_service", "disabled")) {
+					notify_rc_and_wait("restart_allnet");
+				}
+				else
+					notify_rc_and_wait(tmp);
+			}
 
 			tmp = strtok(NULL, delim);
 		}
@@ -9709,11 +9726,13 @@ void watchdog(int sig)
 	}
 
 	if(nvram_match("ntp_ready", "1")) {
+#ifndef RTCONFIG_AVOID_TZ_ENV
 		if(!nvram_match("time_zone_x", time_zone_t)){
 			strlcpy(time_zone_t, nvram_safe_get("time_zone_x"), sizeof(time_zone_t));
 			setenv("TZ", nvram_safe_get("time_zone_x"), 1);
 			tzset();
 		}
+#endif	/* RTCONFIG_AVOID_TZ_ENV */
 		if(strstr(nvram_safe_get("time_zone_x"), "DST") && dst_critical()) {
 			_dprintf("dst critical.\n");
 			notify_rc("restart_firewall");
@@ -9981,9 +10000,11 @@ watchdog_main(int argc, char *argv[])
 		nvram_set(p->nv, "0");
 	}
 
+#ifndef RTCONFIG_AVOID_TZ_ENV
 	setenv("TZ", nvram_safe_get("time_zone_x"), 1);
 
 	_dprintf("TZ watchdog\n");
+#endif	/* RTCONFIG_AVOID_TZ_ENV */
 	/* set timer */
 	alarmtimer(NORMAL_PERIOD, 0);
 
@@ -10159,4 +10180,3 @@ void RC_SEND_NT_EVENT(int NT_EVENT_FLAG, char *sub_event)
 	if(nt_root) json_object_put(nt_root);
 }
 #endif
-

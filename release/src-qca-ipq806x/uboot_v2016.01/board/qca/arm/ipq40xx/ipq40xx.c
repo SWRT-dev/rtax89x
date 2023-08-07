@@ -37,6 +37,9 @@
 
 #define DLOAD_MAGIC_COOKIE 0x10
 #define TCSR_USB_HSPHY_DEVICE_MODE		0x00C700E7
+
+#define TCSR_SOC_HW_VERSION_REG 0x194D000
+
 DECLARE_GLOBAL_DATA_PTR;
 
 #define CPU0_APCS_SAW2_VCTL	0x0b089014
@@ -788,3 +791,7 @@ void ipq_uboot_fdt_fixup(void)
 	return;
 }
 
+int get_soc_hw_version(void)
+{
+	return readl(TCSR_SOC_HW_VERSION_REG);
+}

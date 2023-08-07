@@ -853,18 +853,9 @@ void init_devs(void)
     defined(RTCONFIG_QCN550X)
 	eval("ln", "-sf", "/dev/mtdblock2", "/dev/caldata");	/* mtdblock2 = SPI flash, Factory MTD partition */
 #else
-#if defined(RAX120)
-	int mtd_part = 0, mtd_size = 0;
-	char dev_mtd[] = "/dev/mtdblockXXX";
-	if (mtd_getinfo("Factory", &mtd_part, &mtd_size)){
-		snprintf(dev_mtd, sizeof(dev_mtd), "/dev/mtdblock%d", mtd_part);
-		eval("ln", "-sf", dev_mtd, "/dev/caldata");
-	}else
-		printf("init_devs: can't find Factory MTD partition\n");
-#else
 	eval("ln", "-sf", "/dev/mtdblock3", "/dev/caldata");	/* mtdblock3 = cal in NAND flash, Factory MTD partition */
 #endif
-#endif
+
 	if ((status = WEXITSTATUS(modprobe("nvram_linux"))))
 		printf("## modprove(nvram_linux) fail status(%d)\n", status);
 
@@ -975,21 +966,13 @@ static void set_wanifaces_hwaddr(void)
 	switch (get_model()) {
 	case MODEL_GTAXY16000:
 	case MODEL_RTAX89U:
-#if defined(RAX120)
-		wan_ifaces[0] = "eth4";
-		wan_ifaces[1] = "eth5";
-#else
 		wan_ifaces[0] = "eth3";
 		wan_ifaces[1] = "eth5";
 		wan_ifaces[2] = "eth4";
-#endif
 		break;
 	}
-#if defined(RAX120)
-	for (i = 0; i < 2; ++i) {
-#else
+
 	for (i = 0; i < 3; ++i) {
-#endif
 		if (wan_ifaces[i] == NULL)
 			break;
 
@@ -1140,7 +1123,7 @@ static void init_switch_qca(void)
 			if (nvram_get_int("ipsec_hw_crypto_enable") == 0)
 			continue;
 		}
-#if defined(RTCONFIG_SOC_IPQ8074) && !defined(RAX120)
+#if defined(RTCONFIG_SOC_IPQ8074)
 		if (!strcmp(*qmod, "qca-ssdk")) {
 			max_speed = nvram_get_int("sfpp_max_speed");
 			if (max_speed == 1000 || max_speed == 10000) {
@@ -1198,11 +1181,7 @@ static void init_switch_qca(void)
 		*v++ = NULL;
 		_eval(argv, NULL, 0, NULL);
 	}
-#if defined(RAX120)
-	doSystem("aq-fw-download /lib/firmware/RAX120_aqr111.cld miireg 7\n");
-	doSystem("sleep 1\n");
-	doSystem("ssdk_sh sw0 debug phy set 7 0x4004c441 0x8\n");
-#endif
+
 	char *wan0_ifname = nvram_safe_get("wan0_ifname");
 	char *lan_ifname, *lan_ifnames, *ifname, *p;
 
@@ -1935,30 +1914,16 @@ int switch_exist(void)
 	return (!ret && id[0] == 0x004dd074 && id[1] == 0x004dd074);
 #elif defined(RTCONFIG_SWITCH_QCA8075_QCA8337_PHY_AQR107_AR8035_QCA8033)
 #if defined(GTAXY16000) || defined(RTAX89U)
-#if defined(RAX120)
-	static const uint32_t     aqr_id[] = { 0x03a1b610, 0x03a1b612, 0 };	/* AQR111, AQR111B0 */
-#else
 	static const uint32_t     aqr_id[] = { 0x03a1b4e2, 0x31c31c41, 0x31c31c12, 0 };	/* AQR107, AQR113, AQR113C */
-#endif
 	static const uint32_t qca8075_id[] = { 0x004dd0b1, 0 };
-#if !defined(RAX120)
 	static const uint32_t qca8337_id[] = { 0x004dd036, 0 };
 	static const uint32_t  ar8033_id[] = { 0x004dd074, 0 };
-#endif
 	static const struct phy_id_list_s {
 		int phy;
 		int phy_type;	/* 0: General; 1: AQR C45 PHY */
 		const uint32_t *pval;
 		uint32_t mask;
 	} phy_id_lists[] = {
-#if defined(RAX120)
-		{ 7, 1,     aqr_id, 0xfffffff0 },	/*  AQR111: WAN2, 5G RJ-45 */
-		{ 4, 0, qca8075_id, 0xffffffff },	/* QCA8075: WAN1 */
-		{ 3, 0, qca8075_id, 0xffffffff },	/* QCA8075: LAN1 */
-		{ 2, 0, qca8075_id, 0xffffffff },	/* QCA8075: LAN2 */
-		{ 1, 0, qca8075_id, 0xffffffff },	/* QCA8075: LAN3 */
-		{ 0, 0, qca8075_id, 0xffffffff },	/* QCA8075: LAN4 */
-#else
 		{  7, 1,     aqr_id, 0xfffffff0 },	/*  AQR1xx: WAN2, 10G RJ-45 */
 		{ 11, 0, qca8075_id, 0xffffffff },	/* QCA8075: WAN1 */
 		{ 10, 0, qca8075_id, 0xffffffff },	/* QCA8075: LAN1 */
@@ -1969,10 +1934,8 @@ int switch_exist(void)
 		{  1, 0, qca8337_id, 0xffffffff },	/* QCA8337: LAN6 */
 		{  0, 0, qca8337_id, 0xffffffff },	/* QCA8337: LAN7 */
 		{  6, 0,  ar8033_id, 0xffffffff },	/*  AR8033: LAN8 */
-#endif
 		{ -1, 0, NULL, 0 },
 	}, *p;
-#if !defined(RAX120)
 	static const struct gmac_spd_s {
 		int port;			/* IPQ8074 GMAC port. */
 		int min_speed;			/* minimal speed of the GMAC. */
@@ -1980,16 +1943,14 @@ int switch_exist(void)
 		{ 1, 1000 },			/* port 1, QCA8337 */
 		{ -1, -1},
 	}, *q;
-#endif
 	time_t t1;
 	uint32_t r, id1, id2;
 	const uint32_t *pval;
 	unsigned int id_reg_addr;
 	int i, r1, ret = 1, val, retry, fw, build, right, phy;
 	char iface[IFNAMSIZ];
-#if !defined(RAX120)
 	char speed_cmd[sizeof("ssdk_sh swX port speed get XYYYYYY")];
-#endif
+
 	/* Check all switch/PHY ports, except SFP+ */
 	for (p = &phy_id_lists[0]; p->phy >= 0; ++p) {
 		if (p->phy_type) {
@@ -2043,7 +2004,6 @@ int switch_exist(void)
 		sleep(1);
 	}
 
-#if !defined(RAX120)
 	/* Check GMAC that are connected to QCA8337 switch.
 	 * For those ports that are connected to Malibu (PHY) and AQR107,
 	 * GMAC speed is negotiated at run-time.  Don't check them.
@@ -2098,7 +2058,6 @@ int switch_exist(void)
 			}
 		}
 	}
-#endif
 
 	if (!ret)
 		return ret;
@@ -3089,7 +3048,7 @@ static void __load_wifi_driver(int testmode)
 		*v++ = "dp_rx_hash=1";
 	}
 #else
-	DPARM(v, s, len, "nss_wifi_olcfg=%d", olcfg);
+	DPARM(v, s, len, "nss_wifi_olcfg=%d", !!olcfg);
 	if (olcfg) {
 		*v++ = "rx_hash=0";
 	}
@@ -4067,9 +4026,6 @@ void init_syspara(void)
 		nvram_set("wl_mssid", "0");
 	else
 		nvram_set("wl_mssid", "1");
-#if defined(RAX120)
-		nvram_set("wl_mssid", "1");//fix guest wifi
-#endif
 #if defined(RTAC58U)
 	if (check_mid("Hydra")) {
 		nvram_set("wl_mssid", "1"); // Hydra's MAC may not be multible of 4
@@ -4081,11 +4037,6 @@ void init_syspara(void)
 #if defined(RTCONFIG_QCA_VAP_LOCALMAC)
 	nvram_set("wl0macaddr", macaddr);
 	nvram_set("wl1macaddr", macaddr2);
-#endif
-#if defined(RAX120)
-//fix wifi mac, temp workaround
-	nvram_set("wlan0macaddr", macaddr);
-	nvram_set("wlan1macaddr", macaddr2);
 #endif
 	/* Hack et0macaddr/et1macaddr after MAC address checking of wl_mssid. */
 	ether_atoe(macaddr, buffer);
@@ -4363,8 +4314,6 @@ void init_syspara(void)
 		nvram_set("IpAddr_Lan", ipaddr_lan);
 	else
 		nvram_unset("IpAddr_Lan");
-
-	getSN();
 }
 
 #ifdef RTCONFIG_ATEUSB3_FORCE
@@ -5140,4 +5089,3 @@ void set_tagged_based_vlan_config(char *interface)
 #endif
 
 #endif
-

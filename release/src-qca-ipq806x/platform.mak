@@ -5,13 +5,13 @@ IPQ806X_MODEL_LIST := $(addprefix _,$(addsuffix _,BRT-AC828 RT-AC88N RT-AC88S RT
 ifeq ($(MUSL64),y)
 SPF8_MODEL_LIST := #$(addprefix _,$(addsuffix _,GT-6000N))
 SPF11.0_MODEL_LIST := $(addprefix _,$(addsuffix _,))
-SPF11.1_MODEL_LIST := $(addprefix _,$(addsuffix _,))
-IPQ807X_MODEL_LIST := $(addprefix _,$(addsuffix _,GT-AXY16000 RT-AX89U))
+SPF11.1_MODEL_LIST := $(addprefix _,$(addsuffix _,RT-AX89U))
+IPQ807X_MODEL_LIST := $(addprefix _,$(addsuffix _,GT-AXY16000))	# SPF11.4
 else
 SPF8_MODEL_LIST := #$(addprefix _,$(addsuffix _,GT-6000N))
 SPF11.0_MODEL_LIST := $(addprefix _,$(addsuffix _,))
 SPF11.1_MODEL_LIST := $(addprefix _,$(addsuffix _,RT-AX89U))
-IPQ807X_MODEL_LIST := $(addprefix _,$(addsuffix _,GT-AXY16000))	# SPF11.1
+IPQ807X_MODEL_LIST := $(addprefix _,$(addsuffix _,GT-AXY16000))	# SPF11.4
 endif
 
 # Select IPQ807X SoC
@@ -29,9 +29,6 @@ KERNEL_GCC520_MUSLLIBC32_MODEL_LIST	:=
 KERNEL_GCC520_MUSLLIBC64_MODEL_LIST	:=
 
 BUILD_NAME ?= $(shell echo $(MAKECMDGOALS) | tr a-z A-Z)
-ifeq ($(BUILD_NAME),SWRT-RAX120)
-BUILD_NAME = RT-AX89U
-endif
 export _BUILD_NAME_ := $(addprefix _,$(addsuffix _,$(BUILD_NAME)))
 
 ifeq ($(MUSL32),y)
@@ -189,9 +186,16 @@ define platformRouterOptions
 			echo "RTCONFIG_CFG80211=y" >>$(1); \
 			sed -i "/RTCONFIG_GLOBAL_INI\>/d" $(1); \
 			echo "RTCONFIG_GLOBAL_INI=y" >>$(1); \
-		elif [ -n "$(findstring $(_BUILD_NAME_),$(SPF11.0_MODEL_LIST) $(SPF11.1_MODEL_LIST) $(IPQ807X_MODEL_LIST))" ] ; then \
+		elif [ -n "$(findstring $(_BUILD_NAME_),$(SPF11.1_MODEL_LIST))" ] ; then \
 			sed -i "/RTCONFIG_SPF11_1_QSDK/d" $(1); \
 			echo "RTCONFIG_SPF11_1_QSDK=y" >>$(1); \
+			sed -i "/RTCONFIG_CFG80211\>/d" $(1); \
+			echo "RTCONFIG_CFG80211=y" >>$(1); \
+			sed -i "/RTCONFIG_GLOBAL_INI\>/d" $(1); \
+			echo "RTCONFIG_GLOBAL_INI=y" >>$(1); \
+		elif [ -n "$(findstring $(_BUILD_NAME_),$(IPQ807X_MODEL_LIST))" ] ; then \
+			sed -i "/RTCONFIG_SPF11_4_QSDK/d" $(1); \
+			echo "RTCONFIG_SPF11_4_QSDK=y" >>$(1); \
 			sed -i "/RTCONFIG_CFG80211\>/d" $(1); \
 			echo "RTCONFIG_CFG80211=y" >>$(1); \
 			sed -i "/RTCONFIG_GLOBAL_INI\>/d" $(1); \
@@ -228,10 +232,8 @@ define platformRouterOptions
 		echo "RTCONFIG_QCA_ARM=y" >>$(1); \
 		sed -i "/RTCONFIG_32BYTES_ODMPID/d" $(1); \
 		echo "RTCONFIG_32BYTES_ODMPID=y" >>$(1); \
-		if [ "$(SWRT_NAME)" != "RAX120" ] ; then \
-			sed -i "/RTCONFIG_FITFDT/d" $(1); \
-			echo "# RTCONFIG_FITFDT is not set" >>$(1); \
-		fi; \
+		sed -i "/RTCONFIG_FITFDT/d" $(1); \
+		echo "# RTCONFIG_FITFDT is not set" >>$(1); \
 		if [ "$(WIFI_CHIP)" = "BEELINER" ] ; then \
 			sed -i "/RTCONFIG_WIFI_QCA9990_QCA9990/d" $(1); \
 			echo "RTCONFIG_WIFI_QCA9990_QCA9990=y" >>$(1); \
@@ -399,10 +401,12 @@ define platformKernelConfig
 			echo "# CONFIG_CFG80211_DEVELOPER_WARNINGS is not set" >>$(1); \
 			sed -i "/CONFIG_CFG80211_DEBUGFS/d" $(1); \
 			echo "# CONFIG_CFG80211_DEBUGFS is not set" >>$(1); \
+			sed -i "/CONFIG_CFG80211_DEFAULT_PS/d" $(1); \
+			echo "# CONFIG_CFG80211_DEFAULT_PS is not set" >>$(1); \
 			sed -i "/CONFIG_CFG80211_INTERNAL_REGDB/d" $(1); \
-			echo "CONFIG_CFG80211_INTERNAL_REGDB=y" >>$(1); \
+			echo "# CONFIG_CFG80211_INTERNAL_REGDB is not set" >>$(1); \
 			sed -i "/CONFIG_CFG80211_CRDA_SUPPORT/d" $(1); \
-			echo "# CONFIG_CFG80211_CRDA_SUPPORT is not set" >>$(1); \
+			echo "CONFIG_CFG80211_CRDA_SUPPORT=y" >>$(1); \
 			sed -i "/CONFIG_CFG80211_WEXT/d" $(1); \
 			echo "CONFIG_CFG80211_WEXT=y" >>$(1); \
 			sed -i "/CONFIG_PPS\>/d" $(1); \
@@ -538,8 +542,10 @@ define platformKernelConfig
 				echo "CONFIG_RMNET=y" >>$(1); \
 				sed -i "/CONFIG_NET_L3_MASTER_DEV\>/d" $(1); \
 				echo "CONFIG_NET_L3_MASTER_DEV=y" >>$(1); \
-				sed -i "/CONFIG_CNSS2_UCODE_DUMP\>/d" $(1); \
-				echo "CONFIG_CNSS2_UCODE_DUMP=y" >>$(1); \
+				if [ -n "$(findstring $(_BUILD_NAME_),$(SPF11.0_MODEL_LIST) $(SPF11.1_MODEL_LIST))" ] ; then \
+					sed -i "/CONFIG_CNSS2_UCODE_DUMP\>/d" $(1); \
+					echo "CONFIG_CNSS2_UCODE_DUMP=y" >>$(1); \
+				fi; \
 				if [ "$(WIGIG)" = "y" ] ; then \
 					sed -i "/CONFIG_ATH_CARDS\>/d" $(1); \
 					echo "CONFIG_ATH_CARDS=m" >>$(1); \
@@ -688,6 +694,40 @@ define platformKernelConfig
 				echo "CONFIG_CORESIGHT_STREAM=m" >>$(1); \
 				sed -i "/CONFIG_CNSS_QCN9000/d" $(1); \
 				echo "CONFIG_CNSS_QCN9000=y" >>$(1); \
+			fi; \
+			if [ -n "$(findstring $(_BUILD_NAME_),$(IPQ807X_MODEL_LIST))" ] ; then \
+				sed -i "/CONFIG_USB_EHCI_ROOT_HUB_TT\>/d" $(1); \
+				echo "# CONFIG_USB_EHCI_ROOT_HUB_TT is not set" >>$(1); \
+				sed -i "/CONFIG_USB_CHIPIDEA/d" $(1); \
+				echo "# CONFIG_USB_CHIPIDEA is not set" >>$(1); \
+				sed -i "/CONFIG_USB_MSM_OTG\>/d" $(1); \
+				echo "# CONFIG_USB_MSM_OTG is not set" >>$(1); \
+				sed -i "/CONFIG_EXTCON\>/d" $(1); \
+				echo "# CONFIG_EXTCON is not set" >>$(1); \
+				sed -i "/CONFIG_CFG80211_CRDA_SUPPORT\>/d" $(1); \
+				echo "CONFIG_CFG80211_CRDA_SUPPORT=y" >>$(1); \
+				sed -i "/CONFIG_MHI_BUS_TEST\>/d" $(1); \
+				echo "CONFIG_MHI_BUS_TEST=m" >>$(1); \
+				sed -i "/CONFIG_USB_QCOM_KS_BRIDGE\>/d" $(1); \
+				echo "CONFIG_USB_QCOM_KS_BRIDGE=m" >>$(1); \
+				sed -i "/CONFIG_QCOM_QMI_RMNET\>/d" $(1); \
+				echo "CONFIG_QCOM_QMI_RMNET=y" >>$(1); \
+				sed -i "/CONFIG_QCOM_QMI_DFC\>/d" $(1); \
+				echo "CONFIG_QCOM_QMI_DFC=y" >>$(1); \
+				sed -i "/CONFIG_RMNET_CTL\>/d" $(1); \
+				echo "CONFIG_RMNET_CTL=y" >>$(1); \
+				sed -i "/CONFIG_RMNET_CTL_DEBUG\>/d" $(1); \
+				echo "CONFIG_RMNET_CTL_DEBUG=y" >>$(1); \
+				sed -i "/CONFIG_QCOM_QMI_POWER_COLLAPSE\>/d" $(1); \
+				echo "CONFIG_QCOM_QMI_POWER_COLLAPSE=y" >>$(1); \
+				sed -i "/CONFIG_GENERIC_MSI_IRQ_DOMAIN\>/d" $(1); \
+				echo "CONFIG_GENERIC_MSI_IRQ_DOMAIN=y" >>$(1); \
+				sed -i "/CONFIG_MAP_E_SUPPORT\>/d" $(1); \
+				echo "CONFIG_MAP_E_SUPPORT=y" >>$(1); \
+				sed -i "/CONFIG_MACVLAN\>/d" $(1); \
+				echo "CONFIG_MACVLAN=m" >>$(1); \
+				sed -i "/CONFIG_ARM_GIC_V2M\>/d" $(1); \
+				echo "CONFIG_ARM_GIC_V2M=y" >>$(1); \
 			fi; \
 		fi; \
 		sed -i "/CONFIG_NF_CONNTRACK_CHAIN_EVENTS/d" $(1); \
@@ -979,4 +1019,3 @@ define platformGen_Target
 endef
 
 export PARALLEL_BUILD := -j$(shell grep -c '^processor' /proc/cpuinfo)
-

@@ -113,6 +113,10 @@
 #include <bcm_hwdefs.h>
 #endif
 
+#ifdef RTCONFIG_OPENVPN
+#include <openvpn_config.h>
+#endif
+
 static int fatalsigs[] = {
 	SIGILL,
 	SIGABRT,
@@ -1986,6 +1990,7 @@ misc_defaults(int restore_defaults)
 		system(cmd);
 	}
 #endif
+	nvram_unset("wait_httpd");
 }
 
 #ifdef RTCONFIG_ISP_CUSTOMIZE
@@ -2400,6 +2405,7 @@ static void set_term(int fd)
 static int console_init(void)
 {
 	int fd;
+	struct winsize win = { 0 };
 
 	/* Clean up */
 	ioctl(0, TIOCNOTTY, 0);
@@ -2424,6 +2430,15 @@ static int console_init(void)
 	ioctl(0, TIOCSCTTY, 1);
 	tcsetpgrp(0, getpgrp());
 	set_term(0);
+
+	if (!ioctl(STDIN_FILENO, TIOCGWINSZ, &win)) {
+		win.ws_row = nvram_get("console_height")? nvram_get_int("console_height") : 50;
+		win.ws_col = nvram_get("console_width")? nvram_get_int("console_width") : 160;
+		if (ioctl(STDIN_FILENO, TIOCSWINSZ, (char *) &win)) {
+			_dprintf("Set console size as %dx%d failed, errno %d (%s)\n",
+				win.ws_row, win.ws_col, errno, strerror(errno));
+		}
+	}
 
 	return 0;
 }
@@ -3526,6 +3541,7 @@ int init_nvram(void)
 		nvram_set("vpn_serverx_clientlist", nvram_safe_get("vpn_server_clientlist"));
 		nvram_unset("vpn_server_clientlist");
 	}
+	ovpn_defaults();
 #endif
 #ifdef RTCONFIG_SSH
 	if(nvram_get_int("sshd_port")>0 && nvram_get_int("sshd_port_x")<=0)
@@ -6871,11 +6887,8 @@ int init_nvram(void)
 		//nvram_set("vlan1hwname", "et0");  // vlan. used to get "%smacaddr" for compare and find parent interface.
 		//nvram_set("vlan2hwname", "et0");  // vlan. used to get "%smacaddr" for compare and find parent interface.
 		nvram_set("lan_ifname", "br0");
-#if defined(RAX120)
-		wan0 = "eth4";				/*  1G RJ-45 */
-#else
+
 		wan0 = "eth3";				/*  1G RJ-45 */
-#endif
 		add_rc_support("11AX ofdma wpa3 10GS_LWAN");
 #if defined(RTCONFIG_FANCTRL)
 		add_rc_support("fanctrl");
@@ -6888,13 +6901,10 @@ int init_nvram(void)
 		if (is_aqr_phy_exist()) {
 			/* GT-AXY16000/RT-AX89U */
 			wan1 = "eth5";				/* 10G RJ-45 */
-#if defined(RAX120)
-			nvram_set_int("led_r10g_gpio", 2);	/* 5G RJ-45 */
-#else
 			nvram_set_int("led_r10g_gpio", 20);	/* 10G RJ-45 */
 			config_netdev_bled("led_r10g_gpio", "eth5");
-#endif
 			add_rc_support("10G_LWAN");
+			/* ssdk is initialized after init_nvram(), can't use it here. */
 		} else {
 			/* RT-AC89U */
 			int i, c = 0;
@@ -6926,11 +6936,7 @@ int init_nvram(void)
 			nvram_set("wans_dualwan", new);
 			setFanOnOff(0);
 		}
-#if defined(RAX120)
-		lan_1 = "eth2 eth3";			/* QCA8075 (LAN3,LAN2) */
-#else
 		lan_1 = "eth1 eth2";			/* QCA8075 (LAN2,LAN1) */
-#endif
 
 #if defined(RTCONFIG_LACP)
 #if defined(RTCONFIG_BONDING_WAN)
@@ -7013,9 +7019,6 @@ int init_nvram(void)
 		}
 #endif
 
-#if defined(RAX120)
-		lan_2 = "eth0 eth1";	
-#else
 		/* If IPTV is enabled and out port is IPQ807X port and another ports are QCA8337 ports,
 		 * we have to use VLAN1 to seperate traffic from VLANX.
 		 */
@@ -7023,14 +7026,10 @@ int init_nvram(void)
 			lan_2 = "eth0";			/* QCA8337 + AR8033, no VLAN */
 		else
 			lan_2 = "eth0.1";		/* QCA8337 + AR8033, VLAN1 */
-#endif
+
 		wan_ifaces[WAN_IFACE_ID] = wan0;
 		wan_ifaces[WAN2_IFACE_ID] = wan1;
-#if defined(RAX120)
-		wan_ifaces[SFPP_IFACE_ID] = "";	/* 10G SFP+ */
-#else
 		wan_ifaces[SFPP_IFACE_ID] = "eth4";	/* 10G SFP+ */
-#endif
 		wl_ifaces[WL_2G_BAND] = "ath1";
 		wl_ifaces[WL_5G_BAND] = "ath0";
 #if defined(RTCONFIG_WIGIG)
@@ -7047,25 +7046,13 @@ int init_nvram(void)
 			nvram_set("eth_ifnames", "");	/* for ATE test in AP mode */
 		} else {
 			if (is_aqr_phy_exist()) {
-#if defined(RAX120)
-				nvram_set("eth_ifnames", "eth4 eth5");		/* WAN, 5G base-T*/
-				nvram_set("amas_ethif_type", "4 16");		/* ETH_TYPE_XXX: WAN, 5G base-T*/
-				nvram_set("eth_priority", "0 2 1" " 1 1 1"); /* WAN priority:2, 5G base-T:1*/
-#else
 				nvram_set("eth_ifnames", "eth3 eth5 eth4");		/* WAN, 10G base-T, SFP+ */
 				nvram_set("amas_ethif_type", "4 32 64");		/* ETH_TYPE_XXX: WAN, 10G base-T, SFP+ */
 				nvram_set("eth_priority", "0 3 1" " 1 2 1" " 2 1 1"); /* WAN priority:3, 10G base-T:2, SFP+:1 */
-#endif
 			} else {
-#if defined(RAX120)
-				nvram_set("eth_ifnames", "eth4 eth5");		/* WAN, 5G base-T*/
-				nvram_set("amas_ethif_type", "4 16");		/* ETH_TYPE_XXX: WAN, 5G base-T*/
-				nvram_set("eth_priority", "0 2 1" " 1 1 1"); /* WAN priority:2, 5G base-T:1*/
-#else
 				nvram_set("eth_ifnames", "eth3 eth4");			/* WAN, SFP+ */
 				nvram_set("amas_ethif_type", "4 64");			/* ETH_TYPE_XXX: WAN, SFP+ */
 				nvram_set("eth_priority", "0 2 1" " 1 1 1");		/* WAN priority:2, SFP+:1 */
-#endif
 			}
 			nvram_set("sta_priority", "2 0 5 1" " 5 1 4 1");		/* 2G priority:5, 5G priority:4 */
 			nvram_set("wait_band", "0");
@@ -7077,10 +7064,7 @@ int init_nvram(void)
 		add_led_ctrl_capability(LED_ON_OFF);
 #endif
 		set_basic_ifname_vars(wan_ifaces, lan_ifs, wl_ifaces, "usb", NULL, "vlan2", "vlan3", 0);
-#if defined(RAX120)
-		nvram_set_int("btn_wps_gpio", 57|GPIO_ACTIVE_LOW);
-		nvram_set_int("btn_wltog_gpio", 25|GPIO_ACTIVE_LOW);
-#else
+
 		nvram_set_int("btn_wps_gpio", 34|GPIO_ACTIVE_LOW);
 #if defined(RTCONFIG_TURBO_BTN)
 		nvram_set_int("btn_turbo_gpio", 25|GPIO_ACTIVE_LOW);	/* ER2 or above */
@@ -7090,7 +7074,7 @@ int init_nvram(void)
 		nvram_set_int("btn_led_gpio", 25|GPIO_ACTIVE_LOW);	/* RT-AX89U SR1 ~ ER1 */
 #endif
 		nvram_set_int("btn_wltog_gpio", 26|GPIO_ACTIVE_LOW);
-#endif
+
 		if (!strlen(nvram_safe_get("HwId"))) {
 #if defined(GTAXY16000)
 			nvram_set("HwId", "C");
@@ -7098,10 +7082,7 @@ int init_nvram(void)
 			nvram_set("HwId", "A");
 #endif
 		}
-#if defined(RAX120)
-		nvram_set_int("led_wan_gpio", 3);
-		nvram_set_int("btn_rst_gpio", 54|GPIO_ACTIVE_LOW);
-#else
+
 		if (nvram_match("HwId", "A")) {
 			/* PR: A; ER2 or before: not defined. */
 			nvram_set_int("led_wan_gpio", 33);
@@ -7115,19 +7096,6 @@ int init_nvram(void)
 			nvram_set_int("led_wan_gpio", 47);
 			nvram_set_int("btn_rst_gpio", 61|GPIO_ACTIVE_LOW);
 		}
-#endif
-#if defined(RAX120)
-		nvram_set_int("led_2g_gpio", 7);
-		nvram_set_int("led_5g_gpio", 6);
-		nvram_set_int("led_pwr_gpio", 8);
-		nvram_set_int("led_usb_gpio", 4);
-		nvram_set_int("led_usb3_gpio", 5);
-		nvram_set_int("led_wps_gpio", 40);
-		//nvram_set_int("led_lan_gpio", 41); move to i2cled
-		nvram_set_int("pwr_usb_gpio", 31);	/* USB port1 5V */
-		nvram_set_int("pwr_usb_gpio2", 30);	/* USB port2 5V */
-		//config_swports_bled_sleep("led_lan_gpio", 0);
-#else
 		nvram_set_int("led_wan_red_gpio", 44);
 		nvram_set_int("led_2g_gpio", 18);
 		nvram_set_int("led_5g_gpio", 19);
@@ -7144,7 +7112,7 @@ int init_nvram(void)
 		config_swports_bled_sleep("led_lan_gpio", 0);
 		config_netdev_bled("led_2g_gpio", "ath1");
 		config_netdev_bled("led_5g_gpio", "ath0");
-#endif
+
 		if (nvram_match("usb_usb3", "0")) {
 			nvram_set("ehci_ports", "3-1 1-1");
 			nvram_set("ohci_ports", "");
@@ -15069,9 +15037,7 @@ int init_nvram(void)
 	add_wanscap_support("usb");
 #endif
 #ifdef RTCONFIG_SFPP
-#if !defined(RAX120)
 	add_wanscap_support("sfp+");
-#endif
 #endif
 #if defined(RTCONFIG_SWITCH_QCA8075_PHY_AQR107) \
  || defined(RTCONFIG_SWITCH_QCA8075_QCA8337_PHY_AQR107_AR8035_QCA8033)
@@ -16620,11 +16586,7 @@ void Ate_run_in_interrupted_led_fail_loop(void)
 
 	enum led_id left_leds_gpio[] = {
 #if defined(RTAX89U)
-#if defined(RAX120)
-		LED_R10G, LED_LAN,
-#else
 		LED_WAN_RED, LED_LAN, LED_R10G, LED_SFPP,
-#endif
 #elif defined(GTAXY16000)
 		LED_R10G, LED_2G, LED_LAN,
 #else
@@ -17399,9 +17361,7 @@ static void sysinit(void)
 	config_ext_wan_port();
 #endif
 	init_switch(); // for system dependent part
-#if !defined(RAX120)
 	upgrade_bootloader_v2();
-#endif
 
 #if defined(RTCONFIG_SOC_IPQ40XX)
 #if defined(RTCONFIG_BLINK_LED)

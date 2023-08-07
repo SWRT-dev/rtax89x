@@ -140,6 +140,7 @@ ifeq ($(BUILD_NAME),$(filter $(BUILD_NAME), $(MODELS_QIS_SLIDER)))
 	rm -rf $(INSTALLDIR)/www/qis
 	rm -rf $(INSTALLDIR)/www/qis_m
 	rm -rf $(INSTALLDIR)/www/QIS_wizard_m.htm
+	cp $(TOP)/www/sysdep/$(SWRT_NAME)/www/QIS_wizard.htm $(INSTALLDIR)/www/ -rf || true
 endif
 
 ifeq ($(RTCONFIG_WL_SCHED_V2), y)
@@ -980,4 +981,6 @@ endif
 ifneq ($(RTCONFIG_SMARTDNS),y)
 	rm -rf $(INSTALLDIR)/www/Advanced_SmartDNS_Content.asp
 endif
-
+ifneq ($(RTCONFIG_DNSPRIVACY), y)
+	rm -rf $(INSTALLDIR)/www/dot-servers.json
+endif

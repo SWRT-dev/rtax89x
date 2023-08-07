@@ -363,7 +363,7 @@ int __init prepare_and_dump_previous_oops(void)
 			} else {
 				log_prefix[0] = '\0';
 			}
-			printk("%s>>> %s\n", log_prefix, q);
+			printk("%s crash_log: %s\n", log_prefix, q);
 		}
 		printk("____________________________________________________________________________\n");
 	}

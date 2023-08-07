@@ -1014,6 +1014,8 @@ struct param_mapping_s param_mapping_list[] = {
 
 #if defined(RTCONFIG_FANCTRL)
 	{ "fanctrl_dutycycle",	FT_FANCTRL,	SUBFT_FANCTRL },
+	{ "fanctrl_trip_points",	FT_FANCTRL,	SUBFT_FANCTRL },
+	{ "fanctrl_inact_time",	FT_FANCTRL,	SUBFT_FANCTRL },
 #endif
 #ifdef RTCONFIG_QCA_PLC2
 	{ "cfg_plc_master",	FT_PLC_MASTER,	SUBFT_PLC_MASTER},

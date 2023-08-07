@@ -117,6 +117,7 @@ static int do_tzt(cmd_tbl_t *cmdtp, int flag, int argc, char *const argv[])
 	u32 img_addr;
 	u32 img_size;
 	u32 args[MAX_QCA_SCM_ARGS + 1];
+	int ret;
 
 	/* at least two arguments should be there */
 	if (argc < 2)
@@ -133,15 +134,24 @@ static int do_tzt(cmd_tbl_t *cmdtp, int flag, int argc, char *const argv[])
 		args[0] = QCA_SCM_ARGS(2, SCM_IO_WRITE);
 		args[1] = TZT_LOAD_ADDR;
 		args[2] = TZT_LOAD_SIZE;
-		qca_scm(SCM_SVC_APP_MGR, REGION_NOTIFICATION_ID,
+		ret = qca_scm(SCM_SVC_APP_MGR, REGION_NOTIFICATION_ID,
 			SCM_OWNR_QSEE_OS, args, 3);
+		if (ret) {
+			printf("tzt load failed ret = %d\n", ret);
+			return -1;
+		}
 
 		args[0] = QCA_SCM_ARGS(3);
 		args[1] = MDT_SIZE;
 		args[2] = img_size - MDT_SIZE;
 		args[3] = img_addr;
-		qca_scm(SCM_SVC_EXTERNAL, LOAD_TZTESTEXEC_IMG_ID,
+		ret = qca_scm(SCM_SVC_EXTERNAL, LOAD_TZTESTEXEC_IMG_ID,
 			SCM_OWNR_QSEE_OS, args, 4);
+		if (ret) {
+			printf("tzt load failed ret = %d\n", ret);
+			return -1;
+		}
+
 		tzt_loaded = 1;
 		return 0;
 	}

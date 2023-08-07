@@ -1104,7 +1104,7 @@ function close_info(){
 					<div id="outer_server_container">
 						<div class="server_list_close"><div class="close_icon" onclick="show_server_list();"></div></div>
 						<div id="server_list_div" class="server_list_container">
-							<div class="sub_server_container">
+							<div class="sub_server_container" style="height: 30px;">
 								<div class="server_brick_container"><div class="server_list_brick"></div></div>
 								<div style="display: flex; align-items: center; justify-content: space-between; width: 100%;" onclick="choose_auto_server();">
 									<div class="sub_server_title"><#Auto#></div>
@@ -1131,22 +1131,22 @@ function close_info(){
 				</div>
 				<div class="download_upload_container">
 					<div class="speedResult_container">
-						<div style="width: 60%; height: 15px;">
+						<div class="result_title_container">
 							<div class="download_result_icon">
 								<span class="download_upload_text"><#InternetSpeed_Download#></span>
 							</div>
 						</div>
 						<div class="test_result"><div id="download_test_result">--</div></div>
-						<div style="width: 60%;  height: 15px; color:#B2BBC1"><#InternetSpeed_Mbps#></div>
+						<div class="result_unit"><#InternetSpeed_Mbps#></div>
 					</div>
 					<div class="speedResult_container">
-						<div style="width: 60%; height: 15px;">
+						<div class="result_title_container">
 							<div class="upload_result_icon">
 								<span class="download_upload_text"><#InternetSpeed_Upload#></span>
 							</div>
 						</div>
 						<div class="test_result"><div id="upload_test_result">--</div></div>
-						<div style="width: 60%; height: 15px; color:#B2BBC1"><#InternetSpeed_Mbps#></div>
+						<div class="result_unit"><#InternetSpeed_Mbps#></div>
 					</div>
 				</div>
 			</div>

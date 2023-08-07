@@ -10,6 +10,7 @@ import itertools
 import os
 import subprocess
 import sys
+import math
 from getopt import getopt
 from getopt import GetoptError
 
@@ -88,6 +89,8 @@ def main():
 	board = None
 	memory = None
 	discrete_smps = None
+	spruce_on_pcie_x1 = None
+	spruce_on_pcie_x2 = None
 	memory_first = None
 	device_size = None
 
@@ -111,6 +114,8 @@ def main():
 			board = entry.find(".//board")
 			memory = entry.find(".//memory")
 			discrete_smps = entry.find(".//discrete_smps")
+			spruce_on_pcie_x2 = entry.find(".//spruce_on_pcie_x2")
+			spruce_on_pcie_x1 = entry.find(".//spruce_on_pcie_x1")
 			if memory == None:
 				memory = memory_first
 			set_props = None
@@ -130,17 +135,53 @@ def main():
                                 # Overwritting Bit12 for discrete smps
                                 boot_settings.text = str(int(boot_settings.text) | 4096)
 
-			if memory_profile != "default":
-				sizes = root_cdt.findall(".//device[@id='cdb1']/props[@name='device_size_cs0']")
-				for device_size in sizes:
-					device_size.text = memory_profile
+			if ARCH_NAME == "ipq5018":
+				if spruce_on_pcie_x2.text == "true":
+					boot_settings = root_cdt.find(".//device[@id='cdb2']/props[@name='boot_settings']")
+					# overwritting Bit 16 for spruce on pcie x2
+					boot_settings.text = str(int(boot_settings.text) | 65536)
 
-				# Set 16-bit addressing to the device in Low Memory profiles
-				interface_width = root_cdt.findall(".//device[@id='cdb1']/props[@name='interface_width_cs0']")
-				for width in interface_width:
-					width.text = "1"
-				tree_cdt_xml.write(os.path.join(srcDir, board.text + "_" + \
-						memory.text + "_LM" + memory_profile + ".xml"))
+				if spruce_on_pcie_x1.text == "true":
+					boot_settings = root_cdt.find(".//device[@id='cdb2']/props[@name='boot_settings']")
+					# overwritting Bit 17 for spruce on pcie x1
+					boot_settings.text = str(int(boot_settings.text) | 131072)
+
+			if memory_profile != "default":
+				if memory_profile == '256' or memory_profile == '512':
+					config_memory_organization = memory.text.split('_', 1)[0]
+					config_memory_type = memory.text.split('_', 1)[1]
+					print "!!!!!!!!!!!############!!!!!!!!!!!"
+					print config_memory_type
+					config_memory_in_bits = config_memory_organization.split('M')
+					config_memory_size_in_bits = 1
+					for i in range(len(config_memory_in_bits)):
+						config_memory_size_in_bits = config_memory_size_in_bits*int(config_memory_in_bits[i])
+
+					config_memory_size = config_memory_size_in_bits/8
+					diff_in_memory = (config_memory_size/int(memory_profile))
+					if diff_in_memory >= 1:
+						diff_rows_cs = int(math.log(diff_in_memory,2))
+						sizes = root_cdt.findall(".//device[@id='cdb1']/props[@name='device_size_cs0']")
+						for device_size in sizes:
+							device_size.text = memory_profile
+
+					if config_memory_type != "DDR4":
+						# Set row cs for Low Memory profiles
+						row_cs0 = root_cdt.findall(".//device[@id='cdb1']/props[@name='num_rows_cs0']")
+						for width in row_cs0:
+							width.text = str(int(width.text) - diff_rows_cs)
+							print "!!!!num_rows_cs0!!!" + width.text
+
+						row_cs1 = root_cdt.findall(".//device[@id='cdb1']/props[@name='num_rows_cs1']")
+						for width in row_cs1:
+							width.text = str(int(width.text) - diff_rows_cs)
+							print "!!!!num_rows_cs1!!!" + width.text
+
+					tree_cdt_xml.write(os.path.join(srcDir, board.text + "_" + \
+							memory.text + "_LM" + memory_profile + ".xml"))
+				else:
+					print "memory_profile should be 256/512"
+					return -1
 
 			else:
 				tree_cdt_xml.write(os.path.join(srcDir, board.text + "_" + \

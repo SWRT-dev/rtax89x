@@ -58,47 +58,188 @@ Confidential and Proprietary - Qualcomm Technologies, Inc.
 			<board>MP-EMU</board>
 			<spi_nand>false</spi_nand>
 			<memory>256M16_DDR3</memory>
+			<spruce_on_pcie_x2>false</spruce_on_pcie_x2>
+			<spruce_on_pcie_x1>false</spruce_on_pcie_x1>
 		</entry>
 		<entry>
 			<machid>0x8040000</machid>
 			<board>AP-MP02.1</board>
 			<spi_nand>false</spi_nand>
 			<memory>128M16_DDR3</memory>
+			<tiny_image>true</tiny_image>
+			<spruce_on_pcie_x2>true</spruce_on_pcie_x2>
+			<spruce_on_pcie_x1>true</spruce_on_pcie_x1>
+			<wififw_type>1</wififw_type>
 		</entry>
 		<entry>
-			<machid>0x8040100</machid>
+			<machid>0x8040001</machid>
 			<board>AP-MP03.1</board>
 			<spi_nand>false</spi_nand>
 			<memory>256M16_DDR3</memory>
+			<tiny_image>true</tiny_image>
+			<spruce_on_pcie_x2>false</spruce_on_pcie_x2>
+			<spruce_on_pcie_x1>false</spruce_on_pcie_x1>
+			<wififw_type>2</wififw_type>
 		</entry>
 		<entry>
-			<machid>0x8040200</machid>
-			<board>AP-MP03.3</board>
+			<machid>0x8040101</machid>
+			<board>AP-MP03.1-C2</board>
 			<spi_nand>false</spi_nand>
 			<memory>256M16_DDR3</memory>
+			<spruce_on_pcie_x2>false</spruce_on_pcie_x2>
+			<spruce_on_pcie_x1>false</spruce_on_pcie_x1>
+			<wififw_type>2</wififw_type>
 		</entry>
 		<entry>
-			<machid>0x1040000</machid>
+			<machid>0x8040201</machid>
+			<board>AP-MP03.1-C3</board>
+			<spi_nand>false</spi_nand>
+			<memory>256M16_DDR3</memory>
+			<spruce_on_pcie_x2>false</spruce_on_pcie_x2>
+			<spruce_on_pcie_x1>false</spruce_on_pcie_x1>
+			<wififw_type>2</wififw_type>
+		</entry>
+		<entry>
+			<machid>0x8040002</machid>
+			<board>AP-MP03.3</board>
+			<spi_nand>false</spi_nand>
+			<memory>512M16_DDR3</memory>
+			<spruce_on_pcie_x2>false</spruce_on_pcie_x2>
+			<spruce_on_pcie_x1>true</spruce_on_pcie_x1>
+			<wififw_type>3</wififw_type>
+		</entry>
+		<entry>
+			<machid>0x8040102</machid>
+			<board>AP-MP03.3-C2</board>
+			<spi_nand>false</spi_nand>
+			<memory>512M16_DDR3</memory>
+			<spruce_on_pcie_x2>false</spruce_on_pcie_x2>
+			<spruce_on_pcie_x1>true</spruce_on_pcie_x1>
+			<wififw_type>3</wififw_type>
+		</entry>
+		<entry>
+			<machid>0x8040202</machid>
+			<board>AP-MP03.3-C3</board>
+			<spi_nand>false</spi_nand>
+			<memory>512M16_DDR3</memory>
+			<spruce_on_pcie_x2>false</spruce_on_pcie_x2>
+			<spruce_on_pcie_x1>true</spruce_on_pcie_x1>
+			<wififw_type>3</wififw_type>
+		</entry>
+		<entry>
+			<machid>0x8040005</machid>
+			<board>AP-MP03.4-C1</board>
+			<spi_nand>false</spi_nand>
+			<memory>512M16_DDR3</memory>
+			<spruce_on_pcie_x2>false</spruce_on_pcie_x2>
+			<spruce_on_pcie_x1>false</spruce_on_pcie_x1>
+			<wififw_type>2</wififw_type>
+		</entry>
+		<entry>
+			<machid>0x8040105</machid>
+			<board>AP-MP03.4-C2</board>
+			<spi_nand>false</spi_nand>
+			<memory>512M16_DDR3</memory>
+			<spruce_on_pcie_x2>false</spruce_on_pcie_x2>
+			<spruce_on_pcie_x1>false</spruce_on_pcie_x1>
+			<wififw_type>2</wififw_type>
+		</entry>
+		<entry>
+			<machid>0x8040004</machid>
+			<board>AP-MP03.5-C1</board>
+			<spi_nand>false</spi_nand>
+			<memory>512M16_DDR3</memory>
+			<spruce_on_pcie_x2>true</spruce_on_pcie_x2>
+			<spruce_on_pcie_x1>true</spruce_on_pcie_x1>
+			<wififw_type>1</wififw_type>
+		</entry>
+		<entry>
+			<machid>0x8040104</machid>
+			<board>AP-MP03.5-C2</board>
+			<spi_nand>false</spi_nand>
+			<memory>512M16_DDR3</memory>
+			<spruce_on_pcie_x2>true</spruce_on_pcie_x2>
+			<spruce_on_pcie_x1>true</spruce_on_pcie_x1>
+			<wififw_type>1</wififw_type>
+		</entry>
+		<entry>
+			<machid>0x8040003</machid>
+			<board>AP-MP03.6-C1</board>
+			<spi_nand>false</spi_nand>
+			<memory>512M16_DDR3</memory>
+			<spruce_on_pcie_x2>false</spruce_on_pcie_x2>
+			<spruce_on_pcie_x1>false</spruce_on_pcie_x1>
+			<wififw_type>2</wififw_type>
+		</entry>
+		<entry>
+			<machid>0x8040103</machid>
+			<board>AP-MP03.6-C2</board>
+			<spi_nand>false</spi_nand>
+			<memory>512M16_DDR3</memory>
+			<spruce_on_pcie_x2>false</spruce_on_pcie_x2>
+			<spruce_on_pcie_x1>false</spruce_on_pcie_x1>
+			<wififw_type>2</wififw_type>
+		</entry>
+		<entry>
+			<machid>0x1040003</machid>
 			<board>DB-MP02.1</board>
 			<spi_nand>false</spi_nand>
 			<memory>128M16_DDR3</memory>
+			<tiny_image>true</tiny_image>
+			<spruce_on_pcie_x2>true</spruce_on_pcie_x2>
+			<spruce_on_pcie_x1>true</spruce_on_pcie_x1>
+			<wififw_type>1</wififw_type>
 		</entry>
 		<entry>
-			<machid>0x1040100</machid>
-			<board>DB-MP02.1</board>
+			<machid>0x1040004</machid>
+			<board>DB-MP03.1</board>
 			<spi_nand>false</spi_nand>
 			<memory>256M16_DDR3</memory>
+			<spruce_on_pcie_x2>false</spruce_on_pcie_x2>
+			<spruce_on_pcie_x1>false</spruce_on_pcie_x1>
+			<wififw_type>2</wififw_type>
 		</entry>
 		<entry>
-			<machid>0x1040200</machid>
+			<machid>0x1040104</machid>
+			<board>DB-MP03.1-C2</board>
+			<spi_nand>false</spi_nand>
+			<memory>256M16_DDR3</memory>
+			<spruce_on_pcie_x2>false</spruce_on_pcie_x2>
+			<spruce_on_pcie_x1>false</spruce_on_pcie_x1>
+			<wififw_type>2</wififw_type>
+		</entry>
+		<entry>
+			<machid>0x1040005</machid>
 			<board>DB-MP03.3</board>
 			<spi_nand>false</spi_nand>
-			<memory>256M16_DDR3</memory>
+			<memory>512M16_DDR3</memory>
+			<spruce_on_pcie_x2>false</spruce_on_pcie_x2>
+			<spruce_on_pcie_x1>true</spruce_on_pcie_x1>
+			<wififw_type>3</wififw_type>
+		</entry>
+		<entry>
+			<machid>0x1040105</machid>
+			<board>DB-MP03.3-C2</board>
+			<spi_nand>false</spi_nand>
+			<memory>512M16_DDR3</memory>
+			<spruce_on_pcie_x2>false</spruce_on_pcie_x2>
+			<spruce_on_pcie_x1>true</spruce_on_pcie_x1>
+			<wififw_type>3</wififw_type>
+		</entry>
+		<entry>
+			<machid>0x1040006</machid>
+			<board>TB-MP04</board>
+			<spi_nand>false</spi_nand>
+			<memory>2M512M8_DDR3</memory>
+			<spruce_on_pcie_x2>false</spruce_on_pcie_x2>
+			<spruce_on_pcie_x1>true</spruce_on_pcie_x1>
+			<wififw_type>3</wififw_type>
 		</entry>
 	</data>
 
 	<data type="COPY_IMAGES">
 		<image type="BOOT">
+			<entry><image_path>/boot_images/core/boot/secboot3/hw/ipq5018/sbl1/SBL1_tiny_nor.elf</image_path></entry>
 			<entry><image_path>/boot_images/build/ms/bin/5018/nor/sbl1_nor.mbn</image_path></entry>
 			<entry><image_path>/boot_images/build/ms/bin/5018/nand/sbl1_nand.mbn</image_path></entry>
 			<entry><image_path>/boot_images/build/ms/bin/5018/emmc/sbl1_emmc.mbn</image_path></entry>
@@ -108,9 +249,13 @@ Confidential and Proprietary - Qualcomm Technologies, Inc.
 		</image>
 		<image type="TZ">
 			<entry><image_path>/trustzone_images/build/ms/bin/SAOAANAY/tz.mbn</image_path></entry>
-			<entry><image_path>/trustzone_images/build/ms/bin/SAOAANAY/devcfg_noac.mbn</image_path></entry>
+			<entry><image_path>/trustzone_images/build/ms/bin/SAOAANAY/devcfg.mbn</image_path></entry>
+			<entry><image_path>/trustzone_images/core/bsp/monitor/build/SAOAANAY/tiny_mon.elf</image_path></entry>
+			<entry><image_path>/trustzone_images/core/bsp/qsee/build/SAOAANAY/tiny_qsee.elf</image_path></entry>
+			<entry><image_path>/trustzone_images/core/bsp/devcfg/build/SAOAANAY/devcfg.elf</image_path></entry>
 		</image>
 		<image type="NHSS32">
+			<entry><image_path>/apss_proc/out/ipq50xx/openwrt-ipq5018_tiny-u-boot.elf</image_path></entry>
 			<entry><image_path>/apss_proc/out/ipq50xx/openwrt-ipq5018-u-boot.elf</image_path></entry>
 			<entry><image_path>/apss_proc/out/ipq50xx/openwrt-ipq-ipq50xx-squashfs-root.img</image_path></entry>
 			<entry><image_path>/apss_proc/out/ipq50xx/openwrt-ipq-ipq50xx-qcom-ipq50xx-mpxx-fit-uImage.itb</image_path></entry>
@@ -118,6 +263,7 @@ Confidential and Proprietary - Qualcomm Technologies, Inc.
 			<entry><image_path>/apss_proc/out/pack.py</image_path></entry>
 		</image>
 		<image type="NHSS64">
+			<entry><image_path>/apss_proc/out/ipq50xx/openwrt-ipq5018_tiny-u-boot.elf</image_path></entry>
 			<entry><image_path>/apss_proc/out/ipq50xx/openwrt-ipq5018-u-boot.elf</image_path></entry>
 			<entry><image_path>/apss_proc/out/ipq50xx_64/openwrt-ipq-ipq50xx_64-squashfs-root.img</image_path></entry>
 			<entry><image_path>/apss_proc/out/ipq50xx_64/openwrt-ipq-ipq50xx_64-qcom-ipq50xx-mpxx-fit-uImage.itb</image_path></entry>
@@ -125,8 +271,14 @@ Confidential and Proprietary - Qualcomm Technologies, Inc.
 			<entry><image_path>/apss_proc/out/pack.py</image_path></entry>
 		</image>
 		<image type="WIFIFW">
-			<entry><image_path>/wlan_proc/build/ms/bin/wifi_fw_squashfs.img</image_path></entry>
-			<entry><image_path>/wlan_proc/build/ms/bin/wifi_fw_ubi.img</image_path></entry>
+			<entry><image_path>/wlan_proc/build/ms/bin/5018.wlanfw.eval/FW_IMAGES/wifi_fw_ipq5018_squashfs.img</image_path></entry>
+			<entry><image_path>/wlan_proc/build/ms/bin/5018.wlanfw.eval/FW_IMAGES/wifi_fw_ipq5018_qcn9000_squashfs.img</image_path></entry>
+			<entry><image_path>/wlan_proc/build/ms/bin/5018.wlanfw2.map_spruce_eval/FW_IMAGES/wifi_fw_ipq5018_qcn9000_qcn6122_squashfs.img</image_path></entry>
+			<entry><image_path>/wlan_proc/build/ms/bin/5018.wlanfw2.map_spr_spr_eval_cs/FW_IMAGES/wifi_fw_ipq5018_qcn6122cs_squashfs.img</image_path></entry>
+		</image>
+		<image type="BTFW">
+			<entry><image_path>/btfw_proc/maple/bsp/patch/build/SCAMBAF/FW_IMAGES/bt_fw_patch_squashfs.img</image_path></entry>
+			<entry><image_path>/btfw_proc/maple/bsp/patch/build/SCAMBAF/FW_IMAGES/bt_fw_patch_ubi.img</image_path></entry>
 		</image>
 	</data>
 </config>

@@ -52,14 +52,12 @@ int sf_saveenv(void)
 	u32	saved_size, saved_offset, sector = 1;
 	int	ret;
 
+	env_flash = spi_flash_probe(CONFIG_SF_DEFAULT_BUS,
+		CONFIG_SF_DEFAULT_CS,
+		CONFIG_SF_DEFAULT_SPEED, CONFIG_SF_DEFAULT_MODE);
 	if (!env_flash) {
-		env_flash = spi_flash_probe(CONFIG_SF_DEFAULT_BUS,
-			CONFIG_SF_DEFAULT_CS,
-			CONFIG_SF_DEFAULT_SPEED, CONFIG_SF_DEFAULT_MODE);
-		if (!env_flash) {
-			set_default_env("!spi_flash_probe() failed");
-			return 1;
-		}
+		set_default_env("!spi_flash_probe() failed");
+		return 1;
 	}
 
 	ret = env_export(&env_new);
@@ -226,14 +224,12 @@ int sf_saveenv(void)
 	int	ret = 1;
 	env_t	env_new;
 
+	env_flash = spi_flash_probe(CONFIG_SF_DEFAULT_BUS,
+		CONFIG_SF_DEFAULT_CS,
+		CONFIG_SF_DEFAULT_SPEED, CONFIG_SF_DEFAULT_MODE);
 	if (!env_flash) {
-		env_flash = spi_flash_probe(CONFIG_SF_DEFAULT_BUS,
-			CONFIG_SF_DEFAULT_CS,
-			CONFIG_SF_DEFAULT_SPEED, CONFIG_SF_DEFAULT_MODE);
-		if (!env_flash) {
-			set_default_env("!spi_flash_probe() failed");
-			return 1;
-		}
+		set_default_env("!spi_flash_probe() failed");
+		return 1;
 	}
 
 	/* Is the sector larger than the env (i.e. embedded) */

@@ -759,7 +759,7 @@ function validForm(){
 		!document.form.reboot_date_x_Thu.checked && !document.form.reboot_date_x_Fri.checked &&
 		!document.form.reboot_date_x_Sat.checked && document.form.reboot_schedule_enable_x[0].checked)
 		{
-			alert(Untranslated.filter_lw_date_valid);
+			alert("<#FirewallConfig_LanWan_SelectOne#>");
 			document.form.reboot_date_x_Sun.focus();
 			return false;
 		}
@@ -2384,7 +2384,7 @@ function check_password_length(obj){
 					</td>
 				</tr>
 				<tr id="plc_sleep_tr" style="display:none;">
-					<th align="right"><a class="hintstyle" href="javascript:void(0);" onClick="openHint(11,12);">Enable PLC sleep automatically<!--untranslated--></a></th>
+					<th align="right"><a class="hintstyle" href="javascript:void(0);" onClick="openHint(11,12);"><#Powerline_PLCsleep_enable#></a></th>
 					<td>
 						<input type="radio" name="plc_sleep_enabled" value="1" <% nvram_match_x("","plc_sleep_enabled","1", "checked"); %> ><#checkbox_Yes#>
 						<input type="radio" name="plc_sleep_enabled" value="0" <% nvram_match_x("","plc_sleep_enabled","0", "checked"); %> ><#checkbox_No#>
@@ -2532,4 +2532,3 @@ function check_password_length(obj){
 <div id="footer"></div>
 </body>
 </html>
-

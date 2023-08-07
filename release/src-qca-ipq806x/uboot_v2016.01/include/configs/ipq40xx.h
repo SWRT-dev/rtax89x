@@ -186,7 +186,6 @@ typedef struct {
  * Cache flush and invalidation based on L1 cache, so the cache line
  * size is configured to 64 */
 #define CONFIG_SYS_CACHELINE_SIZE	64
-#define CONFIG_CMD_CACHE
 
 #define CONFIG_QCA_BAM                 1
 /*

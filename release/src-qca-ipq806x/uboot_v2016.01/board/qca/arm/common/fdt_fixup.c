@@ -16,6 +16,8 @@
 #include <asm/arch-qca-common/scm.h>
 #include <jffs2/load_kernel.h>
 #include <fdtdec.h>
+#include <stdlib.h>
+#include "fdt_info.h"
 
 DECLARE_GLOBAL_DATA_PTR;
 
@@ -162,7 +164,162 @@ void ipq_fdt_fixup_version(void *blob)
 	}
 #endif /* RPM_VERSION */
 }
+#ifdef CONFIG_IPQ_TINY
+#define		OFFSET_NOT_SPECIFIED	(~0llu)
+struct reg_cell {
+	unsigned int r0;
+	unsigned int r1;
+};
 
+extern int fdt_del_partitions(void *blob, int parent_offset);
+
+int parse_nor_partition(const char *const partdef,
+			const char **ret,
+			struct part_info **retpart);
+
+void free_parse(struct list_head *head);
+
+static void ipq_nor_fdt_fixup(void *blob, struct flash_node_info *ni)
+{
+	int parent_offset;
+	struct part_info *part, *pPartInfo;
+	struct reg_cell cell;
+	int off, ndepth = 0;
+	int part_num, ret, newoff;
+	char buf[64];
+	int offset = 0;
+	struct list_head *pentry;
+	LIST_HEAD(tmp_list);
+	const char *pMtdparts =  getenv("mtdparts");
+
+	if (!pMtdparts)
+		return;
+
+	for (; ni->compat; ni++) {
+		parent_offset = fdt_node_offset_by_compatible(
+					blob, -1, ni->compat);
+		if (parent_offset != -FDT_ERR_NOTFOUND)
+			break;
+	}
+
+	if (parent_offset == -FDT_ERR_NOTFOUND){
+		printf(" compatible not found \n");
+		return;
+	}
+
+	ret = fdt_del_partitions(blob, parent_offset);
+	if (ret < 0)
+		return;
+
+	/*
+	 * Check if it is nand {}; subnode, adjust
+	 * the offset in this case
+	 */
+	off = fdt_next_node(blob, parent_offset, &ndepth);
+	if (off > 0 && ndepth == 1)
+		parent_offset = off;
+
+	if (strncmp(pMtdparts, "mtdparts=", 9) == 0) {
+		pMtdparts += 9;
+		pMtdparts = strchr(pMtdparts, ':');
+		pMtdparts++;
+	} else {
+		printf("mtdparts variable doesn't start with 'mtdparts='\n");
+		return;
+	}
+
+	part_num = 0;
+
+	while (pMtdparts && (*pMtdparts != '\0') && (*pMtdparts != ';')) {
+		if ((parse_nor_partition(pMtdparts, &pMtdparts, &pPartInfo) != 0))
+			break;
+
+		/* calculate offset when not specified */
+		if (pPartInfo->offset == OFFSET_NOT_SPECIFIED)
+			pPartInfo->offset = offset;
+		else
+			offset = pPartInfo->offset;
+
+		offset += pPartInfo->size;
+		/* partition is ok, add it to the list */
+		list_add_tail(&pPartInfo->link, &tmp_list);
+	}
+	list_for_each_prev(pentry, &tmp_list) {
+
+		part = list_entry(pentry, struct part_info, link);
+
+		debug("%2d: %-20s0x%08llx\t0x%08llx\t%d\n",
+			part_num, part->name, part->size,
+			part->offset, part->mask_flags);
+
+		snprintf(buf, sizeof(buf), "partition@%llx", part->offset);
+add_sub:
+		ret = fdt_add_subnode(blob, parent_offset, buf);
+		if (ret == -FDT_ERR_NOSPACE) {
+			ret = fdt_increase_size(blob, 512);
+			if (!ret)
+				goto add_sub;
+			else
+				goto err_size;
+		} else if (ret < 0) {
+			printf("Can't add partition node: %s\n",
+				fdt_strerror(ret));
+			return;
+		}
+		newoff = ret;
+
+		/* Check MTD_WRITEABLE_CMD flag */
+		if (pPartInfo->mask_flags & 1) {
+add_ro:
+			ret = fdt_setprop(blob, newoff, "read_only", NULL, 0);
+			if (ret == -FDT_ERR_NOSPACE) {
+				ret = fdt_increase_size(blob, 512);
+				if (!ret)
+					goto add_ro;
+				else
+					goto err_size;
+			} else if (ret < 0)
+				goto err_prop;
+		}
+
+		cell.r0 = cpu_to_fdt32(part->offset);
+		cell.r1 = cpu_to_fdt32(part->size);
+add_reg:
+		ret = fdt_setprop(blob, newoff, "reg", &cell, sizeof(cell));
+		if (ret == -FDT_ERR_NOSPACE) {
+			ret = fdt_increase_size(blob, 512);
+			if (!ret)
+				goto add_reg;
+			else
+				goto err_size;
+		} else if (ret < 0)
+			goto err_prop;
+
+add_label:
+		ret = fdt_setprop_string(blob, newoff, "label", part->name);
+		if (ret == -FDT_ERR_NOSPACE) {
+			ret = fdt_increase_size(blob, 512);
+			if (!ret)
+				goto add_label;
+			else
+				goto err_size;
+		} else if (ret < 0)
+			goto err_prop;
+
+		part_num++;
+	}
+	goto remove_list;
+err_size:
+	printf("Can't increase blob size: %s\n", fdt_strerror(ret));
+	goto remove_list;
+err_prop:
+	printf("Can't add property: %s\n", fdt_strerror(ret));
+	goto remove_list;
+remove_list:
+	free_parse(&tmp_list);
+	return;
+}
+#else
 void ipq_fdt_fixup_mtdparts(void *blob, struct flash_node_info *ni)
 {
 	struct mtd_device *dev;
@@ -191,6 +348,7 @@ void ipq_fdt_fixup_mtdparts(void *blob, struct flash_node_info *ni)
 		}
 	}
 }
+#endif
 
 void ipq_fdt_mem_rsvd_fixup(void *blob)
 {
@@ -240,9 +398,13 @@ void ipq_fdt_mem_rsvd_fixup(void *blob)
 	/* Set the dload_status to DLOAD_DISABLE */
 	nodeoff = fdt_path_offset(blob, "/soc/qca,scm_restart_reason");
 	if (nodeoff < 0) {
-		debug("fdt-fixup: unable to find compatible node\n");
-		return;
+		nodeoff = fdt_path_offset(blob, "/qti,scm_restart_reason");
+		if (nodeoff < 0) {
+			debug("fdt-fixup: unable to find compatible node\n");
+			return;
+		}
 	}
+
 	ret = fdt_setprop(blob, nodeoff, "dload_status", &dload, sizeof(dload));
 	if (ret != 0) {
 		debug("fdt-fixup: unable to find compatible node\n");
@@ -487,60 +649,148 @@ static int ipq40xx_patch_eth_params(void *blob, unsigned long gmac_no)
 }
 
 #ifdef CONFIG_IPQ_FDT_FIXUP
+/* setenv fdteditnum <num>   - here <num> represents number of envs to parse
+ * Note: without setting 'fdteditnum' fdtedit envs will not parsed
+ *
+ * fdtedit<num> <node>%<property>%<node_value>   - dts patching env format
+ * here '%' is separator; <num> can be between 1 to 99;
+ *
+ * 1. To change add/change a particular property of a node:
+ *       setenv fdtedit0 <node_path>%<property>%<value>
+ *
+ *    This can be used to add properties which doesn't have any value associated
+ *       eg: qca,secure; property of q6v5_wcss@CD00000 node can be added as:
+ *       setenv fdtedit0 /soc/q6v5_wcss@CD00000/%qca,secure%1
+ *    other eg:
+ *       fdtedit0=/soc/q6v5_wcss@CD00000%qca,sec-reset-cmd%0x19
+ *       fdtedit1=/soc/usb3@8A00000/dwc3@8A00000%dr_mode%?peripheral
+ *       fdtedit2=/soc/qcom,gadget_diag@0/%status%?ok
+ *
+ * 2. To delete a property of a node:
+ *       setenv fdtedit0 <node_path>%delete%<property>
+ *    example:
+ *       fdtedit0=/soc/q6v5_wcss@CD00000%delete%?qca,secure
+ *
+ * The last param in both add or delete case, if it is a string, it should
+ * start with '?' else if it is a number, it can be put directly.
+ * check above examples for reference.
+ *
+ * 3. To add 32bit or 64bit array values:
+ *       setenv fdtedit0 <node_path>%<bit_value>?<num_values>?<property_name>%<value1>?<value2>?<value3>?..
+ *       <bit_value> can be 32 / 64;  <num_values> is number of array elements
+ *       to be patched; <property_name> is the actual name of the property to
+ *       be patched; each array value has to be separated by '?'
+ *       for reg = <addr> <size>; <num_values> is 2 in this case
+ *    example:
+ *       setenv fdtedit0 /soc/dbm@0x8AF8000/%32?2?reg%0x8AF8000?0x500
+ *       setenv fdtedit1 /soc/pci@20000000/%32?2?bus-range%0xee?0xee
+ *       setenv fdtedit2 /soc/usb3@8A00000/%32?4?reg%0x8AF8600?0x200?0x8A00000?0xcb00
+ *       setenv fdtedit3 /reserved-memory/tzapp@49B00000/%64?2?reg%0x49A00000?0x500000
+ */
 void parse_fdt_fixup(char* buf, void *blob)
 {
-	int nodeoff, value, ret;
-	char *node, *property, *node_value;
-	bool str = true;
+	int nodeoff, value, ret, num_values, i;
+	char *node, *property, *node_value, *sliced_string;
+	bool if_string = true, bit32 = true;
+	u32 *values32;
+	u64 *values64;
 
+	/* env is split into <node>%<property>%<node_value>. '%' is separator */
 	node = strsep(&buf, "%");
 	property = strsep(&buf, "%");
 	node_value = strsep(&buf, "%");
 
-	debug("node: %s, property: %s, node_value: %s\n",
-			node, property, node_value);
+	debug("node: %s  property: %s  node_value: %s\n", node, property, node_value);
 
+	/* if '?' is present then node_value is string;
+	 * else, node_value is 32bit value
+	 */
 	if (node_value && node_value[0] != '?') {
-		str = false;
+		if_string = false;
 		value = simple_strtoul(node_value, NULL, 10);
 	} else {
+		/* skip '?' */
 		node_value++;
 	}
 
 	nodeoff = fdt_path_offset(blob, node);
 	if (nodeoff < 0) {
-		printf("%s: unable to find node '%s'\n",
-				__func__, node);
+		printf("%s: unable to find node '%s'\n", __func__, node);
 		return;
 	}
 
 	if (!strncmp(property, "delete", strlen("delete"))) {
+		/* handle property deletes */
 		ret = fdt_delprop(blob, nodeoff, node_value);
 		if (ret) {
-			printf("%s: unable to delete %s\n",
-					__func__, node_value);
+			printf("%s: unable to delete %s\n", __func__, node_value);
 			return;
 		}
-	} else if (!str) {
-		ret = fdt_setprop_u32(blob, nodeoff, property,
-				value);
+	} else if (!strncmp(property, "32", strlen("32")) || !strncmp(property, "64", strlen("64"))) {
+		/* if property name starts with '32' or '64', then it is used
+		 * for patching array of 32bit / 64bit values correspondingly.
+		 * 32bit patching is usually used to patch reg = <addr> <size>;
+		 * but could also be used to patch multiple addresses & sizes
+		 * <property> = <addr1> <size1> <addr2> <size2> ..
+		 * 64bit patching is usually used to patch reserved memory nodes
+		 */
+		sliced_string = strsep(&property, "?");
+		if (simple_strtoul(sliced_string, NULL, 10) == 64)
+			bit32 = false;
+
+		/* get the number of array values */
+		sliced_string = strsep(&property, "?");
+		num_values = simple_strtoul(sliced_string, NULL, 10);
+
+		if (bit32 == true) {
+			values32 = malloc(num_values * sizeof(u32));
+
+			for (i = 0; i < num_values; i++)  {
+				sliced_string = strsep(&node_value, "?");
+				values32[i] =  cpu_to_fdt32(simple_strtoul(sliced_string, NULL, 10));
+			}
+
+			ret = fdt_setprop(blob, nodeoff, property, values32, num_values * sizeof(u32));
+			if (ret) {
+				printf("%s: failed to set prop %s\n", __func__, property);
+				return;
+			}
+		} else {
+			values64 = malloc(num_values * sizeof(u64));
+
+			for (i = 0; i < num_values; i++)  {
+				sliced_string = strsep(&node_value, "?");
+				values64[i] =  cpu_to_fdt64(simple_strtoul(sliced_string, NULL, 10));
+			}
+
+			ret = fdt_setprop(blob, nodeoff, property, values64, num_values * sizeof(u64));
+			if (ret) {
+				printf("%s: failed to set prop %s\n", __func__, property);
+				return;
+			}
+		}
+	} else if (!if_string) {
+		/* handle 32bit integer value patching */
+		ret = fdt_setprop_u32(blob, nodeoff, property, value);
 		if (ret) {
-			printf("%s: failed to set prop %s\n",
-					__func__, property);
+			printf("%s: failed to set prop %s\n", __func__, property);
 			return;
 		}
 	} else {
+		/* handle string value patching
+		 * usually used to patch status = "ok"; status = "disabled";
+		 */
 		ret = fdt_setprop(blob, nodeoff, property,
 				node_value,
 				(strlen(node_value) + 1));
 		if (ret) {
-			printf("%s: failed to set prop %s\n",
-					__func__, property);
+			printf("%s: failed to set prop %s\n", __func__, property);
 			return;
 		}
 	}
 }
 
+/* check parse_fdt_fixup for detailed explanation */
 void ipq_fdt_fixup(void *blob)
 {
 	int i, fdteditnum;
@@ -591,11 +841,6 @@ __weak void fdt_fixup_cpus_node(void * blob)
 	return;
 }
 
-__weak void fdt_fixup_set_dload_dis(void *blob)
-{
-	return;
-}
-
 __weak void fdt_fixup_set_dload_warm_reset(void *blob)
 {
 	return;
@@ -616,6 +861,63 @@ __weak void fdt_fixup_wcss_rproc_for_atf(void *blob)
 	return;
 }
 
+__weak void fdt_fixup_art_format(void *blob)
+{
+	return;
+}
+
+#ifdef CONFIG_IPQ_BT_SUPPORT
+__weak void fdt_fixup_bt_running(void *blob)
+{
+	return;
+}
+#endif
+
+__weak void fdt_fixup_bt_debug(void *blob)
+{
+	return;
+}
+
+__weak void fdt_fixup_qpic(void *blob)
+{
+	return;
+}
+
+void set_mtdids(void)
+{
+	char mtdids[256];
+
+	if (getenv("mtdids") != NULL) {
+		/* mtdids env is already set, nothing to do */
+		return;
+	}
+
+	qca_smem_flash_info_t *sfi = &qca_smem_flash_info;
+	if (sfi->flash_type == SMEM_BOOT_SPI_FLASH) {
+		if (get_which_flash_param("rootfs") ||
+		    ((sfi->flash_secondary_type == SMEM_BOOT_NAND_FLASH) ||
+			(sfi->flash_secondary_type == SMEM_BOOT_QSPI_NAND_FLASH))) {
+
+			snprintf(mtdids, sizeof(mtdids),
+				 "nand%d=nand%d,nand%d=" QCA_SPI_NOR_DEVICE,
+				 is_spi_nand_available(),
+				 is_spi_nand_available(),
+				 CONFIG_SPI_FLASH_INFO_IDX);
+		} else {
+
+			snprintf(mtdids, sizeof(mtdids), "nand%d="
+				QCA_SPI_NOR_DEVICE, CONFIG_SPI_FLASH_INFO_IDX);
+
+		}
+		setenv("mtdids", mtdids);
+	} else if (((sfi->flash_type == SMEM_BOOT_NAND_FLASH) ||
+			(sfi->flash_type == SMEM_BOOT_QSPI_NAND_FLASH))) {
+
+		snprintf(mtdids, sizeof(mtdids), "nand0=nand0");
+		setenv("mtdids", mtdids);
+	}
+}
+
 /*
  * For newer kernel that boot with device tree (3.14+), all of memory is
  * described in the /memory node, including areas that the kernel should not be
@@ -634,15 +936,23 @@ int ft_board_setup(void *blob, bd_t *bd)
 	int ret;
 #if !defined(CONFIG_ASUS_PRODUCT)
 	char *mtdparts = NULL;
+	char *addparts = NULL;
 	char parts_str[4096];
 	int len = sizeof(parts_str);
 	qca_smem_flash_info_t *sfi = &qca_smem_flash_info;
 	int activepart = 0;
+#ifdef CONFIG_IPQ_TINY
+	struct flash_node_info nodes[] = {
+		{ "n25q128a11", MTD_DEV_TYPE_NAND,
+				CONFIG_IPQ_SPI_NOR_INFO_IDX }
+		};
+#else
 	struct flash_node_info nodes[] = {
 		{ "qcom,msm-nand", MTD_DEV_TYPE_NAND, 0 },
 		{ "qcom,qcom_nand", MTD_DEV_TYPE_NAND, 0 },
 		{ "qcom,ebi2-nandc-bam-v1.5.0", MTD_DEV_TYPE_NAND, 0 },
 		{ "qcom,ebi2-nandc-bam-v2.1.1", MTD_DEV_TYPE_NAND, 0 },
+		{ "qcom,ipq8074-nand", MTD_DEV_TYPE_NAND, 0 },
 		{ "spinand,mt29f", MTD_DEV_TYPE_NAND, 1 },
 		{ "n25q128a11", MTD_DEV_TYPE_NAND,
 				CONFIG_IPQ_SPI_NOR_INFO_IDX },
@@ -650,7 +960,7 @@ int ft_board_setup(void *blob, bd_t *bd)
 		{ NULL, 0, -1 },	/* Terminator */
 	};
 #endif
-
+#endif	/* !CONFIG_ASUS_PRODUCT */
 	fdt_fixup_memory_banks(blob, &memory_start, &memory_size, 1);
 	ipq_fdt_fixup_version(blob);
 #ifndef CONFIG_QCA_APPSBL_DLOAD
@@ -688,12 +998,23 @@ int ft_board_setup(void *blob, bd_t *bd)
 	if (mtdparts) {
 		qca_smem_part_to_mtdparts(mtdparts,len);
 		if (mtdparts[0] != '\0') {
+			addparts = getenv("addmtdparts");
+			if (addparts) {
+				debug("addmtdparts = %s\n", addparts);
+				strlcat(mtdparts, ",", sizeof(parts_str));
+				strlcat(mtdparts, addparts, sizeof(parts_str));
+			}
 			debug("mtdparts = %s\n", mtdparts);
 			setenv("mtdparts", mtdparts);
 		}
 
+		set_mtdids();
 		debug("MTDIDS: %s\n", getenv("mtdids"));
+#ifdef CONFIG_IPQ_TINY
+		ipq_nor_fdt_fixup(blob, nodes);
+#else
 		ipq_fdt_fixup_mtdparts(blob, nodes);
+#endif
 	}
 #endif
 
@@ -724,12 +1045,13 @@ int ft_board_setup(void *blob, bd_t *bd)
 	fdt_fixup_cpr(blob);
 	fdt_fixup_cpus_node(blob);
 	fdt_low_memory_fixup(blob);
+	fdt_fixup_qpic(blob);
 	s = getenv("dload_warm_reset");
 	if (s)
 		fdt_fixup_set_dload_warm_reset(blob);
 	s = getenv("dload_dis");
 	if (s)
-		fdt_fixup_set_dload_dis(blob);
+		ipq_fdt_mem_rsvd_fixup(blob);
 	s = getenv("qce_fixed_key");
 	if (s)
 		fdt_fixup_set_qce_fixed_key(blob);
@@ -738,6 +1060,19 @@ int ft_board_setup(void *blob, bd_t *bd)
 		fdt_fixup_set_qca_cold_reboot_enable(blob);
 		fdt_fixup_wcss_rproc_for_atf(blob);
 	}
+	s = getenv("bt_debug");
+	if (s) {
+		fdt_fixup_bt_debug(blob);
+	}
+
+#ifdef CONFIG_IPQ_BT_SUPPORT
+	fdt_fixup_bt_running(blob);
+#endif
+	/*
+	|| This features fixup compressed_art in
+	|| dts if its 16M profile build.
+	*/
+	fdt_fixup_art_format(blob);
 
 #ifdef CONFIG_QCA_MMC
 	board_mmc_deinit();

@@ -508,7 +508,7 @@ unsigned int get_rootfs_active_partition(void)
 
 	return 0; /* alt partition not available */
 }
-
+#ifdef CONFIG_CMD_NAND
 /*
  * get nand block size by device id.
  * dev_id is 0 for parallel nand.
@@ -522,16 +522,20 @@ uint32_t get_nand_block_size(uint8_t dev_id)
 
 	return mtd->erasesize;
 }
-
+#endif
 /*
  * get flash block size based on partition name.
  */
 static inline uint32_t get_flash_block_size(char *name,
 					    qca_smem_flash_info_t *smem)
 {
+#ifdef CONFIG_CMD_NAND
 	return (get_which_flash_param(name) == 1) ?
 		get_nand_block_size(is_spi_nand_available())
 		: smem->flash_block_size;
+#else
+	return smem->flash_block_size;
+#endif
 }
 
 #define part_which_flash(p)    (((p)->attr & 0xff000000) >> 24)
@@ -539,9 +543,13 @@ static inline uint32_t get_flash_block_size(char *name,
 static inline uint32_t get_part_block_size(struct smem_ptn *p,
 					   qca_smem_flash_info_t *sfi)
 {
+#ifdef CONFIG_CMD_NAND
         return (part_which_flash(p) == 1) ?
 		get_nand_block_size(is_spi_nand_available())
 		: sfi->flash_block_size;
+#else
+	return sfi->flash_block_size;
+#endif
 }
 
 void qca_set_part_entry(char *name, qca_smem_flash_info_t *smem,
@@ -578,6 +586,52 @@ unsigned int get_partition_table_offset(void)
 }
 
 /*
+ * smem_getpart_from_offset - retreive partition start and size for given offset
+ * belongs to.
+ * @part_name: offset for which part start and size needed
+ * @start: location where the start offset is to be stored
+ * @size: location where the size is to be stored
+ *
+ * Returns 0 at success or -ENOENT otherwise.
+ */
+int smem_getpart_from_offset(uint32_t offset, uint32_t *start, uint32_t *size)
+{
+	unsigned i;
+	qca_smem_flash_info_t *sfi = &qca_smem_flash_info;
+	struct smem_ptn *p;
+	uint32_t bsize;
+
+	for (i = 0; i < smem_ptable.len; i++) {
+		p = &smem_ptable.parts[i];
+		*start = p->start;
+		bsize = get_part_block_size(p, sfi);
+
+		if (p->size == (~0u)) {
+		/*
+		 * Partition size is 'till end of device', calculate
+		 * appropriately
+		 */
+#ifdef CONFIG_CMD_NAND
+			*size = (nand_info[get_device_id_by_part(p)].size /
+				 bsize) - p->start;
+#else
+			*size = 0;
+			bsize = bsize;
+#endif
+		} else {
+			*size = p->size;
+		}
+		*start = *start * bsize;
+		*size = *size * bsize;
+		if (*start <= offset && *start + *size > offset) {
+			return 0;
+		}
+	}
+
+	return -ENOENT;
+
+}
+/*
  * smem_getpart - retreive partition start and size
  * @part_name: partition name
  * @start: location where the start offset is to be stored
@@ -611,8 +665,13 @@ int smem_getpart(char *part_name, uint32_t *start, uint32_t *size)
 		 * Partition size is 'till end of device', calculate
 		 * appropriately
 		 */
+#ifdef CONFIG_CMD_NAND
 		*size = (nand_info[get_device_id_by_part(p)].size /
 			 bsize) - p->start;
+#else
+		*size = 0;
+		bsize = bsize;
+#endif
 	} else {
 		*size = p->size;
 	}
@@ -895,8 +954,12 @@ void qca_smem_part_to_mtdparts(char *mtdid, int len)
 			 * Partition size is 'till end of device', calculate
 			 * appropriately
 			 */
+#ifdef CONFIG_CMD_NAND
 			psize = (nand_info[get_device_id_by_part(p)].size
 					- (((loff_t)p->start) * bsize));
+#else
+			psize = 0;
+#endif
 		} else {
 			psize =  ((loff_t)p->size) * bsize;
 		}
@@ -967,8 +1030,12 @@ int getpart_offset_size(char *part_name, uint32_t *offset, uint32_t *size)
 				 * Partition size is 'till end of device', calculate
 				 * appropriately
 				 */
+#ifdef CONFIG_CMD_NAND
 				psize = nand_info[get_device_id_by_part(p)].size
 					- (((loff_t)p->start) * bsize);
+#else
+				psize = 0;
+#endif
 			} else {
 				psize = ((loff_t)p->size) * bsize;
 			}
@@ -1120,8 +1187,12 @@ int do_smeminfo(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 			 * Partition size is 'till end of device', calculate
 			 * appropriately
 			 */
+#ifdef CONFIG_CMD_NAND
 			psize = nand_info[get_device_id_by_part(p)].size
 				- (((loff_t)p->start) * bsize);
+#else
+			psize = 0;
+#endif
 		} else {
 			psize = ((loff_t)p->size) * bsize;
 		}

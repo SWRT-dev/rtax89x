@@ -3261,17 +3261,34 @@ int mALLOPt(param_number, value) int param_number; int value;
   }
 }
 
+#ifdef CONFIG_COMPRESSED_DTB_BASE
+unsigned long malloc_base;
+
+int initf_pre_malloc(void)
+{
+#ifdef CONFIG_SYS_MALLOC_F_LEN
+	assert(gd->malloc_base);	/* Set up by crt0.S */
+	malloc_base = gd->malloc_base;
+	gd->malloc_limit = CONFIG_COMPRESSED_DTB_MAX_SIZE;
+	gd->malloc_base = CONFIG_COMPRESSED_DTB_BASE - CONFIG_COMPRESSED_DTB_MAX_SIZE;
+	gd->malloc_ptr = 0;
+#endif
+	return 0;
+}
+#endif
+
 int initf_malloc(void)
 {
 #ifdef CONFIG_SYS_MALLOC_F_LEN
 	assert(gd->malloc_base);	/* Set up by crt0.S */
 	gd->malloc_limit = CONFIG_SYS_MALLOC_F_LEN;
+#ifdef CONFIG_COMPRESSED_DTB_BASE
+	gd->malloc_base = malloc_base;
+#endif
 	gd->malloc_ptr = 0;
 #endif
-
 	return 0;
 }
-
 /*
 
 History:

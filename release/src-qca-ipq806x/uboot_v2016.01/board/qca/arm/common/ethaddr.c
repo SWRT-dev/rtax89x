@@ -19,7 +19,18 @@
 #include <asm/arch-qca-common/smem.h>
 #include <asm/arch-qca-common/qca_common.h>
 #include <sdhci.h>
-
+#ifdef CONFIG_IPQ_TINY_SPI_NOR
+#include <spi.h>
+#include <spi_flash.h>
+#endif
+#if defined(CONFIG_ART_COMPRESSED) &&	\
+	(defined(CONFIG_GZIP) || defined(CONFIG_LZMA))
+#ifndef CONFIG_COMPRESSED_LOAD_ADDR
+#define CONFIG_COMPRESSED_LOAD_ADDR CONFIG_SYS_LOAD_ADDR
+#endif
+#include <mapmem.h>
+#include <lzma/LzmaTools.h>
+#endif
 #ifdef CONFIG_QCA_MMC
 #ifndef CONFIG_SDHCI_SUPPORT
 extern qca_mmc mmc_host;
@@ -76,6 +87,15 @@ int get_eth_mac_address(uchar *enetaddr, uint no_of_macs)
 	struct mmc *mmc;
 	char mmc_blks[512];
 #endif
+#ifdef CONFIG_IPQ_TINY_SPI_NOR
+	struct spi_flash *flash = NULL;
+#if defined(CONFIG_ART_COMPRESSED) && (defined(CONFIG_GZIP) || defined(CONFIG_LZMA))
+	void *load_buf, *image_buf;
+	unsigned long img_size;
+	unsigned long desMaxSize;
+#endif
+#endif
+
 	if (sfi->flash_type != SMEM_BOOT_MMC_FLASH) {
 		if (qca_smem_flash_info.flash_type == SMEM_BOOT_SPI_FLASH)
 			flash_type = CONFIG_SPI_FLASH_INFO_IDX;
@@ -100,8 +120,50 @@ int get_eth_mac_address(uchar *enetaddr, uint no_of_macs)
 		art_offset =
 		((loff_t) qca_smem_flash_info.flash_block_size * start_blocks);
 
+#ifdef CONFIG_IPQ_TINY_SPI_NOR
+		flash = spi_flash_probe(CONFIG_SF_DEFAULT_BUS, CONFIG_SF_DEFAULT_CS,
+				CONFIG_SF_DEFAULT_SPEED, CONFIG_SF_DEFAULT_MODE);
+		if (flash == NULL){
+			printf("No SPI flash device found\n");
+			ret = -1;
+		} else {
+#if defined(CONFIG_ART_COMPRESSED) && (defined(CONFIG_GZIP) || defined(CONFIG_LZMA))
+		image_buf = map_sysmem(CONFIG_COMPRESSED_LOAD_ADDR, 0);
+		load_buf = map_sysmem(CONFIG_COMPRESSED_LOAD_ADDR + 0x100000, 0);
+		img_size = qca_smem_flash_info.flash_block_size * size_blocks;
+		desMaxSize = 0x100000;
+		ret = spi_flash_read(flash, art_offset, img_size, image_buf);
+		if (ret == 0) {
+			ret = -1;
+#ifdef CONFIG_GZIP
+			ret = gunzip(load_buf, desMaxSize, image_buf, &img_size);
+#endif
+#ifdef CONFIG_LZMA
+			if (ret != 0)
+				ret = lzmaBuffToBuffDecompress(load_buf,
+					(SizeT *)&desMaxSize,
+					image_buf,
+					(SizeT)img_size);
+#endif
+			if (ret == 0) {
+				memcpy(enetaddr, load_buf, length);
+			} else {
+				printf("Invalid compression type..\n");
+				ret = -1;
+			}
+		}
+#else
+		ret = spi_flash_read(flash, art_offset, length, enetaddr);
+#endif
+		}
+		/*
+		 * Avoid unused warning
+		 */
+		(void)flash_type;
+#else
 		ret = nand_read(&nand_info[flash_type],
 				art_offset, &length, enetaddr);
+#endif
 		if (ret < 0)
 			printf("ART partition read failed..\n");
 #ifdef CONFIG_QCA_MMC

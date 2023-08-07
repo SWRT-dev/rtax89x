@@ -407,6 +407,8 @@
 				port@4 {
 					port_id = <5>;
 					phy_address = <30>;
+					phy_i2c_address = <30>;
+					phy-i2c-mode; /*i2c access phy */
 				};
 
 				port@5 {

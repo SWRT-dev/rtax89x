@@ -846,12 +846,15 @@ static init_fnc_t init_sequence_f[] = {
 #endif
 	setup_mon_len,
 #ifdef CONFIG_OF_CONTROL
+#ifdef CONFIG_COMPRESSED_DTB_BASE
+	initf_pre_malloc,
+#endif
 	fdtdec_setup,
 #endif
+	initf_malloc,
 #ifdef CONFIG_TRACE
 	trace_early_init,
 #endif
-	initf_malloc,
 	initf_console_record,
 #if defined(CONFIG_MPC85xx) || defined(CONFIG_MPC86xx)
 	/* TODO: can this go into arch_cpu_init()? */

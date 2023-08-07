@@ -456,6 +456,8 @@ static int ipq_serial_ofdata_to_platdata(struct udevice *dev)
 	plat->n_value = fdtdec_get_int(gd->fdt_blob, dev->of_offset, "n_value", -1);
 	plat->d_value = fdtdec_get_int(gd->fdt_blob, dev->of_offset, "d_value", -1);
 
+	plat->gpio_node = fdt_subnode_offset(gd->fdt_blob, dev->of_offset, "serial_gpio");
+
 	return 0;
 }
 
@@ -562,6 +564,7 @@ static void  do_uart_start(void)
 	uart2.n_value = fdtdec_get_int(gd->fdt_blob, node, "n_value", -1);
 	uart2.d_value = fdtdec_get_int(gd->fdt_blob, node, "d_value", -1);
 
+	uart2.gpio_node = fdt_subnode_offset(gd->fdt_blob, node, "serial_gpio");
 	ipq_serial_init(&uart2,  uart2.reg_base);
 }
 

@@ -272,7 +272,8 @@ static ulong mmc_bread(int dev_num, lbaint_t start, lbaint_t blkcnt, void *dst)
 		dst += cur * mmc->read_bl_len;
 	} while (blocks_todo > 0);
 #if !defined(CONFIG_SYS_DCACHE_OFF)
-	flush_cache((unsigned long)dst, blkcnt * mmc->read_bl_len);
+	flush_cache((unsigned long)dst - ( blkcnt * mmc->read_bl_len),
+					blkcnt * mmc->read_bl_len);
 #endif
 
 	return blkcnt;

@@ -341,6 +341,7 @@ function change_common_radio(o, s, v, r){
 				show_cert_settings(1);
 
 			change_ddns_setting(document.form.ddns_server_x.value);
+			showhide("ddns_ipcheck_tr", 1);
 		}else{
 			if(document.form.ddns_server_x.value == "WWW.ASUS.COM"){
 				document.form.DDNSName.parentNode.parentNode.parentNode.style.display = "none";
@@ -359,6 +360,7 @@ function change_common_radio(o, s, v, r){
 			document.form.ddns_regular_check.value = 0;
 			showhide("check_ddns_field", 0);
 			inputCtrl(document.form.ddns_regular_period, 0);
+			showhide("ddns_ipcheck_tr", 0);
 
 			document.getElementById("ddns_status_tr").style.display = "none";
 			document.getElementById("ddns_result_tr").style.display = "none";
@@ -2080,4 +2082,3 @@ function check_is_merlin_fw(_fw) {
 	else
 		return false;
 }
-

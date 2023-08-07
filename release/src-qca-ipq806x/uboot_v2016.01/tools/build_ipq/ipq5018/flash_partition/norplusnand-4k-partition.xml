@@ -71,16 +71,6 @@ Confidential and Proprietary - Qualcomm Technologies, Inc.
 			<img_name type="string">tz.mbn</img_name>
 		</partition>
 		<partition>
-			<name length="16" type="string">0:QSEE_1</name>
-			<size_kb length="4">1536</size_kb>
-			<pad_kb length="2">0</pad_kb>
-			<which_flash length="2">0</which_flash>
-			<attr>0xFF</attr>
-			<attr>0xFF</attr>
-			<attr>0x00</attr>
-			<attr>0xFF</attr>
-		</partition>
-		<partition>
 			<name length="16" type="string">0:DEVCFG</name>
 			<size_kb length="4">64</size_kb>
 			<pad_kb length="2">0</pad_kb>
@@ -92,27 +82,7 @@ Confidential and Proprietary - Qualcomm Technologies, Inc.
 			<img_name type="string">devcfg.mbn</img_name>
 		</partition>
 		<partition>
-			<name length="16" type="string">0:DEVCFG_1</name>
-			<size_kb length="4">64</size_kb>
-			<pad_kb length="2">0</pad_kb>
-			<which_flash length="2">0</which_flash>
-			<attr>0xFF</attr>
-			<attr>0xFF</attr>
-			<attr>0x00</attr>
-			<attr>0xFF</attr>
-		</partition>
-		<partition>
 			<name length="16" type="string">0:APDP</name>
-			<size_kb length="4">64</size_kb>
-			<pad_kb length="2">0</pad_kb>
-			<which_flash length="2">0</which_flash>
-			<attr>0xFF</attr>
-			<attr>0xFF</attr>
-			<attr>0x00</attr>
-			<attr>0xFF</attr>
-		</partition>
-		<partition>
-			<name length="16" type="string">0:APDP_1</name>
 			<size_kb length="4">64</size_kb>
 			<pad_kb length="2">0</pad_kb>
 			<which_flash length="2">0</which_flash>
@@ -131,16 +101,6 @@ Confidential and Proprietary - Qualcomm Technologies, Inc.
 			<attr>0x00</attr>
 			<attr>0xFF</attr>
 			<img_name type="string">cdt.bin</img_name>
-		</partition>
-		<partition>
-			<name length="16" type="string">0:CDT_1</name>
-			<size_kb length="4">64</size_kb>
-			<pad_kb length="2">0</pad_kb>
-			<which_flash length="2">0</which_flash>
-			<attr>0xFF</attr>
-			<attr>0xFF</attr>
-			<attr>0x00</attr>
-			<attr>0xFF</attr>
 		</partition>
 		<partition>
 			<name length="16" type="string">0:APPSBLENV</name>
@@ -164,29 +124,9 @@ Confidential and Proprietary - Qualcomm Technologies, Inc.
 			<img_name type="string">openwrt-ipq5018-u-boot.mbn</img_name>
 		</partition>
 		<partition>
-			<name length="16" type="string">0:APPSBL_1</name>
-			<size_kb length="4">640</size_kb>
-			<pad_kb length="2">0</pad_kb>
-			<which_flash length="2">0</which_flash>
-			<attr>0xFF</attr>
-			<attr>0xFF</attr>
-			<attr>0x00</attr>
-			<attr>0xFF</attr>
-		</partition>
-		<partition>
 			<name length="16" type="string">0:ART</name>
 			<size_kb length="4">256</size_kb>
 			<pad_kb length="2">0</pad_kb>
-			<which_flash length="2">0</which_flash>
-			<attr>0xFF</attr>
-			<attr>0xFF</attr>
-			<attr>0x00</attr>
-			<attr>0xFF</attr>
-		</partition>
-		<partition>
-			<name length="16" type="string">0:ETHPHYFW</name>
-			<size_kb length="4">256</size_kb>
-			<pad_kb length="2">256</pad_kb>
 			<which_flash length="2">0</which_flash>
 			<attr>0xFF</attr>
 			<attr>0xFF</attr>
@@ -206,6 +146,9 @@ Confidential and Proprietary - Qualcomm Technologies, Inc.
 			<attr>0xFF</attr>
 			<img_name mode="32" type="string" image_type="hlos">openwrt-ipq-ipq50xx-ubi-root-m4096-p256KiB.img</img_name>
 			<img_name mode="64" type="string" image_type="hlos">openwrt-ipq-ipq50xx_64-ubi-root-m4096-p256KiB.img</img_name>
+			<img_name type="string" wififw_type="1">wifi_fw_ipq5018_qcn6122cs_squashfs.img</img_name>
+			<img_name type="string" wififw_type="2">wifi_fw_ipq5018_qcn9000_squashfs.img</img_name>
+			<img_name type="string" wififw_type="3">wifi_fw_ipq5018_qcn9000_qcn6122_squashfs.img</img_name>
 		</partition>
 		<partition>
 			<name length="16" type="string">rootfs_1</name>

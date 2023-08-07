@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
 ===========================================================================
-Copyright (c) 2017-2019 Qualcomm Technologies, Inc.
+Copyright (c) 2017-2019, 2020 Qualcomm Technologies, Inc.
 All Rights Reserved.
 Confidential and Proprietary - Qualcomm Technologies, Inc.
 ===========================================================================
@@ -16,8 +16,8 @@ Confidential and Proprietary - Qualcomm Technologies, Inc.
 	<partitions>
 		<partition>
 			<name length="16" type="string">0:SBL1</name>
-			<size_kb length="4">512</size_kb>
-			<pad_kb length="2">512</pad_kb>
+			<size_kb length="4">256</size_kb>
+			<pad_kb length="2">256</pad_kb>
 			<which_flash length="2">0</which_flash>
 			<attr>0xFF</attr>
 			<attr>0xFF</attr>
@@ -27,8 +27,8 @@ Confidential and Proprietary - Qualcomm Technologies, Inc.
 		</partition>
 		<partition>
 			<name length="16" type="string">0:MIBIB</name>
-			<size_kb length="4">512</size_kb>
-			<pad_kb length="2">512</pad_kb>
+			<size_kb length="4">256</size_kb>
+			<pad_kb length="2">256</pad_kb>
 			<which_flash length="2">0</which_flash>
 			<attr>0xFF</attr>
 			<attr>0xFF</attr>
@@ -38,8 +38,8 @@ Confidential and Proprietary - Qualcomm Technologies, Inc.
 		</partition>
 		<partition>
 			<name length="16" type="string">0:BOOTCONFIG</name>
-			<size_kb length="4">256</size_kb>
-			<pad_kb length="2">256</pad_kb>
+			<size_kb length="4">128</size_kb>
+			<pad_kb length="2">128</pad_kb>
 			<which_flash length="2">0</which_flash>
 			<attr>0xFF</attr>
 			<attr>0xFF</attr>
@@ -49,8 +49,8 @@ Confidential and Proprietary - Qualcomm Technologies, Inc.
 		</partition>
 		<partition>
 			<name length="16" type="string">0:BOOTCONFIG1</name>
-			<size_kb length="4">256</size_kb>
-			<pad_kb length="2">256</pad_kb>
+			<size_kb length="4">128</size_kb>
+			<pad_kb length="2">128</pad_kb>
 			<which_flash length="2">0</which_flash>
 			<attr>0xFF</attr>
 			<attr>0xFF</attr>
@@ -60,8 +60,8 @@ Confidential and Proprietary - Qualcomm Technologies, Inc.
 		</partition>
 		<partition>
 			<name length="16" type="string">0:QSEE</name>
-			<size_kb length="4">2048</size_kb>
-			<pad_kb length="2">1024</pad_kb>
+			<size_kb length="4">512</size_kb>
+			<pad_kb length="2">512</pad_kb>
 			<which_flash length="2">0</which_flash>
 			<attr>0xFF</attr>
 			<attr>0xFF</attr>
@@ -71,8 +71,8 @@ Confidential and Proprietary - Qualcomm Technologies, Inc.
 		</partition>
 		<partition>
 			<name length="16" type="string">0:QSEE_1</name>
-			<size_kb length="4">2048</size_kb>
-			<pad_kb length="2">1024</pad_kb>
+			<size_kb length="4">512</size_kb>
+			<pad_kb length="2">512</pad_kb>
 			<which_flash length="2">0</which_flash>
 			<attr>0xFF</attr>
 			<attr>0xFF</attr>
@@ -81,8 +81,8 @@ Confidential and Proprietary - Qualcomm Technologies, Inc.
 		</partition>
 		<partition>
 			<name length="16" type="string">0:DEVCFG</name>
-			<size_kb length="4">256</size_kb>
-			<pad_kb length="2">256</pad_kb>
+			<size_kb length="4">128</size_kb>
+			<pad_kb length="2">128</pad_kb>
 			<which_flash length="2">0</which_flash>
 			<attr>0xFF</attr>
 			<attr>0xFF</attr>
@@ -92,28 +92,8 @@ Confidential and Proprietary - Qualcomm Technologies, Inc.
 		</partition>
 		<partition>
 			<name length="16" type="string">0:DEVCFG_1</name>
-			<size_kb length="4">256</size_kb>
-			<pad_kb length="2">256</pad_kb>
-			<which_flash length="2">0</which_flash>
-			<attr>0xFF</attr>
-			<attr>0xFF</attr>
-			<attr>0x00</attr>
-			<attr>0xFF</attr>
-		</partition>
-		<partition>
-			<name length="16" type="string">0:APDP</name>
-			<size_kb length="4">256</size_kb>
-			<pad_kb length="2">256</pad_kb>
-			<which_flash length="2">0</which_flash>
-			<attr>0xFF</attr>
-			<attr>0xFF</attr>
-			<attr>0x00</attr>
-			<attr>0xFF</attr>
-		</partition>
-		<partition>
-			<name length="16" type="string">0:APDP_1</name>
-			<size_kb length="4">256</size_kb>
-			<pad_kb length="2">256</pad_kb>
+			<size_kb length="4">128</size_kb>
+			<pad_kb length="2">128</pad_kb>
 			<which_flash length="2">0</which_flash>
 			<attr>0xFF</attr>
 			<attr>0xFF</attr>
@@ -122,8 +102,8 @@ Confidential and Proprietary - Qualcomm Technologies, Inc.
 		</partition>
 		<partition>
 			<name length="16" type="string">0:CDT</name>
-			<size_kb length="4">256</size_kb>
-			<pad_kb length="2">256</pad_kb>
+			<size_kb length="4">128</size_kb>
+			<pad_kb length="2">128</pad_kb>
 			<which_flash length="2">0</which_flash>
 			<attr>0xFF</attr>
 			<attr>0xFF</attr>
@@ -133,8 +113,8 @@ Confidential and Proprietary - Qualcomm Technologies, Inc.
 		</partition>
 		<partition>
 			<name length="16" type="string">0:CDT_1</name>
-			<size_kb length="4">256</size_kb>
-			<pad_kb length="2">256</pad_kb>
+			<size_kb length="4">128</size_kb>
+			<pad_kb length="2">128</pad_kb>
 			<which_flash length="2">0</which_flash>
 			<attr>0xFF</attr>
 			<attr>0xFF</attr>
@@ -153,8 +133,8 @@ Confidential and Proprietary - Qualcomm Technologies, Inc.
 		</partition>
 		<partition>
 			<name length="16" type="string">0:APPSBL</name>
-			<size_kb length="4">512</size_kb>
-			<pad_kb length="2">512</pad_kb>
+			<size_kb length="4">1024</size_kb>
+			<pad_kb length="2">256</pad_kb>
 			<which_flash length="2">0</which_flash>
 			<attr>0xFF</attr>
 			<attr>0xFF</attr>
@@ -164,6 +144,16 @@ Confidential and Proprietary - Qualcomm Technologies, Inc.
 		</partition>
 		<partition>
 			<name length="16" type="string">0:APPSBL_1</name>
+			<size_kb length="4">1024</size_kb>
+			<pad_kb length="2">256</pad_kb>
+			<which_flash length="2">0</which_flash>
+			<attr>0xFF</attr>
+			<attr>0xFF</attr>
+			<attr>0x00</attr>
+			<attr>0xFF</attr>
+		</partition>
+		<partition>
+			<name length="16" type="string">0:ART</name>
 			<size_kb length="4">512</size_kb>
 			<pad_kb length="2">512</pad_kb>
 			<which_flash length="2">0</which_flash>
@@ -173,7 +163,7 @@ Confidential and Proprietary - Qualcomm Technologies, Inc.
 			<attr>0xFF</attr>
 		</partition>
 		<partition>
-			<name length="16" type="string">0:ART</name>
+			<name length="16" type="string">0:TRAINING</name>
 			<size_kb length="4">256</size_kb>
 			<pad_kb length="2">256</pad_kb>
 			<which_flash length="2">0</which_flash>
@@ -184,8 +174,8 @@ Confidential and Proprietary - Qualcomm Technologies, Inc.
 		</partition>
 		<partition>
 			<name length="16" type="string">rootfs</name>
-			<size_kb length="4">53760</size_kb>
-			<pad_kb length="2">1024</pad_kb>
+			<size_kb length="4">59136</size_kb>
+			<pad_kb length="2">256</pad_kb>
 			<which_flash length="2">0</which_flash>
 			<attr>0xFF</attr>
 			<attr>0xFF</attr>
@@ -193,20 +183,13 @@ Confidential and Proprietary - Qualcomm Technologies, Inc.
 			<attr>0xFF</attr>
 			<img_name type="string" mode="32" image_type="hlos">openwrt-ipq-ipq50xx-ubi-root.img</img_name>
 			<img_name type="string" mode="64" image_type="hlos">openwrt-ipq-ipq50xx_64-ubi-root.img</img_name>
+			<img_name type="string" wififw_type="1">wifi_fw_ipq5018_qcn6122cs_squashfs.img</img_name>
+			<img_name type="string" wififw_type="2">wifi_fw_ipq5018_qcn9000_squashfs.img</img_name>
+			<img_name type="string" wififw_type="3">wifi_fw_ipq5018_qcn9000_qcn6122_squashfs.img</img_name>
 		</partition>
 		<partition>
 			<name length="16" type="string">rootfs_1</name>
-			<size_kb length="4">53760</size_kb>
-			<pad_kb length="2">1024</pad_kb>
-			<which_flash length="2">0</which_flash>
-			<attr>0xFF</attr>
-			<attr>0xFF</attr>
-			<attr>0x00</attr>
-			<attr>0xFF</attr>
-		</partition>
-		<partition>
-			<name length="16" type="string">0:ETHPHYFW</name>
-			<size_kb length="4">256</size_kb>
+			<size_kb length="4">59136</size_kb>
 			<pad_kb length="2">256</pad_kb>
 			<which_flash length="2">0</which_flash>
 			<attr>0xFF</attr>

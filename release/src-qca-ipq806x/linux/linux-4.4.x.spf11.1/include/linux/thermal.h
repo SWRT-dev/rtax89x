@@ -151,6 +151,7 @@ struct thermal_cooling_device {
 	struct mutex lock; /* protect thermal_instances list */
 	struct list_head thermal_instances;
 	struct list_head node;
+	int stime, etime;	/* start/end time. unit: seconds */
 };
 
 struct thermal_attr {

@@ -3,6 +3,10 @@ document.write('<script type="text/javascript" src="/js/support_site.js"></scrip
 document.write('<script type="text/javascript" src="/notification.js"></script>');
 document.write('<link rel="stylesheet" type="text/css" href="/notification.css"></link>');
 
+var CoBrand = '<% nvram_get("CoBrand"); %>';
+if(CoBrand == "8")
+	document.write('<link rel="stylesheet" type="text/css" href="/css/difference.css"></link>');
+
 /* String splice function */
 String.prototype.splice = function( idx, rem, s ) {
     return (this.slice(0,idx) + s + this.slice(idx + Math.abs(rem)));
@@ -632,6 +636,7 @@ var gameMode_support = isSupport('gameMode');
 var oam_support = isSupport('oam');
 var hnd_ax_675x_support = isSupport('hnd_ax_675x');
 var wireguard_support = isSupport('wireguard');
+var gre_support = isSupport('gre');
 var softcenter_support = isSupport('softcenter');
 var entware_support = isSupport('entware');
 var swrt_fullcone_support = isSupport('swrt_fullcone');
@@ -679,6 +684,7 @@ function wanAggr_p2_num(wanports_bond){
 // wanports_bond = "P1 P2"; Px follow enum bs_port_id definition on QCA platform.
 function wanAggr_p2_name(wanports_bond){
 	var p2_port_str = "LAN 4";
+	var modelname = "<% nvram_get("modelname"); %>";
 	if (based_modelid == "RT-AX89U" || based_modelid == "GT-AXY16000" || based_modelid == "XT12"){
 		var p2_port = wanAggr_p2_num(wanports_bond);
 
@@ -691,7 +697,10 @@ function wanAggr_p2_name(wanports_bond){
 					p2_port_str = "2.5G/1G LAN";
 			}
 		} else if (p2_port == 30){
-			p2_port_str = "10G base-T";
+			if(modelname == "RAX120")
+				p2_port_str = "5G base-T";
+			else
+				p2_port_str = "10G base-T";
 		} else if (p2_port == 31){
 			p2_port_str = "10G SFP+";
 		}

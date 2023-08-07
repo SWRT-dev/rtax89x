@@ -22,6 +22,9 @@
 		reg = <0x78B1000 0x200>;
 		id = <4>;
 		bit_rate = <0xff>;
+		m_value = <36>;
+		n_value = <15625>;
+		d_value = <15625>;
 		serial_gpio {
 			gpio1 {
 				gpio = <44>;

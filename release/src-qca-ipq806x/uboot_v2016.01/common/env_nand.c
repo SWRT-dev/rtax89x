@@ -187,7 +187,6 @@ static unsigned char env_flags;
 int nand_saveenv(void)
 {
 	int	ret = 0;
-	ALLOC_CACHE_ALIGN_BUFFER(env_t, env_new, 1);
 	int	env_idx = 0;
 	struct env_location location[] = {
 		{
@@ -208,13 +207,22 @@ int nand_saveenv(void)
 #endif
 	};
 
-
-	if (CONFIG_ENV_RANGE > board_env_size)
+	env_t *env_new = (env_t *)memalign(ARCH_DMA_MINALIGN, CONFIG_ENV_SIZE);
+	if (!env_new) {
+		printf("Error: Cannot allocate %d bytes\n", CONFIG_ENV_SIZE);
 		return 1;
+	}
+
+	if (CONFIG_ENV_RANGE > board_env_size) {
+		free(env_new);
+		return 1;
+	}
 
 	ret = env_export(env_new);
-	if (ret)
+	if (ret) {
+		free(env_new);
 		return ret;
+	}
 
 #ifdef CONFIG_ENV_OFFSET_REDUND
 	env_new->flags = ++env_flags; /* increase the serial */
@@ -225,6 +233,7 @@ int nand_saveenv(void)
 	if (!ret) {
 		/* preset other copy for next write */
 		gd->env_valid = gd->env_valid == 2 ? 1 : 2;
+		free(env_new);
 		return ret;
 	}
 
@@ -234,7 +243,7 @@ int nand_saveenv(void)
 		printf("Warning: primary env write failed,"
 				" redundancy is lost!\n");
 #endif
-
+	free(env_new);
 	return ret;
 }
 #endif /* CMD_SAVEENV */
@@ -389,7 +398,13 @@ void nand_env_relocate_spec(void)
 {
 #if !defined(ENV_IS_EMBEDDED)
 	int ret;
-	ALLOC_CACHE_ALIGN_BUFFER(char, buf, CONFIG_ENV_SIZE);
+	char *buf = NULL;
+	buf = (char *)memalign(ARCH_DMA_MINALIGN, CONFIG_ENV_SIZE);
+	if (!buf) {
+		printf("Error: Cannot allocate %d bytes\n", CONFIG_ENV_SIZE);
+		set_default_env(NULL);
+		return;
+        }
 
 #if defined(CONFIG_ENV_OFFSET_OOB)
 	ret = get_nand_env_oob(&nand_info[nand_env_device], &nand_env_oob_offset);
@@ -401,6 +416,7 @@ void nand_env_relocate_spec(void)
 		printf("Found Environment offset in OOB..\n");
 	} else {
 		set_default_env("!no env offset in OOB");
+		free(buf);
 		return;
 	}
 #endif
@@ -408,10 +424,12 @@ void nand_env_relocate_spec(void)
 	ret = readenv(CONFIG_ENV_OFFSET, (u_char *)buf);
 	if (ret) {
 		set_default_env("!readenv() failed");
+		free(buf);
 		return;
 	}
 
 	env_import(buf, 1);
+	free(buf);
 #endif /* ! ENV_IS_EMBEDDED */
 }
 #endif /* CONFIG_ENV_OFFSET_REDUND */

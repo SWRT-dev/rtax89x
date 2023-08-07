@@ -81,14 +81,21 @@ int saveenv(void)
 #else /* ! CONFIG_SYS_REDUNDAND_ENVIRONMENT */
 int saveenv(void)
 {
-	ALLOC_CACHE_ALIGN_BUFFER(env_t, env_new, 1);
 	int ret;
+	env_t *env_new = (env_t *)memalign(ARCH_DMA_MINALIGN, CONFIG_ENV_SIZE)
+	if (!env_new) {
+		printf("Error: Cannot allocate %d bytes\n", CONFIG_ENV_SIZE);
+		return 1;
+        }
 
 	ret = env_export(env_new);
-	if (ret)
+	if (ret) {
+		free(env_new);
 		return ret;
+	}
 
 	if (ubi_part(CONFIG_ENV_UBI_PART, NULL)) {
+		free(env_new);
 		printf("\n** Cannot find mtd partition \"%s\"\n",
 		       CONFIG_ENV_UBI_PART);
 		return 1;
@@ -96,11 +103,13 @@ int saveenv(void)
 
 	if (ubi_volume_write(CONFIG_ENV_UBI_VOLUME, (void *)env_new,
 			     CONFIG_ENV_SIZE)) {
+		free(env_new);
 		printf("\n** Unable to write env to %s:%s **\n",
 		       CONFIG_ENV_UBI_PART, CONFIG_ENV_UBI_VOLUME);
 		return 1;
 	}
 
+	free(env_new);
 	puts("done\n");
 	return 0;
 }
@@ -172,12 +181,20 @@ void env_relocate_spec(void)
 #else /* ! CONFIG_SYS_REDUNDAND_ENVIRONMENT */
 void env_relocate_spec(void)
 {
-	ALLOC_CACHE_ALIGN_BUFFER(char, buf, CONFIG_ENV_SIZE);
+
+	char *buf = NULL;
+	buf = (char *)memalign(ARCH_DMA_MINALIGN, CONFIG_ENV_SIZE);
+	if (!buf) {
+		printf("Error: Cannot allocate %d bytes\n");
+		set_default_env(NULL);
+		return;
+	}
 
 	if (ubi_part(CONFIG_ENV_UBI_PART, NULL)) {
 		printf("\n** Cannot find mtd partition \"%s\"\n",
 		       CONFIG_ENV_UBI_PART);
 		set_default_env(NULL);
+		free(buf);
 		return;
 	}
 
@@ -185,9 +202,11 @@ void env_relocate_spec(void)
 		printf("\n** Unable to read env from %s:%s **\n",
 		       CONFIG_ENV_UBI_PART, CONFIG_ENV_UBI_VOLUME);
 		set_default_env(NULL);
+		free(buf);
 		return;
 	}
 
 	env_import(buf, 1);
+	free(buf);
 }
 #endif /* CONFIG_SYS_REDUNDAND_ENVIRONMENT */

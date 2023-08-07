@@ -1337,7 +1337,7 @@ function show_bandwidth(flag){
 		document.form.bw_enabled_x[0].checked = true;
 		var show_hint_content = "";
 		if(ctf_disable_orig == '0'){	//brcm NAT Acceleration turned ON
-			show_hint_content += "<br>NAT acceleration will be disable for more precise packet inspection.";	/* untranslated */			
+			show_hint_content += "<br><#Guest_Network_disable_NATacc#>";
 		}
 
 		if(QoS_enable_orig == "0"){

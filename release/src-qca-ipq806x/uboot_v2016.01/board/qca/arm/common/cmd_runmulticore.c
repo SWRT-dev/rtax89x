@@ -58,6 +58,16 @@ asmlinkage void secondary_core_entry(char *argv, int *cmd_complete,
 	bring_secondary_core_down(state);
 }
 
+static void disable_console(void)
+{
+	gd->flags |= GD_FLG_SILENT | GD_FLG_DISABLE_CONSOLE;
+}
+
+static void enable_console(void)
+{
+	gd->flags &= ~(GD_FLG_SILENT | GD_FLG_DISABLE_CONSOLE);
+}
+
 int do_runmulticore(cmd_tbl_t *cmdtp,
 			   int flag, int argc, char *const argv[])
 {
@@ -109,6 +119,7 @@ int do_runmulticore(cmd_tbl_t *cmdtp,
 	for (i = 1; i < argc; i++) {
 		printf("Scheduling Core %d\n", i);
 		delay = 0;
+		disable_console();
 		ret = bring_sec_core_up(i, (unsigned int)secondary_cpu_init,
 				(unsigned int)&(core[i - 1]));
 		if (ret) {
@@ -121,6 +132,7 @@ int do_runmulticore(cmd_tbl_t *cmdtp,
 		if (!(core[i - 1].cpu_up)) {
 			panic("Can't bringup core %d\n",i);
 		}
+		enable_console();
 
 		core_status |= (BIT(i - 1));
 		core_on_status |= (BIT(i - 1));

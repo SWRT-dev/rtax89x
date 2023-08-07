@@ -1426,6 +1426,13 @@ void time_zone_x_mapping(void)
 		fprintf(fp, "%s\n", tmpstr);
 		fclose(fp);
 	}
+#ifdef RTCONFIG_AVOID_TZ_ENV
+	/* add a "/tmp/TZ" as a hard link of /etc/TZ in process that run chroot() */
+	if ((fp = fopen("/tmp/TZ", "w")) != NULL) {
+		fprintf(fp, "%s\n", tmpstr);
+		fclose(fp);
+	}
+#endif
 }
 
 /* Get the timezone from NVRAM and set the timezone in the kernel
@@ -1447,7 +1454,9 @@ setup_timezone(void)
 	 * use.
 	 */
 	time_zone_x_mapping();
+#ifndef RTCONFIG_AVOID_TZ_ENV
 	setenv("TZ", nvram_get("time_zone_x"), 1);
+#endif
 
 	/* Update kernel timezone */
 	time(&now);

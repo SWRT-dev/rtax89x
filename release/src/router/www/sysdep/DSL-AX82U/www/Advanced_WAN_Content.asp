@@ -1611,7 +1611,7 @@ function showDiableDHCPclientID(clientid_enable){
 
 										<tr style="display:none">
 											<th>
-												<a class="hintstyle" href="javascript:void(0);" onClick="openHint(7,35);">DNS Privacy Protocol</a> <!-- Untranslated -->
+												<a class="hintstyle" href="javascript:void(0);" onClick="openHint(7,35);"><#WAN_DNS_Privacy#></a>
 											</th>
 											<td align="left">
 												<select id="dnspriv_enable" class="input_option" name="dnspriv_enable" onChange="change_dnspriv_enable(this.value);">
@@ -1625,11 +1625,11 @@ function showDiableDHCPclientID(clientid_enable){
 										</tr>
 										<tr style="display:none">
 											<th>
-												<a class="hintstyle" href="javascript:void(0);" onClick="openHint(7,36);">DNS-over-TLS Profile</a> <!-- Untranslated -->
+												<a class="hintstyle" href="javascript:void(0);" onClick="openHint(7,36);"><#WAN_DNS_over_TLS#></a>
 											</th>
 											<td>
-												<input type="radio" name="dnspriv_profile" class="input" value="1" onclick="return change_common_radio(this, 'IPConnection', 'dnspriv_profile', 1)" <% nvram_match("dnspriv_profile", "1", "checked"); %> />Strict
-												<input type="radio" name="dnspriv_profile" class="input" value="0" onclick="return change_common_radio(this, 'IPConnection', 'dnspriv_profile', 0)" <% nvram_match("dnspriv_profile", "0", "checked"); %> />Opportunistic
+												<input type="radio" name="dnspriv_profile" class="input" value="1" onclick="return change_common_radio(this, 'IPConnection', 'dnspriv_profile', 1)" <% nvram_match("dnspriv_profile", "1", "checked"); %> /><#WAN_DNS_over_TLS_Strict#>
+												<input type="radio" name="dnspriv_profile" class="input" value="0" onclick="return change_common_radio(this, 'IPConnection', 'dnspriv_profile', 0)" <% nvram_match("dnspriv_profile", "0", "checked"); %> /><#WAN_DNS_over_TLS_Opportunistic#>
 											</td>
 										</tr>
 									</table>
@@ -1637,14 +1637,14 @@ function showDiableDHCPclientID(clientid_enable){
 									<table id="DNSPrivacy" width="100%" border="1" align="center" cellpadding="4" cellspacing="0" bordercolor="#6b8fa3" class="FormTable_table" style="display:none">
 									<thead>
 			  						<tr>
-										<td colspan="5">DNS-over-TLS Server List&nbsp;(<#List_limit#>&nbsp;8)</td>
+										<td colspan="5"><#WAN_DNS_over_TLS_server#>&nbsp;(<#List_limit#>&nbsp;8)</td>
 			  						</tr>
 									</thead>
 									<tr>
 										<th><a href="javascript:void(0);" onClick="openHint(7,37);"><div class="table_text"><div class="table_text"><#IPConnection_ExternalIPAddress_itemname#></div></a></th>
-										<th><a href="javascript:void(0);" onClick="openHint(7,38);"><div class="table_text"><div class="table_text">TLS Port</div></a></th>
-										<th><a href="javascript:void(0);" onClick="openHint(7,39);"><div class="table_text"><div class="table_text">TLS Hostname</div></a></th>
-										<th><a href="javascript:void(0);" onClick="openHint(7,40);"><div class="table_text"><div class="table_text">SPKI Fingerprint</div></a></th>
+										<th><a href="javascript:void(0);" onClick="openHint(7,38);"><div class="table_text"><div class="table_text"><#WAN_DNS_over_TLS_server_port#></div></a></th>
+										<th><a href="javascript:void(0);" onClick="openHint(7,39);"><div class="table_text"><div class="table_text"><#WAN_DNS_over_TLS_server_name#></div></a></th>
+										<th><a href="javascript:void(0);" onClick="openHint(7,40);"><div class="table_text"><div class="table_text"><#WAN_DNS_over_TLS_server_SPKI#></div></a></th>
 										<th><#list_add_delete#></th>
 									</tr>
 									<!-- server info -->
@@ -1664,13 +1664,13 @@ function showDiableDHCPclientID(clientid_enable){
 											<tr><td colspan="2"><#ipv6_6rd_dhcp_option#></td></tr>
 										</thead>
 										<tr>
-											<th width="40%">Class-identifier (option 60):</th>
+											<th width="40%"><#DHCPoption_Class#> (<#NetworkTools_option#> 60):</th>
 											<td>
 												<input type="text" name="wan_vendorid" class="input_25_table" value="<% nvram_get("wan_vendorid"); %>" maxlength="126" autocapitalization="off" autocomplete="off">
 											</td>
 										</tr>
 										<tr>
-											<th width="40%">Client-identifier (option 61):</th>
+											<th width="40%"><#DHCPoption_Client#> (<#NetworkTools_option#> 61):</th>
 											<td>
 												<input type="checkbox" id="tmp_dhcp_clientid_type" name="tmp_dhcp_clientid_type" onclick="showDiableDHCPclientID(this);" <% nvram_match("wan_clientid_type", "1", "checked"); %>>IAID/DUID<br>
 												<input type="text" name="wan_clientid" class="input_25_table" value="<% nvram_get("wan_clientid"); %>" maxlength="126" autocapitalization="off" autocomplete="off">

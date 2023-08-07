@@ -107,6 +107,7 @@ enum phy_mode {
 	QCA8081_PHY_TYPE = 2,
 	AQ_PHY_TYPE = 3,
 	QCA8033_PHY_TYPE = 4,
+	SFP_PHY_TYPE = 5,
 };
 
 typedef struct {

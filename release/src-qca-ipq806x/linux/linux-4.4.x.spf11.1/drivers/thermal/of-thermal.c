@@ -286,6 +286,30 @@ static int of_thermal_unbind(struct thermal_zone_device *thermal,
 	return 0;
 }
 
+static void invalidate_cdev_updated(struct thermal_zone_device *tz, int trip)
+{
+	struct thermal_instance *instance;
+
+	if (!tz)
+		return;
+
+	mutex_lock(&tz->lock);
+	list_for_each_entry(instance, &tz->thermal_instances, tz_node) {
+		if (!instance->initialized || !instance->cdev)
+			continue;
+		if (instance->target != THERMAL_NO_TARGET) {
+			instance->target = THERMAL_NO_TARGET;
+		}
+		mutex_lock(&instance->cdev->lock);
+		if (instance->cdev->updated) {
+			instance->cdev->updated = false; /* cdev needs update */
+		}
+		mutex_unlock(&instance->cdev->lock);
+	}
+
+	mutex_unlock(&tz->lock);
+}
+
 static int of_thermal_get_mode(struct thermal_zone_device *tz,
 			       enum thermal_device_mode *mode)
 {
@@ -395,6 +419,7 @@ static int of_thermal_set_trip_temp(struct thermal_zone_device *tz, int trip,
 
 	/* thermal framework should take care of data->mask & (1 << trip) */
 	data->trips[trip].temperature = temp;
+	invalidate_cdev_updated(tz, trip);
 
 	return 0;
 }
@@ -424,6 +449,7 @@ static int of_thermal_set_trip_hyst(struct thermal_zone_device *tz, int trip,
 
 	/* thermal framework should take care of data->mask & (1 << trip) */
 	data->trips[trip].hysteresis = hyst;
+	invalidate_cdev_updated(tz, trip);
 
 	return 0;
 }

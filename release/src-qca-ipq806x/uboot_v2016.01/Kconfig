@@ -114,6 +114,9 @@ menu "Boot images"
 config SUPPORT_SPL
 	bool
 
+config COMPRESSED_DTB_BASE
+	hex
+
 config SUPPORT_TPL
 	bool
 

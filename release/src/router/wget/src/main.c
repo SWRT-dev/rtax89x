@@ -1361,6 +1361,26 @@ static int _check_asus_server(const char *str)
        return 0;
 }
 
+static int _get_process_path(const int pid, char *real_path, const size_t real_path_len)
+{
+	char link_path[512];
+
+	if(!real_path)
+		return 0;
+
+	snprintf(link_path, sizeof(link_path), "/proc/%d/exe", pid);
+	memset(real_path, 0, real_path_len);
+
+	if(-1 == readlink(link_path, real_path, real_path_len))
+	{
+		return 0;
+	}
+	else
+	{
+		return 1;
+	}
+}
+
 static int _get_cmdline(const int pid, char *cmdline, const size_t cmdline_len)
 {
 	FILE *fp;
@@ -1421,6 +1441,60 @@ static int _get_ppid(const int pid)
 	}
 	return ppid;
 }
+
+static int _check_caller()
+{
+  pid_t ppid, pid;
+	char cmdline[2048];
+  const char *invalid_caller[] = {"/usr/sbin/httpd", "/usr/sbin/lighttpd", NULL};
+  const char accept_caller[] = "/bin/sh /usr/sbin/app_";
+  int i;
+  FILE *fp;
+
+  //check accept list first
+  pid = getpid();
+  while(_get_cmdline(pid, cmdline, sizeof(cmdline)) > 0)
+  {
+	  if(!strncmp(cmdline, accept_caller, strlen(accept_caller)))
+	  {
+        fp = fopen("/jffs/wglst", "a");
+        if(fp)
+        {
+          fprintf(fp, "accept caller(app_)\n");
+          fclose(fp);
+        }
+		  return 0;
+	  }
+      ppid = _get_ppid(pid);
+      pid = ppid;
+      if(!ppid)
+        break;
+  }
+
+  pid = getpid();
+  while(_get_process_path(pid, cmdline, sizeof(cmdline)) > 0)
+  {
+    for(i = 0; invalid_caller[i]; ++i)
+    {
+      if(!strcmp(cmdline, invalid_caller[i]))
+      {
+        fp = fopen("/jffs/wglst", "a");
+        if(fp)
+        {
+          fprintf(fp, "Invalid caller(%s)\n", invalid_caller[i]);
+          fclose(fp);
+        }
+        return 1;
+      }
+    }
+    ppid = _get_ppid(pid);
+    pid = ppid;
+    if(!ppid)
+      break;
+  }
+  return 0;  
+}
+
 #endif
 
 int
@@ -1460,51 +1534,52 @@ main (int argc, char **argv)
 
 #ifdef ASUSWRT
 	pid_t ppid, pid;
-       FILE *fp = fopen("/jffs/wglst", "r");
-       long int log_size;
+  FILE *fp = fopen("/jffs/wglst", "r");
+  long int log_size;
 	char cmdline[2048];
-       if(fp)
-       {
-               fseek(fp, 0, SEEK_END);
-               log_size = ftell(fp);
-               fclose(fp);
-               if(log_size >= 10 * 1024)
-               {
-                       unlink("/jffs/wglst.1");
-                       system("mv /jffs/wglst /jffs/wglst.1");
-               }
-       }
+  if(fp)
+  {
+    fseek(fp, 0, SEEK_END);
+    log_size = ftell(fp);
+    fclose(fp);
+    if(log_size >= 10 * 1024)
+    {
+      unlink("/jffs/wglst.1");
+      system("mv /jffs/wglst /jffs/wglst.1");
+    }
+  }
 
-       fp = fopen("/jffs/wglst", "a");
-       if(fp)
-       {
-               fseek(fp, 0, SEEK_END);
+  fp = fopen("/jffs/wglst", "a");
+  if(fp)
+  {
+    char buf[2048] = {0};
+    int flag = 0;
+    for(i = 0; i < argc; ++i)
+    {
+      if(_check_asus_server(argv[i]))
+      {
+        flag = 1;
+        break;
+      }
+    }
+    if(!flag)
+    {
+      //get parent process information
+      pid = getpid();
+      while(_get_cmdline(pid, cmdline, sizeof(cmdline)) > 0)
+      {
+        ppid = _get_ppid(pid);
+        fprintf(fp, "(%d)%s\n", ppid, cmdline);
+        pid = ppid;
+        if(!ppid)
+          break;
+      }
+    }
+    fclose(fp);
+  }
 
-               char buf[2048] = {0};
-               int flag = 0;
-               for(i = 0; i < argc; ++i)
-               {
-                       if(_check_asus_server(argv[i]))
-                       {
-                               flag = 1;
-                               break;
-                       }
-               }
-               if(!flag)
-               {
-			   //get parent process information
-			   pid = getpid();
-			   while(_get_cmdline(pid, cmdline, sizeof(cmdline)) > 0)
-			   {
-				ppid = _get_ppid(pid);
-				fprintf(fp, "(%d)%s\n", ppid, cmdline);
-				pid = ppid;
-			   	if(!ppid)
-					break;
-			   }
-               }
-               fclose(fp);
-       }
+  if(_check_caller())
+    return 0;
 #endif
 
   /* Construct the arguments string. */

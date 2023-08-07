@@ -2043,7 +2043,7 @@ void nat_setting2(char *lan_if, char *lan_ip, char *logaccept, char *logdrop)	//
 #endif
 
 #ifdef RTCONFIG_IPV6
-#ifdef RTCONFIG_OPENVPN
+#if defined(RTCONFIG_OPENVPN) || defined(RTCONFIG_WIREGUARD)
 	if (ipv6_enabled()) {
 		eval("ip6tables", "-t", "nat", "-F");
 	}
@@ -3337,6 +3337,12 @@ filter_setting(int wan_unit, char *lan_if, char *lan_ip, char *logaccept, char *
 #if defined(WEB_REDIRECT)
 	    ":default_block - [0:0]\n"
 #endif
+#ifdef RTCONFIG_OPENVPN
+	    ":OVPNSI - [0:0]\n"
+	    ":OVPNSF - [0:0]\n"
+	    ":OVPNCI - [0:0]\n"
+	    ":OVPNCF - [0:0]\n"
+#endif
 
 	    ":logaccept - [0:0]\n"
 	    ":logdrop - [0:0]\n");
@@ -3361,6 +3367,12 @@ filter_setting(int wan_unit, char *lan_if, char *lan_ip, char *logaccept, char *
 #ifdef RTCONFIG_PARENTALCTRL
 		    ":WGNPControls - [0:0]\n"
 		    ":PControls - [0:0]\n"
+#endif
+#ifdef RTCONFIG_OPENVPN
+		    ":OVPNSI - [0:0]\n"
+		    ":OVPNSF - [0:0]\n"
+		    ":OVPNCI - [0:0]\n"
+		    ":OVPNCF - [0:0]\n"
 #endif
 		    ":ICMP_V6 - [0:0]\n"
 		    ":ICMP_V6_LOCAL - [0:0]\n"
@@ -3692,6 +3704,11 @@ TRACE_PT("writing Parental Control\n");
 			if (enable != 0) {
 				fprintf(fp, "-A INPUT -m conntrack --ctstate DNAT -p tcp -m tcp -d %s --dport %d -j %s\n",
 					lan_ip, nvram_get_int("https_lanport") ? : 443, logaccept);
+#ifdef RTCONFIG_IPV6
+				if (ipv6_enabled() && nvram_match("ipv6_fw_enable", "1") && nvram_get_int("misc_http_x"))
+					fprintf(fp_ipv6, "-A INPUT -p tcp -m tcp --dport %d -j %s\n",
+						nvram_get_int("misc_httpsport_x") ? : 8443, logaccept);
+#endif
 			}
 			/* do not support http (enable != 1) */
 #else
@@ -3705,6 +3722,11 @@ TRACE_PT("writing Parental Control\n");
 		if (nvram_get_int("sshd_enable") == 1) {
 			fprintf(fp, "-A INPUT -p tcp -m tcp --dport %d -j %s\n",
 				nvram_get_int("sshd_port") ? : 22, logaccept);
+#ifdef RTCONFIG_IPV6
+			if (ipv6_enabled() && nvram_match("ipv6_fw_enable", "1"))
+				fprintf(fp_ipv6, "-A INPUT -p tcp -m tcp --dport %d -j %s\n",
+					nvram_get_int("sshd_port") ? : 22, logaccept);
+#endif
 		}
 #endif
 
@@ -3898,11 +3920,20 @@ TRACE_PT("writing Parental Control\n");
 #endif
 
 #ifdef RTCONFIG_WIREGUARD
-		write_wgs_fw_filter(fp);
+		write_wgs_fw_filter_input(fp);
 #ifdef RTCONFIG_IPV6
 		if (ipv6_enabled())
-			write_wgs_fw_filter(fp_ipv6);
+			write_wgs_fw_filter_input(fp_ipv6);
 #endif
+#endif
+
+#ifdef RTCONFIG_OPENVPN
+		fprintf(fp, "-A INPUT -j OVPNSI\n");
+		fprintf(fp, "-A INPUT -j OVPNCI\n");
+		if (ipv6_enabled()) {
+			fprintf(fp_ipv6, "-A INPUT -j OVPNSI\n");
+			fprintf(fp_ipv6, "-A INPUT -j OVPNCI\n");
+		}
 #endif
 
 		fprintf(fp, "-A INPUT -j %s\n", logdrop);
@@ -3978,6 +4009,18 @@ TRACE_PT("writing Parental Control\n");
 #if defined(RTCONFIG_PPTPD) || defined(RTCONFIG_ACCEL_PPTPD)
 	if (nvram_get_int("pptpd_enable"))
 		fprintf(fp, "-A FORWARD -i %s -j %s\n", "pptp+", "ACCEPT");
+#endif
+#ifdef RTCONFIG_WIREGUARD
+	write_wgs_fw_filter_forward(fp);
+#ifdef RTCONFIG_IPV6
+	if (ipv6_enabled())
+		write_wgs_fw_filter_forward(fp_ipv6);
+#endif
+#endif
+#ifdef RTCONFIG_OPENVPN
+	fprintf(fp, "-A FORWARD -j OVPNSF\n");
+	if (ipv6_enabled())
+		fprintf(fp_ipv6, "-A FORWARD -j OVPNSF\n");
 #endif
 
 	/* Filter out invalid WAN->WAN connections */
@@ -4531,6 +4574,12 @@ TRACE_PT("write wl filter\n");
 	dnsfilter_dot_rules(fp, lan_if);
 #endif
 
+#ifdef RTCONFIG_OPENVPN
+	fprintf(fp, "-A FORWARD -j OVPNCF\n");
+	if (ipv6_enabled())
+		fprintf(fp_ipv6, "-A FORWARD -j OVPNCF\n");
+#endif
+
 	// Default rule
 	if (nvram_get_int("fw_enable_x"))
 		fprintf(fp, "-A FORWARD -j %s\n", logdrop);
@@ -4634,6 +4683,12 @@ filter_setting2(char *lan_if, char *lan_ip, char *logaccept, char *logdrop)
 #if defined(WEB_REDIRECT)
 	    ":default_block - [0:0]\n"
 #endif
+#ifdef RTCONFIG_OPENVPN
+	    ":OVPNSI - [0:0]\n"
+	    ":OVPNSF - [0:0]\n"
+	    ":OVPNCI - [0:0]\n"
+	    ":OVPNCF - [0:0]\n"
+#endif
 
 	    ":logaccept - [0:0]\n"
 	    ":logdrop - [0:0]\n");
@@ -4658,6 +4713,12 @@ filter_setting2(char *lan_if, char *lan_ip, char *logaccept, char *logdrop)
 #ifdef RTCONFIG_PARENTALCTRL
 		    ":WGNPControls - [0:0]\n"
 		    ":PControls - [0:0]\n"
+#endif
+#ifdef RTCONFIG_OPENVPN
+		    ":OVPNSI - [0:0]\n"
+		    ":OVPNSF - [0:0]\n"
+		    ":OVPNCI - [0:0]\n"
+		    ":OVPNCF - [0:0]\n"
 #endif
 		    ":ICMP_V6 - [0:0]\n"
 		    ":ICMP_V6_LOCAL - [0:0]\n"
@@ -5018,6 +5079,11 @@ TRACE_PT("writing Parental Control\n");
 			if (enable != 0) {
 				fprintf(fp, "-A INPUT -p tcp -m tcp -d %s --dport %d -j %s\n",
 					lan_ip, nvram_get_int("https_lanport") ? : 443, logaccept);
+#ifdef RTCONFIG_IPV6
+				if (ipv6_enabled() && nvram_match("ipv6_fw_enable", "1") && nvram_get_int("misc_http_x"))
+					fprintf(fp_ipv6, "-A INPUT -p tcp -m tcp --dport %d -j %s\n",
+						nvram_get_int("misc_httpsport_x") ? : 8443, logaccept);
+#endif
 			}
 			/* do not support http (enable != 1) */
 #else
@@ -5031,6 +5097,11 @@ TRACE_PT("writing Parental Control\n");
 		if (nvram_get_int("sshd_enable") == 1) {
 			fprintf(fp, "-A INPUT -p tcp -m tcp --dport %d -j %s\n",
 				nvram_get_int("sshd_port") ? : 22, logaccept);
+#ifdef RTCONFIG_IPV6
+			if (ipv6_enabled() && nvram_match("ipv6_fw_enable", "1"))
+				fprintf(fp_ipv6, "-A INPUT -p tcp -m tcp --dport %d -j %s\n",
+					nvram_get_int("sshd_port") ? : 22, logaccept);
+#endif
 		}
 #endif
 
@@ -5201,11 +5272,20 @@ TRACE_PT("writing Parental Control\n");
 #endif
 
 #ifdef RTCONFIG_WIREGUARD
-		write_wgs_fw_filter(fp);
+		write_wgs_fw_filter_input(fp);
 #ifdef RTCONFIG_IPV6
 		if (ipv6_enabled())
-			write_wgs_fw_filter(fp_ipv6);
+			write_wgs_fw_filter_input(fp_ipv6);
 #endif
+#endif
+
+#ifdef RTCONFIG_OPENVPN
+		fprintf(fp, "-A INPUT -j OVPNSI\n");
+		fprintf(fp, "-A INPUT -j OVPNCI\n");
+		if (ipv6_enabled()) {
+			fprintf(fp_ipv6, "-A INPUT -j OVPNSI\n");
+			fprintf(fp_ipv6, "-A INPUT -j OVPNCI\n");
+		}
 #endif
 
 		fprintf(fp, "-A INPUT -j %s\n", logdrop);
@@ -5294,6 +5374,18 @@ TRACE_PT("writing Parental Control\n");
 #if defined(RTCONFIG_PPTPD) || defined(RTCONFIG_ACCEL_PPTPD)
 	if (nvram_get_int("pptpd_enable"))
 		fprintf(fp, "-A FORWARD -i %s -j %s\n", "pptp+", "ACCEPT");
+#endif
+#ifdef RTCONFIG_WIREGUARD
+	write_wgs_fw_filter_forward(fp);
+#ifdef RTCONFIG_IPV6
+	if (ipv6_enabled())
+		write_wgs_fw_filter_forward(fp_ipv6);
+#endif
+#endif
+#ifdef RTCONFIG_OPENVPN
+	fprintf(fp, "-A FORWARD -j OVPNSF\n");
+	if (ipv6_enabled())
+		fprintf(fp_ipv6, "-A FORWARD -j OVPNSF\n");
 #endif
 
 	for(unit = WAN_UNIT_FIRST; unit < wan_max_unit; ++unit){
@@ -5869,6 +5961,12 @@ TRACE_PT("write wl filter\n");
 
 #ifdef RTCONFIG_DNSFILTER
 	dnsfilter_dot_rules(fp, lan_if);
+#endif
+
+#ifdef RTCONFIG_OPENVPN
+	fprintf(fp, "-A FORWARD -j OVPNCF\n");
+	if (ipv6_enabled())
+		fprintf(fp_ipv6, "-A FORWARD -j OVPNCF\n");
 #endif
 
 	// Default rule
@@ -6565,7 +6663,7 @@ int start_firewall(int wanunit, int lanunit)
 	char wan_if[IFNAMSIZ+1], wan_ip[32], lan_if[IFNAMSIZ+1], lan_ip[32];
 	char wanx_if[IFNAMSIZ+1], wanx_ip[32];
 	char prefix[] = "wanXXXXXXXXXX_", tmp[100];
-	int lock, wan_proto;
+	int lock;
 
 	if (!is_routing_enabled())
 		return -1;
@@ -6582,7 +6680,6 @@ int start_firewall(int wanunit, int lanunit)
 
 	//(void)wan_ifname(wanunit, wan_if);
 	strcpy(wan_if, get_wan_ifname(wanunit));
-	wan_proto = get_wan_proto(prefix);
 
 	strcpy(wan_ip, nvram_safe_get(strcat_r(prefix, "ipaddr", tmp)));
 	strcpy(wanx_if, nvram_safe_get(strcat_r(prefix, "ifname", tmp)));
@@ -6926,6 +7023,7 @@ int start_firewall(int wanunit, int lanunit)
 #endif
 
 #ifdef RTCONFIG_WIREGUARD
+	run_wgs_fw_scripts();
 	run_wgc_fw_scripts();
 #endif
 

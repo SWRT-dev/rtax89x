@@ -18,10 +18,10 @@
 #ifdef CONFIG_SDHCI_SUPPORT
 #include <sdhci.h>
 #endif
-
+#ifdef CONFIG_ENV_IS_IN_NAND
 extern void nand_env_relocate_spec(void);
 extern int nand_env_init(void);
-
+#endif
 #ifdef CONFIG_ENV_IS_IN_SPI_FLASH
 extern void sf_env_relocate_spec(void);
 extern int sf_env_init(void);
@@ -58,7 +58,9 @@ int env_init(void)
 		ret = mmc_env_init();
 #endif
 	} else {
+#ifdef CONFIG_ENV_IS_IN_NAND
 		ret = nand_env_init();
+#endif
 	}
 
 	return ret;
@@ -85,7 +87,9 @@ void env_relocate_spec(void)
                 mmc_env_relocate_spec();
 #endif
 	} else {
+#ifdef CONFIG_ENV_IS_IN_NAND
 		nand_env_relocate_spec();
+#endif
 	}
 
 };
@@ -125,3 +129,27 @@ int board_mmc_env_init(qca_mmc mmc_host)
 	return ret;
 }
 #endif
+
+void set_platform_specific_default_env(void)
+{
+	uint32_t soc_ver_major, soc_ver_minor, soc_version;
+	uint32_t machid;
+	uint32_t soc_hw_version;
+	int ret;
+
+	machid = smem_get_board_platform_type();
+	if (machid != 0)
+		setenv_addr("machid", (void *)machid);
+
+	soc_hw_version = get_soc_hw_version();
+	if (soc_hw_version)
+		setenv_hex("soc_hw_version", (unsigned long)soc_hw_version);
+
+	ret = ipq_smem_get_socinfo_version((uint32_t *)&soc_version);
+	if (!ret) {
+		soc_ver_major = SOCINFO_VERSION_MAJOR(soc_version);
+		soc_ver_minor = SOCINFO_VERSION_MINOR(soc_version);
+		setenv_ulong("soc_version_major", (unsigned long)soc_ver_major);
+		setenv_ulong("soc_version_minor", (unsigned long)soc_ver_minor);
+	}
+}

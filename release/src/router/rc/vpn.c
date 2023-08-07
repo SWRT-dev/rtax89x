@@ -32,6 +32,29 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 
+#ifdef RTCONFIG_MULTILAN_CFG
+char* pptpd_get_lan_ifname(char* buf, size_t len)
+{
+	MTLAN_T *pmtl = (MTLAN_T *)INIT_MTLAN(sizeof(MTLAN_T));
+	size_t mtl_sz = 0;
+	int vpns_idx = get_vpns_idx_by_proto_unit(VPN_PROTO_PPTP, 0);
+
+	if (get_mtlan_by_idx(SDNIDX_TYPE_VPNS, vpns_idx, pmtl, &mtl_sz)) {
+		memset(buf, 0, len);
+		if (mtl_sz != 1)
+			_dprintf("%s: wrong MTLAN size %u\n", __FUNCTION__, mtl_sz);
+		strlcpy(buf, pmtl[0].nw_t.ifname, len);
+		FREE_MTLAN((void *)pmtl);
+		_dprintf("%s: %s\n", __FUNCTION__, buf);
+		return buf;
+	}
+	else {
+		FREE_MTLAN((void *)pmtl);
+		return NULL;
+	}
+}
+#endif
+
 void write_chap_secret(char *file)
 {
 	FILE *fp;
@@ -78,6 +101,12 @@ void start_pptpd(void)
 	char *pptpd_client, *vpn_network, *vpn_netmask;
 	int ret, pptpd_opt, count, port;
 	char lanip[20] = {0};
+	char lan_ifname[16] = {0};
+#ifdef RTCONFIG_MULTILAN_CFG
+	MTLAN_T *pmtl = (MTLAN_T *)INIT_MTLAN(sizeof(MTLAN_T));
+	size_t mtl_sz = 0;
+	int vpns_idx = get_vpns_idx_by_proto_unit(VPN_PROTO_PPTP, 0);
+#endif
 
 	if (!nvram_get_int("pptpd_enable"))
 		return;

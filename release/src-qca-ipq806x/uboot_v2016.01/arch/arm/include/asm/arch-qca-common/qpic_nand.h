@@ -112,6 +112,7 @@
 #define NAND_FLASH_SPI_CFG		NAND_REG(0x70C0)
 #define NAND_SPI_NUM_ADDR_CYCLES	NAND_REG(0x70C4)
 #define NAND_SPI_BUSY_CHECK_WAIT_CNT	NAND_REG(0x70C8)
+#define NAND_QSPI_MSTR_CONFIG           NAND_REG(0x7f60)
 
 /* Register mask & shift value used in SPI transfer mode */
 #define SPI_TRANSFER_MODE_1X		0x1
@@ -280,6 +281,7 @@
  */
 #define FLASH_SPI_NAND_FR_ADDR		0xB0
 #define FLASH_SPI_NAND_FR_ECC_ENABLE	(1 << 4)
+#define FLASH_SPI_NAND_FR_BUFF_ENABLE	(1 << 3)
 #define FLASH_SPI_NAND_FR_QUAD_ENABLE	0x1
 /* According to GigaDevice data sheet Status Register(0xC0) is:
  *  _________________________________________________
@@ -559,6 +561,7 @@ enum qpic_verion{
 	QCA_QPIC_V2_1_1,
 };
 
+extern unsigned int qpic_frequency, qpic_phase;
 
 /* result type */
 typedef enum {

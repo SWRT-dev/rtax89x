@@ -672,8 +672,8 @@ ifeq ($(or $(RTCONFIG_FRS_LIVE_UPDATE),$(RTCONFIG_FRS_FEEDBACK),$(RTCONFIG_URLFW
 CFLAGS += -I$(TOP)/curl-7.21.7/include
 LDFLAGS += -L$(TOP)/curl-7.21.7/lib/.libs -lcurl
 ifeq ($(RTCONFIG_TR069),y)
-CFLAGS += -I$(TOP)/libssh2-1.9.0/include -I$(TOP)/zlib/include
-LDFLAGS += -L$(TOP)/libssh2-1.9.0/src/.libs -lssh2 -L$(TOP)/zlib -lz
+CFLAGS += -I$(TOP)/libssh2-1.10.0/include -I$(TOP)/zlib/include
+LDFLAGS += -L$(TOP)/libssh2-1.10.0/src/.libs -lssh2 -L$(TOP)/zlib -lz
 endif
 endif
 
@@ -875,15 +875,16 @@ ifeq ($(RTCONFIG_CONNDIAG),y)
 ifeq ($(RTCONFIG_BCMBSD),y)
 CFLAGS += -I$(TOP)/bsd
 endif
-ifeq ($(RTCONFIG_LANTIQ),y)
+ifeq ($(or $(RTCONFIG_LANTIQ),$(RTAC59_CD6R),$(RTAC59_CD6N)),y)
 CFLAGS += -fPIC
 endif
 ifeq ($(RTCONFIG_HND_ROUTER_AX),y)
 CFLAGS += $(ACSDV2_DIR)
 endif
 CFLAGS += -I$(TOP)/acsd$(BCMEX)$(EX7)
-LDFLAGS += -L$(TOP)/sqlite/.libs -lsqlite3
-LDFLAGS += -L. -lconn_diag
+CFLAGS  += -I$(TOP)/sqlite
+LDFLAGS2 += -L$(TOP)/sqlite/.libs -lsqlite3
+LDFLAGS2 += -L. -lconn_diag
 
 OBJS += conn_diag.o
 ifeq ($(CONFIG_BCMWL5),y)
@@ -933,14 +934,6 @@ all: PB rc $(if $(RTCONFIG_BRCM_HOSTAPD), $(WPS_PBCD)) init.prep
 PB:
 	[ ! -d prebuild/$(SWRT_NAME) ] || cp -f prebuild/$(SWRT_NAME)/*.o ./prebuild
 	[ ! -d prebuild ] || cp prebuild/*.o ./
-	[ ! -d prebuild/$(SWRT_NAME) ] || cp -f prebuild/$(SWRT_NAME)/*.o ./
-ifneq ($(wildcard ./swrtex.c),)
-	@-rm -f ./swrtex.o
-endif
-ifneq ($(wildcard ./cfe.c),)
-	@-rm -f ./cfe.o
-endif
-
 
 ifeq ($(RTCONFIG_BRCM_HOSTAPD),y)
 $(WPS_PBCD): $(OBJS_WPS_PBCD)
@@ -1444,6 +1437,9 @@ endif
 
 clean:
 	rm -f rc *.o .*.depend *.prep libconn_diag.so
+ifeq ($(RTCONFIG_BRCM_HOSTAPD),y)
+	rm -f $(WPS_PBCD)
+endif
 
 size: rc
 	mipsel-uclibc-nm --print-size --size-sort rc

@@ -625,6 +625,7 @@ struct ipq_pcie {
 	int is_gen3;
 	int linkup;
 	int version;
+	int skip_phy_init;
 };
 
 static void ipq_pcie_write_mask(uint32_t addr,
@@ -1130,11 +1131,13 @@ static int ipq_pcie_parse_dt(const void *fdt, int id,
 					if (err < 0)
 						goto err;
 					pcie->is_gen3 = 1;
-				} 
+				}
 			} else {
 				goto err;
 			}
 		}
+		pcie->skip_phy_init =
+				fdtdec_get_int(fdt, node, "skip_phy_int", 0);
 	}
 	rst_gpio = fdtdec_get_int(fdt, node, "perst_gpio", 0);
 	if (rst_gpio <= 0) {
@@ -1333,17 +1336,18 @@ static inline void qca_pcie_write_reg(u32 base, u32 offset, u32 value)
 
 void pcie_phy_v2_init(struct ipq_pcie *pcie)
 {
-	const struct phy_regs *regs = pcie_phy_v2_init_seq_ipq;
-	int i, size = ARRAY_SIZE(pcie_phy_v2_init_seq_ipq);
+	if (!pcie->skip_phy_init) {
+		const struct phy_regs *regs = pcie_phy_v2_init_seq_ipq;
+		int i, size = ARRAY_SIZE(pcie_phy_v2_init_seq_ipq);
 
-	for (i = 0; i < size; i++) {
-		if (regs[i].reg_offset == PCIE_PHY_DELAY_MS)
-			mdelay(regs[i].val);
-		else
-			writel(regs[i].val, pcie->pci_phy.start + regs[i].reg_offset);
+		for (i = 0; i < size; i++) {
+			if (regs[i].reg_offset == PCIE_PHY_DELAY_MS)
+				mdelay(regs[i].val);
+			else
+				writel(regs[i].val, pcie->pci_phy.start + regs[i].reg_offset);
+		}
+		mdelay(5);
 	}
-
-	mdelay(5);
 	return;
 }
 

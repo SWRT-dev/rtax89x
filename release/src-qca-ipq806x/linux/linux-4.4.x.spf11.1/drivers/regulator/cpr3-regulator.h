@@ -878,8 +878,6 @@ struct cpr3_controller {
 	unsigned long		last_volt_dn_t2;	/* jiffies of last voltage down + 10s */
 	struct timespec		t1;			/* uptime of last write */
 	struct delayed_work	vstat_work;
-	struct delayed_work	adj_work;
-	int			adj_retry;
 	spinlock_t		vstat_lock;		/* protect below data members that share between wq/isr */
 	unsigned int		limited_to_ceiling;	/* non-zero value if ISR was asked to limit to ceiling */
 	unsigned int		limited_to_floor;	/* non-zero value if ISR was asked to limit to floor */

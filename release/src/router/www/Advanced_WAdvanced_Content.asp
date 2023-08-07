@@ -386,7 +386,8 @@ function initial(){
 				inputCtrl(document.form.wl_txbf, 0);
 				inputCtrl(document.form.wl_itxbf, 0);
 			}
-			else{
+			else
+			{
 				if(band5g_11ax_support){
 					if(wl_unit_value == '1' && based_modelid == 'RT-AX92U'){
 						document.getElementById('wl_txbf_desc').innerHTML = "<#WLANConfig11b_x_acBeam#>";
@@ -395,7 +396,8 @@ function initial(){
 						document.getElementById('wl_txbf_desc').innerHTML = "<#WLANConfig11b_x_axBeam#>";
 					}			
 				}
-				else{
+				else
+				{
 					document.getElementById('wl_txbf_desc').innerHTML = "<#WLANConfig11b_x_acBeam#>";
 				}
 				
@@ -409,7 +411,8 @@ function initial(){
 		|| based_modelid == "RT-AC58U" || based_modelid.substring(0,7) == "RT-AC59" || based_modelid == "RT-AC82U" 
 		|| based_modelid == "MAP-AC1300" || based_modelid == "MAP-AC2200" 
 		|| based_modelid == "VZW-AC1300"
-		|| based_modelid == "RT-AC95U" || based_modelid == "GT-AXY16000" || based_modelid == "RT-AX89U" || based_modelid == "PL-AX56_XP4"){
+		|| based_modelid == "RT-AC95U" || based_modelid == "GT-AXY16000" || based_modelid == "RT-AX89U" || based_modelid == "PL-AX56_XP4")
+		{
 			inputCtrl(document.form.wl_txbf, 1);
 			document.getElementById("wl_MU_MIMO_field").style.display = "";
 			document.form.wl_mumimo.disabled = false;
@@ -519,8 +522,6 @@ function initial(){
 			$('wl_txbf_desc').innerHTML = "<#WLANConfig11b_x_ExpBeam#>";
 			inputCtrl(document.form.wl_txbf, 1);
 		}
-		if(Qcawifi_support && band5g_11ax_support)
-			document.getElementById('wl_txbf_desc').innerHTML = "<#WLANConfig11b_x_acBeam#>";
 		if(Qcawifi_support && (based_modelid == "GT-AXY16000" || based_modelid == "RT-AX89U" || based_modelid == "PL-AX56_XP4" ) && document.form.wl_nmode_x.value == "0" && document.form.wl0_11ax.value == "1"){
 			inputCtrl(document.form.wl_txbf, 1);
 			document.getElementById("wl_MU_MIMO_field").style.display = "";
@@ -1593,23 +1594,32 @@ function handle_mimo(value){
 }
 
 function handle_beamforming(value){
-	if(based_modelid == 'RT-AX92U' && wl_unit_value == '2' || based_modelid != 'RT-AX92U'){
-		if (value == 0 && document.form.wl_mumimo.value == 1) {
-			var string = "";
-			if (wl_unit_value == 0) {
-				string = "It will disable MU-MIMO while disabling Explicit Beamforming";	/* Untranslated */
-			}
-			else {
-				string = "It will disable MU-MIMO while disabling 802.11ac Beamforming";	/* Untranslated */
-			}
+	var confirm_txt = "<#WLANConfig11b_MUMIMO_disabled_confirm#>";
 
-			if (confirm(string)) {
-				document.form.wl_mumimo.value = 0;
+	if(wl_unit_value == '1' || wl_unit_value == '2'){ // 5GHz up
+		if(band5g_11ax_support){
+			if(based_modelid == 'RT-AX92U'){
+				confirm_txt = confirm_txt.replace("$Beamforming$", "<#WLANConfig11b_x_acBeam#>");
 			}
-			else {
-				document.form.wl_txbf.value = 1;
-				return false;
+			else{
+				confirm_txt = confirm_txt.replace("$Beamforming$", "<#WLANConfig11b_x_axBeam#>");
 			}
+		}
+		else{
+			confirm_txt = confirm_txt.replace("$Beamforming$", "<#WLANConfig11b_x_acBeam#>");
+		}
+	}
+	else{	// 2.4GHz
+		confirm_txt = confirm_txt.replace("$Beamforming$", "<#WLANConfig11b_x_ExpBeam#>");
+	}
+
+	if (value == 0 && document.form.wl_mumimo.value == 1){
+		if (confirm(confirm_txt)) {
+			document.form.wl_mumimo.value = 0;
+		}
+		else {
+			document.form.wl_txbf.value = 1;
+			return false;
 		}
 	}
 }

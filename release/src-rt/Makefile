@@ -954,40 +954,6 @@ else
 		echo "$(LINUXDIR)/arch/$(ARCH)/boot/dts/$(DTB) not found!!!" ; \
 		exit 1 ; \
 	fi
-ifeq ($(RAX120),y)
-	# RAX120 kernel.gz rootfs DTB=$(DTB) IMG=$(IMGNAME)
-	gcc asustools/mkdniimg.c -o asustools/mkdniimg
-	make -C asustools/u-boot-2013.07-rc1 tools
-	cp -f asustools/u-boot-2013.07-rc1/tools/mkimage asustools/mkimage
-	@$(CROSS_COMPILE)objcopy -O binary $(LINUXDIR)/vmlinux $(PLATFORMDIR)/vmlinus
-	@gzip -9 -c $(PLATFORMDIR)/vmlinus > $(PLATFORMDIR)/rax120.kernel
-	@cp -f $(PLATFORMDIR)/rax120.kernel $(PLATFORMDIR)/Image.img
-	asustools/mkits.sh -D qcom-ipq807x-rax120 -o image/qcom-ipq807x-rax120.its -k $(PLATFORMDIR)/Image.img -d $(LINUXDIR)/arch/$(ARCH)/boot/dts/$(DTB) -C gzip -a 0x41208000 -e 0x41208000 -A $(ARCH) -v $(KERNEL_VER)
-	@PATH=$(LINUXDIR)/scripts/dtc asustools/mkimage -f image/qcom-ipq807x-rax120.its image/$(IMGNAME).img
-	@SIZE=`wc -c image/$(IMGNAME).img | awk '{print $$1}'` ; \
-		PAD=`expr 6422528 - $${SIZE}` ; \
-		dd if=/dev/zero count=1 bs=$${PAD} 2> /dev/null | tr \\000 \\377 >> image/$(IMGNAME).img ;\
-		cp -f image/$(IMGNAME).img image/kernel.pad
-	cat $(PLATFORMDIR)/target.image >> image/$(IMGNAME).img
-	# generate NETGEAR Image
-	asustools/mkdniimg -B "RAX120" -v "V1.2.1.22" -r "" -H "29765589+0+512+1024+4x4+8x8" -i image/$(IMGNAME).img -o image/RAX120_NTGR2ASUS.img
-	@echo -n "" > image/tail_info
-ifeq ($(TRX_TAIL_INFO),y)
-	asustools/mktail -o image/tail_info -t 1 -f 0 -b $(SERIALNO) -e $(SWRT_CODEBASE) -r 0 -r $(SFINFO)
-	cat image/tail_info >> image/$(IMGNAME).img
-endif
-	# generate ASUS Image
-	@ISIZE=`wc -c image/$(IMGNAME).img | awk '{print $$1}'` ; \
-		TSIZE=`wc -c image/tail_info | awk '{print $$1}'`; \
-		KSIZE=`wc -c image/kernel.pad | awk '{print $$1}'` ; \
-		RSIZE=`wc -c $(PLATFORMDIR)/target.image | awk '{print $$1}'` ; \
-		PAD2=`expr $${ISIZE} - $${KSIZE} - $${RSIZE} - $${TSIZE}` ; \
-		RFSOFFSET=`expr $${KSIZE} + $${PAD2}` ; \
-		asustools/mkimage -A $(ARCH) -O linux -T kernel -C none \
-			-a $(LOADADDR) -e $(ENTRYADDR) -r $${RFSOFFSET} \
-			-n $(BUILD_NAME) -V "$(KERNEL_VER)" "$(FS_VER)" "$(SERIALNO)" "$(SWRT_CODEBASE)" "0" "0" "0" "0" "0" "0" \
-			-d image/$(IMGNAME).img image/$(IMGNAME).trx
-else
 	# padded kernel image size, DTB=$(DTB)
 	@if [ -z "$(DTB)" ] ; then \
 		$(CROSS_COMPILE)objcopy -O binary $(LINUXDIR)/vmlinux $(PLATFORMDIR)/vmlinus ; \
@@ -1031,7 +997,6 @@ endif
 			-a $(LOADADDR) -e $(ENTRYADDR) -r $${RFSOFFSET} \
 			-n $(BUILD_NAME) -V "$(KERNEL_VER)" "$(FS_VER)" "$(SERIALNO)" "$(SWRT_CODEBASE)" "0" "0" "0" "0" "0" "0" \
 			-d $(PLATFORMDIR)/zImage.img image/$(IMGNAME).trx
-endif
 endif
 else ifeq ($(RTCONFIG_REALTEK),y)
 # Realtek platform
@@ -1191,6 +1156,9 @@ ifeq ($(ARM),y)
 	ln -sf $(LINUXDIR)/vmlinux.o image/vmlinux.o
 endif
 	@echo ""
+
+gen_gpl_excludes_router:
+	$(MAKE) -C router $@
 
 export_config:
 	@-mkdir image/log
@@ -3858,6 +3826,10 @@ define RouterOptions
 	else \
 		echo "# RTCONFIG_BCMBSD_V2 is not set" >>$(1); \
 	fi;
+	if [ "$(BUILD_NAME)" = "PL-AX56_XP4" ]; then \
+		sed -i "/RTCONFIG_AVOID_TZ_ENV/d" $(1); \
+		echo "RTCONFIG_AVOID_TZ_ENV=y" >>$(1); \
+	fi;
 	if [ "$(VHT160)" = "y" ]; then \
 		sed -i "/RTCONFIG_VHT160/d" $(1); \
 		echo "RTCONFIG_VHT160=y" >>$(1); \
@@ -4139,6 +4111,15 @@ define BusyboxOptions
 		echo "# CONFIG_TFTP_DEBUG is not set" >>$(1); \
 		sed -i "/CONFIG_TELNET\b/d" $(1); \
 		echo "CONFIG_TELNET=y" >>$(1); \
+	fi;
+	if [ "$(MUSL_LIBC)" = "y" ] || [ "$(MUSL32)" = "y" ] || [ "$(MUSL64)" = "y" ] ; then \
+		sed -i "/CONFIG_NSLOOKUP=y/d" $(1); \
+		echo "# CONFIG_NSLOOKUP is not set" >>$(1); \
+	else \
+		sed -i "/CONFIG_NSLOOKUP_LEDE=y/d" $(1); \
+		echo "# CONFIG_NSLOOKUP_LEDE is not set" >>$(1); \
+		sed -i "/CONFIG_FEATURE_NSLOOKUP_LEDE_LONG_OPTIONS=y/d" $(1); \
+		echo "# CONFIG_FEATURE_NSLOOKUP_LEDE_LONG_OPTIONS is not set" >>$(1); \
 	fi;
 	if [ "$(SLIM)" = "y" ]; then \
 		sed -i "/CONFIG_AWK/d" $(1); \
@@ -5458,14 +5439,16 @@ fi;
 		sed -i "/CONFIG_TUN\>/d" $(1); \
 		echo "CONFIG_TUN=m" >>$(1); \
 		if [ "$(IPV6SUPP)" = "y" -o "$(IPV6FULL)" = "y" ]; then \
+			sed -i "/CONFIG_NF_NAT_IPV6\>/d" $(1); \
+			echo "CONFIG_NF_NAT_IPV6=y" >>$(1); \
 			sed -i "/CONFIG_NF_NAT_MASQUERADE_IPV6\>/d" $(1); \
-			echo "CONFIG_NF_NAT_MASQUERADE_IPV6=m" >>$(1); \
+			echo "CONFIG_NF_NAT_MASQUERADE_IPV6=y" >>$(1); \
 			sed -i "/CONFIG_IP6_NF_NAT\>/d" $(1); \
-			echo "CONFIG_IP6_NF_NAT=m" >>$(1); \
+			echo "CONFIG_IP6_NF_NAT=y" >>$(1); \
 			sed -i "/CONFIG_IP6_NF_TARGET_MASQUERADE\>/d" $(1); \
-			echo "CONFIG_IP6_NF_TARGET_MASQUERADE=m" >>$(1); \
+			echo "CONFIG_IP6_NF_TARGET_MASQUERADE=y" >>$(1); \
 			sed -i "/CONFIG_IP6_NF_TARGET_NPT\>/d" $(1); \
-			echo "CONFIG_IP6_NF_TARGET_NPT=m" >>$(1); \
+			echo "CONFIG_IP6_NF_TARGET_NPT=y" >>$(1); \
 		fi;\
 	fi;
 	if [ "$(VPN_FUSION)" = "y" ]; then \
@@ -5564,12 +5547,6 @@ fi;
 		echo "# CONFIG_LEDS_TRIGGER_MORSE is not set" >>$(1); \
 		echo "CONFIG_USB_LED_TRIG=y" >>$(1); \
 		echo "# CONFIG_LEDS_IPQ is not set" >>$(1); \
-	fi;
-	if [ "$(RAX120)" = "y" ]; then \
-		sed -i "/CONFIG_SPI_QUP/d" $(1); \
-		echo "CONFIG_SPI_QUP=y" >>$(1); \
-		sed -i "/CONFIG_SENSORS_G761/d" $(1); \
-		echo "CONFIG_SENSORS_G761=y" >>$(1); \
 	fi;
 	$(call platformKernelConfig, $(1))
 	$(call extraKernelConfig, $(1))
@@ -6025,4 +6002,3 @@ get_extendno:
 .PHONY: a b c d m Makefile allversions
 .PHONY: tags
 .PHONY: dummy
-

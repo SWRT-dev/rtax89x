@@ -37,6 +37,8 @@ const struct spi_flash_params spi_flash_params_table[] = {
 	{"GD25LQ32",	   0xc86016, 0x0,	64 * 1024,    64, RD_NORM,		    SECT_4K},
 	{"GD25Q128",	   0xc84018, 0x0,	64 * 1024,   256, RD_NORM,		    SECT_4K},
 	{"GD25Q256",	   0xc84019, 0x0,	64 * 1024,   512, RD_NORM,		    SECT_4K},
+	{"GD25LB128D",	   0xc86018, 0x0,	 4 * 1024,   4096, RD_NORM,		    SECT_4K},
+	{"GD25LB256E",	   0xc86719, 0x0,	 4 * 1024,   8192, RD_NORM,		    SECT_4K},
 #endif
 #ifdef CONFIG_SPI_FLASH_ISSI		/* ISSI */
 	{"IS25LP032",	   0x9d6016, 0x0,	64 * 1024,    64, RD_NORM,			  0},

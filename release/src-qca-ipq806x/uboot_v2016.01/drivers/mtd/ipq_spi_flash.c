@@ -130,7 +130,7 @@ static int ipq_spi_block_markbad(struct mtd_info *mtd, loff_t offs)
 int ipq_spi_init(u16 idx)
 {
 	struct spi_flash *flash;
-	int ret;
+	int ret = 0;
 	struct mtd_info *mtd;
 
 	flash = spi_flash_probe(CONFIG_SF_DEFAULT_BUS,
@@ -163,14 +163,14 @@ int ipq_spi_init(u16 idx)
 	mtd->_write_oob = ipq_spi_write_oob;
 	mtd->_block_isbad = ipq_spi_block_isbad;
 	mtd->_block_markbad = ipq_spi_block_markbad;
-
+#ifdef CONFIG_MTD_DEVICE
 	if ((ret = nand_register(idx)) < 0) {
 		spi_print("Failed to register with MTD subsystem\n");
 		return ret;
 	}
-
+#endif
 	spi_print("page_size: 0x%x, sector_size: 0x%x, size: 0x%x\n",
 		flash->page_size, flash->sector_size, flash->size);
 
-	return 0;
+	return ret;
 }

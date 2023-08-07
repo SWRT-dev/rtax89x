@@ -29,9 +29,10 @@
 	#size-cells = <0x2>;
 	model = "Qualcomm Technologies, Inc. IPQ807x/AP-HK01";
 	compatible = "qcom,ipq807x-hk01", "qcom,ipq807x";
-	qcom,msm-id = <0x125 0x0>;
+	qcom,msm-id = <0x143 0x0>;
 	interrupt-parent = <&intc>;
-	qcom,board-id = <0x10 0x0>;
+	qcom,board-id = <0x8 0x0>;
+	qcom,pmic-id = <0x0 0x0 0x0 0x0>;
 
 	aliases {
 		/*
@@ -443,6 +444,8 @@
 				port@4 {
 					port_id = <5>;
 					phy_address = <30>;
+					phy_i2c_address = <30>;
+					phy-i2c-mode; /*i2c access phy */
 				};
 
 				/* PCB R1.00 ~ R4.20, AQR107/AQR113 A1,B0 */

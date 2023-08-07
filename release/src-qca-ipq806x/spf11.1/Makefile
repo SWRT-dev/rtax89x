@@ -17,7 +17,7 @@ include $(SRCBASE)/.config
 export CFLAGS+=$(EXTRACFLAGS)
 export LDFLAGS+=$(EXTRALDFLAGS)
 
-# Package dependence
+# Package dependence, sync with spf11.1/upb-platform_router.mak
 PKGDEP_FTM		:= libnl libtcmd qca-diag qca-iot
 PKGDEP_IW		:= libnl-tiny
 PKGDEP_IWINFO		:= iw libnl-tiny qca-wifi
@@ -37,7 +37,7 @@ PKGDEP_QCA_NSS_DP	:= qca-ssdk
 PKGDEP_QCA_NSS_DRV	:= qca-nss-gmac qca-nss-dp
 PKGDEP_QCA_NSS_ECM	:= qca-nss-drv shortcut-fe nat46 qca-mcs-lkm qca-hyfi-bridge
 PKGDEP_QCA_SHORTCUT_FE	:= libnl libdaemon
-PKGDEP_QCA_WHC_LBD	:= libqcacommon jansson qca-wifi libwifisoncfg qca-wifison-ext-lib libieee1905
+PKGDEP_QCA_WHC_LBD	:= libqcacommon jansson-2.7 qca-wifi libwifisoncfg qca-wifison-ext-lib libieee1905
 PKGDEP_QCA_WIFI		:= qca-nss-drv iproute2-3.x libxml2 libnl qca-cfg80211
 PKGDEP_QCA_WIGIG_DEBUG_TOOLS := libnl
 PKGDEP_QCA_WIGIG_DRIVER	:= qca-nss-drv #mac80211-scripts

@@ -174,7 +174,7 @@ void captcha(unsigned char im[70*200], unsigned char l[6]) {
 	dots(im); 
 	blur(im); 
 	//filter(im);
-	//line(im,swr,s1); 
+	line(im,swr,s1);
 	l[0]=letters[l[0]]; l[1]=letters[l[1]]; l[2]=letters[l[2]]; l[3]=letters[l[3]]; l[4]=letters[l[4]];
 }
 

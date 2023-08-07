@@ -895,6 +895,16 @@ config RTCONFIG_SPF11_1_QSDK
 	depends on RTCONFIG_QCA
 	default n
 
+config RTCONFIG_SPF11_3_QSDK
+	bool "SPF11.3 QSDK"
+	depends on RTCONFIG_QCA
+	default n
+
+config RTCONFIG_SPF11_4_QSDK
+	bool "SPF11.4 QSDK"
+	depends on RTCONFIG_QCA
+	default n
+
 config RTCONFIG_QCA_BIGRATE_WIFI
 	bool "New QSDK wifi driver - need to adjust iwconfig bitrate"
 	default n
@@ -969,7 +979,7 @@ config RTCONFIG_CFG80211
 
 config RTCONFIG_GLOBAL_INI
 	bool "Qualcomm globa.ini support. (SPF9 or above)"
-	depends on RTCONFIG_QCA && (RTCONFIG_SPF10_QSDK || RTCONFIG_SPF11_QSDK || RTCONFIG_SPF11_1_QSDK || RTCONFIG_QSDK10CS || RTCONFIG_SOC_IPQ60XX)
+	depends on RTCONFIG_QCA && (RTCONFIG_SPF10_QSDK || RTCONFIG_SPF11_QSDK || RTCONFIG_SPF11_1_QSDK || RTCONFIG_SPF11_3_QSDK || RTCONFIG_SPF11_4_QSDK || RTCONFIG_QSDK10CS || RTCONFIG_SOC_IPQ60XX)
 	default n
 
 config RTCONFIG_SINGLE_HOSTAPD
@@ -2530,6 +2540,10 @@ endchoice
 
 config RTCONFIG_HW_DOG
 	bool "CPU hardward watchdog daemon"
+	default n
+
+config RTCONFIG_AVOID_TZ_ENV
+	bool "Not use setenv(TZ) but use timezone in /etc/TZ"
 	default n
 
 config RTCONFIG_SOFTCENTER

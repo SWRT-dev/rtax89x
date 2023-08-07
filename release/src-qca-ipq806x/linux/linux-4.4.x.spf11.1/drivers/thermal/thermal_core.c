@@ -1255,6 +1255,84 @@ thermal_cooling_device_cur_state_store(struct device *dev,
 	return count;
 }
 
+static ssize_t
+thermal_cooling_device_updated_show(struct device *dev,
+				      struct device_attribute *attr, char *buf)
+{
+	struct thermal_cooling_device *cdev = to_cooling_device(dev);
+
+	return sprintf(buf, "%d\n", cdev->updated);
+}
+
+static ssize_t
+thermal_cooling_device_updated_store(struct device *dev,
+				       struct device_attribute *attr,
+				       const char *buf, size_t count)
+{
+	struct thermal_cooling_device *cdev = to_cooling_device(dev);
+	unsigned long updated;
+
+	if (!sscanf(buf, "%lu\n", &updated))
+		return -EINVAL;
+
+	cdev->updated = updated? true : false;
+	return count;
+}
+
+static ssize_t
+thermal_cooling_device_stime_show(struct device *dev,
+				      struct device_attribute *attr, char *buf)
+{
+	struct thermal_cooling_device *cdev = to_cooling_device(dev);
+
+	return sprintf(buf, "%02d:%02d\n", cdev->stime / 3600, (cdev->stime % 3600) / 60);
+}
+
+static ssize_t
+thermal_cooling_device_stime_store(struct device *dev,
+				       struct device_attribute *attr,
+				       const char *buf, size_t count)
+{
+	struct thermal_cooling_device *cdev = to_cooling_device(dev);
+	int r, hour, minute;
+
+	if (!(r = sscanf(buf, "%d:%d\n", &hour, &minute)))
+		return -EINVAL;
+
+	if (r != 2 || hour < 0 || hour > 23 || minute < 0 || minute > 59)
+		return -EINVAL;
+
+	cdev->stime = hour * 3600 + minute * 60;
+	return count;
+}
+
+static ssize_t
+thermal_cooling_device_etime_show(struct device *dev,
+				      struct device_attribute *attr, char *buf)
+{
+	struct thermal_cooling_device *cdev = to_cooling_device(dev);
+
+	return sprintf(buf, "%02d:%02d\n", cdev->etime / 3600, (cdev->etime % 3600) / 60);
+}
+
+static ssize_t
+thermal_cooling_device_etime_store(struct device *dev,
+				       struct device_attribute *attr,
+				       const char *buf, size_t count)
+{
+	struct thermal_cooling_device *cdev = to_cooling_device(dev);
+	int r, hour, minute;
+
+	if (!(r = sscanf(buf, "%d:%d\n", &hour, &minute)))
+		return -EINVAL;
+
+	if (r != 2 || hour < 0 || hour > 23 || minute < 0 || minute > 59)
+		return -EINVAL;
+
+	cdev->etime = hour * 3600 + minute * 60;
+	return count;
+}
+
 static struct device_attribute dev_attr_cdev_type =
 __ATTR(type, 0444, thermal_cooling_device_type_show, NULL);
 static DEVICE_ATTR(max_state, 0444,
@@ -1262,6 +1340,15 @@ static DEVICE_ATTR(max_state, 0444,
 static DEVICE_ATTR(cur_state, 0644,
 		   thermal_cooling_device_cur_state_show,
 		   thermal_cooling_device_cur_state_store);
+static DEVICE_ATTR(updated, 0644,
+		   thermal_cooling_device_updated_show,
+		   thermal_cooling_device_updated_store);
+static DEVICE_ATTR(stime, 0644,
+		   thermal_cooling_device_stime_show,
+		   thermal_cooling_device_stime_store);
+static DEVICE_ATTR(etime, 0644,
+		   thermal_cooling_device_etime_show,
+		   thermal_cooling_device_etime_store);
 
 static ssize_t
 thermal_cooling_device_trip_point_show(struct device *dev,
@@ -1282,6 +1369,9 @@ static struct attribute *cooling_device_attrs[] = {
 	&dev_attr_cdev_type.attr,
 	&dev_attr_max_state.attr,
 	&dev_attr_cur_state.attr,
+	&dev_attr_updated.attr,
+	&dev_attr_stime.attr,
+	&dev_attr_etime.attr,
 	NULL,
 };
 

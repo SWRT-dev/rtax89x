@@ -1181,7 +1181,7 @@ function show_watchdog_table(){
 	else{
 		var new_str = "When the current WAN fails $WANDOG_MAXFAIL continuous times, it is deemed a disconnection.";//untranslated
 		new_html_str = new_str.replace("$WANDOG_MAXFAIL", replace_html);
-		$("#fo_detection_count_hd").html("Internet Connection Diagnosis");//untranslated
+		$("#fo_detection_count_hd").html("<#NetworkTools_Diagnose#>");
 		$("#wandog_maxfail_setting").html(new_html_str);
 	}
 
@@ -1242,14 +1242,14 @@ function show_wans_rules(){
 					"title" : "<#FirewallConfig_LanWanSrcIP_itemname#>",
 					"maxlength" : "18",
 					"validator" : "dualWanRoutingRules",
-					"placeholder" : "Please input IP Address or IP Address/Netmask or all." //untranslated
+					"placeholder" : "<#FirewallConfig_LanWanIP_hint#>"
 				},
 				{
 					"editMode" : "text",
 					"title" : "<#FirewallConfig_LanWanDstIP_itemname#>",
 					"maxlength" : "18",
 					"validator" : "dualWanRoutingRules",
-					"placeholder" : "Please input IP Address or IP Address/Netmask or all." //untranslated
+					"placeholder" : "<#FirewallConfig_LanWanIP_hint#>"
 				},
 				{
 					"editMode" : "select",

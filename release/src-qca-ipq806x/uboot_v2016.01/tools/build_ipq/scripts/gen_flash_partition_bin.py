@@ -27,7 +27,7 @@ def process_nand_device(pagesize, pages_per_block, total_blocks, entry, nand_typ
         global cdir
         global ARCH_NAME
         global outputdir
-        global HK10
+        global QCN9000
 
 	nand_pagesize = pagesize
 	nand_pages_per_block = pages_per_block
@@ -40,8 +40,8 @@ def process_nand_device(pagesize, pages_per_block, total_blocks, entry, nand_typ
 	elif nand_type == "4k":
 		nand_partition = "$$/" + ARCH_NAME + "/flash_partition/nand-4k-partition.xml"
 	elif nand_type == "2k":
-		if HK10:
-			nand_partition = "$$/" + ARCH_NAME + "/flash_partition/nand-partition-hk10.xml"
+		if QCN9000:
+			nand_partition = "$$/" + ARCH_NAME + "/flash_partition/nand-partition-qcn9000.xml"
 		else:
 			nand_partition = "$$/" + ARCH_NAME + "/flash_partition/nand-partition.xml"
 
@@ -59,9 +59,9 @@ def process_nand_device(pagesize, pages_per_block, total_blocks, entry, nand_typ
 	os.chmod(partition_tool, 0744)
 
 	if entry == False or (entry == True and nand_pagesize == 2048 and nand_type == '2k'):
-		if HK10:
-			nandsyspartition = outputdir + '/nand-system-partition-' + ARCH_NAME + '-hk10.bin'
-			nanduserpartition = 'nand-user-partition-hk10.bin'
+		if QCN9000:
+			nandsyspartition = outputdir + '/nand-system-partition-' + ARCH_NAME + '-qcn9000.bin'
+			nanduserpartition = 'nand-user-partition-qcn9000.bin'
 		else:
 			nandsyspartition = outputdir + '/nand-system-partition-' + ARCH_NAME + '.bin'
 			nanduserpartition = 'nand-user-partition.bin'
@@ -122,7 +122,7 @@ def process_nand(config_path, flash_type):
 	global cdir
 	global ARCH_NAME
 	global outputdir
-	global HK10
+	global QCN9000
 
 	tree = ET.parse(config_path)
 	root = tree.getroot()
@@ -130,10 +130,10 @@ def process_nand(config_path, flash_type):
 	arch = root.find(".//data[@type='ARCH']/SOC")
 	ARCH_NAME = str(arch.text)
 	entry = False
-	HK10 = False
+	QCN9000 = False
 
 	if ARCH_NAME == "ipq807x":
-		HK10 = True
+		QCN9000 = True
 
 	if root.find(".//data[@type='NAND_PARAMETER']/entry") != None:
 
@@ -145,10 +145,10 @@ def process_nand(config_path, flash_type):
 			nand_total_blocks = int(nand_param.find(".//total_block").text)
 			nand_type = nand_param.get('type')
 
-			if HK10:
+			if QCN9000:
 				if process_nand_device(nand_pagesize, nand_pages_per_block, nand_total_blocks, entry, nand_type) != 0:
 					return -1
-				HK10 = False
+				QCN9000 = False
 
 			if process_nand_device(nand_pagesize, nand_pages_per_block, nand_total_blocks, entry, nand_type) != 0:
 				return -1
@@ -158,10 +158,10 @@ def process_nand(config_path, flash_type):
 		nand_pages_per_block = int(nand_param.find('pages_per_block').text)
 		nand_total_blocks = int(nand_param.find('total_block').text)
 
-		if HK10:
+		if QCN9000:
 			if process_nand_device(nand_pagesize, nand_pages_per_block, nand_total_blocks, entry, "2k") != 0:
 				return -1
-			HK10 = False
+			QCN9000 = False
 
 		if process_nand_device(nand_pagesize, nand_pages_per_block, nand_total_blocks, entry, "2k") != 0:
 			return -1
@@ -265,11 +265,11 @@ def process_norplusnand_device(nor_pagesize, nor_pages_per_block, nor_total_bloc
 	global cdir
 	global ARCH_NAME
 	global outputdir
-        global HK10
+        global QCN9000
 
 	if nand_pagesize == 2048:
-		if HK10:
-			norplusnand_partition = "$$/" + ARCH_NAME + "/flash_partition/norplusnand-partition-hk10.xml"
+		if QCN9000:
+			norplusnand_partition = "$$/" + ARCH_NAME + "/flash_partition/norplusnand-partition-qcn9000.xml"
 		else:
 			norplusnand_partition = "$$/" + ARCH_NAME + "/flash_partition/norplusnand-partition.xml"
 	else:
@@ -289,9 +289,9 @@ def process_norplusnand_device(nor_pagesize, nor_pages_per_block, nor_total_bloc
 	os.chmod(partition_tool, 0744)
 
 	if entry == False or (entry == True and nand_pagesize == 2048):
-		if HK10:
-			norplusnandsyspartition = outputdir + '/norplusnand-system-partition-' + ARCH_NAME + '-hk10.bin'
-			userpart = 'norplusnand-user-partition-hk10.bin'
+		if QCN9000:
+			norplusnandsyspartition = outputdir + '/norplusnand-system-partition-' + ARCH_NAME + '-qcn9000.bin'
+			userpart = 'norplusnand-user-partition-qcn9000.bin'
 		else:
 			norplusnandsyspartition = outputdir + '/norplusnand-system-partition-' + ARCH_NAME + '.bin'
 			userpart = 'norplusnand-user-partition.bin'
@@ -357,7 +357,7 @@ def process_norplusnand(config_path, flash_type):
 	global cdir
 	global ARCH_NAME
 	global outputdir
-	global HK10
+	global QCN9000
 
 	tree = ET.parse(config_path)
 	root = tree.getroot()
@@ -383,10 +383,10 @@ def process_norplusnand(config_path, flash_type):
 		root_part.write(norplusnand_partition)
 
 	entry = False
-	HK10 = False
+	QCN9000 = False
 
 	if ARCH_NAME == "ipq807x":
-		HK10 = True
+		QCN9000 = True
 
 	if root.find(".//data[@type='NAND_PARAMETER']/entry") != None:
 
@@ -397,12 +397,12 @@ def process_norplusnand(config_path, flash_type):
 			nand_pages_per_block = int(nand_param.find(".//pages_per_block").text)
 			nand_total_blocks = int(nand_param.find(".//total_block").text)
 
-			if HK10:
+			if QCN9000:
 				if process_norplusnand_device(nor_pagesize,
 						nor_pages_per_block, nor_total_blocks, nand_pagesize,
 						nand_pages_per_block, nand_total_blocks, entry) != 0:
 					return -1
-				HK10 = False
+				QCN9000 = False
 
 			if process_norplusnand_device(nor_pagesize,
 				nor_pages_per_block, nor_total_blocks, nand_pagesize,
@@ -415,12 +415,12 @@ def process_norplusnand(config_path, flash_type):
 		nand_pages_per_block = int(nand_param.find('pages_per_block').text)
 		nand_total_blocks = int(nand_param.find('total_block').text)
 
-		if HK10:
+		if QCN9000:
 			if process_norplusnand_device(nor_pagesize,
 					nor_pages_per_block, nor_total_blocks, nand_pagesize,
 					nand_pages_per_block, nand_total_blocks, entry) != 0:
 				return -1
-			HK10 = False
+			QCN9000 = False
 
 		if process_norplusnand_device(nor_pagesize,
 			nor_pages_per_block, nor_total_blocks, nand_pagesize,
@@ -639,7 +639,8 @@ def main():
 		'nand': process_nand,
 		'norplusnand': process_norplusnand,
 		'emmc': process_emmc,
-		'norplusemmc': process_norplusemmc
+		'norplusemmc': process_norplusemmc,
+		'tiny-nor-debug': process_nor
 	}
 
 	if len(sys.argv) > 1:

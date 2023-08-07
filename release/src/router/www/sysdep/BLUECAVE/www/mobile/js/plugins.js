@@ -1576,7 +1576,7 @@ var isSupport = function(_ptn){
 				matchingResult = false;
 			break;
 		default:
-			matchingResult = ((ui_support[_ptn] == 1) || (systemVariable.productid.search(_ptn) !== -1)) ? true : false;
+			matchingResult = ((ui_support[_ptn] > 0) || (systemVariable.productid.search(_ptn) !== -1)) ? true : false;
 			break;
 	}
 

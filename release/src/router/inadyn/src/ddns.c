@@ -759,7 +759,7 @@ static int update_alias_table(ddns_t *ctx)
 		if (RC_DDNS_RSP_RETRY_LATER == rc && !remember)
 			remember = rc;
 #ifdef ASUSWRT
-		if(nvram_match("ddns_return_code", "ddns_query"))
+		if(nvram_match("ddns_return_code", "ddns_query") && rc != RC_OK)
 		{
 			switch (rc) {
 				/* Return these cases (define in check_error()) will retry again in Inadyn,

@@ -97,6 +97,8 @@ struct crashdump_flash_nand_cxt {
        int cur_page_data_len;
        int write_size;
        unsigned char temp_data[MAX_NAND_PAGE_SIZE];
+       uint32_t part_start;
+       uint32_t part_size;
 };
 
 #ifdef CONFIG_QCA_SPI
@@ -118,8 +120,9 @@ struct crashdump_flash_emmc_cxt {
 };
 #endif
 
-
+#ifdef CONFIG_MTD_DEVICE
 static struct crashdump_flash_nand_cxt crashdump_nand_cnxt;
+#endif
 #ifdef CONFIG_QCA_SPI
 static struct spi_flash *crashdump_spi_flash;
 static struct crashdump_flash_spi_cxt crashdump_flash_spi_cnxt;
@@ -275,13 +278,18 @@ static int qca_wdt_extract_crashdump_data(
 	while (static_enum_count < 3) {
 		ret_val = qca_wdt_scm_extract_tlv_info(scm_tlv_msg,
 			&cur_type, &cur_size);
-		if (!ret_val && cur_type == QCA_WDT_LOG_DUMP_TYPE_UNAME ){
+		if (ret_val)
+			return ret_val;
+
+		switch (cur_type) {
+		case QCA_WDT_LOG_DUMP_TYPE_UNAME:
 			crashdump_data->uname_length = cur_size;
 			ret_val = qca_wdt_scm_extract_tlv_data(scm_tlv_msg,
 					crashdump_data->uname, cur_size);
 			crashdump_tlv_count++;
 			static_enum_count++;
-		}else if (!ret_val && cur_type == QCA_WDT_LOG_DUMP_TYPE_DMESG){
+			break;
+		case QCA_WDT_LOG_DUMP_TYPE_DMESG:
 			ret_val = qca_wdt_scm_extract_tlv_data(scm_tlv_msg,
 				(unsigned char *)&tlv_info,
 				cur_size);
@@ -291,7 +299,8 @@ static int qca_wdt_extract_crashdump_data(
 		         }
 			crashdump_tlv_count++;
 			static_enum_count++;
-		}else if (!ret_val && cur_type == QCA_WDT_LOG_DUMP_TYPE_LEVEL1_PT){
+			break;
+		case QCA_WDT_LOG_DUMP_TYPE_LEVEL1_PT:
 			ret_val = qca_wdt_scm_extract_tlv_data(scm_tlv_msg,(unsigned char *)&tlv_info,cur_size);
 			if (!ret_val) {
 				crashdump_data->pt_start =(unsigned char *)(uintptr_t)tlv_info.start;
@@ -299,12 +308,18 @@ static int qca_wdt_extract_crashdump_data(
 			}
 			crashdump_tlv_count++;
 			static_enum_count++;
-		}
-		else if(!ret_val && cur_type == QCA_WDT_LOG_DUMP_TYPE_WLAN_MOD) {
+			break;
+		case QCA_WDT_LOG_DUMP_TYPE_WLAN_MOD:
 			tlv_size = (cur_size + QCA_WDT_SCM_TLV_TYPE_LEN_SIZE);
 			scm_tlv_msg->cur_msg_buffer_pos += tlv_size;
+			break;
+		default:
+			printf("%s: invalid dump type\n", __func__);
+			ret_val = -EINVAL;
+			goto err;
 		}
 	}
+err:
 	return ret_val;
 }
 
@@ -733,8 +748,16 @@ void dump_func(unsigned int dump_level)
 		printf("\nHit any key within 10s to stop dump activity...");
 		while (!tstc()) {       /* while no incoming data */
 			if (get_timer_masked() >= etime) {
-				if (do_dumpqca_data(dump_level) == CMD_RET_FAILURE)
-					printf("Crashdump saving failed!\n");
+				if (getenv("dump_minimal_and_full")) { 
+					/* dump minidump and full dump*/
+					if (do_dumpqca_data(MINIMAL_DUMP) == CMD_RET_FAILURE)
+						printf("Minidump saving failed!\n");
+					if (do_dumpqca_data(FULL_DUMP) == CMD_RET_FAILURE)
+						printf("Crashdump saving failed!\n");
+				} else {
+					if (do_dumpqca_data(dump_level) == CMD_RET_FAILURE)
+						printf("Crashdump saving failed!\n");
+				}
 				break;
 			}
 		}
@@ -747,6 +770,98 @@ reset:
 
 	reset_board();
 }
+#ifdef CONFIG_MTD_DEVICE
+
+/*
+* NAND flash check and write. Before writing into the nand flash
+* this function checks if the block is non-bad, and skips if bad. While
+* skipping, there is also possiblity of crossing the partition and corrupting
+* next partition with crashdump data. So this function also checks whether
+* offset is within the partition, where the configured offset belongs.
+*
+* Returns 0 on succes and 1 otherwise
+*/
+static int check_and_write_crashdump_nand_flash(
+			struct crashdump_flash_nand_cxt *nand_cnxt,
+			nand_info_t *nand, unsigned char *data,
+			unsigned int req_size)
+{
+	nand_erase_options_t nand_erase_options;
+	uint32_t part_start = nand_cnxt->part_start;
+	uint32_t part_end = nand_cnxt->part_start + nand_cnxt->part_size;
+	unsigned int remaining_len = req_size;
+	unsigned int write_length, data_offset = 0;
+	loff_t skipoff, skipoff_cmp, *offset;
+	int ret = 0;
+	static int first_erase = 1;
+
+	offset = &nand_cnxt->cur_crashdump_offset;
+
+	memset(&nand_erase_options, 0, sizeof(nand_erase_options));
+	nand_erase_options.length = nand->erasesize;
+
+	while (remaining_len)
+	{
+
+		skipoff = *offset - (*offset & (nand->erasesize - 1));
+		skipoff_cmp = skipoff;
+
+		for (; skipoff < part_end; skipoff += nand->erasesize) {
+			if (nand_block_isbad(nand, skipoff)) {
+				printf("Skipping bad block at 0x%llx\n", skipoff);
+				continue;
+			}
+			else
+				break;
+		}
+		if (skipoff_cmp != skipoff)
+			*offset = skipoff;
+
+		if(part_start > *offset || ((*offset + remaining_len) >= part_end)) {
+			printf("Failure: Attempt to write in next partition\n");
+			return 1;
+		}
+
+		if((*offset & (nand->erasesize - 1)) == 0 || first_erase){
+			nand_erase_options.offset = *offset;
+
+			ret = nand_erase_opts(&nand_info[0],
+					&nand_erase_options);
+			if (ret)
+				return ret;
+			first_erase = 0;
+		}
+
+		if( remaining_len > nand->erasesize) {
+
+			skipoff = (*offset & (nand->erasesize - 1));
+
+			write_length = (skipoff != 0) ? (nand->erasesize - skipoff)
+							: (nand->erasesize);
+
+			ret = nand_write(nand, *offset, &write_length,
+				data + data_offset);
+
+			if (ret)
+				return ret;
+
+			remaining_len -= write_length;
+			*offset += write_length;
+			data_offset += write_length;
+		}
+		else {
+
+			ret = nand_write(nand, *offset, &remaining_len,
+				data + data_offset);
+
+			*offset += remaining_len;
+			remaining_len = 0;
+		}
+	}
+
+	return ret;
+
+}
 
 /*
 * Init function for NAND flash writing. It intializes its own context
@@ -755,9 +870,13 @@ reset:
 int init_crashdump_nand_flash_write(void *cnxt, loff_t offset,
 					unsigned int total_size)
 {
-	nand_erase_options_t nand_erase_options;
 	struct crashdump_flash_nand_cxt *nand_cnxt = cnxt;
 	int ret;
+
+	ret = smem_getpart_from_offset(offset, &nand_cnxt->part_start,
+						&nand_cnxt->part_size);
+	if (ret)
+		return ret;
 
 	nand_cnxt->start_crashdump_offset = offset;
 	nand_cnxt->cur_crashdump_offset = offset;
@@ -768,16 +887,6 @@ int init_crashdump_nand_flash_write(void *cnxt, loff_t offset,
 		printf("nand page write size is more than configured size\n");
 		return -ENOMEM;
 	}
-
-	memset(&nand_erase_options, 0, sizeof(nand_erase_options));
-
-	nand_erase_options.length = total_size;
-	nand_erase_options.offset = offset;
-
-	ret = nand_erase_opts(&nand_info[0],
-			&nand_erase_options);
-	if (ret)
-		return ret;
 
 	return 0;
 }
@@ -803,9 +912,11 @@ int deinit_crashdump_nand_flash_write(void *cnxt)
 			0xFF, remaining_bytes);
 
 		cur_nand_write_len = nand_cnxt->write_size;
-		ret_val = nand_write(&nand_info[0],
-				nand_cnxt->cur_crashdump_offset,
-				&cur_nand_write_len, nand_cnxt->temp_data);
+
+		ret_val = check_and_write_crashdump_nand_flash(nand_cnxt,
+					&nand_info[0], nand_cnxt->temp_data,
+					cur_nand_write_len);
+
 	}
 
 	return ret_val;
@@ -853,15 +964,14 @@ int crashdump_nand_flash_write_data(void *cnxt,
 	memcpy(nand_cnxt->temp_data + nand_cnxt->cur_page_data_len, data,
 			remaining_len_cur_page);
 
-	ret_val = nand_write(&nand_info[0], nand_cnxt->cur_crashdump_offset,
-				&cur_nand_write_len,
-				nand_cnxt->temp_data);
+	ret_val = check_and_write_crashdump_nand_flash(nand_cnxt,
+					&nand_info[0], nand_cnxt->temp_data,
+					cur_nand_write_len);
 
 	if (ret_val)
 		return ret_val;
 
 	cur_data_pos += remaining_len_cur_page;
-	nand_cnxt->cur_crashdump_offset += cur_nand_write_len;
 
 	/*
 	* Calculate the write length in multiple of page length and do the nand
@@ -871,17 +981,16 @@ int crashdump_nand_flash_write_data(void *cnxt,
 				nand_cnxt->write_size) * nand_cnxt->write_size;
 
 	if (cur_nand_write_len > 0) {
-		ret_val = nand_write(&nand_info[0],
-				nand_cnxt->cur_crashdump_offset,
-				&cur_nand_write_len,
-				cur_data_pos);
+		ret_val = check_and_write_crashdump_nand_flash(nand_cnxt,
+						&nand_info[0], cur_data_pos,
+						cur_nand_write_len);
 
 		if (ret_val)
 			return ret_val;
+
 	}
 
 	cur_data_pos += cur_nand_write_len;
-	nand_cnxt->cur_crashdump_offset += cur_nand_write_len;
 
 	/* Store the remaining data in temp data */
 	remaining_bytes = data + size - cur_data_pos;
@@ -892,7 +1001,7 @@ int crashdump_nand_flash_write_data(void *cnxt,
 
 	return 0;
 }
-
+#endif
 #ifdef CONFIG_QCA_SPI
 /* Init function for SPI NOR flash writing. It erases the required sectors */
 int init_crashdump_spi_flash_write(void *cnxt,
@@ -1134,11 +1243,13 @@ static int qca_wdt_write_crashdump_data(
 	*/
 	if (((flash_type == SMEM_BOOT_NAND_FLASH) ||
 		(flash_type == SMEM_BOOT_QSPI_NAND_FLASH))) {
+#ifdef CONFIG_MTD_DEVICE
 		crashdump_cnxt = (void *)&crashdump_nand_cnxt;
 		crashdump_flash_write_init = init_crashdump_nand_flash_write;
 		crashdump_flash_write = crashdump_nand_flash_write_data;
 		crashdump_flash_write_deinit =
 			deinit_crashdump_nand_flash_write;
+#endif
 #ifdef CONFIG_QCA_SPI
 	} else if (flash_type == SMEM_BOOT_SPI_FLASH) {
 		if (!crashdump_spi_flash) {
@@ -1248,22 +1359,24 @@ int do_dumpqca_minimal_data(const char *offset)
 	tlv_msg.len = CONFIG_TLV_DUMP_SIZE;
 
 	ret_val = qca_wdt_extract_crashdump_data(&tlv_msg, &g_crashdump_data);
-
-	if (!ret_val) {
-		if (getenv("dump_to_flash")) {
-			ret_val = qca_wdt_write_crashdump_data(&g_crashdump_data,
-					flash_type, crashdump_offset);
-		} else {
-			dump_func(MINIMAL_DUMP);
-		}
-	}
-
 	if (ret_val) {
-		printf("crashdump data writing in flash failure\n");
-		return -EPERM;
+		printf("%s: crashdump extraction failed\n", __func__);
+		return ret_val;
 	}
 
-	printf("crashdump data writing in flash successful\n");
+	if (getenv("dump_to_flash")) {
+		ret_val = qca_wdt_write_crashdump_data(&g_crashdump_data,
+						       flash_type,
+						       crashdump_offset);
+		if (ret_val) {
+			printf("crashdump data writing in flash failure\n");
+			return -EPERM;
+		}
+
+		printf("crashdump data writing in flash successful\n");
+	} else {
+		dump_func(MINIMAL_DUMP);
+	}
 
 	return 0;
 }

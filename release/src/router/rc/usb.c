@@ -277,6 +277,10 @@ void add_usb_host_modules(void)
 		return;
 #endif
 
+#if defined(RAX120)
+	if (module_loaded(USB30_MOD))
+		modprobe_r(USB30_MOD);
+#endif
 #if defined(RTAX89U) || defined(GTAXY16000)
 	if (!module_loaded(USB30_MOD)) {
 		logmessage("USB", "Turn off USB power.");
@@ -1326,10 +1330,11 @@ int mount_r(char *mnt_dev, char *mnt_dir, char *_type)
 			sprintf(options + strlen(options), ",allow_utime=0022" + (options[0] ? 0 : 1));
 #endif
 
-			if (nvram_invmatch("smbd_cset", ""))
-				sprintf(options + strlen(options), ",iocharset=%s%s",
-						isdigit(nvram_get("smbd_cset")[0]) ? "cp" : "",
-						nvram_get("smbd_cset"));
+			if(nvram_match("smbd_cset", "utf8"))
+				sprintf(options + strlen(options), ",utf8" + (options[0] ? 0 : 1));
+			else
+			if(nvram_invmatch("smbd_cset", ""))
+				sprintf(options + strlen(options), ",iocharset=%s%s", isdigit(nvram_get("smbd_cset")[0]) ? "cp" : "", nvram_get("smbd_cset"));
 
 			if (nvram_invmatch("smbd_cpage", "")) {
 				char cp[16];
@@ -1390,29 +1395,33 @@ int mount_r(char *mnt_dev, char *mnt_dir, char *_type)
 		else if (strncmp(type, "ntfs", 4) == 0) {
 			sprintf(options, "umask=0000,nodev");
 
-			if (nvram_invmatch("smbd_cset", ""))
-				sprintf(options + strlen(options), "%snls=%s%s", options[0] ? "," : "",
-						isdigit(nvram_get("smbd_cset")[0]) ? "cp" : "",
-						nvram_get("smbd_cset"));
+			if(nvram_match("smbd_cset", "utf8"))
+				sprintf(options + strlen(options), ",utf8" + (options[0] ? 0 : 1));
+			else{
+				if(nvram_invmatch("smbd_cset", ""))
+						sprintf(options + strlen(options), "%snls=%s%s", options[0] ? "," : "", isdigit(nvram_get("smbd_cset")[0]) ? "cp" : "", nvram_get("smbd_cset"));
+
 #if defined(RTCONFIG_REALTEK) && defined(RTCONFIG_TUXERA_NTFS)
 			/* TUXERA module not support codepage options. */
-#else			
-			if (nvram_invmatch("smbd_cpage", "")) {
-				char cp[16];
+#else
+				if (nvram_invmatch("smbd_cpage", "")) {
+					char cp[16];
 
-				snprintf(cp, sizeof(cp), "%s", nvram_safe_get("smbd_cpage"));
-				sprintf(options + strlen(options), ",codepage=%s" + (options[0] ? 0 : 1), cp);
-				snprintf(flagfn, sizeof(flagfn), "nls_cp%s", cp);
-				TRACE_PT("USB %s(%s) is setting the code page to %s!\n", mnt_dev, type, flagfn);
+					snprintf(cp, sizeof(cp), "%s", nvram_safe_get("smbd_cpage"));
+					sprintf(options + strlen(options), ",codepage=%s" + (options[0] ? 0 : 1), cp);
+					snprintf(flagfn, sizeof(flagfn), "nls_cp%s", cp);
+					TRACE_PT("USB %s(%s) is setting the code page to %s!\n", mnt_dev, type, flagfn);
 
-				snprintf(cp, sizeof(cp), "%s", nvram_safe_get("smbd_nlsmod"));
-				if(strlen(cp) > 0 && (strcmp(cp, flagfn) != 0))
-					modprobe_r(cp);
+					snprintf(cp, sizeof(cp), "%s", nvram_safe_get("smbd_nlsmod"));
+					if(strlen(cp) > 0 && (strcmp(cp, flagfn) != 0))
+						modprobe_r(cp);
 
-				modprobe(flagfn);
-				nvram_set("smbd_nlsmod", flagfn);
-			}
+					modprobe(flagfn);
+					nvram_set("smbd_nlsmod", flagfn);
+				}
 #endif
+			}
+
 #ifndef RTCONFIG_BCMARM
 			sprintf(options + strlen(options), ",noatime" + (options[0] ? 0 : 1));
 #endif
@@ -1502,7 +1511,10 @@ int mount_r(char *mnt_dev, char *mnt_dir, char *_type)
 #ifdef RTCONFIG_OPENPLUS_TFAT
 				else
 #endif
+				{
 					ret = eval("mount", "-t", "tfat", "-o", options, mnt_dev, mnt_dir);
+					_dprintf("%s: fat options: %s, ret: %d.\n", __func__, options, ret);
+				}
 #endif
 
 				if(ret != 0){
@@ -1526,8 +1538,9 @@ int mount_r(char *mnt_dev, char *mnt_dir, char *_type)
 					else
 #endif
 					{
-						//ret = eval("mount", "-t", "tntfs", "-o", options, mnt_dev, mnt_dir);
-						ret = eval("mount", "-t", "tntfs", "-o", "nodev", mnt_dev, mnt_dir);
+						ret = eval("mount", "-t", "tntfs", "-o", options, mnt_dev, mnt_dir);
+						//ret = eval("mount", "-t", "tntfs", "-o", "nodev", mnt_dev, mnt_dir);
+						_dprintf("%s: ntfs options: %s, ret: %d.\n", __func__, options, ret);
 					}
 #endif
 #if defined(RTCONFIG_PARAGON_NTFS)
@@ -1629,9 +1642,6 @@ int mount_r(char *mnt_dev, char *mnt_dir, char *_type)
 						type, (flags & MS_RDONLY) ? " (ro)" : "", mnt_dev, mnt_dir);
 				logmessage("usb", "USB %s%s fs at %s mounted on %s.\n",
 						type, (flags & MS_RDONLY) ? " (ro)" : "", mnt_dev, mnt_dir);
-#if defined(RTCONFIG_SOC_IPQ8074)
-				f_write_string("/proc/net/skb_recycler/max_skbs", "12288", 0, 0);
-#endif
 				return (flags & MS_RDONLY) ? MOUNT_VAL_RONLY : MOUNT_VAL_RW;
 			}
 
@@ -5714,4 +5724,3 @@ void webdav_account_default(void)
 	}
 }
 //#endif
-

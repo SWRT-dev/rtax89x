@@ -68,6 +68,7 @@ Confidential and Proprietary - Qualcomm Technologies, Inc.
 		bootable="false"
 		readonly="false"
 		filename="devcfg.mbn"
+		filename_mem256="devcfg_lm.mbn"
 		/>
 	<partition
 		label="0:DEVCFG_1"

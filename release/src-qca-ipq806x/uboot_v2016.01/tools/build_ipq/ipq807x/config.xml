@@ -84,6 +84,12 @@ Confidential and Proprietary - Qualcomm Technologies, Inc.
 			<memory>256M32_DDR3</memory>
 		</entry>
 		<entry>
+			<machid>0x8010500</machid>
+			<board>AP-HK01-C6</board>
+			<spi_nand>false</spi_nand>
+			<memory>512M32_DDR3</memory>
+		</entry>
+		<entry>
 			<machid>0x1010004</machid>
 			<board>DB-HK01</board>
 			<spi_nand>false</spi_nand>
@@ -146,6 +152,18 @@ Confidential and Proprietary - Qualcomm Technologies, Inc.
 		<entry>
 			<machid>0x8010011</machid>
 			<board>AP-HK11-C1</board>
+			<spi_nand>false</spi_nand>
+			<memory>512M16_DDR4</memory>
+		</entry>
+		<entry>
+			<machid>0x8010012</machid>
+			<board>AP-HK14</board>
+			<spi_nand>false</spi_nand>
+			<memory>256M32_4L_DDR3</memory>
+		</entry>
+		<entry>
+			<machid>0x8010013</machid>
+			<board>AP-HK12-C1</board>
 			<spi_nand>false</spi_nand>
 			<memory>512M16_DDR4</memory>
 		</entry>

@@ -139,15 +139,21 @@ static unsigned char env_flags;
 
 int mmc_saveenv(void)
 {
-	ALLOC_CACHE_ALIGN_BUFFER(env_t, env_new, 1);
 	struct mmc *mmc = find_mmc_device(CONFIG_SYS_MMC_ENV_DEV);
 	u32	offset;
 	int	ret, copy = 0;
 	const char *errmsg;
 
+	env_t *env_new = (env_t *)memalign(ARCH_DMA_MINALIGN, CONFIG_ENV_SIZE);
+	if (!env_new) {
+		printf("Error: Cannot allocate %d bytes\n", CONFIG_ENV_SIZE);
+		return 1;
+	}
+
 	errmsg = init_mmc_for_env(mmc);
 	if (errmsg) {
 		printf("%s\n", errmsg);
+		free(env_new);
 		return 1;
 	}
 
@@ -184,6 +190,7 @@ int mmc_saveenv(void)
 
 fini:
 	fini_mmc_for_env(mmc);
+	free(env_new);
 	return ret;
 }
 #endif /* CONFIG_CMD_SAVEENV */
@@ -298,12 +305,17 @@ err:
 void mmc_env_relocate_spec(void)
 {
 #if !defined(ENV_IS_EMBEDDED)
-	ALLOC_CACHE_ALIGN_BUFFER(char, buf, CONFIG_ENV_SIZE);
 	struct mmc *mmc;
 	u32 offset;
 	int ret;
 	int dev = CONFIG_SYS_MMC_ENV_DEV;
-	const char *errmsg;
+	const char *errmsg = NULL;
+	char *buf = (char *)memalign(ARCH_DMA_MINALIGN, CONFIG_ENV_SIZE);
+	if (!buf) {
+		printf("Error: Cannot allocate %d bytes\n", CONFIG_ENV_SIZE);
+		ret = 1;
+		goto err;
+	}
 
 #ifdef CONFIG_SPL_BUILD
 	dev = 0;
@@ -336,6 +348,8 @@ fini:
 err:
 	if (ret)
 		set_default_env(errmsg);
+	if (buf)
+		free(buf);
 #endif
 }
 #endif /* CONFIG_ENV_OFFSET_REDUND */

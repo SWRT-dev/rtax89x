@@ -6524,8 +6524,11 @@ set_wan_tag(char *interface) {
 				system(vlan_cmd);
 				break;
 			}
-			if (nvram_match("switch_wantag", "m1_fiber") ||
-			   nvram_match("switch_wantag", "maxis_fiber_sp")
+			if (nvram_match("switch_wantag", "m1_fiber")
+				|| nvram_match("switch_wantag", "maxis_fiber_sp")
+				|| nvram_match("switch_wantag", "maxis_cts")
+				|| nvram_match("switch_wantag", "maxis_sacofa")
+				|| nvram_match("switch_wantag", "maxis_tnb")
 			) {
 				/* Just forward packets between port 0 & 3, without untag */
 				sprintf(vlan_entry, "0x%x", voip_vid);
@@ -6724,8 +6727,11 @@ _dprintf("*** Multicast IPTV: config Singtel TR069 on wan port ***\n");
 				system(vlan_cmd);
 				break;
 			}
-			if (nvram_match("switch_wantag", "m1_fiber") ||
-			   nvram_match("switch_wantag", "maxis_fiber_sp")
+			if (nvram_match("switch_wantag", "m1_fiber")
+				|| nvram_match("switch_wantag", "maxis_fiber_sp")
+				|| nvram_match("switch_wantag", "maxis_cts")
+				|| nvram_match("switch_wantag", "maxis_sacofa")
+				|| nvram_match("switch_wantag", "maxis_tnb")
 			) {
 				/* Just forward packets between port 0 & 3, without untag */
 				sprintf(vlan_entry, "0x%x", voip_vid);
@@ -7265,8 +7271,11 @@ _dprintf("*** Multicast IPTV: config Singtel TR069 on wan port ***\n");
 				if (model == MODEL_RTAX58U || model == MODEL_RTAX82_XD6S)
 					eval("ethswctl", "-c", "softswitch",  "-i",  ethPort1, "-o", "enable");
 			}
-			if (nvram_match("switch_wantag", "m1_fiber") ||
-			   nvram_match("switch_wantag", "maxis_fiber_sp")
+			if (nvram_match("switch_wantag", "m1_fiber")
+				|| nvram_match("switch_wantag", "maxis_fiber_sp")
+				|| nvram_match("switch_wantag", "maxis_cts")
+				|| nvram_match("switch_wantag", "maxis_sacofa")
+				|| nvram_match("switch_wantag", "maxis_tnb")
 			) {
 				/* Just forward packets between WAN & vlanDev2, without untag */
 				sprintf(vlan_entry, "0x%x", voip_vid);
@@ -7764,6 +7773,7 @@ _dprintf("*** Multicast IPTV: config VOIP on wan port ***\n");
 		 && !nvram_match("switch_wantag", "superonline") && !nvram_match("switch_wantag", "unifi_home")
 		 && !nvram_match("switch_wantag", "m1_fiber") && !nvram_match("switch_wantag", "maxis_fiber")
 		 && !nvram_match("switch_wantag", "maxis_fiber_sp") && !nvram_match("switch_wantag", "hinet_mesh")
+		 && !nvram_match("switch_wantag", "maxis_cts") && !nvram_match("switch_wantag", "maxis_sacofa") && !nvram_match("switch_wantag", "maxis_tnb")
 		) {
 			/* config wan port or bridge hinet IPTV traffic */
 			sprintf(port_id, "%d", wan_vid);
@@ -7879,8 +7889,11 @@ _dprintf("*** Multicast IPTV: config VOIP on wan port ***\n");
 				eval("brctl", "addif", br_dev, "vlan100");
 				vlan_forwarding(101, 0, 4, 0); 
 			}
-			if (nvram_match("switch_wantag", "m1_fiber") ||
-			   nvram_match("switch_wantag", "maxis_fiber_sp")
+			if (nvram_match("switch_wantag", "m1_fiber")
+				|| nvram_match("switch_wantag", "maxis_fiber_sp")
+				|| nvram_match("switch_wantag", "maxis_cts")
+				|| nvram_match("switch_wantag", "maxis_sacofa")
+				|| nvram_match("switch_wantag", "maxis_tnb")
 			) {
 				system("rtkswitch 40 1"); //leave tag case
 				/* set WAN VLAN */
@@ -8325,8 +8338,11 @@ _dprintf("*** Multicast IPTV: config VOIP on wan port ***\n");
 				}
 				break;
 			}
-			if (nvram_match("switch_wantag", "m1_fiber") ||
-			   nvram_match("switch_wantag", "maxis_fiber_sp")
+			if (nvram_match("switch_wantag", "m1_fiber")
+				|| nvram_match("switch_wantag", "maxis_fiber_sp")
+				|| nvram_match("switch_wantag", "maxis_cts")
+				|| nvram_match("switch_wantag", "maxis_sacofa")
+				|| nvram_match("switch_wantag", "maxis_tnb")
 			) {
 				/* Just forward packets between WAN & L3, without untag */
 				sprintf(vlan_entry, "0x%x", voip_vid);
@@ -8599,8 +8615,11 @@ _dprintf("*** Multicast IPTV: config Singtel TR069 on wan port ***\n");
 				}
 				break;
 			}
-			if (nvram_match("switch_wantag", "m1_fiber") ||
-			   nvram_match("switch_wantag", "maxis_fiber_sp")
+			if (nvram_match("switch_wantag", "m1_fiber")
+				|| nvram_match("switch_wantag", "maxis_fiber_sp")
+				|| nvram_match("switch_wantag", "maxis_cts")
+				|| nvram_match("switch_wantag", "maxis_sacofa")
+				|| nvram_match("switch_wantag", "maxis_tnb")
 			) {
 				/* Just forward packets between WAN & L3, without untag */
 				sprintf(vlan_entry, "0x%x", voip_vid);
@@ -8830,8 +8849,11 @@ _dprintf("*** Multicast IPTV: config Singtel TR069 on wan port ***\n");
 				system(vlan_cmd);
 				break;
 			}
-			if (nvram_match("switch_wantag", "m1_fiber") ||
-			   nvram_match("switch_wantag", "maxis_fiber_sp")
+			if (nvram_match("switch_wantag", "m1_fiber")
+				|| nvram_match("switch_wantag", "maxis_fiber_sp")
+				|| nvram_match("switch_wantag", "maxis_cts")
+				|| nvram_match("switch_wantag", "maxis_sacofa")
+				|| nvram_match("switch_wantag", "maxis_tnb")
 			) {
 				/* Just forward packets between port 0 & 3, without untag */
 				sprintf(vlan_entry, "0x%x", voip_vid);
@@ -9020,8 +9042,11 @@ _dprintf("*** Multicast IPTV: config Singtel TR069 on wan port ***\n");
 				system(vlan_cmd);
 				break;
 			}
-			if (nvram_match("switch_wantag", "m1_fiber") ||
-			   nvram_match("switch_wantag", "maxis_fiber_sp")
+			if (nvram_match("switch_wantag", "m1_fiber")
+				|| nvram_match("switch_wantag", "maxis_fiber_sp")
+				|| nvram_match("switch_wantag", "maxis_cts")
+				|| nvram_match("switch_wantag", "maxis_sacofa")
+				|| nvram_match("switch_wantag", "maxis_tnb")
 			) {
 				/* Just forward packets between port 4 & 2, without untag */
 				sprintf(vlan_entry, "0x%x", voip_vid);
@@ -9231,8 +9256,11 @@ _dprintf("*** Multicast IPTV: config Singtel TR069 on wan port ***\n");
 				eval("et", "robowr", "0x05", "0x80", "0x0080");
 				break;
 			}
-			if (nvram_match("switch_wantag", "m1_fiber") ||
-			   nvram_match("switch_wantag", "maxis_fiber_sp")
+			if (nvram_match("switch_wantag", "m1_fiber")
+				|| nvram_match("switch_wantag", "maxis_fiber_sp")
+				|| nvram_match("switch_wantag", "maxis_cts")
+				|| nvram_match("switch_wantag", "maxis_sacofa")
+				|| nvram_match("switch_wantag", "maxis_tnb")
 			) {
 				/* Just forward packets between port 0 & 3, without untag */
 				sprintf(vlan_entry, "0x%x", voip_vid);
@@ -10082,6 +10110,12 @@ int check_used_stb_voip_port(int lan)
 		else if (!strcmp(nvram_safe_get("switch_wantag"), "maxis_fiber"))
 			used_port = 0x4;	/* LAN3 for voip */
 		else if (!strcmp(nvram_safe_get("switch_wantag"), "maxis_fiber_sp"))
+			used_port = 0x4;	/* LAN3 for voip */
+		else if (!strcmp(nvram_safe_get("switch_wantag"), "maxis_cts"))
+			used_port = 0x4;	/* LAN3 for voip */
+		else if (!strcmp(nvram_safe_get("switch_wantag"), "maxis_sacofa"))
+			used_port = 0x4;	/* LAN3 for voip */
+		else if (!strcmp(nvram_safe_get("switch_wantag"), "maxis_tnb"))
 			used_port = 0x4;	/* LAN3 for voip */
 		else	/* For manual */
 		{

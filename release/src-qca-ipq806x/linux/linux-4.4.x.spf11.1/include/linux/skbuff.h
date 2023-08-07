@@ -747,6 +747,12 @@ struct sk_buff {
 #define SKB_ALLOC_RX		0x02
 #define SKB_ALLOC_NAPI		0x04
 
+#ifdef CONFIG_SKB_RECYCLER
+struct sk_buff *skb_recycler_alloc(struct net_device *dev, unsigned int length);
+#else
+#define skb_recycler_alloc(dev, len) NULL
+#endif
+
 /* Returns true if the skb was allocated from PFMEMALLOC reserves */
 static inline bool skb_pfmemalloc(const struct sk_buff *skb)
 {
@@ -839,6 +845,9 @@ void kfree_skb_partial(struct sk_buff *skb, bool head_stolen);
 bool skb_try_coalesce(struct sk_buff *to, struct sk_buff *from,
 		      bool *fragstolen, int *delta_truesize);
 
+#ifdef CONFIG_SKB_RECYCLER
+struct sk_buff *___alloc_skb(unsigned int size, gfp_t gfp_mask, int flags, int node);
+#endif
 struct sk_buff *__alloc_skb(unsigned int size, gfp_t priority, int flags,
 			    int node);
 struct sk_buff *__build_skb(void *data, unsigned int frag_size);
@@ -3523,9 +3532,6 @@ static inline void __nf_copy(struct sk_buff *dst, const struct sk_buff *src,
 #if IS_ENABLED(CONFIG_NETFILTER_XT_TARGET_TRACE) || defined(CONFIG_NF_TABLES)
 	if (copy)
 		dst->nf_trace = src->nf_trace;
-#endif
-#ifdef CONFIG_IP_NF_LFP
-	dst->nfcache		= src->nfcache;
 #endif
 	dst->fast_forwarded	= src->fast_forwarded;
 }

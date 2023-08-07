@@ -348,7 +348,6 @@ extern loff_t board_env_size;
  * Cache flush and invalidation based on L1 cache, so the cache line
  * size is configured to 64 */
 #define CONFIG_SYS_CACHELINE_SIZE	64
-#define CONFIG_CMD_CACHE
 /*#define CONFIG_SYS_DCACHE_OFF*/
 
 /* Enabling this flag will report any L2 errors.

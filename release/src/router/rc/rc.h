@@ -721,7 +721,7 @@ extern void pre_syspara(void);
 #endif
 #endif	/* RTCONFIG_QCA */
 
-#if defined(RTCONFIG_SOC_IPQ8074) && !defined(RAX120)
+#if defined(RTCONFIG_SOC_IPQ8074)
 extern int upgrade_bootloader_v2(void);
 extern int pre_firmware_upgrade(const char *fname);
 #else	/* !RTCONFIG_SOC_IPQ8074 */
@@ -1326,6 +1326,7 @@ extern int _ifconfig_get(const char *name, int *flags, char *addr, char *netmask
 extern int ifconfig_mtu(const char *name, int mtu);
 extern int route_add(char *name, int metric, char *dst, char *gateway, char *genmask);
 extern int route_del(char *name, int metric, char *dst, char *gateway, char *genmask);
+extern int route_exist(const char *name, int metric, const char *dst, const char *gateway, const char *mask);
 extern int start_vlan(void);
 extern int stop_vlan(void);
 extern int config_vlan(void);
@@ -1550,6 +1551,7 @@ extern void reset_vpnc_state(void);
 extern int vpnc_ovpn_up_main(int argc, char **argv);
 extern int vpnc_ovpn_down_main(int argc, char **argv);
 extern int vpnc_ovpn_route_up_main(int argc, char **argv);
+extern int vpnc_ovpn_route_pre_down_main(int argc, char **argv);
 #else
 extern void update_vpnc_state(char *prefix, int state, int reason);
 #endif
@@ -1977,6 +1979,7 @@ extern int vpnc_set_dev_policy_rule();
 extern int ovpn_up_main(int argc, char **argv);
 extern int ovpn_down_main(int argc, char **argv);
 extern int ovpn_route_up_main(int argc, char **argv);
+extern int ovpn_route_pre_down_main(int argc, char **argv);
 
 // openvpn.c
 #ifdef RTCONFIG_OPENVPN
@@ -2150,6 +2153,8 @@ enum S46_MAPSVR_STATE {
 	S46_MAPSVR_MAX
 };
 #endif
+extern void start_rdisc6(void);
+extern void stop_rdisc6(void);
 extern void start_ipv6(void);
 extern void stop_ipv6(void);
 extern void ipv6_sysconf(const char *ifname, const char *name, int value);
@@ -2527,6 +2532,9 @@ void start_amas_service(void);
 #if defined(RTCONFIG_QCA_LBD)
 extern void duplicate_wl_ifaces(void);
 #endif
+#if defined(RTCONFIG_QCA) && LINUX_KERNEL_VERSION >= KERNEL_VERSION(3,14,0)
+extern void config_mssid_isolate(char *ifname, int vif);
+#endif
 
 #ifdef RTCONFIG_PARENTALCTRL
 extern void stop_pc_block(void);
@@ -2631,7 +2639,7 @@ extern int detect_plc_main(int argc, char *argv[]);
 extern int wlcscan_main(void);
 extern void repeater_pap_disable(void);
 extern int wlcconnect_main(void);
-#if defined(RTCONFIG_BLINK_LED) || defined(RAX120)
+#if defined(RTCONFIG_BLINK_LED)
 extern void update_wifi_led_state_in_wlcmode(void);
 #else
 static inline void update_wifi_led_state_in_wlcmode(void) { }
@@ -2755,10 +2763,10 @@ extern int iptv_and_dualwan_info_get(int *iptv_vids,int size, unsigned int *wan_
 extern void cp_str2list( char * if_list, unsigned int *wl_allow_list);
 extern int captive_protal_info_get(unsigned int *wl_allow_list);
 extern int init_tagged_based_vlan(void);
-extern int find_brifname_by_wlifname(char *wl_ifname, char *brif_name, int size);
+extern int find_brifname_by_wlifname(const char *wl_ifname, char *brif_name, int size);
 extern void vlan_subnet_dnsmasq_conf(FILE *fp);
 #else
-static inline int find_brifname_by_wlifname(char __attribute__((__unused__)) *wl_ifname, char __attribute__((__unused__)) *brif_name, int __attribute__((__unused__)) size) { return 0; }
+static inline int find_brifname_by_wlifname(const char __attribute__((__unused__)) *wl_ifname, char __attribute__((__unused__)) *brif_name, int __attribute__((__unused__)) size) { return 0; }
 #endif
 
 // amas_wgn.c
@@ -3235,6 +3243,33 @@ extern void start_oam_service(oam_srv_t* param);
 extern void stop_oam_service();
 #endif
 
+#ifdef RTCONFIG_WIREGUARD
+#define WG_SERVER_MAX	1
+#define WG_SERVER_CLIENT_MAX	10
+#define WG_CLIENT_MAX	5
+#define WG_SERVER_IF_PREFIX	"wgs"
+#define WG_CLIENT_IF_PREFIX	"wgc"
+#define WG_SERVER_NVRAM_PREFIX	"wgs"
+#define WG_CLIENT_NVRAM_PREFIX	"wgc"
+extern void start_wgsall();
+extern void stop_wgsall();
+extern void start_wgcall();
+extern void stop_wgcall();
+extern void start_wgs(int unit);
+extern void stop_wgs(int unit);
+extern void start_wgc(int unit);
+extern void stop_wgc(int unit);
+extern void update_wgs_client(int s_unit, int c_unit);
+extern void update_wgs_client_ep();
+extern int write_wgc_resolv_dnsmasq(FILE* fp_servers);
+extern void write_wgs_dnsmasq_config(FILE* fp);
+extern void write_wgs_fw_filter_input(FILE* fp);
+extern void write_wgs_fw_filter_forward(FILE* fp);
+extern void run_wgs_fw_scripts();
+extern void run_wgc_fw_scripts();
+extern int is_wg_enabled();
+#endif
+
 extern int get_active_wan_unit(void);
 
 #ifdef RTCONFIG_UPNPC_NEW
@@ -3276,31 +3311,6 @@ typedef struct wanlan_st_s {
 } wanlan_st_t;
 int get_wanlanstatus(wanlan_st_t *wlst);
 int transform_wanlanstatus(wanlan_st_t *wlst);
-
-#ifdef RTCONFIG_WIREGUARD
-#define WG_SERVER_MAX	1
-#define WG_SERVER_CLIENT_MAX	10
-#define WG_CLIENT_MAX	5
-#define WG_SERVER_IF_PREFIX	"wgs"
-#define WG_CLIENT_IF_PREFIX	"wgc"
-#define WG_SERVER_NVRAM_PREFIX	"wgs"
-#define WG_CLIENT_NVRAM_PREFIX	"wgc"
-extern void start_wgsall();
-extern void stop_wgsall();
-extern void start_wgcall();
-extern void stop_wgcall();
-extern void start_wgs(int unit);
-extern void stop_wgs(int unit);
-extern void start_wgc(int unit);
-extern void stop_wgc(int unit);
-extern void update_wgs_client(int s_unit, int c_unit);
-extern void update_wgs_client_ep();
-extern int write_wgc_resolv_dnsmasq(FILE* fp_servers);
-extern void write_wgs_dnsmasq_config(FILE* fp);
-extern void write_wgs_fw_filter(FILE* fp);
-extern void run_wgc_fw_scripts();
-extern int is_wg_enabled();
-#endif
 
 //Log path is '/tmp/asusdebuglog/plc.log'
 #ifdef RTCONFIG_QCA_PLC2

@@ -4,9 +4,7 @@
 	ASUSGATE_note6 : "Your DSL (Digital Suscriber Line) seems unstable. We strongly recommend that you submit feedback to our support team.",
 	ASUSGATE_note7 : "If you are experiencing any DSL related issues or you have any comments, please feel free to inform our support team.",
 	ASUSGATE_act_feedback : "Feedback now",
-	ASUSGATE_DSL_setting : "Go setting DSL",
-	filter_lw_date_valid : 'Please select at least one day or disable this feature.',
-	ctf_fa_hint : 'System will reboot automatically after enable AiProtection for function working fine. Please click apply to enable this function or click cancel to back to page.'
+	ASUSGATE_DSL_setting : "Go setting DSL"
 };
 
 var rc_support = '<% nvram_get("rc_support"); %>';

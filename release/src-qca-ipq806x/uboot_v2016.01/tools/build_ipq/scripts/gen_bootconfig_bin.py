@@ -28,15 +28,22 @@ def process_bootconfig(config_file):
 	arch = root.find(".//data[@type='ARCH']/SOC")
 	ARCH_NAME = str(arch.text)
 
-	if root.find(".//data[@type='NAND_PARAMETER']/entry") != None:
-		entries = root.findall("./data[@type='NAND_PARAMETER']/entry")[:1]
-		for entry in entries:
-			nand_pagesize = int(entry.find(".//page_size").text)
-			nand_pages_per_block = int(entry.find(".//pages_per_block").text)
-	else:
-		nand_param = root.find(".//data[@type='NAND_PARAMETER']")
+	if ARCH_NAME == "ipq5018":
+		# IPQ5018 flash optimization needs bootconfig.bin to fit in 64KB
+		# Hence using NOR params - blocksize will be 64 KB
+		nand_param = root.find(".//data[@type='NOR_PARAMETER']")
 		nand_pagesize = int(nand_param.find('page_size').text)
 		nand_pages_per_block = int(nand_param.find('pages_per_block').text)
+	else:
+		if root.find(".//data[@type='NAND_PARAMETER']/entry") != None:
+			entries = root.findall("./data[@type='NAND_PARAMETER']/entry")[:1]
+			for entry in entries:
+				nand_pagesize = int(entry.find(".//page_size").text)
+				nand_pages_per_block = int(entry.find(".//pages_per_block").text)
+		else:
+			nand_param = root.find(".//data[@type='NAND_PARAMETER']")
+			nand_pagesize = int(nand_param.find('page_size').text)
+			nand_pages_per_block = int(nand_param.find('pages_per_block').text)
 
 	bootconfig_dir = "$$/" + ARCH_NAME + "/bootconfig/"
 	bootconfig_dir = bootconfig_dir.replace('$$', cdir)

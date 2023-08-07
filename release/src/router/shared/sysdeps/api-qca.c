@@ -35,8 +35,8 @@ typedef uint32_t __u32;
 #define IEEE80211_IOCTL_GETCHANINFO     (SIOCIWFIRSTPRIV+7)
 typedef unsigned int	u_int;
 
-#if defined(RTCONFIG_SPF11_4_QSDK)
-/* SPF11.4 or above */
+#if defined(RTCONFIG_SOC_IPQ50XX) || defined(RTCONFIG_SPF11_4_QSDK)
+/* SPF11.4 or above, sync with qca-wifi's struct ieee80211_channel_info */
 struct ieee80211_channel {
     uint8_t ieee;
     uint16_t ic_freq;
@@ -46,6 +46,7 @@ struct ieee80211_channel {
     uint8_t vhtop_ch_num_seg2;
 };
 #else
+/* sync with qca-wifi's struct ieee80211_ath_channel */
 struct ieee80211_channel {
     u_int16_t       ic_freq;        /* setting in Mhz */
 #if defined(RTCONFIG_WIFI_QCN5024_QCN5054) || defined(RTCONFIG_QCA_AXCHIP) || defined(RTCONFIG_QSDK10CS)
@@ -64,9 +65,18 @@ struct ieee80211_channel {
     int8_t          ic_minpower;    /* minimum tx power in dBm */
     u_int8_t        ic_regClassId;  /* regClassId of this channel */ 
     u_int8_t        ic_antennamax;  /* antenna gain max from regulatory */
+#if defined(RTCONFIG_SPF11_1_QSDK) || defined(RTCONFIG_SPF11_3_QSDK)
+    u_int8_t        ic_vhtop_ch_num_seg1;         /* Seg1 center Channel index */
+    u_int8_t        ic_vhtop_ch_num_seg2;         /* Seg2 center Channel index for 80+80MHz mode or
+						   * center Channel index of operating span for 160Mhz mode */
+    uint16_t        ic_vhtop_freq_seg1;           /* seg1 Center Channel frequency */
+    uint16_t        ic_vhtop_freq_seg2;           /* Seg2 center Channel frequency index for 80+80MHz mode or
+						   * center Channel frequency of operating span for 160Mhz mode */
+#else
     u_int8_t        ic_vhtop_ch_freq_seg1;         /* Channel Center frequency */
     u_int8_t        ic_vhtop_ch_freq_seg2;         /* Channel Center frequency applicable
-                                                  * for 80+80MHz mode of operation */ 
+                                                    * for 80+80MHz mode of operation */
+#endif
 };
 #endif
 
@@ -1540,7 +1550,7 @@ char *get_wlifname(int unit, int subunit, int subunit_x, char *buf)
 #if 1
 	char wifbuf[32];
 	char prefix[] = "wlXXXXXX_", tmp[100];
-	int wlc_band = nvram_get_int("wlc_band");
+	int wlc_band __attribute__((unused)) = nvram_get_int("wlc_band");
 #if defined(RTCONFIG_WIRELESSREPEATER)
 	if (sw_mode() == SW_MODE_REPEATER
 #if !defined(RTCONFIG_CONCURRENTREPEATER)

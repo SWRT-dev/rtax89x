@@ -12,7 +12,7 @@
  * ASUS configuration.
  * All CONFIG_XXX will be copied to include/autoconf.mk automatically.
  */
-#define SPFVER			11	/* 8: SPF8, 11 or 111: SPF11.1, 110: SPF11.0 */
+#define SPFVER			111	/* 8: SPF8, 11 or 114: SPF11.4, 114: SPF11.4, 111: SPF11.1, 110: SPF11.0 */
 #define CONFIG_MODEL		"GT-AXY16000"
 #define CONFIG_FLASH_TYPE	"nand"
 #define CONFIG_BLS_FIT_IMAGE
@@ -21,8 +21,11 @@
 #define CONFIG_AQRMODEL		113	/* 113 A1,B0 or 107 */
 
 /* Set 1-st version number in accordance with SPF version. */
-#if SPFVER == 11 || SPFVER == 111
+#if SPFVER == 11 || SPFVER == 114
 #define CONFIG_METATOOLDIR	"build_ipq"
+#define KV1C			"2"
+#elif SPFVER == 111
+#define CONFIG_METATOOLDIR	"build_spf11.1"
 #define KV1C			"2"
 #elif SPFVER == 110
 #define CONFIG_METATOOLDIR	"build_spf11.0"
@@ -45,7 +48,11 @@
 #endif
 
 #define CONFIG_UBI_SUPPORT
-#if SPFVER == 111
+#if SPFVER == 11 || SPFVER == 114
+#define CONFIG_BLVER		KV1C KV2C "23"
+#elif SPFVER == 113
+#define CONFIG_BLVER		KV1C KV2C "22"
+#elif SPFVER == 111
 #define CONFIG_BLVER		KV1C KV2C "21"
 #else
 #define CONFIG_BLVER		KV1C KV2C "16"

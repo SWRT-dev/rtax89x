@@ -205,42 +205,56 @@ int config_select(unsigned int addr, char *rcmd, int rcmd_size)
 	 * or board name based config is used.
 	 */
 
+#ifdef CONFIG_ARCH_IPQ806x
 	int soc_version = 0;
+#endif
+	int i, strings_count;
 	const char *config = getenv("config_name");
 
 	if (config) {
 		printf("Manual device tree config selected!\n");
 		strlcpy(dtb_config_name, config, sizeof(dtb_config_name));
-	} else {
-		config = fdt_getprop(gd->fdt_blob, 0, "config_name", NULL);
+		if (fit_conf_get_node((void *)addr, dtb_config_name) >= 0) {
+			snprintf(rcmd, rcmd_size, "bootm 0x%x#%s\n",
+				 addr, dtb_config_name);
+			return 0;
+		}
 
-		if(config == NULL) {
+	} else {
+		strings_count = fdt_count_strings(gd->fdt_blob, 0, "config_name");
+
+		if (!strings_count) {
 			printf("Failed to get config_name\n");
 			return -1;
 		}
 
-		snprintf((char *)dtb_config_name,
-			 sizeof(dtb_config_name), "%s", config);
+		for (i = 0; i < strings_count; i++) {
+			fdt_get_string_index(gd->fdt_blob, 0, "config_name",
+					   i, &config);
 
-		ipq_smem_get_socinfo_version((uint32_t *)&soc_version);
+			snprintf((char *)dtb_config_name,
+				 sizeof(dtb_config_name), "%s", config);
+
 #ifdef CONFIG_ARCH_IPQ806x
-		if(SOCINFO_VERSION_MAJOR(soc_version) >= 2) {
-			snprintf(dtb_config_name + strlen("config@"),
-				 sizeof(dtb_config_name) - strlen("config@"),
-				 "v%d.0-%s",
-				 SOCINFO_VERSION_MAJOR(soc_version),
-				 config + strlen("config@"));
-		}
+			ipq_smem_get_socinfo_version((uint32_t *)&soc_version);
+			if(SOCINFO_VERSION_MAJOR(soc_version) >= 2) {
+				snprintf(dtb_config_name + strlen("config@"),
+					 sizeof(dtb_config_name) - strlen("config@"),
+					 "v%d.0-%s",
+					 SOCINFO_VERSION_MAJOR(soc_version),
+					 config + strlen("config@"));
+			}
 #endif
+			if (fit_conf_get_node((void *)addr, dtb_config_name) >= 0) {
+				snprintf(rcmd, rcmd_size, "bootm 0x%x#%s\n",
+					 addr, dtb_config_name);
+				return 0;
+			}
+		}
 	}
 
-	if (fit_conf_get_node((void *)addr, dtb_config_name) >= 0) {
-		snprintf(rcmd, rcmd_size, "bootm 0x%x#%s\n",
-			 addr, dtb_config_name);
-		return 0;
-	}
 
-	printf("Config not availabale\n");
+	printf("Config not available\n");
 	return -1;
 }
 
@@ -473,6 +487,7 @@ static int do_boot_signedimg(cmd_tbl_t *cmdtp, int flag, int argc, char *const a
 	kernel_img_info.kernel_load_addr = request;
 
 	if (ipq_fs_on_nand) {
+#ifdef CONFIG_CMD_UBI
 		/*
 		 * The kernel will be available inside a UBI volume
 		 */
@@ -513,6 +528,7 @@ static int do_boot_signedimg(cmd_tbl_t *cmdtp, int flag, int argc, char *const a
 
 		kernel_img_info.kernel_load_size =
 			(unsigned int)ubi_get_volume_size("kernel");
+#endif
 #ifdef CONFIG_QCA_MMC
 	} else if (sfi->flash_type == SMEM_BOOT_MMC_FLASH ||
 			((sfi->flash_type == SMEM_BOOT_SPI_FLASH) &&
@@ -834,8 +850,11 @@ static int do_bootipq(cmd_tbl_t *cmdtp, int flag, int argc, char *const argv[])
 	ret = qca_scm_call(SCM_SVC_FUSE, QFPROM_IS_AUTHENTICATE_CMD, &buf, sizeof(char));
 
 	aquantia_phy_reset_init_done();
-
-	if (ret == 0 && buf == 1) {
+	/*
+	|| if atf is enable in env ,do_boot_signedimg is skip.
+	|| Note: This features currently support in ipq50XX.
+	*/
+	if (ret == 0 && buf == 1 && !getenv("atf")) {
 		ret = do_boot_signedimg(cmdtp, flag, argc, argv);
 	} else if (ret == 0 || ret == -EOPNOTSUPP) {
 		ret = do_boot_unsignedimg(cmdtp, flag, argc, argv);

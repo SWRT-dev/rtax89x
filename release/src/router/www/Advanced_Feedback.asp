@@ -531,7 +531,7 @@ function Change_pdesc(obj){
 		$("#occur_hint").show()
 						.css("text-decoration", "underline")
 						.css("cursor", "pointer")
-						.html("<br>- Reboot Scheduler currently enabled, please check scheduler setting.")	//Untranslated
+						.html("<br>- <#feedback_check_reboot#>")
 						.click( function(){ redirect_page("reboot_schedule_enable_x"); } );
 		$("#occur_hint2").hide();
 	}
@@ -541,14 +541,14 @@ function Change_pdesc(obj){
 			$("#occur_hint").show()
 							.css("text-decoration", "underline")
 							.css("cursor", "pointer")
-							.html("<br>- Wireless Scheduler currently enabled, please check scheduler setting.")	//Untranslated
+							.html("<br>- <#feedback_check_disconnect1#>")
 							.click( function(){ redirect_page("wl_timesched"); } );
 		}
 		if(wl0_radio_orig == 0 || wl1_radio_orig == 0 || wl2_radio_orig == 0){
 			$("#occur_hint2").show()
 							.css("text-decoration", "underline")
 							.css("cursor", "pointer")
-							.html("<br>- 2.4GHz or 5GHz or 5GHz-1 or 5GHz-2(or 2.4GHz and 5GHz-2 and so on) or All bands currently disabled, please check WiFi radio setting.")	//Untranslated
+							.html("<br>- <#feedback_check_disconnect2#>")
 							.click( function(){ redirect_page("wl_radio"); } );	
 		}
 	}
@@ -1003,11 +1003,11 @@ function diag_change_service_list_all() {
 		$inputHtml2.val(_value);
 		$inputHtml2.click(function() {
 			if(this.checked) {
-				if(!confirm("This WiFi DHD Log capture requires system reboot after the feedback is sent, would you like to continue?")){	//Untranslated
+				if(!confirm("<#feedback_WiFi_DHD_log_confirm#>")){
 					$(".dblog_service_item.dhd").children().prop("checked", false);
 				}
-				diag_change_service_list();
 			}
+			diag_change_service_list();
 		});
 
 		$labelHtml2.append($inputHtml2);
@@ -1018,12 +1018,12 @@ function diag_change_service_list_all() {
 
 	if($("input[name=dblog_service_list_all]").prop("checked")) {
 		if(dhdlog_support && $(".dblog_service_item.wifi").length > 0 && $(".dblog_service_item.dhd").length == 0){
-			$(".dblog_service_item.wifi").after(gen_appendix_option(16, "Additional WiFi DHD Log", "dhd"));		//Untranslated
+			$(".dblog_service_item.wifi").after(gen_appendix_option(16, "<#feedback_WiFi_DHD_log#>", "dhd"));
 		}
 		$("input[name=dblog_service_list]").prop("checked", true);
 
 		if(dhdlog_support && $(".dblog_service_item.dhd").children().prop("checked")) {
-			if(!confirm("This WiFi DHD Log capture requires system reboot after the feedback is sent, would you like to continue?")){	//Untranslated
+			if(!confirm("<#feedback_WiFi_DHD_log_confirm#>")){
 				$(".dblog_service_item.all").children().prop("checked", false);
 				$(".dblog_service_item.dhd").children().prop("checked", false);
 			}
@@ -1057,8 +1057,9 @@ function diag_tune_service_option() {
 		$inputHtml.click(function() {
 			if(dhdlog_support && _text=="WiFi"){
 				if(this.checked) {
-					$(".dblog_service_item.wifi").after(gen_appendix_option(16, "Additional WiFi DHD Log", "dhd"));		//Untranslated
-				}else{
+					$(".dblog_service_item.wifi").after(gen_appendix_option(16, "<#feedback_WiFi_DHD_log#>", "dhd"));
+				}
+				else{
 					$(".dblog_service_item.dhd").remove();
 				}
 			}
@@ -1082,7 +1083,7 @@ function diag_tune_service_option() {
 		$inputHtml2.val(_value);
 		$inputHtml2.click(function() {
 			if(this.checked) {
-				if(!confirm("This WiFi DHD Log capture requires system reboot after the feedback is sent, would you like to continue?")){	//Untranslated
+				if(!confirm("<#feedback_WiFi_DHD_log_confirm#>")){
 					$(".dblog_service_item.dhd").children().prop("checked", false);
 				}
 			}

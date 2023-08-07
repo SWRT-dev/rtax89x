@@ -237,8 +237,6 @@ static void ppe_uniphy_usxgmii_mode_set(uint32_t uniphy_index)
 	reg_value &= ~SS5;
 	reg_value |= SS6 | SS13 | DUPLEX_MODE;
 	csr1_write(uniphy_index, SR_MII_CTRL_ADDRESS, reg_value);
-	if (uniphy_index == PPE_UNIPHY_INSTANCE2);
-		ipq_mdio_write(0x7, ((1<<30) | (4<<16) | 0xc441), 8);
 }
 
 void ppe_uniphy_mode_set(uint32_t uniphy_index, uint32_t mode)

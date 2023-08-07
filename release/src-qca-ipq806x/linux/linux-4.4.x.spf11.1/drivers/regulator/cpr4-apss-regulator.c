@@ -33,8 +33,6 @@
 #include <linux/mtd/mtd.h>
 #include <linux/spinlock.h>
 #include <linux/workqueue.h>
-#include <linux/fs.h>
-#include <linux/file.h>
 #include <linux/regulator/driver.h>
 #include <linux/regulator/machine.h>
 #include <linux/regulator/of_regulator.h>
@@ -438,79 +436,6 @@ struct vstat_s {
 	uint32_t avg_uptime;		/* average of initial/latest uptime. */
 } __attribute__((packed));
 
-static const struct settings_s {
-	char *fn;
-	char *val;
-} s_tbl[] __read_mostly = {
-	/* FAN */
-	{ .fn = "/sys/class/thermal/thermal_zone0/trip_point_7_temp", .val = "25" },
-	{ .fn = "/sys/class/thermal/thermal_zone0/trip_point_7_hyst", .val =  "5" },
-	{ .fn = "/sys/class/thermal/thermal_zone0/trip_point_6_temp", .val = "30" },
-	{ .fn = "/sys/class/thermal/thermal_zone0/trip_point_6_hyst", .val =  "5" },
-	{ .fn = "/sys/class/thermal/thermal_zone0/trip_point_5_temp", .val = "35" },
-	{ .fn = "/sys/class/thermal/thermal_zone0/trip_point_5_hyst", .val =  "5" },
-	{ .fn = "/sys/class/thermal/thermal_zone0/trip_point_4_temp", .val = "45" },
-	{ .fn = "/sys/class/thermal/thermal_zone0/trip_point_4_hyst", .val = "10" },
-
-	{ .fn = NULL, .val = NULL }
-};
-
-static void adj_settings_func(struct work_struct *work)
-{
-	const struct settings_s *p;
-	int r, ret = 0;
-	char buf[32];
-	struct file *file;
-	struct cpr3_controller *ctrl;
-
-	ctrl = container_of(to_delayed_work(work), struct cpr3_controller, adj_work);
-	if (ctrl->stop_wq)
-		return;
-
-	for (p = &s_tbl[0]; p->fn != NULL && p->val != NULL; ++p) {
-		file = filp_open(p->fn, O_RDWR, 0);
-		if (IS_ERR(file)) {
-			if (PTR_ERR(file) != -ENOENT)
-				printk("%s: Open [%s] fail, error %ld\n", __func__, p->fn, PTR_ERR(file));
-			ret++;
-			continue;
-		}
-
-		*buf = '\0';
-		r = kernel_read(file, 0, buf, sizeof(buf));
-		if (r >= 0) {
-			if (r > 0)
-				*(buf + r - 1) = '\0';	/* translate '\n' as '\0' */
-			if (!strcmp(buf, p->val)) {
-				filp_close(file, NULL);
-				continue;
-			}
-		} else {
-			printk("%s: Read [%s] fail, r %d\n", __func__, p->fn, r);
-		}
-
-		r = kernel_write(file, p->val, strlen(p->val), 0);
-		if (r < 0) {
-			printk("%s: Write [%s] to [%s] fail, return %d\n", __func__, p->val, p->fn, r);
-			filp_close(file, NULL);
-			ret++;
-			continue;
-		}
-
-		filp_close(file, NULL);
-	}
-
-	if (!ret) {
-		ctrl->adj_retry = 3;
-		printk("%s: return %d\n", __func__, ret);
-	} else {
-		ctrl->adj_retry--;
-		if (ctrl->adj_retry)
-			schedule_delayed_work(&ctrl->adj_work, 5 * HZ);
-		printk("%s: return %d (retry %d)\n", __func__, ret, ctrl->adj_retry);
-	}
-}
-
 static void update_vstat_func(struct work_struct *work)
 {
 	struct cpr3_controller *ctrl;
@@ -554,11 +479,6 @@ static void update_vstat_func(struct work_struct *work)
 			memset(&ctrl->t1, 0, sizeof(ctrl->t1));
 			if (ctrl->pwr_cycle_cnt < (U32_MAX - 1))
 				ctrl->pwr_cycle_cnt++;
-			if (ctrl->last_l2ceiling) {
-				cancel_delayed_work_sync(&ctrl->adj_work);
-				/* NSS's proc entry not ready yet until 8~10 seconds */
-				schedule_delayed_work(&ctrl->adj_work, 10 * HZ);
-			}
 		} else {
 			printk("Load initial value of vstat failed. (err %d retlen %u)\n", err, retlen);
 		}
@@ -604,11 +524,6 @@ static void update_vstat_func(struct work_struct *work)
 			ctrl->last_avg_uptime = total_uptime;
 			ctrl->t1 = t;
 		}
-	}
-
-	if (ctrl->last_l2ceiling > ctrl->loaded_l2ceiling) {
-		cancel_delayed_work_sync(&ctrl->adj_work);
-		schedule_delayed_work(&ctrl->adj_work, 0);
 	}
 
 	schedule_delayed_work(&ctrl->vstat_work, 30 * 60 * HZ);
@@ -2071,7 +1986,6 @@ static int cpr4_apss_regulator_probe(struct platform_device *pdev)
 	spin_lock_init(&ctrl->vstat_lock);
 	INIT_DELAYED_WORK(&ctrl->vstat_work, update_vstat_func);
 	schedule_delayed_work(&ctrl->vstat_work, 2 * HZ);
-	INIT_DELAYED_WORK(&ctrl->adj_work, adj_settings_func);
 
 	for (i = 0; i < ctrl->thread[0].vreg_count; i++) {
 		ctrl->thread[0].vreg[i].cpr4_regulator_data = cpr_data;

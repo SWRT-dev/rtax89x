@@ -88,6 +88,7 @@ struct ipq_serial_platdata {
 	int m_value;
 	int n_value;
 	int d_value;
+	int gpio_node;
 
 };
 

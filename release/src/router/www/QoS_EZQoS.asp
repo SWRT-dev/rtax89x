@@ -828,7 +828,7 @@ function validForm(){
 					}				
 				}
 				else{
-					alert("You have not selected QoS priority mode.");		//untranslated
+					alert("<#Adaptive_QoS_priority_yet#>");
 					return false;
 				}
 			}
@@ -1005,11 +1005,11 @@ function change_qos_type(value){
 	if(value != 2){
 		var alert_hint = "";
 		if(GN_with_BandwidthLimeter)
-			alert_hint += "The Bandwidth Limiter of Guest Network will be disabled."/* Untranslated */
+			alert_hint += "<#Guest_Network_disable_BWL#>";
 		if(GN_with_Amazon_WSS_enabled){
 			if(alert_hint != "")
 				alert_hint += "\n";
-			alert_hint += "Amazon WiFi Simple Setup will be disabled."/* Untranslated */
+			alert_hint += "<#Guest_Network_disable_AmazonWiFi#>";
 		}
 		if(alert_hint != "")
 			alert(alert_hint);
@@ -1841,11 +1841,11 @@ function setGroup(name){
 
 																var alert_hint = "";
 																if(GN_with_BandwidthLimeter)
-																	alert_hint += "The Bandwidth Limiter of Guest Network will be disabled."/* Untranslated */
+																	alert_hint += "<#Guest_Network_disable_BWL#>";
 																if(GN_with_Amazon_WSS_enabled){
 																	if(alert_hint != "")
 																	alert_hint += "\n";
-																	alert_hint += "Amazon WiFi Simple Setup will be disabled."/* Untranslated */
+																	alert_hint += "<#Guest_Network_disable_AmazonWiFi#>";
 																}
 																if(alert_hint != "")
 																	alert(alert_hint);

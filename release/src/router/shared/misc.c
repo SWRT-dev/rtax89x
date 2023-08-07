@@ -3417,7 +3417,9 @@ int get_upstream_wan_unit(void)
 }
 
 /* Return WiFi unit number in accordance with interface name.
- * @wif:	pointer to WiFi interface name.
+ * @wif:	pointer to WiFi interface name. VAP interfaces for guest network is support.
+ * 		VLAN interface that derived from VAP interfaces for guest network is considered as invalid unit.
+ * 		See fec2ddeebe5d8d024c853d0d6eec3943430c8b20.
  * @return:
  * 	< 0:	invalid
  *  otherwise:	unit
@@ -3437,7 +3439,7 @@ int get_wifi_unit(char *wif)
 		if (strncmp(word, wif, strlen(word)))
 			continue;
 #if defined(RTCONFIG_AMAS_WGN) && defined(RTCONFIG_QCA) 
-		if (strlen(word)!=strlen(wif))
+		if (strchr(wif, '.') && strlen(word)!=strlen(wif))
 			continue;
 #endif
 		for (i = 0; i <= MAX_NR_WL_IF; ++i) {
@@ -4611,7 +4613,7 @@ int ch2bit(enum wl_band_id band, int ch)
 	else if (is_6g(band))
 		return ch6g2bit(ch);
 #endif
-	else if (band == WL_5G_BAND || WL_5G_2_BAND)
+	else if (band == WL_5G_BAND || band == WL_5G_2_BAND)
 		return ch5g2bit(ch);
 	else
 		return ch2g2bit(ch);
@@ -4634,7 +4636,7 @@ uint64_t ch2bitmask(enum wl_band_id band, int ch)
 	else if (is_6g(band))
 		return ch6g2bitmask(ch);
 #endif
-	else if (band == WL_5G_BAND || WL_5G_2_BAND)
+	else if (band == WL_5G_BAND || band == WL_5G_2_BAND)
 		return ch5g2bitmask(ch);
 	else
 		return ch2g2bitmask(ch);
@@ -4657,7 +4659,7 @@ int bit2ch(enum wl_band_id band, int bit)
 	else if (is_6g(band))
 		return bit2ch6g(bit);
 #endif
-	else if (band == WL_5G_BAND || WL_5G_2_BAND)
+	else if (band == WL_5G_BAND || band == WL_5G_2_BAND)
 		return bit2ch5g(bit);
 	else
 		return bit2ch2g(bit);
@@ -4679,7 +4681,7 @@ uint64_t chlist2bitmask(enum wl_band_id band, char *ch_list, char *sep)
 	else if (is_6g(band))
 		return chlist6g2bitmask(ch_list, sep);
 #endif
-	else if (band == WL_5G_BAND || WL_5G_2_BAND)
+	else if (band == WL_5G_BAND || band == WL_5G_2_BAND)
 		return chlist5g2bitmask(ch_list, sep);
 	else
 		return chlist2g2bitmask(ch_list, sep);
@@ -4699,7 +4701,7 @@ char *__bitmask2chlist(enum wl_band_id band, uint64_t mask, char *sep, char *ch_
 	else if (is_6g(band))
 		return __bitmask2chlist6g(mask, sep, ch_list, ch_list_len);
 #endif
-	else if (band == WL_5G_BAND || WL_5G_2_BAND)
+	else if (band == WL_5G_BAND || band == WL_5G_2_BAND)
 		return __bitmask2chlist5g(mask, sep, ch_list, ch_list_len);
 	else
 		return __bitmask2chlist2g(mask, sep, ch_list, ch_list_len);
@@ -4717,7 +4719,7 @@ char *bitmask2chlist(enum wl_band_id band, uint64_t mask, char *sep)
 	else if (is_6g(band))
 		return bitmask2chlist6g(mask, sep);
 #endif
-	else if (band == WL_5G_BAND || WL_5G_2_BAND)
+	else if (band == WL_5G_BAND || band == WL_5G_2_BAND)
 		return bitmask2chlist5g(mask, sep);
 	else
 		return bitmask2chlist2g(mask, sep);
@@ -4887,7 +4889,7 @@ void deauth_guest_sta(char *wlif_name, char *mac_addr)
 #endif
 }
 
-int FindBrifByWlif(char *wl_ifname, char *brif_name, int size)
+int FindBrifByWlif(const char *wl_ifname, char *brif_name, int size)
 {
 	char word[32]={0}, *next=NULL;
 

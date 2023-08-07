@@ -19,6 +19,8 @@
 #include <asm/io.h>
 #include <dm/device-internal.h>
 
+DECLARE_GLOBAL_DATA_PTR;
+
 static struct spi_flash *flash;
 static uint8_t __bounce_buf[0x10000] __attribute__((aligned(4))), *bounce_buf = __bounce_buf;
 static ulong bounce_buf_size = sizeof(__bounce_buf);
@@ -269,6 +271,7 @@ static int do_spi_flash_read_write(int argc, char * const argv[])
 	loff_t offset, len, maxsize;
         unsigned int l = 0, o;
 	int (*func)(struct spi_flash*, u32, size_t, void*) = NULL;
+	unsigned long sram_end = CONFIG_SYS_SDRAM_BASE + gd->ram_size;
 
 	if (argc < 3)
 		return -1;
@@ -285,6 +288,16 @@ static int do_spi_flash_read_write(int argc, char * const argv[])
 	if (offset + len > flash->size) {
 		printf("ERROR: attempting %s past flash size (%#x)\n",
 		       argv[0], flash->size);
+		return 1;
+	}
+	/* Validate DDR region address */
+	if ((addr < CONFIG_SYS_SDRAM_BASE) || (addr > (sram_end - 1))) {
+		puts("Invalid RAM address \n");
+		return 1;
+	}
+
+	if ((addr + len) > sram_end) {
+		puts("No space available\n");
 		return 1;
 	}
 

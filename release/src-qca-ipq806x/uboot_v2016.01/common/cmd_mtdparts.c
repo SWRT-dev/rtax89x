@@ -809,6 +809,27 @@ static void device_add(struct mtd_device *dev)
 		index_partitions();
 }
 
+#ifdef CONFIG_IPQ_TINY
+int parse_nor_partition(const char *const partdef,
+			const char **ret, struct part_info **retpart)
+{
+	return  part_parse(partdef, ret, retpart);
+}
+
+void free_parse(struct list_head *head)
+{
+	struct list_head *entry, *n;
+	struct part_info *dev_tmp;
+
+	/* clean devices list */
+	list_for_each_safe(entry, n, head) {
+		dev_tmp = list_entry(entry, struct part_info, link);
+		list_del(entry);
+		free(dev_tmp);
+	}
+}
+#endif
+
 /**
  * Parse device type, name and mtd-id. If syntax is ok allocate memory and
  * return pointer to the device structure.
