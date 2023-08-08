@@ -1067,6 +1067,7 @@ function hideEventTriggerDesc(){
 							.addClass('aura-event-desc-hide');
 }
 function uuRegister(mac){
+	var _mac = mac.toLowerCase();
 	if(swrtuu == "1")
 		window.open('https://router.uu.163.com/asus/pc.html#/acce?gwSn=' + _mac + '&type=asuswrt-merlin', '_blank');
 	else
@@ -1400,8 +1401,7 @@ function applyRule() {
 										<div style="margin:6px;">
 											<a href="https://uu.163.com/router/" target="_blank" style="color:#4A90E2;text-decoration: underline">FAQ</a>
 										</div>
-										<div style="width:1px;height: 120px;background-color: #929EA1"></div>
-										<div style="width:0px;height: 70px;margin: 32px" id="radio_uu_enable"></div>
+										<div style="width:0px;height: 25px;margin: 0 135px;" id="radio_uu_enable"></div>
 										<script type="text/javascript">
 											$('#radio_uu_enable').iphoneSwitch('<% nvram_get("uu_enable"); %>',
 												function(){
