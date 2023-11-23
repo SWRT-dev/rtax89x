@@ -5813,11 +5813,19 @@ void start_smartdns(void)
 		return;
 	}
 	fprintf(fp, "server-name SWRT-smartdns\n");
-	fprintf(fp, "conf-file /etc/blacklist-ip.conf\n");
-	fprintf(fp, "conf-file /etc/whitelist-ip.conf\n");
-	fprintf(fp, "conf-file /etc/seconddns.conf\n");
+	if (f_exists("/etc/blacklist-ip.conf"))
+		fprintf(fp, "conf-file /etc/blacklist-ip.conf\n");
+	if (f_exists("/etc/whitelist-ip.conf"))
+		fprintf(fp, "conf-file /etc/whitelist-ip.conf\n");
+	if (f_exists("/etc/seconddns.conf"))
+		fprintf(fp, "conf-file /etc/seconddns.conf\n");
+#if defined(RTCONFIG_IPV6)
 	fprintf(fp, "bind [::]:9053 -group master\n");
-	//fprintf(fp, "bind-tcp [::]:5353\n");
+	fprintf(fp, "bind-tcp [::]:9053 -group master\n");
+#else
+	fprintf(fp, "bind :9053 -group master\n");
+	fprintf(fp, "bind-tcp [::]:9053 -group master\n");
+#endif
 	fprintf(fp, "cache-size 9999\n");
 	if(nvram_match("smartdns_prefetch", "1"))
 		fprintf(fp, "prefetch-domain yes\n");
@@ -5836,14 +5844,20 @@ void start_smartdns(void)
 		fprintf(fp, "dualstack-ip-selection yes\n");
 	else
 		fprintf(fp, "dualstack-ip-selection no\n");
+	if(nvram_match("smartdns_responsemode", "0"))
+		fprintf(fp, "response-mode first-ping\n");
+	else if(nvram_match("smartdns_responsemode", "1"))
+		fprintf(fp, "response-mode fastest-ip\n");
+	else if(nvram_match("smartdns_responsemode", "2"))
+		fprintf(fp, "response-mode fastest-response\n");
 	//fprintf(fp, "edns-client-subnet 1.0.0.0/16\n");
 	//fprintf(fp, "rr-ttl 300\n");
 	//fprintf(fp, "rr-ttl-min 60\n");
 	//fprintf(fp, "rr-ttl-max 86400\n");
 	fprintf(fp, "log-level warn\n");
-	//fprintf(fp, "log-file /var/log/smartdns.log\n");
-	//fprintf(fp, "log-size 128k\n");
-	//fprintf(fp, "log-num 2\n");
+	fprintf(fp, "log-file /var/log/smartdns.log\n");
+	fprintf(fp, "log-size 64k\n");
+	fprintf(fp, "log-num 1\n");
 	if(nvram_get_int("smartdns_num") == 0){
 #if !defined(K3) && !defined(R8000P) && !defined(R7000P) && !defined(XWR3100)
 		if(!strncmp(nvram_safe_get("territory_code"), "CN",2)){
