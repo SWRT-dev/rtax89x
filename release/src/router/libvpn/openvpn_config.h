@@ -116,6 +116,7 @@ typedef struct ovpn_sconf {
 	int direction;	//key-direction of secret or tls-auth (hmac)
 	char digest[32]; //HMAC message digest algorithm: e.g. SHA1, RSA-SHA512, ecdsa-with-SHA1
 	char cipher[32];	//cipher algorithm: e.g. AES-128-CBC, CAMELLIA-256-CBC
+	int ncp_enable;
 
 //TLS Mode Options:
 	int reneg;	//TLS Renegotiation Time
@@ -173,7 +174,7 @@ typedef struct ovpn_cconf {
 	int reneg;	//TLS Renegotiation Time
 	int tlscrypt;	//Encrypt and authenticate all control channel packets.
 	int verify_x509_type;	//TYPE of verify-x509-name
-	char verify_x509_name[32];	//NAME of verify-x509-name
+	char verify_x509_name[65];	//NAME of verify-x509-name
 
 //Router options and info
 	char firewall[8];	//auto
@@ -245,7 +246,6 @@ extern ovpn_accnt_info_t* get_ovpn_accnt(ovpn_accnt_info_t *accnt_info);
 extern void reset_ovpn_setting(ovpn_type_t type, int unit);
 extern void ovpn_defaults();
 #ifdef RTCONFIG_MULTILAN_CFG
-extern char* ovpn_get_lan_ifnames(ovpn_type_t type, int unit, char* buf, size_t len);
 extern char* ovpn_get_sdn_subnet_mask(ovpn_type_t type, int unit, char* buf, size_t len);
 #endif
 #endif

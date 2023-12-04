@@ -15,14 +15,14 @@
 <link rel="stylesheet" type="text/css" href="usp_style.css">
 <link rel="stylesheet" type="text/css" href="/calendar/fullcalendar.css">
 <link rel="stylesheet" type="text/css" href="/device-map/device-map.css">
+<script type="text/javascript" src="/js/jquery.js"></script>
+<script type="text/javascript" src="/calendar/jquery-ui.js"></script> 
 <script type="text/javascript" src="/state.js"></script>
 <script type="text/javascript" src="/popup.js"></script>
 <script type="text/javascript" src="/help.js"></script>
 <script type="text/javascript" src="/general.js"></script>
 <script type="text/javascript" src="/client_function.js"></script>
 <script type="text/javascript" src="/validator.js"></script>
-<script type="text/javascript" src="/js/jquery.js"></script>
-<script type="text/javascript" src="/calendar/jquery-ui.js"></script> 
 <script type="text/javascript" src="/switcherplugin/jquery.iphone-switch.js"></script>
 <script type="text/javascript" src="/js/httpApi.js"></script>
 <style>
@@ -204,7 +204,7 @@ function initial(){
 	}
 
 	if(bwdpi_support){
-		document.getElementById('guest_image').style.background = "url(images/New_ui/TimeLimits.png)";
+		document.getElementById('guest_image').style.background = "url(images/New_ui/TimeLimits.png) no-repeat";
 		document.getElementById('content_title').innerHTML = "<#Parental_Control#> - <#Time_Scheduling#>";
 		document.getElementById('desc_title').innerHTML = "<#ParentalCtrl_Desc_TS#>";
 		document.getElementById('web_title').innerHTML = "<#Web_Title#> - <#Time_Scheduling#>";
@@ -1013,10 +1013,10 @@ function show_inner_tab(){
 			</table>
 			<div style="margin:0 0 10px 5px;" class="splitLine"></div>
 			<div id="block_all_device" style="margin-bottom:6px;display:none;">
-				<div style="font-size:14px;margin-left:6px;margin-bottom:6px;">By enabling Block All Devices, all of the connected devices will be blocked from Internet access.</div>
+				<div style="font-size:14px;margin-left:6px;margin-bottom:6px;"><#Block_All_Device_Desc#></div>
 				<table width="100%" border="1" align="center" cellpadding="4" cellspacing="0" bordercolor="#6b8fa3" class="FormTable">
 					<tr>
-						<th>Enable block all device</th>
+						<th><#Block_All_Device#></th>
 						<td>
 							<div align="center" class="left" style="width:94px; float:left; cursor:pointer;" id="radio_block_all"></div>
 							<div class="iphone_switch_container" style="height:32px; width:74px; position: relative; overflow: hidden">
@@ -1052,7 +1052,7 @@ function show_inner_tab(){
 			<table width="700px" style="margin-left:25px;">
 				<tr>
 					<td>
-						<div id="guest_image" style="background: url(images/New_ui/parental-control.png);width: 130px;height: 87px;"></div>
+						<div id="guest_image" style="background: url(images/New_ui/parental-control.png) no-repeat; width: 130px;height: 87px;"></div>
 					</td>
 					<td>&nbsp;&nbsp;</td>
 					<td style="font-size: 14px;">

@@ -549,11 +549,10 @@ static int _secure_conf(char* buf, size_t len)
 	memset(tmp, 0, len);
 	b = tmp;
 	
-	while(1)
+	while(p && *p != '\0')
 	{
 		p = _get_attr(p, name, sizeof(name), value, CKN_STR_MAX);
 
-		if(name[0] != '\0')
 		{
 			//handle data
 			_convert_data(name, value, CKN_STR_MAX);
@@ -566,8 +565,6 @@ static int _secure_conf(char* buf, size_t len)
 			
 			b += (tmp_len + 1);	//Add NULL at the end of the value
 		}
-		else
-			break;
 	}
 
 	memcpy(buf, tmp, len);
@@ -731,6 +728,7 @@ int issyspara(char *p)
 	// skip checking for wl[]_, wan[], lan[]_
 	if(strstr(p, "wl") || strstr(p, "wan") || strstr(p, "lan")
 		|| strstr(p, "vpn_server") || strstr(p, "vpn_client")
+		|| !strncmp(p, "wgs", 3) || !strncmp(p, "wgc", 3)
 	)
 		return 1;
 
@@ -925,6 +923,10 @@ main(int argc, char **argv)
 	/* Process the remaining arguments. */
 	for (; *argv; argv++) {
 		if (!strncmp(*argv, "get", 3)) {
+#ifdef RTCONFIG_NVRAM_ENCRYPT
+			if(invalid_nvram_get_name(*argv))
+				return 0;
+#endif
 			if (*++argv) {
 				if ((value = nvram_get(*argv)))
 					puts(value);
@@ -1040,9 +1042,22 @@ main(int argc, char **argv)
 			system("nvram_erase");
 		}
 		else if (!strncmp(*argv, "show", 4) || !strncmp(*argv, "getall", 6)) {
+#ifdef RTCONFIG_NVRAM_ENCRYPT
+			char name_tmp[128] = {0};
+			char *name_t = NULL, *value;
+#endif
 			nvram_getall(buf, nvram_space);
-			for (name = buf; *name; name += strlen(name) + 1)
+			for (name = buf; *name; name += strlen(name) + 1){
+#ifdef RTCONFIG_NVRAM_ENCRYPT
+				strlcpy(name_tmp, name, sizeof(name_tmp));
+				name_t = value = name_tmp;
+				name_t = strsep(&value, "=");
+
+				if(invalid_nvram_get_name(name_t))
+					continue;
+#endif
 				puts(name);
+			}
 			size = sizeof(struct nvram_header) + (long) (name - buf);
 			fprintf(stderr, "size: %d bytes (%d left)\n", size, nvram_space - size);
 		}

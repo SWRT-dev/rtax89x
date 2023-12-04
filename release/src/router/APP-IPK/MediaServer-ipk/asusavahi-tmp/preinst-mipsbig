@@ -1,17 +1,29 @@
 #!/bin/sh
 
-apps_ipkg_old=`tcapi get Apps_Entry apps_ipkg_old`
-is_arm_machine=`uname -m |grep arm`
 
+is_arm_machine=`uname -m |grep arm`
+if [ -f "/userfs/bin/tcapi" ]; then
+	apps_ipkg_old=`tcapi get Apps_Entry apps_ipkg_old`
+	APPS_MOUNTED_PATH=`tcapi get Apps_Entry apps_mounted_path`
+	APPS_INSTALL_FOLDER=`tcapi get Apps_Entry apps_install_folder`
+	ASUS_SERVER=`tcapi get Apps_Entry apps_ipkg_server`
+	wget_timeout=`tcapi get Apps_Entry apps_wget_timeout`
+	wget_options="-q"
+	apps_from_internet=`tcapi get SysInfo_Entry rc_support |grep appnet`
+	apps_local_space=`tcapi get Apps_Entry apps_local_space`
+else
+	apps_ipkg_old=`nvram get apps_ipkg_old`
+	APPS_MOUNTED_PATH=`nvram get apps_mounted_path`
+	APPS_INSTALL_FOLDER=`nvram get apps_install_folder`
+	ASUS_SERVER=`nvram get apps_ipkg_server`
+	wget_timeout=`nvram get apps_wget_timeout`
+	wget_options="-q"
+	apps_from_internet=`nvram get rc_support |grep appnet`
+	apps_local_space=`nvram get apps_local_space`
+fi
 APPS_PATH=/opt
 CONF_FILE=$APPS_PATH/etc/ipkg.conf
-ASUS_SERVER=`tcapi get Apps_Entry apps_ipkg_server`
-wget_timeout=`tcapi get Apps_Entry apps_wget_timeout`
-wget_options="-q"
-apps_from_internet=`tcapi get SysInfo_Entry rc_support |grep appnet`
-apps_local_space=`tcapi get Apps_Entry apps_local_space`
-APPS_INSTALL_FOLDER=`tcapi get Apps_Entry apps_install_folder`
-APPS_MOUNTED_PATH=`tcapi get Apps_Entry apps_mounted_path`
+
 APPS_INSTALL_PATH=$APPS_MOUNTED_PATH/$APPS_INSTALL_FOLDER
 ASUS_LIGHTTPD_VER=3.1.0.72
 CPFLAG="NO"

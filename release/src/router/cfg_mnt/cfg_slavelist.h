@@ -7,6 +7,7 @@
 #define OFFLINE_THRESHOLD	(REPORT_TIME_INTERVAL * 3)
 
 #define CFG_FILE_LOCK		"cfg_mnt"
+#define CFG_APPLY_LOCK		"cfg_apply"
 #define KEY_SHM_CFG		2001
 #define MAC_LIST_JSON_FILE	"/tmp/maclist.json"
 #define ALIAS_LEN			33
@@ -16,6 +17,7 @@
 #define MODEL_NAME_LEN		33
 #define TERRITORY_CODE_LEN	33
 #define RE_LIST_JSON_FILE	"/tmp/relist.json"
+#define RE_INFO_TEMP	"/tmp/re.info"
 #ifdef RTCONFIG_MAX_RE
 #define MAX_RELIST_COUNT	RTCONFIG_MAX_RE
 #else
@@ -117,6 +119,11 @@ extern int cm_getObVifReByNewReMac(char *newReMac, char *obReMac, int macLen);
 extern void cm_updateObVifReList(char *newReMac, char *obReMac, int action);
 #endif
 extern void cm_reorganizeReList();
+#ifdef RTCONFIG_AMAS_CENTRAL_CONTROL
+extern void cm_updateReObList(char *reMac, int action, int commit);
+#endif
+extern void cm_updateReInfo(char *reMac, char *modelName);
+extern int cm_deleteReInfo(char *reMac);
 
 #endif /* __CFG_SLAVELIST_H__ */
 /* End of cfg_slavelist.h */

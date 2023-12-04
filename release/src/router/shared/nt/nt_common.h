@@ -12,17 +12,19 @@
 #ifndef __nt_common_h__
 #define __nt_common_h__
 
+#define NC_VERSION 1
 
 /* SOCKET SERVER DEFINE SETTING 
 ---------------------------------*/
-#define NOTIFY_CENTER_SOCKET_PATH               "/var/run/notify_center_socket"
-#define NOTIFY_MAIL_SERVICE_SOCKET_PATH         "/var/run/notify_mail_socket"
+#define NOTIFY_CENTER_SOCKET_PATH               "/var/run/nt_center_socket"
+#define NOTIFY_MAIL_SERVICE_SOCKET_PATH         "/var/run/nt_actMail_socket"
 
 #define MAX_NOTIFY_SOCKET_CLIENT    5
+#define PTHREAD_STACK_SIZE          0x100000
 
-#define NOTIFY_CENTER_PID_PATH                  "/var/run/Notification_Center.pid"
-#define NOTIFY_CENTER_MONITOR_PID_PATH          "/var/run/Notification_Center_Monitor.pid"
-#define NOTIFY_ACTION_MAIL_PID_PATH             "/var/run/Notification_Center_ActMail.pid"
+#define NOTIFY_CENTER_PID_PATH                  "/var/run/nt_center.pid"
+#define NOTIFY_CENTER_MONITOR_PID_PATH          "/var/run/nt_monitor.pid"
+#define NOTIFY_ACTION_MAIL_PID_PATH             "/var/run/nt_actMail.pid"
 
 #define NOTIFY_CENTER_LOG_FILE                  "/tmp/NTC.log"
 #define NOTIFY_CENTER_MONITOR_LOG_FILE          "/tmp/NTM.log"
@@ -43,7 +45,7 @@
 /* NOTIFICATION DATABASE DEFINE SETTING 
 ----------------------------------------*/
 #define TYPE_SHIFT              16
-#define NOTIFY_DB_QLEN          200
+#define NOTIFY_DB_QLEN          400
 #define NOTIFY_DB_DEBUG         "/tmp/NTD_DEBUG"
 
 #ifdef ASUSWRT_SDK /* ASUSWRT SDK */
@@ -68,20 +70,23 @@
 
 /* ACTION SERVICE EVENT DEFINE 
 ---------------------------------*/
-#define ACTION_NOTIFY_RSV       0
-#define ACTION_NOTIFY_WEBUI     0x01
-#define ACTION_NOTIFY_EMAIL     0x02
-#define ACTION_NOTIFY_APP       0x04
-#define ACTION_NOTIFY_WEEKLY    0x08
+#define ACT_NOTIFY_RSV       0
+#define ACT_NOTIFY_DB        0x01
+#define ACT_NOTIFY_EMAIL     0x02
+#define ACT_NOTIFY_APPUSH    0x04
+#define ACT_NOTIFY_IFTTT     0x08
+#define ACT_NOTIFY_ALEXA     0x10
+#define ACT_NOTIFY_GENERAL   0x20
 
-#define ACTION_MULTI_ALL        ACTION_NOTIFY_WEBUI | ACTION_NOTIFY_APP | ACTION_NOTIFY_EMAIL | ACTION_NOTIFY_WEEKLY
-#define ACTION_MULTI_UIAPP      ACTION_NOTIFY_WEBUI | ACTION_NOTIFY_APP
+#define ACT_MULTI_ALL        ACT_NOTIFY_DB | ACT_NOTIFY_APPUSH | ACT_NOTIFY_EMAIL | ACT_NOTIFY_IFTTT | ACT_NOTIFY_ALEXA
 
 /* ACTION BIT OPERATION */
-#define NC_ACT_WEBUI_BIT        0
+#define NC_ACT_DB_BIT           0
 #define NC_ACT_EMAIL_BIT        1
-#define NC_ACT_APP_BIT          2
-#define NC_ACT_WEEKLY_BIT       3
+#define NC_ACT_APPUSH_BIT       2
+#define NC_ACT_IFTTT_BIT        3
+#define NC_ACT_ALEXA_BIT        4
+#define NC_ACT_GENERAL_BIT      5
 
 #define NC_ACTION_SET(value,x) ( (value) |=  (0x1 << x))
 #define NC_ACTION_CLR(value,x) ( (value) &= ~(0x1 << x))
@@ -107,7 +112,7 @@
 #define SYS_WAN_UNABLE_CONNECT_PARENT_AP_EVENT     0x10019
 #define SYS_WAN_MODEM_OFFLINE_EVENT                0x1001A
 #define SYS_WAN_GOT_PROBLEMS_FROM_ISP_EVENT        0x1001B
-#define SYS_WAN_UNPUBLIC_IP_EVENT                  0x1001C  /* <-- last */
+#define SYS_WAN_UNPUBLIC_IP_EVENT                  0x1001C
 /* PASSWORD EVENT */
 #define SYS_PASSWORD_SAME_WITH_LOGIN_WIFI_EVENT    0x10003
 #define SYS_PASSWORD_WIFI_WEAK_EVENT               0x10004
@@ -127,11 +132,14 @@
 #define SYS_ECO_MODE_EVENT                         0x1000E
 #define SYS_GAME_MODE_EVENT                        0x1000F
 #define SYS_NEW_DEVICE_WIFI_CONNECTED_EVENT        0x10010
-#define SYS_WIFI_DEVICE_DISCONNECTED_EVENT         0x10011
+#define SYS_NEW_DEVICE_ETH_CONNECTED_EVENT         0x10011
 #define SYS_EXISTED_DEVICE_WIFI_CONNECTED_EVENT    0x10014
 /* FIRMWARE EVENT */
 #define SYS_FW_NWE_VERSION_AVAILABLE_EVENT         0x10012
 #define SYS_NEW_SIGNATURE_UPDATED_EVENT            0x10013
+/* DFS EVENT */
+#define SYS_DFS_SUPPORT_DUALBAND_EVENT             0x1001D
+#define SYS_DFS_SUPPORT_TRIBAND_EVENT              0x1001E /* <-- last */
 /* ------------------------------
     ### Administration ###
 ---------------------------------*/
@@ -186,7 +194,22 @@
 #define USB_DISK_EJECTED_FAIL_EVENT                0x60003
 #define USB_DISK_PARTITION_FULL_EVENT              0x60004
 #define USB_DISK_FULL_EVENT                        0x60005
-
+/* ------------------------------
+    ### General Event  ###
+---------------------------------*/
+/* General EVENT */
+#define GENERAL_EVENT_PREFIX                       0x70000
+#define GENERAL_WIFI_DEV_ONLINE                    0x70001
+#define GENERAL_WIFI_DEV_OFFLINE                   0x70002
+#define GENERAL_ETH_DEV_ONLINE                     0x70003
+#define GENERAL_ETH_DEV_OFFLINE                    0x70004
+#define GENERAL_ETH_DEV_REFUSED                    0x70005
+#define GENERAL_SYS_STATES                         0x70006
+#define GENERAL_DEV_UPDATE                         0x70007
+#define GENERAL_DEV_DELETED                        0x70008
+#define GENERAL_DEV_ACCESS_CHANGE                  0x70009
+#define GENERAL_QOS_UPDATE                         0x7000A
+#define GENERAL_TOGGLE_STATES_UPDATE               0x7000B
 /* ------------------------------
     ### Hint Item ###
 ---------------------------------*/

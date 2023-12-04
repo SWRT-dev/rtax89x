@@ -87,6 +87,12 @@ unsigned int get_root_type(void)
 		case MODEL_RTAC1200GU:
 		case MODEL_RTAC1200:
 		case MODEL_RTAC1200V2:
+		case MODEL_RTACRH18:
+		case MODEL_RT4GAC86U:
+		case MODEL_RTAX53U:
+		case MODEL_XD4S:
+		case MODEL_RTAX54:
+		case MODEL_RT4GAX56:
 		case MODEL_RTN11P_B1:
 		case MODEL_RPAC53:
 		case MODEL_RPAC55:
@@ -104,14 +110,19 @@ unsigned int get_root_type(void)
 		case MODEL_RTAX92U:
 		case MODEL_RTAX95Q:
 		case MODEL_XT8PRO:
+		case MODEL_BM68:
+		case MODEL_XT8_V2:
 		case MODEL_RTAXE95Q:
 		case MODEL_ET8PRO:
+		case MODEL_ET8_V2:
 		case MODEL_RTAX56_XD4:
 		case MODEL_XD4PRO:
+		case MODEL_XC5:
 		case MODEL_CTAX56_XD4:
 		case MODEL_RTAX58U:
 		case MODEL_RTAX82_XD6S:
 		case MODEL_RTAX58U_V2:
+		case MODEL_RTAX3000N:
 		case MODEL_RTAX55:
 		case MODEL_RTAX56U:
 		case MODEL_RPAX56:
@@ -122,6 +133,9 @@ unsigned int get_root_type(void)
 		case MODEL_GTAXE16000:
 		case MODEL_ET12:
 		case MODEL_XT12:
+		case MODEL_RTAX86U:
+		case MODEL_RTAX68U:
+		case MODEL_RTAX86U_PRO:
 			return 0x24051905;      /* ubifs */
 		case MODEL_DSLAX82U:
 		{
@@ -435,12 +449,10 @@ void start_jffs2(void)
 	notice_set("jffs", format ? "Formatted" : "Loaded");
 	jffs2_fail = 0;
 
-#if defined(HND_ROUTER) || defined(DSL_AC68U)
 #ifdef RTCONFIG_JFFS_NVRAM
 	system("rm -rf /jffs/nvram_war");
 	jffs_nvram_init();
 	system("touch /jffs/nvram_war");
-#endif
 #endif
 
 #if 0 /* disable legacy & asus autoexec */

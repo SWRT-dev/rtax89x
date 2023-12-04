@@ -137,7 +137,7 @@ struct wbint_Sid2Uid {
 
 struct wbint_Sid2Gid {
 	struct {
-		const char *dom_name;/* [unique,charset(UTF8)] */
+		const char *dom_name;/* [charset(UTF8),unique] */
 		struct dom_sid *sid;/* [ref] */
 	} in;
 
@@ -165,7 +165,7 @@ struct wbint_Sids2UnixIDs {
 
 struct wbint_Uid2Sid {
 	struct {
-		const char *dom_name;/* [charset(UTF8),unique] */
+		const char *dom_name;/* [unique,charset(UTF8)] */
 		uint64_t uid;
 	} in;
 

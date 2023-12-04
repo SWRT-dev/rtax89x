@@ -26,6 +26,7 @@
 #include <sys/sysinfo.h>
 #include <sys/stat.h>
 #include <stdint.h>
+#include <inttypes.h>
 #include <syslog.h>
 #include <ctype.h>
 
@@ -672,7 +673,7 @@ static void save_speedjs(long next)
 			fprintf(f, "],\n");
 
 			c = j ? 't' : 'r';
-			fprintf(f, " %cx_avg: %llu,\n %cx_max: %llu,\n %cx_total: %llu",
+			fprintf(f, " %cx_avg: %" PRIu64 ",\n %cx_max: %" PRIu64 ",\n %cx_total: %" PRIu64 "",
 				c, total / MAX_NSPEED, c, tmax, c, total);
 		}
 	}
@@ -709,7 +710,7 @@ _dprintf("MONTHLY: p= %d\n", p);
 	for (k = max; k > 0; --k) {
 		p = (p + 1) % max;
 		if (data[p].xtime == 0) continue;
-		fprintf(f, "%s[0x%lx,0x%llx,0x%llx]", kn ? "," : "",
+		fprintf(f, "%s[0x%lx,0x% " PRIx64 ",0x%" PRIx64 "]", kn ? "," : "",
 			(unsigned long)data[p].xtime, data[p].counter[0] / K, data[p].counter[1] / K);
 		++kn;
 _dprintf("%d:: [0x%lx,0x%llx,0x%llx]\n", p, 

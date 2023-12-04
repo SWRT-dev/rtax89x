@@ -1,8 +1,12 @@
 include ../common.mak
+CFLAGS += $(if $(RTCONFIG_DEBUG),-g)
 
-ifeq ($(or $(RTCONFIG_BCMARM),$(RTCONFIG_QCA_ARM),$(RTCONFIG_ALPINE)),y)
+ifeq ($(or $(RTCONFIG_BCMARM),$(RTCONFIG_QCA_ARM),$(RTCONFIG_ALPINE),$(MUSL_LIBC)),y)
 CONFIGURE=configure-router-arm
 ARCH=ARM
+else ifeq ($(RTCONFIG_RALINK_MT7622),y)
+CONFIGURE=configure-router-arm64
+ARCH=ARM64
 else
 CONFIGURE=configure-router-mips
 ARCH=MIPS

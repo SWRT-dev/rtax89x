@@ -14,12 +14,12 @@
 #include <string.h>
 #include <time.h>
 #include <limits.h>
-#ifdef HND_ROUTER
-#include <time.h>
-#include <pthread.h>
-#endif
+
 #ifdef RTCONFIG_RALINK
 #include <ralink.h>
+#endif
+#if defined(RTCONFIG_MT798X)
+#include <sys/sysmacros.h>
 #endif
 
 #ifdef RTCONFIG_QCA
@@ -31,10 +31,36 @@
 #include <lp5523led.h>
 #endif
 
+#if defined(RTCONFIG_CONNDIAG)
+#include "conn_diag-sql.h"
+#endif
+
 #if defined(RTCONFIG_SOC_IPQ8074)
 #include <sys/vfs.h>
 #include <inttypes.h>
 #include <sys/reboot.h>
+#endif
+
+
+#if defined(RTCONFIG_TUNNEL) && defined(RTCONFIG_ACCOUNT_BINDING)
+#include <json.h>
+#endif
+
+#ifdef RTCONFIG_USB
+//#include <usb_info.h>
+//#include <disk_io_tools.h>
+#include <disk_initial.h>
+//#include <disk_share.h>
+#endif
+
+#ifdef RTCONFIG_COMFW
+#include <comfw.h>
+#endif
+
+#include <model.h>
+
+#if defined(RTCONFIG_TUNNEL) && defined(RTCONFIG_ACCOUNT_BINDING)
+#include <aae_ipc.h>
 #endif
 
 #if defined(RTCONFIG_SWRT)
@@ -66,8 +92,81 @@ typedef enum cmds_e {
 extern uint64_t hnd_ethswctl(ecmd_t act, unsigned int val, int len, int wr, unsigned long long regdata);
 #endif
 
+#if defined(CONFIG_BCMWL5)
+double wl_get_txpwr_target_max(char *name);
+double get_wifi_maxpower(int target_unit);
+#endif
+
+#if defined(RTCONFIG_LIB_CODB)
+/* codb_utils.h is not in $(STAGEDIR) directory, declare function prototype instead. */
+extern int codb_test();
+#endif
+
+// led_str_ctrl
+enum led_id get_led_id(const char *led_str)
+{
+	enum led_id led = LED_ID_MAX;
+
+	if(!strcmp(led_str, "LED_POWER")){
+		return LED_POWER;
+	}
+	else if(!strcmp(led_str, "LED_WPS")){
+		return LED_WPS;
+	}
+	else if(!strcmp(led_str, "LED_WAN")){
+		return LED_WAN;
+	}
+#ifdef HND_ROUTER
+	else if(!strcmp(led_str, "LED_WAN_NORMAL")){
+		return LED_WAN_NORMAL;
+	}
+#endif
+#ifdef RTCONFIG_EXTPHY_BCM84880
+	else if(!strcmp(led_str, "LED_EXTPHY")){
+		return LED_EXTPHY;
+	}
+#endif
+#ifdef RTCONFIG_LAN4WAN_LED
+	else if(!strcmp(led_str, "LED_LAN1")){
+		return LED_LAN1;
+	}
+	else if(!strcmp(led_str, "LED_LAN2")){
+		return LED_LAN2;
+	}
+	else if(!strcmp(led_str, "LED_LAN3")){
+		return LED_LAN3;
+	}
+	else if(!strcmp(led_str, "LED_LAN4")){
+		return LED_LAN4;
+	}
+#endif
+#if 0
+	else if(!strcmp(led_str, "LED_LAN")){
+		return LED_LAN;
+	}
+	else if(!strcmp(led_str, "LED_USB")){
+		return LED_USB;
+	}
+	else if(!strcmp(led_str, "LED_USB3")){
+		return LED_USB3;
+	}
+	else if(!strcmp(led_str, "LED_2G")){
+		return LED_2G;
+	}
+	else if(!strcmp(led_str, "LED_5G")){
+		return LED_5G;
+	}
+#endif
+	else{
+		dbg("%s: Unknown LED: %s!\n", __func__, led_str);
+	}
+
+	return led;
+}
+
+
 #ifdef  __CONFIG_WBD__
-static void
+void
 wbd_restore_defaults(void)
 {
 	char tmp[100], prefix[] = "wlXXXXXXXXXXXXXXXXXXXXXXXXXXXX_mssid_";
@@ -284,68 +383,67 @@ coma_uevent(void)
 }
 #endif /* LINUX_2_6_36 */
 
-#ifdef DEBUG_RCTEST
-
 int pt_loops;
 void *inc_x(void *x_void_ptr)
 {
-	printf("thread-%s:pid:%d, x increment start\n", __func__, getpid());
+        printf("thread-%s:pid:%d, x increment start\n", __func__, getpid());
 
-	int *x_ptr = (int *)x_void_ptr;
-	while(++(*x_ptr) < pt_loops) {
-		nvram_set("ppap_x", "1");
-		if(!nvram_match("ppap_x", "1")) {
-			printf("%s, pid=%d. nvram read err:%s\n", __func__, getpid(), nvram_safe_get("ppap_x"));
-		}
-	}
+        int *x_ptr = (int *)x_void_ptr;
+        while(++(*x_ptr) < pt_loops) {
+                nvram_set("ppap_x", "1");
+                if(!nvram_match("ppap_x", "1")) {
+                        printf("%s, pid=%d. nvram read err:%s\n", __func__, getpid(), nvram_safe_get("ppap_x"));
+                }
+        }
 
-	printf("thread-%s:pid:%d, x increment finished\n", __func__, getpid());
+        printf("thread-%s:pid:%d, x increment finished\n", __func__, getpid());
 
-	/* the function must return something - NULL will do */
-	return NULL;
+        /* the function must return something - NULL will do */
+        return NULL;
 }
 
 #ifdef HND_ROUTER
 int pt_main(int loops)
 {
 
-	int x = 0, y = 0;
+        int x = 0, y = 0;
 
-	printf("%s, pid:%d, x=%d, y=%d\n", __func__, getpid(), x, y);
+        printf("%s, pid:%d, x=%d, y=%d\n", __func__, getpid(), x, y);
 
-	pt_loops = loops;
+        pt_loops = loops;
 
-	pthread_t inc_x_thread;
+        pthread_t inc_x_thread;
 
-	if(pthread_create(&inc_x_thread, NULL, inc_x, &x)) {
-		fprintf(stderr, "Error creating thread\n");
-		return 1;
-	}
+        if(pthread_create(&inc_x_thread, NULL, inc_x, &x)) {
+                fprintf(stderr, "Error creating thread\n");
+                return 1;
+        }
 
-	/* increment y to 100 in the first thread */
-	while(++y < pt_loops) {
-		nvram_set("ppap_y", "2");
-		if(!nvram_match("ppap_y", "2")) {
-			printf("%s, pid=%d, nvram read err:%s\n", __func__, getpid(), nvram_safe_get("ppap_y"));
-		}
-	}
+        /* increment y to 100 in the first thread */
+        while(++y < pt_loops) {
+                nvram_set("ppap_y", "2"); 
+                if(!nvram_match("ppap_y", "2")) {
+                        printf("%s, pid=%d, nvram read err:%s\n", __func__, getpid(), nvram_safe_get("ppap_y"));
+                }
+        }
 
-	printf("y increment finished\n");
+        printf("y increment finished\n");
 
-	/* wait for the second thread to finish */
-	if(pthread_join(inc_x_thread, NULL)) {
-		fprintf(stderr, "Error joining thread\n");
-	return 2;
+        /* wait for the second thread to finish */
+        if(pthread_join(inc_x_thread, NULL)) {
+                fprintf(stderr, "Error joining thread\n");
+        return 2;
 
-	}
+        }
 
-	/* show the results - x is now 100 thanks to the second thread */
-	printf("x: %d, y: %d\n", x, y);
+        /* show the results - x is now 100 thanks to the second thread */
+        printf("x: %d, y: %d\n", x, y);
 
-	return 0;
+        return 0;
 }
-#endif	/* HND_ROUTER */
+#endif  /* HND_ROUTER */
 
+#ifdef DEBUG_RCTEST
 int test_mknode(int id);
 // used for various testing
 static int rctest_main(int argc, char *argv[])
@@ -361,6 +459,9 @@ static int rctest_main(int argc, char *argv[])
 #if defined(CONFIG_BCMWL5) && defined(HND_ROUTER)
 	else if (strcmp(argv[1], "gpy211")==0) {
 		GPY211_INIT_SPEED();
+	}
+	else if (strcmp(argv[1], "gpy211_wan")==0) {
+		GPY211_WAN_SPEED();
 	}
 #endif
 #if defined(RTCONFIG_FRS_FEEDBACK)
@@ -384,11 +485,11 @@ static int rctest_main(int argc, char *argv[])
 	else if (strcmp(argv[1], "GetExtPhyStatus")==0) {
 		printf("Get Ext Phy status:%d\n", GetPhyStatus(atoi(argv[2]), NULL));
 	}
-#ifdef CONFIG_BCMWL5
 	else if(strcmp(argv[1], "frdwa")==0){
 		printf("frdwa\n");
 		exe_eu_wa_rr();
 	}
+#ifdef CONFIG_BCMWL5
 #if defined(RTCONFIG_AMAS) && defined(RTCONFIG_BHCOST_OPT)
 	else if (strcmp(argv[1], "linkrate")==0) {
 		if(argv[2]) {
@@ -539,10 +640,18 @@ static int rctest_main(int argc, char *argv[])
 	else if (strcmp(argv[1], "is_dpsta") == 0) {
 		printf("dpsta_mode=%d\n", dpsta_mode());
 	}
+	else if (strcmp(argv[1], "is_psta") == 0) {
+		printf("is_psta=(0:%d, 1:%d)\n", is_psta(0), is_psta(1));
+	}
 	else if (strcmp(argv[1], "is_rp") == 0) {
-		printf("rp_mode=%d(0:%d,1:%d)\n", rp_mode(), is_rp_unit(0), is_rp_unit(1));
+		printf("rp_mode=%d(0:%d, 1:%d)\n", rp_mode(), is_rp_unit(0), is_rp_unit(1));
 	}
 #endif
+        else if (strcmp(argv[1], "getbw") == 0) {
+                int unit = atoi(argv[2]);
+                int bw = wl_get_bw(unit);
+                printf("get wl_bw of unit_%d=%d\n", unit, bw);
+        }
 #ifdef HND_ROUTER
 	else if (strcmp(argv[1], "ptest")==0) {
 		pt_main(atoi(argv[2]));
@@ -631,10 +740,16 @@ static int rctest_main(int argc, char *argv[])
 
 		//if ((ret = GetPhyStatus(1, &phy_list)) == 1) {
 			GetPhyStatus(1, &phy_list);
+#ifdef RTCONFIG_NEW_PHYMAP
+#ifdef RTCONFIG_USB
+			get_usb_modem_status(&phy_list);
+#endif
+#endif
 			for(i=0;i<phy_list.count;i++) {
-				fprintf(stderr, " phy_port_id=%d, label_name=%s, cap_name=%s, state=%s, link_rate=%d, duplex=%s, tx_packets=%u, rx_packets=%u, tx_bytes=%llu, rx_bytes=%llu, crc_errors=%u\n", 
+				fprintf(stderr, " phy_port_id=%d, label_name=%s, cap=%u, cap_name=%s, state=%s, link_rate=%d, duplex=%s, tx_packets=%u, rx_packets=%u, tx_bytes=%" PRIu64 ", rx_bytes=%" PRIu64 ", crc_errors=%u\n", 
 					phy_list.phy_info[i].phy_port_id,
 					phy_list.phy_info[i].label_name,
+					phy_list.phy_info[i].cap,
 					phy_list.phy_info[i].cap_name,
 					phy_list.phy_info[i].state,
 					phy_list.phy_info[i].link_rate,
@@ -649,8 +764,333 @@ static int rctest_main(int argc, char *argv[])
 		//	_dprintf("GetPhyStatus failed (%d): ", ret);
 		_dprintf("\n");
 	}
+#ifdef RTCONFIG_NEW_PHYMAP
+	else if (strcmp(argv[1], "port_status")==0) {
+		phy_info_list phy_list = {0};
+		int /*ret,*/ i, j, usb_port = 1;
+		phy_port_mapping port_mapping;
+		get_phy_port_mapping(&port_mapping);
+		phy_list.count = port_mapping.count;
+		for(i=0;i<port_mapping.count;i++) {
+			phy_list.phy_info[i].phy_port_id = port_mapping.port[i].phy_port_id;
+			snprintf(phy_list.phy_info[i].label_name, sizeof(phy_list.phy_info[i].label_name), port_mapping.port[i].label_name);
+			phy_list.phy_info[i].cap = port_mapping.port[i].cap;
+			//phy_list.phy_info[i].max_rate = port_mapping.port[i].max_rate;
+		}
+		GetPhyStatus(0, &phy_list);
+
+#ifdef RTCONFIG_USB
+		get_usb_modem_status(&phy_list);
+#endif
+
+		for(i=0;i<phy_list.count;i++) {
+			fprintf(stderr, " phy_port_id=%d, label_name=%s, cap=%u, cap_name=%s, max_rate=%d, ifname=%s, state=%s, link_rate=%d, duplex=%s, tx_packets=%u, rx_packets=%u, tx_bytes=%" PRIu64 ", rx_bytes=%" PRIu64 ", crc_errors=%u\n",
+				phy_list.phy_info[i].phy_port_id,
+				phy_list.phy_info[i].label_name,
+				phy_list.phy_info[i].cap,
+				phy_list.phy_info[i].cap_name,
+				port_mapping.port[i].max_rate,
+				port_mapping.port[i].ifname,
+				phy_list.phy_info[i].state,
+				phy_list.phy_info[i].link_rate,
+				phy_list.phy_info[i].duplex,
+				phy_list.phy_info[i].tx_packets,
+				phy_list.phy_info[i].rx_packets,
+				phy_list.phy_info[i].tx_bytes,
+				phy_list.phy_info[i].rx_bytes,
+				phy_list.phy_info[i].crc_errors);
+#ifdef RTCONFIG_USB
+			if ((phy_list.phy_info[i].cap & PHY_PORT_CAP_USB) > 0) {
+				int max_hub_port = sizeof(phy_list.phy_info[i].usb_devices)/sizeof(usb_device_info_t);
+				get_usb_devices_by_usb_port(phy_list.phy_info[i].usb_devices, max_hub_port, usb_port++);
+				for (j=0; j<max_hub_port; j++) {
+					if (strlen(phy_list.phy_info[i].usb_devices[j].type) == 0)
+						continue;
+					fprintf(stderr, "usb_path=%s, node=%s, type=%s, manufacturer=%s, product=%s, serial=%s, device_name=%s, speed=%d, storage_size=%" PRIu64 ", storage_used=%" PRIu64 "\n",
+						phy_list.phy_info[i].usb_devices[j].usb_path,
+						phy_list.phy_info[i].usb_devices[j].node,
+						phy_list.phy_info[i].usb_devices[j].type,
+						phy_list.phy_info[i].usb_devices[j].manufacturer,
+						phy_list.phy_info[i].usb_devices[j].product,
+						phy_list.phy_info[i].usb_devices[j].serial,
+						phy_list.phy_info[i].usb_devices[j].device_name,
+						phy_list.phy_info[i].usb_devices[j].speed,
+						phy_list.phy_info[i].usb_devices[j].storage_size_in_kilobytes,
+						phy_list.phy_info[i].usb_devices[j].storage_used_in_kilobytes);
+				}
+			}
+#endif
+		}
+
+		char *port_status_buf = NULL;
+		if(get_node_eth_port_status(NULL, &port_status_buf) > 0){
+			fprintf(stderr, "%s\n", port_status_buf);
+			free_node_eth_port_status(&port_status_buf);
+		}
+	}
+#endif
+#if defined(RTCONFIG_LIB_CODB)
+	else if (strcmp(argv[1], "codb_test")==0) {
+		codb_test();
+#if 0		
+		if(nvram_get_int("cablediag_test")==1)
+		{
+			char capmac[] = "04:D9:F5:B5:93:E0";
+			char remac[]  = "04:D9:F5:B5:94:70";
+			exec_force_cable_diag(capmac,NULL);
+		}
+		//exec_force_cable_diag(capmac,remac);
+#endif
+	}
+#endif
+#if defined(RTCONFIG_CD_IPERF)
+	else if (strcmp(argv[1], "run_iperf")==0) {
+
+		char caller[32];
+		snprintf(caller, sizeof(caller), "%s", argv[2]);
+
+		if (strlen(caller)>0) {
+			if (argv[3] && argv[4]) {
+				if (strncmp(argv[4], "all", 3)==0) {
+					//- rc run_iperf type smac all
+					char smac[32];
+					snprintf(smac, sizeof(smac), "%s",argv[3]);
+					if(strlen(smac)==17) {
+						exec_iperf(caller, smac, "all");
+						return;
+					}
+				}
+				else {
+					//- rc run_iperf type smac cmac
+					char smac[32], cmac[32];
+					snprintf(smac, sizeof(smac), "%s",argv[3]);
+					snprintf(cmac, sizeof(cmac), "%s",argv[4]);
+					if(strlen(smac)==17 && strlen(cmac)==17) {
+						exec_iperf(caller, smac, cmac);
+						return;
+					}
+				}
+			}
+		}
+
+		_dprintf("Fail to run iperf\n");
+	}
+#endif
+#if defined(RTCONFIG_TUNNEL) && defined(RTCONFIG_ACCOUNT_BINDING)
+	else if (strcmp(argv[1], "aae_refresh_userticket")==0) {
+		char event[AAE_MAX_IPC_PACKET_SIZE];
+		char out[AAE_MAX_IPC_PACKET_SIZE];
+		snprintf(event, sizeof(event), AAE_DDNS_GENERIC_MSG, AAE_EID_DDNS_REFRESH_TOKEN);
+		aae_sendIpcMsgAndWaitResp(MASTIFF_IPC_SOCKET_PATH, event, strlen(event), out, sizeof(out), 10);
+		json_object *root = NULL;
+		json_object *ddnsObj = NULL;
+		json_object *eidObj = NULL;
+		json_object *stsObj = NULL;
+		root = json_tokener_parse((char *)out);
+		json_object_object_get_ex(root, AAE_DDNS_PREFIX, &ddnsObj);
+		json_object_object_get_ex(ddnsObj, AAE_IPC_EVENT_ID, &eidObj);
+		json_object_object_get_ex(ddnsObj, AAE_IPC_STATUS, &stsObj);
+		if (!ddnsObj || !eidObj || !stsObj)
+			printf("Failed to aae_refresh_userticket\n");
+		else {
+			int eid = json_object_get_int(eidObj);
+			const char *status = json_object_get_string(stsObj);
+			if ((eid == AAE_EID_DDNS_REFRESH_TOKEN) && (!strcmp(status, "0")))
+				printf("Success to aae_refresh_userticket\n");
+			else
+				printf("Failed to aae_refresh_userticket\n");
+		}
+		json_object_put(root);
+	}
+	else if (strcmp(argv[1], "aae_refresh_deviceticket")==0) {
+		char event[AAE_MAX_IPC_PACKET_SIZE];
+		char out[AAE_MAX_IPC_PACKET_SIZE];
+		snprintf(event, sizeof(event), AAE_NTC_GENERIC_MSG, AAE_EID_NTC_REFRESH_DEVICE_TICKET);
+		aae_sendIpcMsgAndWaitResp(MASTIFF_IPC_SOCKET_PATH, event, strlen(event), out, sizeof(out), 10);
+		json_object *root = NULL;
+		json_object *ntcObj = NULL;
+		json_object *eidObj = NULL;
+		json_object *stsObj = NULL;
+		root = json_tokener_parse((char *)out);
+		json_object_object_get_ex(root, AAE_NTC_PREFIX, &ntcObj);
+		json_object_object_get_ex(ntcObj, AAE_IPC_EVENT_ID, &eidObj);
+		json_object_object_get_ex(ntcObj, AAE_IPC_STATUS, &stsObj);
+		if (!ntcObj || !eidObj || !stsObj)
+			printf("Failed to aae_refresh_deviceticket\n");
+		else {
+			int eid = json_object_get_int(eidObj);
+			const char *status = json_object_get_string(stsObj);
+			if ((eid == AAE_EID_NTC_REFRESH_DEVICE_TICKET) && (!strcmp(status, "0")))
+				printf("Success to aae_refresh_deviceticket\n");
+			else
+				printf("Failed to aae_refresh_deviceticket\n");
+		}
+		json_object_put(root);
+	}
+	else if (strcmp(argv[1], "aae_send_payload2")==0) {
+		char event[AAE_MAX_IPC_PACKET_SIZE];
+		char out[AAE_MAX_IPC_PACKET_SIZE];
+		snprintf(event, sizeof(event), AAE_HTTPD_PAYLOAD2_MSG, AAE_EID_HTTPD_PAYLOAD2, "{\"oauth_dm_cusid\":\"45a008e300c4e1a7739ac60e14da27854e4c6d6774475be258e7f64e8db33b79\", \"mobile_deviceid\":\"8588309ead48e0a818d3d552c74ef14e\", \"dm_ticket\":\"test\"}");
+		aae_sendIpcMsgAndWaitResp(MASTIFF_IPC_SOCKET_PATH, event, strlen(event), out, sizeof(out), 5);
+		json_object *root = NULL;
+		json_object *httpdObj = NULL;
+		json_object *eidObj = NULL;
+		json_object *stsObj = NULL;
+		root = json_tokener_parse((char *)out);
+		json_object_object_get_ex(root, AAE_HTTPD_PREFIX, &httpdObj);
+		json_object_object_get_ex(httpdObj, AAE_IPC_EVENT_ID, &eidObj);
+		json_object_object_get_ex(httpdObj, AAE_IPC_STATUS, &stsObj);
+		if (!httpdObj || !eidObj || !stsObj)
+			printf("Failed to aae_send_payload2\n");
+		else {
+			int eid = json_object_get_int(eidObj);
+			const char *status = json_object_get_string(stsObj);
+			if ((eid == AAE_EID_HTTPD_PAYLOAD2) && (!strcmp(status, "0")))
+				printf("Success to aae_send_payload2\n");
+			else
+				printf("Failed to aae_send_payload2\n");
+		}
+		json_object_put(root);
+	}
+	else if (strcmp(argv[1], "aae_account_reg")==0) {
+		char event[AAE_MAX_IPC_PACKET_SIZE];
+		char out[AAE_MAX_IPC_PACKET_SIZE];
+		snprintf(event, sizeof(event), AAE_HTTPD_ACCOUNT_REG_MSG, AAE_EID_HTTPD_ACCOUNT_REG, "{\"oauth_type\":\"GOOGLE\", \"username\":\"gemini.plus0668@gmail.com\", \"password\":\"eyJhbGciOiJSUzI1NiIsImtpZCI6IjM4ZjM4ODM0NjhmYzY1OWFiYjQ0NzVmMzYzMTNkMjI1ODVjMmQ3Y2EiLCJ0eXAiOiJKV1QifQ.eyJpc3MiOiJodHRwczovL2FjY291bnRzLmdvb2dsZS5jb20iLCJhenAiOiI1Mjg3NTcxMzYzNC1wY245ODRwN3QwMmJjaGlkZGNhdWw4cjFiZ3YwcGkzZy5hcHBzLmdvb2dsZXVzZXJjb250ZW50LmNvbSIsImF1ZCI6IjUyODc1NzEzNjM0LXA3bGs5OWViaTM5aWNta2FhMDdrdjdmcjhyMnU0MzZnLmFwcHMuZ29vZ2xldXNlcmNvbnRlbnQuY29tIiwic3ViIjoiMTEzNjUxMjYyNzk3MjIyNzc1NzY3IiwiZW1haWwiOiJnZW1pbmkucGx1czA2NjhAZ21haWwuY29tIiwiZW1haWxfdmVyaWZpZWQiOnRydWUsIm5hbWUiOiJKZXJyeSBMaW4iLCJwaWN0dXJlIjoiaHR0cHM6Ly9saDMuZ29vZ2xldXNlcmNvbnRlbnQuY29tL2EvQUFUWEFKeS1tMUNCTi1QS3N1YS00Q0EzWXJiQWgtbmdSM0s3YTlfNXBPMG89czk2LWMiLCJnaXZlbl9uYW1lIjoiSmVycnkiLCJmYW1pbHlfbmFtZSI6IkxpbiIsImxvY2FsZSI6InpoLVRXIiwiaWF0IjoxNjUzOTc5NDIxLCJleHAiOjE2NTM5ODMwMjF9.D-ttK5G9PcdEjTR1-7C-TaUEaIeXHM3kyQBjpFNAjRD67dQrDA_Slu13ZEGsADQ_F7NARIbCGvxVj6Ko0giHZBLPalssIDmn4mebegIsppt53X9ZJczVpzDth9_zrzkAMjfiHnl6_lTH2WBktQYG_VDosUh-YPI51_TUeVojB7pVYBdre5dHZ9uW6Mt5CFwPQhesnziTQBIoaT8_8n07ehClcT8SOfkN8ZYDbgHSJYLPAnSG8cLrRH-MhyS8EECyGUEGhQWQ45saFTtdhfSZ3GoeEl6dpaRAacLd8XIJ6o855mP2eOD8ZnZtDi8JeX8lQXxU0rl_XbPrmF5AsmbC0Q\"}");
+		aae_sendIpcMsgAndWaitResp(MASTIFF_IPC_SOCKET_PATH, event, strlen(event), out, sizeof(out), 10);
+		printf("out=%s, out len=%lu\n", out, sizeof(out));
+		json_object *root = NULL;
+		json_object *httpdObj = NULL;
+		json_object *eidObj = NULL;
+		json_object *stsObj = NULL;
+		json_object *accountregObj = NULL;
+		json_object *cusidObj = NULL;
+		json_object *refreshticketObj = NULL;
+		json_object *userticketObj = NULL;
+		root = json_tokener_parse((char *)out);
+		json_object_object_get_ex(root, AAE_HTTPD_ACCOUNT_REG_PREFIX, &httpdObj);
+		if (httpdObj) {
+			json_object_object_get_ex(httpdObj, AAE_IPC_EVENT_ID, &eidObj);
+			json_object_object_get_ex(httpdObj, AAE_IPC_STATUS, &stsObj);
+			json_object_object_get_ex(httpdObj, AAE_HTTPD_ACCOUNT_REG_PREFIX, &accountregObj);
+			if (eidObj && stsObj && accountregObj) {
+				json_object_object_get_ex(accountregObj, OAUTH_CUSID, &cusidObj);
+				json_object_object_get_ex(accountregObj, OAUTH_REFRESH_TICKET, &refreshticketObj);
+				json_object_object_get_ex(accountregObj, OAUTH_USER_TICKET, &userticketObj);
+
+				int eid = json_object_get_int(eidObj);
+				const char *status = json_object_get_string(stsObj);
+				if ((eid == AAE_EID_HTTPD_ACCOUNT_REG) && (!strcmp(status, "0"))) {
+					const char *cusid = json_object_get_string(cusidObj);
+					const char *refresh_ticket = json_object_get_string(refreshticketObj);
+					const char *user_ticket = json_object_get_string(userticketObj);
+					printf("Success to aae_account_reg, cusid=%s, refresh_ticket=%s, user_ticket=%s\n", cusid, refresh_ticket, user_ticket);
+					json_object_put(root);
+					return 0;
+				}	
+			}
+		}
+		
+		json_object_put(root);
+
+		printf("Failed to aae_account_reg\n");
+	}
+	else if (strcmp(argv[1], "aae_fbwifi2_reg")==0) {
+		char event[AAE_MAX_IPC_PACKET_SIZE];
+		char out[AAE_MAX_IPC_PACKET_SIZE];
+		snprintf(event, sizeof(event), AAE_HTTPD_FBWIFI2_REG_MSG, AAE_EID_HTTPD_FBWIFI2_REG, "{\"devicename\":\"testRouter\", \"hw_version\":\"1.0.0\", \"sw_version\":\"1.0.0\", \"bssids\":[\"04:42:1a:6b:50:00\",\"04:42:1a:6b:50:08\"], \"ssids\":[\"ASUS_00_XT12\", \"ASUS_00_XT12_5G-1\"]}");
+		aae_sendIpcMsgAndWaitResp(MASTIFF_IPC_SOCKET_PATH, event, strlen(event), out, sizeof(out), 5);
+		json_object *root = NULL;
+		json_object *httpdObj = NULL;
+		json_object *eidObj = NULL;
+		json_object *stsObj = NULL;
+		root = json_tokener_parse((char *)out);
+		json_object_object_get_ex(root, AAE_HTTPD_PREFIX, &httpdObj);
+		json_object_object_get_ex(httpdObj, AAE_IPC_EVENT_ID, &eidObj);
+		json_object_object_get_ex(httpdObj, AAE_IPC_STATUS, &stsObj);
+		if (!httpdObj || !eidObj || !stsObj)
+			printf("Failed to aae_fbwifi2_reg\n");
+		else {
+			int eid = json_object_get_int(eidObj);
+			const char *status = json_object_get_string(stsObj);
+			if ((eid == AAE_EID_HTTPD_FBWIFI2_REG) && (!strcmp(status, "0")))
+				printf("Success to aae_fbwifi2_reg\n");
+			else
+				printf("Failed to aae_fbwifi2_reg\n");
+		}
+		json_object_put(root);
+	}
+	else if (strcmp(argv[1], "aae_httpd_refresh_deviceticket")==0) {
+		char event[AAE_MAX_IPC_PACKET_SIZE];
+		char out[AAE_MAX_IPC_PACKET_SIZE];
+		snprintf(event, sizeof(event), AAE_HTTPD_REFRESH_DEVICE_TICKET_MSG, AAE_EID_HTTPD_REFRESH_DEVICE_TICKET);
+		aae_sendIpcMsgAndWaitResp(MASTIFF_IPC_SOCKET_PATH, event, strlen(event), out, sizeof(out), 5);
+		json_object *root = NULL;
+		json_object *httpdObj = NULL;
+		json_object *eidObj = NULL;
+		json_object *stsObj = NULL;
+		root = json_tokener_parse((char *)out);
+		json_object_object_get_ex(root, AAE_HTTPD_PREFIX, &httpdObj);
+		json_object_object_get_ex(httpdObj, AAE_IPC_EVENT_ID, &eidObj);
+		json_object_object_get_ex(httpdObj, AAE_IPC_STATUS, &stsObj);
+		if (!httpdObj || !eidObj || !stsObj)
+			printf("Failed to aae_httpd_refresh_deviceticket1\n");
+		else {
+			int eid = json_object_get_int(eidObj);
+			const char *status = json_object_get_string(stsObj);
+			if ((eid == AAE_EID_HTTPD_REFRESH_DEVICE_TICKET) && (!strcmp(status, "0")))
+				printf("Success to aae_httpd_refresh_deviceticket2\n");
+			else
+				printf("Failed to aae_httpd_refresh_deviceticket3\n");
+		}
+		json_object_put(root);
+	}
+#endif
+#ifdef RTCONFIG_GRE
+	else if (strcmp(argv[1], "l2gre") == 0) {
+		int unit;
+		if (argv[2]) {
+			unit = atoi(argv[2]);
+			if (argv[3] && atoi(argv[3]))
+				start_l2gre(unit);
+			else
+				stop_l2gre(unit);
+		}
+	}
+	else if (strcmp(argv[1], "l3gre") == 0) {
+		int unit;
+		if (argv[2]) {
+			unit = atoi(argv[2]);
+			if (argv[3] && atoi(argv[3]))
+				start_l3gre(unit);
+			else
+				stop_l3gre(unit);
+		}
+	}
+#endif
+#ifdef RTCONFIG_MULTILAN_CFG
+	else if (strcmp(argv[1], "sdn") == 0) {
+		if (argv[2] && argv[3] && argv[4]) {
+			int sdn_idx = atoi(argv[2]);
+			unsigned long features = strtoul(argv[3], NULL, 0);
+			int action = atoi(argv[4]);
+			handle_sdn_feature(sdn_idx, features, action);
+		}
+	}
+#endif
+#if defined(RTCONFIG_CONNDIAG)
+	else if (strcmp(argv[1], "diag_stainfo")==0) {
+		char *stainfo_buf = NULL;
+		if(argv[2] && query_stainfo((!strcmp(argv[2], "all") ? NULL : argv[2]), &stainfo_buf) > 0){
+			fprintf(stderr, "%s\n", stainfo_buf);
+			free_stainfo(&stainfo_buf);
+		}
+	}
+#endif
 	else {
-		on = atoi(argv[2]);
+		if(argv[2])
+			on = atoi(argv[2]);
+		else
+			on = 0;
 		_dprintf("%s %d\n", argv[1], on);
 
 		if (strcmp(argv[1], "vlan") == 0)
@@ -688,6 +1128,10 @@ static int rctest_main(int argc, char *argv[])
 		else if (strcmp(argv[1], "check_watchdog") == 0) {
 			if (on) start_check_watchdog();
 			else stop_check_watchdog();
+		}
+		else if (strcmp(argv[1], "fwupg_flashing") == 0) {
+			printf("go rc applt: fwupg_flashing\n");
+			start_fwupg_flashing();
 		}
 #ifdef RTAC87U
 		else if (strcmp(argv[1], "watchdog02") == 0) {
@@ -734,15 +1178,9 @@ static int rctest_main(int argc, char *argv[])
 		else if (strcmp(argv[1], "qos") == 0) {//qos test
 			if (on) {
 #ifdef RTCONFIG_RALINK
-				if (module_loaded("hw_nat"))
-				{
-#if defined (RTCONFIG_WLMODULE_MT7615E_AP)
-					doSystem("iwpriv %s set hw_nat_register=%d", get_wifname(0), 0);
-#ifdef RTCONFIG_HAS_5G
-					doSystem("iwpriv %s set hw_nat_register=%d", get_wifname(1), 0);
-#endif
-#endif
-					modprobe_r("hw_nat");
+				if (is_hwnat_loaded()) {
+					unregister_hnat_wlifaces();
+					modprobe_r(MTK_HNAT_MOD);
 					sleep(1);
 #if 0
 					f_write_string("/proc/sys/net/ipv4/conf/default/force_igmp_version", "0", 0, 0);
@@ -768,7 +1206,7 @@ static int rctest_main(int argc, char *argv[])
 //					!(nvram_get_int("fw_pt_l2tp") || nvram_get_int("fw_pt_ipsec") &&
 //					(nvram_match("wl0_radio", "0") || nvram_get_int("wl0_mrate_x")) &&
 //					(nvram_match("wl1_radio", "0") || nvram_get_int("wl1_mrate_x")) &&
-					!module_loaded("hw_nat"))
+				    !is_hwnat_loaded())
 				{
 #if 0
 					f_write_string("/proc/sys/net/ipv4/conf/default/force_igmp_version", "2", 0, 0);
@@ -779,19 +1217,8 @@ static int rctest_main(int argc, char *argv[])
 					if (!(!nvram_match("switch_wantag", "none")&&!nvram_match("switch_wantag", "")))
 #endif
 					{
-						modprobe("hw_nat");
-#if defined (RTCONFIG_WLMODULE_MT7615E_AP)
-						doSystem("iwpriv %s set hw_nat_register=%d", get_wifname(0), 1);
-#ifdef RTCONFIG_HAS_5G
-						doSystem("iwpriv %s set hw_nat_register=%d", get_wifname(1), 1);
-#endif
-#endif
-#if defined (RTCONFIG_WLMODULE_MT7615E_AP)
-						doSystem("iwpriv %s set LanNatSpeedUpEn=%d", get_wifname(0), 1);
-#ifdef RTCONFIG_HAS_5G
-						doSystem("iwpriv %s set LanNatSpeedUpEn=%d", get_wifname(1), 1);
-#endif
-#endif
+						modprobe(MTK_HNAT_MOD);
+						register_hnat_wlifaces();
 						sleep(1);
 					}
 				}
@@ -824,7 +1251,7 @@ static int rctest_main(int argc, char *argv[])
 		else if (strcmp(argv[1], "gpior") == 0) {
 			printf("%d\n", get_gpio(atoi(argv[2])));
 		}
-#if defined(RTCONFIG_HND_ROUTER_AX_6710) || defined(RTAX58U) || defined(TUFAX3000) || defined(TUFAX5400) || defined(RTAX82U) || defined(RTAX82_XD6) || defined(RTAX82_XD6S) || defined(GSAX3000) || defined(GSAX5400) || defined(BCM6756) || defined(GTAX6000)
+#if defined(RTCONFIG_HND_ROUTER_AX_6710) || defined(RTAX58U) || defined(TUFAX3000) || defined(TUFAX5400) || defined(RTAX82U) || defined(RTAX82_XD6) || defined(RTAX82_XD6S) || defined(GSAX3000) || defined(GSAX5400) || defined(BCM6756) || defined(GTAX6000) || defined(RTAX86U_PRO) || defined(BCM6855) || defined(RTAX82U_V2)
 		else if (strcmp(argv[1], "gpio2r") == 0) {
 			printf("%d\n", get_gpio2(atoi(argv[2])));
 		}
@@ -867,6 +1294,17 @@ static int rctest_main(int argc, char *argv[])
 
 			_dprintf("done(%d)\n", strcmp(argv[2], (const char *) dec_buf));
 		}
+#ifdef RTCONFIG_NVRAM_ENCRYPT
+		else if (strcmp(argv[1], "enc_nv") == 0 && argc == 4) {
+			char enc_buf[ENC_WORDS_LEN];
+			char dec_buf[DATA_WORDS_LEN + 1];
+
+			_dprintf("get enc(%d) str:[%s]\n", enc_nvram(argv[2], argv[3], (char *) enc_buf), enc_buf);
+			_dprintf("get dec(%d) str:[%s]\n", dec_nvram(argv[2], (char *) enc_buf, (char *) dec_buf), dec_buf);
+
+			_dprintf("done(%d)\n", strcmp(argv[3], (const char *) dec_buf));
+		}
+#endif
 #ifdef RTCONFIG_BCMFA
 		else if (strcmp(argv[1], "fa_rev") == 0) {
 			_dprintf("(%d) done.\n", get_fa_rev());
@@ -886,8 +1324,54 @@ static int rctest_main(int argc, char *argv[])
 
 			for(i=0; i<dtime; ++i) {
 				sleep(1);
-				_dprintf("detect broop: (%d) (max:%d)\n", i, ismax_broop());
+				_dprintf("detect broop:%d (%d)\n", ismax_broop(), i);
 			}
+		}
+#endif
+#ifdef RTCONFIG_COMFW
+		else if (strcmp(argv[1], "dump_models") == 0) {
+			int i, cfd = 0;
+			cfd = argv[2]?atoi(argv[2]):0;
+
+			for(i=1; i<MODEL_MAX; ++i) {
+				_dprintf("%s: %d : %d\n", asus_models_str[i], i, cfd ? get_cf_id(i, NULL) : 0);
+			}		
+		}
+		else if (strcmp(argv[1], "dump_cfid_byname") == 0) {
+			dump_cfid_from_modellist();
+		}
+		else if (strcmp(argv[1], "dump_cft") == 0) {
+			int i;
+
+			for(i=1; i<MAX_FTYPE; ++i) {
+				_dprintf("%s: %d \n", comfw_modid_s[i], i);
+			}
+		}
+		else if (strcmp(argv[1], "cfid") == 0) {
+			_dprintf("modelid:%d, model's cfid=%d\n", get_model(), get_cf_id(get_model(), NULL));
+
+			int target = argv[2]? atoi(argv[2]):0;
+
+			if(target)
+				_dprintf("chk target(%d)'s cfid=%d\n", target, get_cf_id(target, NULL));
+		}
+#endif
+#if defined(CONFIG_BCMWL5)
+		else if (strcmp(argv[1], "txpwr_max") == 0) {
+			char *wlif = argv[2];
+			double max_txpwr;
+
+			max_txpwr = (double)wl_get_txpwr_target_max(wlif);
+
+			_dprintf("Chk txpwr_target_max w/ %s is %f .\n", wlif, max_txpwr);
+		}
+		else if (strcmp(argv[1], "txpwr_max_band") == 0) {
+			int unit = atoi(argv[2]);
+			double max_txpwr;
+
+			max_txpwr = (double)get_wifi_maxpower(unit);
+
+			_dprintf("chk txpwr_target_max of unit-%d is %f ...\n", unit, max_txpwr);
 		}
 #endif
 		else {
@@ -934,10 +1418,10 @@ char *fix_fw_name(char *orig_fw_name)
 static inline char *fix_fw_name(char *orig_fw_name) { return orig_fw_name; }
 #endif
 
-#if defined(RTCONFIG_QCA) || defined(RTCONFIG_LANTIQ) || defined(RTAX95Q) || defined(XT8PRO) || defined(RTAXE95Q) || defined(ET8PRO) || defined(RTAX56_XD4) || defined(XD4PRO) || defined(RTAX55) || defined(RTAX1800)
+#if defined(RTCONFIG_QCA) || defined(RTCONFIG_LANTIQ) || defined(RTAX95Q) || defined(XT8PRO) || defined(BM68) || defined(XT8_V2) || defined(RTAXE95Q) || defined(ET8PRO) || defined(ET8_V2) || defined(RTAX56_XD4) || defined(XD4PRO) || defined(RTAX55) || defined(RTAX1800) || defined(XC5)
 /* download firmware */
 #ifndef FIRMWARE_DIR
-#if defined(RTCONFIG_QCA) || defined(RTAX95Q) || defined(XT8PRO) || defined(RTAXE95Q) || defined(ET8PRO) || defined(RTAX56_XD4) || defined(XD4PRO) || defined(RTAX55) || defined(RTAX1800)
+#if defined(RTCONFIG_QCA) || defined(RTAX95Q) || defined(XT8PRO) || defined(BM68) || defined(XT8_V2) || defined(RTAXE95Q) || defined(ET8PRO) || defined(ET8_V2) || defined(RTAX56_XD4) || defined(XD4PRO) || defined(RTAX55) || defined(RTAX1800) || defined(XC5)
 #define FIRMWARE_DIR	"/lib/firmware"
 #else
 #define FIRMWARE_DIR	"/tmp"
@@ -992,9 +1476,15 @@ static int hotplug_firmware(void)
 	sprintf(sysfs_path, "%s/%s/data", sysfs_root, devpath);
 	f_data = fopen(sysfs_path, "wb");
 
+#if !defined(RAX120)
 	hook_data = req_fw_hook(fw_name, &hook_size);
+#endif
 	if (!hook_data || !hook_size) {
 		for (fw_root = &fw_root_tbl[0]; f_fw == NULL && *fw_root != NULL; ++fw_root) {
+#if defined(RAX120)
+			sprintf(fw_path, "%s/%s/%s", *fw_root, nvram_safe_get("location_code"),fw_name);
+			if(!f_exists(fw_path))
+#endif
 			sprintf(fw_path, "%s/%s", *fw_root, fw_name);
 			f_fw = fopen(fw_path, "rb");
 		}
@@ -1045,12 +1535,19 @@ err_exit1:
 #endif
 
 #if defined(RTCONFIG_SOC_IPQ8074)
-static int count_q6mem_size(const char *basedir, const struct dirent *de, void *arg)
+static int count_q6mem_size(const char *basedir, const struct dirent *de, size_t de_size, void *arg)
 {
 	uint64_t *space = arg;
 	struct stat s = { 0 };
 	char path[sizeof("/jffs/dmesg_YYYYMMDD_HHMMSS.txtXXX")];
 
+	if (sizeof(*de) != de_size) {
+		/* If size of struct dirent mismatch, make sure readdir_wrapper() and this function see same struct dirent.h.
+		 * e.g., it's different in uclibc if _FILE_OFFSET_BITS=64 is defined or not.
+		 */
+		dbg("%s: size of struct dirent mismatch (%u v.s. %u)!\n", __func__, sizeof(*de), de_size);
+		return -1;
+	}
 	if (!basedir || !de || !arg)
 		return -1;
 
@@ -1065,10 +1562,17 @@ static int count_q6mem_size(const char *basedir, const struct dirent *de, void *
 	return 0;
 }
 
-static int del_q6mem(const char *basedir, const struct dirent *de, void *arg)
+static int del_q6mem(const char *basedir, const struct dirent *de, size_t de_size, void *arg)
 {
 	char path[sizeof("/jffs/dmesg_YYYYMMDD_HHMMSS.txtXXX")];
 
+	if (sizeof(*de) != de_size) {
+		/* If size of struct dirent mismatch, make sure readdir_wrapper() and this function see same struct dirent.h.
+		 * e.g., it's different in uclibc if _FILE_OFFSET_BITS=64 is defined or not.
+		 */
+		dbg("%s: size of struct dirent mismatch (%u v.s. %u)!\n", __func__, sizeof(*de), de_size);
+		return -1;
+	}
 	if (!basedir || !de)
 		return -1;
 
@@ -1353,7 +1857,7 @@ static int hotplug_main(int argc, char *argv[])
 			return coma_uevent();
 #endif /* LINUX_2_6_36 */
 #endif
-#if defined(RTCONFIG_QCA) || defined(RTCONFIG_LANTIQ) || defined(RTAX95Q) || defined(XT8PRO) || defined(RTAXE95Q) || defined(ET8PRO) || defined(RTAX56_XD4) || defined(XD4PRO) || defined(RTAX55) || defined(RTAX1800)
+#if defined(RTCONFIG_QCA) || defined(RTCONFIG_LANTIQ) || defined(RTAX95Q) || defined(XT8PRO) || defined(BM68) || defined(XT8_V2) || defined(RTAXE95Q) || defined(ET8PRO) || defined(ET8_V2) || defined(RTAX56_XD4) || defined(XD4PRO) || defined(RTAX55) || defined(RTAX1800) || defined(XC5)
 		else if(!strcmp(argv[1], "firmware")) {
 			hotplug_firmware();
 		}
@@ -1520,10 +2024,10 @@ static const applets_t applets[] = {
 	{ "ovpn-route-pre-down",ovpn_route_pre_down_main	},
 #endif
 #ifdef RTCONFIG_TPVPN
-#ifdef RTCONFIG_OPENVPN
+#ifdef RTCONFIG_HMA
 	{ "hmavpn",				hmavpn_main					},
 #endif
-#ifdef RTCONFIG_WIREGUARD
+#ifdef RTCONFIG_NORDVPN
 	{ "nordvpn",			nordvpn_main				},
 #endif
 #endif
@@ -1545,8 +2049,10 @@ static const applets_t applets[] = {
 #if defined(RTCONFIG_DUAL_TRX2)
 	{ "fixdmgfw",			fixdmgfw_main			},
 #endif
+	{ "alt_watchdog",		alt_watchdog_main		}, // <-- add by Andrew
 	{ "watchdog",			watchdog_main			},
 	{ "check_watchdog",		check_watchdog_main		},
+	{ "fwupg_flashing",		fwupg_flashing_main		},
 #ifdef RTCONFIG_CONNTRACK
 	{ "pctime",			pctime_main			},
 #endif
@@ -1595,7 +2101,7 @@ static const applets_t applets[] = {
 	{ "ddns_updated", 		ddns_updated_main		},
 	{ "ddns_custom_updated",	ddns_custom_updated_main	},
 	{ "radio",			radio_main			},
-	{ "udhcpc",			udhcpc_wan			},
+	{ "udhcpc_wan",			udhcpc_wan			},
 	{ "udhcpc_lan",			udhcpc_lan			},
 	{ "zcip",			zcip_wan			},
 #ifdef RTCONFIG_IPV6
@@ -1630,9 +2136,11 @@ static const applets_t applets[] = {
 	{ "netool", 			netool_main			},
 #endif
 #ifdef RTCONFIG_SOFTWIRE46
-	{ "s46map_rptd", 		s46map_rptd_main		},
+	{ "auto46det", 			auto46det_main			},
+	{ "v6plusd", 			v6plusd_main			},
+	{ "ocnvcd", 			ocnvcd_main			},
 #endif
-#if defined(RTCONFIG_RALINK) || defined(RTCONFIG_EXT_RTL8365MB) || defined(RTCONFIG_EXT_RTL8370MB) || defined(RTAX55) || defined(RTAX1800) || defined(RTAX58U_V2)
+#if defined(RTCONFIG_RALINK) || defined(RTCONFIG_EXT_RTL8365MB) || defined(RTCONFIG_EXT_RTL8370MB) || defined(RTAX55) || defined(RTAX1800) || defined(RTAX58U_V2) || defined(RTAX3000N)
 	{ "rtkswitch",			config_rtkswitch		},
 #if defined(RTAC53) || defined(RTAC51UP)
 	{ "mtkswitch",			config_mtkswitch		},
@@ -1680,12 +2188,15 @@ static const applets_t applets[] = {
 	{ "firmware_enc_crc",		firmware_enc_crc_main		},
 	{ "fw_check",			fw_check_main			},
 #endif
-#if defined(RTAX82U) || defined(GSAX3000) || defined(GSAX5400) || defined(TUFAX5400) || defined(GTAX11000_PRO) || defined(GTAXE16000) || defined(GTAX6000)
+#if defined(RTAX82U) || defined(GSAX3000) || defined(GSAX5400) || defined(TUFAX5400) || defined(GTAX11000_PRO) || defined(GTAXE16000) || defined(GTAX6000) || defined(GT10) || defined(RTAX82U_V2)
 	{ "ledg",			ledg_main			},
 	{ "ledbtn",			ledbtn_main			},
 #endif
 #if defined(DSL_AX82U)
 	{ "ledg",			ledg_main			},
+#endif
+#if defined(GTAX6000)
+	{ "antled",			antled_main			},
 #endif
 #ifdef BUILD_READMEM
 	{ "readmem",			readmem_main			},
@@ -1697,7 +2208,7 @@ static const applets_t applets[] = {
 	{ "test_blu",			test_bl_updater_main		},
 	{ "split_q6mem",		split_q6mem_main		},
 #endif
-#if defined(RTCONFIG_SOC_IPQ8074)
+#if defined(RTCONFIG_QCA) || defined(RTCONFIG_RALINK)
 	{ "test_switch_log",		test_switch_log_main		},
 	{ "test_wifi_stats_log",	test_wifi_stats_log_main	},
 #endif
@@ -1748,11 +2259,9 @@ static const applets_t applets[] = {
  ||  (defined(RTCONFIG_SOC_IPQ8074))
 	{ "erp_monitor",		erp_monitor_main		},
 #endif
-#ifdef RTCONFIG_WIFI_SON
 #if defined(MAPAC2200)
 	{ "dpdt_ant",			dpdt_ant_main		},
 #endif
-#endif	
 #if defined(MAPAC1300) || defined(VZWAC1300) || defined(SHAC1300)
 	{ "thermal_txpwr",		thermal_txpwr_main		},
 #endif
@@ -1769,11 +2278,23 @@ static const applets_t applets[] = {
 	{ "restart_plc",		restart_plc_main				},
 	{ "detect_plc",			detect_plc_main					},
 #endif
+#if defined(RTCONFIG_SCHED_DAEMON)
+	{ "sched_daemon",		sched_daemon_main				},
+#endif
+#ifdef RTCONFIG_TC_DOWNLOAD
+	{ "tc_download",		tc_download_main	},
+#endif
 #ifdef RTCONFIG_ISP_CUSTOMIZE_TOOL
 	{ "tci",			tci_main		},
 #endif
-#ifdef RTCONFIG_ASUSDDNS_ACCOUNT_BASE
+#if defined(RTCONFIG_TUNNEL) && defined(RTCONFIG_ACCOUNT_BINDING)
 	{ "update_asus_ddns_token",		update_asus_ddns_token_main			},
+#endif
+#if defined(RTCONFIG_IG_SITE2SITE)
+	{ "ig_s2s_client",      ig_s2s_client_main      },
+ #endif
+#ifdef RTCONFIG_IPSEC
+	{ "ipsec_updown",		ipsec_updown_main      },
 #endif
 	{ "toolbox",			swrt_toolbox		},
 	{NULL, NULL}
@@ -2348,6 +2869,7 @@ int main(int argc, char **argv)
 
 		return asus_usb_interface(argv[1], argv[2]);
 	}
+#ifdef RTCONFIG_USB
 	else if (!strcmp(base, "get_usb_node_by_string")) {
 		char usb_node[16];
 
@@ -2361,6 +2883,7 @@ int main(int argc, char **argv)
 
 		return 0;
 	}
+#endif
 	else if (!strcmp(base, "unset_usb_nvram")) {
 		if(argc > 2)
 			return 0;
@@ -2557,6 +3080,70 @@ int main(int argc, char **argv)
 		return stainfo(1);
 	}
 #endif	/* RTCONFIG_HAS_5G */
+#if defined(RTCONFIG_AMAS)
+	else if (!strcmp(base, "gstat")) {
+		if (argc == 2)
+			return getstat(atoi(argv[1]));
+	}
+	else if (!strcmp(base, "groam")) {
+		if (argc == 2)
+			return getgroam(atoi(argv[1]));
+	}
+	else if (!strcmp(base, "gApCliStatus")) {
+		if (argc == 2)
+			return get_apcli_connect_status(atoi(argv[1]));
+	}
+	else if (!strcmp(base, "gcliq")) {
+		if (argc == 2)
+			return getcliq(atoi(argv[1]));
+	}
+	else if (!strcmp(base, "gclrssi")) {
+		if (argc == 2)
+			return getclrssi(atoi(argv[1]));
+	}
+	else if (!strcmp(base, "gMonitorRssi")) {
+		if (argc == 2)
+			return get_monitor_rssi(atoi(argv[1]));
+	}
+	else if (!strcmp(base, "gMacList")) {
+		if (argc == 2)
+			return get_maclist(atoi(argv[1]));
+	}
+	else if (!strcmp(base, "gdfsChannel")) {
+		if (argc == 2)
+			return get_dfschannel(atoi(argv[1]));
+	}
+	else if (!strcmp(base, "gdfsStatus")) {
+		if (argc == 2)
+			return get_dfs_status(atoi(argv[1]));
+	}
+	else if (!strcmp(base, "gChannelInfo")) {
+		if (argc == 2)
+			return get_channelinfo(atoi(argv[1]));
+	}
+	else if (!strcmp(base, "apclien")) {
+		if (argc == 2)
+			return get_apclien(atoi(argv[1]));
+	}
+	else if (!strcmp(base, "send_bcnreq")) {
+		if (argc == 2)
+			return send_beacon_request(atoi(argv[1]),0);
+	}
+	else if (!strcmp(base, "get_rrm_bcnrep")) {
+		if (argc == 2)
+			return get_rrm_bcn_resp(atoi(argv[1]));
+	}
+	else if (!strcmp(base, "get_rclass")) {
+		if (argc == 2)
+			return get_rclass(atoi(argv[1]));
+	}
+#ifdef RTCONFIG_BTM_11V
+	else if (!strcmp(base, "send_11v")) {
+		if (argc == 5)
+			return amas_11v(atoi(argv[1]), atoi(argv[2]), argv[3], argv[4]);
+	}
+#endif /* RTCONFIG_BTM_11V */
+#endif /* RTCONFIG_AMAS */
 #ifdef RTCONFIG_DSL
 	else if (!strcmp(base, "gen_ralink_config")) {
 		if (argc != 3) {
@@ -2622,6 +3209,12 @@ int main(int argc, char **argv)
 		pc_tmp_main(argc, argv);
 		return 0;
 	}
+#ifdef RTCONFIG_PC_REWARD
+	else if (!strcmp(base, "pc_reward")) {
+		pc_reward_main(argc, argv);
+		return 0;
+	}
+#endif
 #endif
 #ifdef RTCONFIG_INTERNETCTRL
 	else if (!strcmp(base, "ic")) {
@@ -2679,6 +3272,14 @@ int main(int argc, char **argv)
 	else if (!strcmp(base, "amas_lanctrl")) {
 		return amas_lanctrl_main();
 	}
+#ifdef RTCONFIG_CONNDIAG
+	else if (!strcmp(base, "amas_ssd_cd")) {
+		return amas_ssd_cd_main();
+	}
+	else if (!strcmp(base, "amas_portstatus")) {
+		return amas_portstatus_main();
+	}
+#endif
 #ifdef RTCONFIG_BHCOST_OPT
 	else if (!strcmp(base, "amas_status")) {
 		return amas_status_main();
@@ -2689,7 +3290,7 @@ int main(int argc, char **argv)
 	else if (!strcmp(base, "amas_misc")) {
 		return amas_misc_main();
 	}
-#endif    
+#endif
 #endif
 #ifdef CONFIG_BCMWL5
 	else if (!strcmp(base, "setup_dnsmq")) {
@@ -2707,6 +3308,39 @@ int main(int argc, char **argv)
 	}
 	else if (!strcmp(base, "led_ctrl")) {
 		return do_led_ctrl(atoi(argv[1]), atoi(argv[2]));
+	}
+#ifdef RTCONFIG_INTERNAL_GOBI
+#if defined(RT4GAC86U) || defined(RT4GAX56)
+	else if (!strcmp(base, "led_modem")) {
+		if(argc != 3)
+			return 0;
+_dprintf("LED_NOMOBILE=%d, LED_2G_YELLOW=%d, LED_3G_BLUE=%d, LED_4G_WHITE=%d.\n", LED_NOMOBILE, LED_2G_YELLOW, LED_3G_BLUE, LED_4G_WHITE);
+
+		if(!strcmp(argv[1], "no"))
+			return do_led_ctrl(LED_NOMOBILE, atoi(argv[2]));
+		else if(!strcmp(argv[1], "2g"))
+			return do_led_ctrl(LED_2G_YELLOW, atoi(argv[2]));
+		else if(!strcmp(argv[1], "3g"))
+			return do_led_ctrl(LED_3G_BLUE, atoi(argv[2]));
+		else
+			return do_led_ctrl(LED_4G_WHITE, atoi(argv[2]));
+	}
+#endif
+#endif
+	else if (!strcmp(base, "led_str_ctrl")) {
+		if(argc != 3){
+			if(argc == 2)
+				printf("Usage: led_str_ctrl %s [1/0]\n", argv[1]);
+			else
+				printf("Usage: led_str_ctrl LED_STRING [1/0]\n");
+			return 0;
+		}
+
+		int led_id = get_led_id(argv[1]);
+		int onoff = atoi(argv[2]);
+
+		printf("Switch %s(%d) %s...\n", argv[1], led_id, (onoff)?"on":"off");
+		return do_led_ctrl(led_id, atoi(argv[2]));
 	}
 #ifdef HND_ROUTER
 	else if (!strcmp(base, "hnd-erase")) {
@@ -2918,6 +3552,34 @@ int main(int argc, char **argv)
 
 		return 0;
 	}
+	else if (!strcmp(base, "order")) {
+		if (argc != 2) {
+			printf("Usage: %s <order>.\n", argv[0]);
+			return 0;
+		}
+
+		int int1 = strtol(argv[1], NULL, 10);
+		int times, remainder;
+		char buf[64], *ptr, zero8[] = "00000000";
+
+		times = int1/32;
+		remainder = int1%32;
+
+		if(times > 0){
+			memset(buf, 0, sizeof(buf));
+			ptr = buf;
+			do{
+				sprintf(ptr, "%s", zero8);
+				ptr += sizeof(zero8)-1;
+			}while(--times > 0);
+
+			printf("%x%s", 1<<remainder, buf);
+		}
+		else
+			printf("%x", 1<<remainder);
+
+		return 0;
+	}
 #endif
 #endif
 #ifdef RTCONFIG_TOR
@@ -3014,7 +3676,7 @@ int main(int argc, char **argv)
 
 		ret = extphy_bit_op(reg, val, wr, start_bit, end_bit, wait_ms);
 
-#if defined(RTAX86U) || defined(RTAX5700)
+#if defined(RTAX86U)
 		if(!strcmp(get_productid(), "RT-AX86S")) ;
 		else if(nvram_get_int("ext_phy_model") == EXT_PHY_GPY211)
 			_dprintf("addr=0x%02x, reg=0x%06x, val=0x%04x\n", EXTPHY_GPY_ADDR, reg, ret);
@@ -3027,7 +3689,7 @@ int main(int argc, char **argv)
 			_dprintf("addr=0x%02x, reg=0x%06x, val=0x%04x\n", EXTPHY_GPY_ADDR, reg, ret);
 		else
 #endif
-		    _dprintf("addr=0x%02x, reg=0x%06x, val=0x%04x\n", EXTPHY_ADDR, reg, ret);
+			_dprintf("addr=0x%02x, reg=0x%06x, val=0x%04x\n", EXTPHY_ADDR, reg, ret);
 
 		return 0;
 	}
@@ -3037,6 +3699,19 @@ int main(int argc, char **argv)
 	}
 #endif
 #if RTCONFIG_SOFTWIRE46
+	else if (!strcmp(base, "init_wan46")) {
+		init_wan46();
+		return 0;
+	}
+	else if (!strcmp(base, "s46reset")) {
+		if (argc != 2) {
+			printf("Usage: %s <wan unit>.\n", argv[0]);
+			return 0;
+		}
+		s46reset(atoi(argv[1]));
+		printf("WAN Unit:[%d] MAP nvarm is reset.\n", atoi(argv[1]));
+		return 0;
+	}
 	else if (!strcmp(base, "mapcalc")) {
 		char peerbuf[INET6_ADDRSTRLEN];
 		char addr6buf[INET6_ADDRSTRLEN];
@@ -3044,8 +3719,19 @@ int main(int argc, char **argv)
 		char rules[4096], *fmrs;
 		int k, offset, psidlen, psid, start, end;
 		int draft = argv[1] && strcmp(argv[1], "draft") == 0;
+		int wan_proto = -1;
+
+		if (!strcmp(argv[2], "map-e"))
+			wan_proto = WAN_MAPE;
+		else if (!strcmp(argv[2], "lw4o6"))
+			wan_proto = WAN_LW4O6;
+		else if (!strcmp(argv[2], "v6plus"))
+			wan_proto = WAN_V6PLUS;
+		else
+			wan_proto = WAN_OCNVC;
+
 		while (fgets(rules, sizeof(rules), stdin) != NULL) {
-			if (s46_mapcalc(rules, peerbuf, sizeof(peerbuf), addr6buf, sizeof(addr6buf),
+			if (s46_mapcalc(0, wan_proto, rules, peerbuf, sizeof(peerbuf), addr6buf, sizeof(addr6buf),
 					addr4buf, sizeof(addr4buf), &offset, &psidlen, &psid, &fmrs, draft) <= 0) {
 				peerbuf[0] = addr6buf[0] = addr4buf[0] = '\0';
 				offset = 0, psidlen = 0, psid = 0;
@@ -3083,6 +3769,266 @@ int main(int argc, char **argv)
 		return 0;
 	}
 #endif
+#ifdef RTCONFIG_MULTILAN_CFG
+	else if (!strcmp(base, "reset_mtlan")) {
+		nvram_set("sdn_rl", nvram_default_get("sdn_rl"));
+		nvram_set("vlan_rl", nvram_default_get("vlan_rl"));
+		nvram_set("subnet_rl", nvram_default_get("subnet_rl"));
+		printf("reset mtlan done.\n");
+		return 0;
+	}
+	else if (!strcmp(base, "get_mtsubnet")) {
+		int i, j;
+		size_t  sz;
+
+		SUBNET_T *prl = (SUBNET_T *)INIT_MTLAN(sizeof(SUBNET_T));
+		if (!get_mtsubnet(prl, &sz)) {
+			printf("Invalid!!!\n");
+			FREE_MTLAN((void *)prl);
+			return 0;
+		}
+		for (i = 0; i < sz; i++) {
+			printf("[%d]idx:[%d]\n", i, prl[i].idx);
+			printf("[%d]ifname:[%s]\n", i, prl[i].ifname);
+			printf("[%d]addr:[%s]\n", i, prl[i].addr);
+			printf("[%d]subnet:[%s]\n", i, prl[i].subnet);
+			printf("[%d]netmask:[%s]\n", i, prl[i].netmask);
+			printf("[%d]prefixlen:[%d]\n", i, prl[i].prefixlen);
+			printf("[%d]dhcp_min:[%s]\n", i, prl[i].dhcp_min);
+			printf("[%d]dhcp_max:[%s]\n", i, prl[i].dhcp_max);
+			printf("[%d]dhcp_lease:[%d]\n", i, prl[i].dhcp_lease);
+			printf("[%d]domain_name:[%s]\n", i, prl[i].domain_name);
+			printf("[%d]dns:", i);
+			for (j = 0; j < 2; j++)
+				printf("[%s]", prl[i].dns[j]);
+			printf("\n");
+			printf("[%d]wins:[%s]\n", i, prl[i].wins);
+			printf("[%d]dhcp_res:[%d]\n", i, prl[i].dhcp_res);
+			printf("[%d]dhscp_res_idx:[%d]\n", i, prl[i].dhcp_res_idx);
+			printf("---------------------------------------\n");
+		}
+		FREE_MTLAN((void *)prl);
+		return 0;
+	}
+	else if (!strcmp(base, "get_mtlan")) {
+		int i, j;
+		size_t  mtl_sz = 0;
+
+		MTLAN_T *pmtl = (MTLAN_T *)INIT_MTLAN(sizeof(MTLAN_T));
+
+		if (!get_mtlan(pmtl, &mtl_sz)) {
+			printf("Invalid!!!\n");
+			FREE_MTLAN((void *)pmtl);
+			return 0;
+		}
+		for (i = 0; i < mtl_sz; i++) {
+			printf("|-enable:[%d]\n", pmtl[i].enable);
+			printf("|-vid:[%d]\n", pmtl[i].vid);
+			printf("|-*Network:\n");
+			printf("\t|-idx:[%d]\n", pmtl[i].nw_t.idx);
+			printf("\t|-ifname:[%s]\n", pmtl[i].nw_t.ifname);
+			printf("\t|-addr:[%s]\n", pmtl[i].nw_t.addr);
+			printf("\t|-subnet:[%s]\n", pmtl[i].nw_t.subnet);
+			printf("\t|-netmask:[%s]\n", pmtl[i].nw_t.netmask);
+			printf("\t|-prefixlen:[%d]\n", pmtl[i].nw_t.prefixlen);
+			printf("\t|-dhcp_min:[%s]\n", pmtl[i].nw_t.dhcp_min);
+			printf("\t|-dhcp_max:[%s]\n", pmtl[i].nw_t.dhcp_max);
+			printf("\t|-dhcp_lease:[%d]\n", pmtl[i].nw_t.dhcp_lease);
+			printf("\t|-domain_name:[%s]\n", pmtl[i].nw_t.domain_name);
+			printf("\t|-dns:");
+			for (j = 0; j < 2; j++)
+				printf("[%s]", pmtl[i].nw_t.dns[j]);
+			printf("\n");
+			printf("\t|-wins:[%s]\n", pmtl[i].nw_t.wins);
+			printf("\t|-dhcp_res:[%d]\n", pmtl[i].nw_t.dhcp_res);
+			printf("\t|-dhscp_res_idx:[%d]\n", pmtl[i].nw_t.dhcp_res_idx);
+			printf("|-*SDN Feature Index/Switch:\n");
+			printf("\t|-sdn_idx:[%d]\n", pmtl[i].sdn_t.sdn_idx);
+			printf("\t|-apg_idx:[%d]\n", pmtl[i].sdn_t.apg_idx);
+			printf("\t|-vpnc_idx:[%d]\n", pmtl[i].sdn_t.vpnc_idx);
+			printf("\t|-vpns_idx:");
+			for (j = 0; j < MTLAN_VPNS_MAXINUM; j++) {
+				printf("[%d]", pmtl[i].sdn_t.vpns_idx_rl[j]);
+			}
+			printf("\n");
+			printf("\t|-dnsf_idx:[%d]\n", pmtl[i].sdn_t.dnsf_idx);
+			printf("\t|-urlf_idx:[%d]\n", pmtl[i].sdn_t.urlf_idx);
+			printf("\t|-nwf_idx:[%d]\n", pmtl[i].sdn_t.nwf_idx);
+			printf("\t|-cp_idx:[%d]\n", pmtl[i].sdn_t.cp_idx);
+			printf("\t|-gre_idx:");
+			for (j = 0; j < MTLAN_GRE_MAXINUM; j++) {
+				printf("[%d]", pmtl[i].sdn_t.gre_idx_rl[j]);
+			}
+			printf("\n");
+			printf("\t|-fw_idx:[%d]\n", pmtl[i].sdn_t.fw_idx);
+			printf("\t|-killsw_sw:[%d]\n", pmtl[i].sdn_t.killsw_sw);
+			printf("\t|-ahs_sw:[%d]\n", pmtl[i].sdn_t.ahs_sw);
+			printf("\t|-wan_idx:[%d]\n", pmtl[i].sdn_t.wan_idx);
+			printf("---------------------------------------\n");
+		}
+
+		FREE_MTLAN((void *)pmtl);
+		return 0;
+	}
+	else if (!strcmp(base, "get_mtlan_by_vid")) {
+		if (argv[1]) {
+
+			int i, j;
+			size_t  mtl_sz = 0;
+			MTLAN_T *pmtl = (MTLAN_T *)INIT_MTLAN(sizeof(MTLAN_T));
+
+			if (!get_mtlan_by_vid(atoi(argv[1]), pmtl, &mtl_sz)) {
+				printf("Invalid!!!\n");
+				FREE_MTLAN((void *)pmtl);
+				return 0;
+			}
+
+			for (i = 0; i < mtl_sz; i++) {
+				printf("|-enable:[%d]\n", pmtl[i].enable);
+				printf("|-vid:[%d]\n", pmtl[i].vid);
+				printf("|-*Network:\n");
+				printf("\t|-idx:[%d]\n", pmtl[i].nw_t.idx);
+				printf("\t|-ifname:[%s]\n", pmtl[i].nw_t.ifname);
+				printf("\t|-addr:[%s]\n", pmtl[i].nw_t.addr);
+				printf("\t|-subnet:[%s]\n", pmtl[i].nw_t.subnet);
+				printf("\t|-netmask:[%s]\n", pmtl[i].nw_t.netmask);
+				printf("\t|-prefixlen:[%d]\n", pmtl[i].nw_t.prefixlen);
+				printf("\t|-dhcp_min:[%s]\n", pmtl[i].nw_t.dhcp_min);
+				printf("\t|-dhcp_max:[%s]\n", pmtl[i].nw_t.dhcp_max);
+				printf("\t|-dhcp_lease:[%d]\n", pmtl[i].nw_t.dhcp_lease);
+				printf("\t|-domain_name:[%s]\n", pmtl[i].nw_t.domain_name);
+				printf("\t|-dns:");
+				for (j = 0; j < 2; j++)
+					printf("[%s]", pmtl[i].nw_t.dns[j]);
+				printf("\n");
+				printf("\t|-wins:[%s]\n", pmtl[i].nw_t.wins);
+				printf("\t|-dhcp_res:[%d]\n", pmtl[i].nw_t.dhcp_res);
+				printf("\t|-dhscp_res_idx:[%d]\n", pmtl[i].nw_t.dhcp_res_idx);
+				printf("|-*SDN Feature Index/Switch:\n");
+				printf("\t|-sdn_idx:[%d]\n", pmtl[i].sdn_t.sdn_idx);
+				printf("\t|-apg_idx:[%d]\n", pmtl[i].sdn_t.apg_idx);
+				printf("\t|-vpnc_idx:[%d]\n", pmtl[i].sdn_t.vpnc_idx);
+				printf("\t|-vpns_idx:");
+				for (j = 0; j < MTLAN_VPNS_MAXINUM; j++) {
+					printf("[%d]", pmtl[i].sdn_t.vpns_idx_rl[j]);
+				}
+				printf("\n");
+				printf("\t|-dnsf_idx:[%d]\n", pmtl[i].sdn_t.dnsf_idx);
+				printf("\t|-urlf_idx:[%d]\n", pmtl[i].sdn_t.urlf_idx);
+				printf("\t|-nwf_idx:[%d]\n", pmtl[i].sdn_t.nwf_idx);
+				printf("\t|-cp_idx:[%d]\n", pmtl[i].sdn_t.cp_idx);
+				printf("\t|-gre_idx:");
+				for (j = 0; j < MTLAN_GRE_MAXINUM; j++) {
+					printf("[%d]", pmtl[i].sdn_t.gre_idx_rl[j]);
+				}
+				printf("\n");
+				printf("\t|-fw_idx:[%d]\n", pmtl[i].sdn_t.fw_idx);
+				printf("\t|-killsw_sw:[%d]\n", pmtl[i].sdn_t.killsw_sw);
+				printf("\t|-ahs_sw:[%d]\n", pmtl[i].sdn_t.ahs_sw);
+				printf("\t|-wan_idx:[%d]\n", pmtl[i].sdn_t.wan_idx);
+				printf("---------------------------------------\n");
+			}
+			FREE_MTLAN((void *)pmtl);
+		}
+		return 0;
+	}
+	else if (!strcmp(base, "get_mtlan_by_idx")) {
+		int i, j;
+		size_t  mtl_sz = 0;
+
+		SDNFT_TYPE sdntype;
+
+		if (!(argv[1] && argv[2])) {
+			printf("Invalid!!!\n");
+			printf("Usage: %s [sdn|apg|vpnc|vpns|urlf|nwf|gre|fw|killsw|ahs|wan] [idx/switch]\n", argv[0]);
+			return 0;
+		}
+
+		if (!strcmp(argv[1], "sdn")) {
+			sdntype = SDNFT_TYPE_SDN;
+		} else if (!strcmp(argv[1], "apg")) {
+			sdntype = SDNFT_TYPE_APG;
+		} else if (!strcmp(argv[1], "vpnc")) {
+			sdntype = SDNFT_TYPE_VPNC;
+		} else if (!strcmp(argv[1], "vpns")) {
+			sdntype = SDNFT_TYPE_VPNS;
+		} else if (!strcmp(argv[1], "urlf")) {
+			sdntype = SDNFT_TYPE_URLF;
+		} else if (!strcmp(argv[1], "nwf")) {
+			sdntype = SDNFT_TYPE_NWF;
+		} else if (!strcmp(argv[1], "gre")) {
+			sdntype = SDNFT_TYPE_GRE;
+		} else if (!strcmp(argv[1], "fw")) {
+			sdntype = SDNFT_TYPE_FW;
+		} else if (!strcmp(argv[1], "killsw")) {
+			sdntype = SDNFT_TYPE_KILLSW;
+		} else if (!strcmp(argv[1], "ahs")) {
+			sdntype = SDNFT_TYPE_AHS;
+		} else if (!strcmp(argv[1], "wan")) {
+			sdntype = SDNFT_TYPE_WAN;
+		} else {
+			printf("Invalid!!!\n");
+			printf("Usage: %s [sdn|apg|vpnc|vpns|urlf|nwf|gre|fw|killsw|ahs|wan] [idx/switch]\n", argv[0]);
+			return 0;
+		}
+
+		MTLAN_T *pmtl = (MTLAN_T *)INIT_MTLAN(sizeof(MTLAN_T));
+
+		if (!get_mtlan_by_idx(sdntype, atoi(argv[2]), pmtl, &mtl_sz)) {
+			FREE_MTLAN((void *)pmtl);
+			printf("Invalid!!!\n");
+			return 0;
+		}
+
+		for (i = 0; i < mtl_sz; i++) {
+			printf("|-enable:[%d]\n", pmtl[i].enable);
+			printf("|-vid:[%d]\n", pmtl[i].vid);
+			printf("|-*Network:\n");
+			printf("\t|-idx:[%d]\n", pmtl[i].nw_t.idx);
+			printf("\t|-ifname:[%s]\n", pmtl[i].nw_t.ifname);
+			printf("\t|-addr:[%s]\n", pmtl[i].nw_t.addr);
+			printf("\t|-subnet:[%s]\n", pmtl[i].nw_t.subnet);
+			printf("\t|-netmask:[%s]\n", pmtl[i].nw_t.netmask);
+			printf("\t|-prefixlen:[%d]\n", pmtl[i].nw_t.prefixlen);
+			printf("\t|-dhcp_min:[%s]\n", pmtl[i].nw_t.dhcp_min);
+			printf("\t|-dhcp_max:[%s]\n", pmtl[i].nw_t.dhcp_max);
+			printf("\t|-dhcp_lease:[%d]\n", pmtl[i].nw_t.dhcp_lease);
+			printf("\t|-domain_name:[%s]\n", pmtl[i].nw_t.domain_name);
+			printf("\t|-dns:");
+			for (j = 0; j < 2; j++)
+				printf("[%s]", pmtl[i].nw_t.dns[j]);
+			printf("\n");
+			printf("\t|-wins:[%s]\n", pmtl[i].nw_t.wins);
+			printf("\t|-dhcp_res:[%d]\n", pmtl[i].nw_t.dhcp_res);
+			printf("\t|-dhscp_res_idx:[%d]\n", pmtl[i].nw_t.dhcp_res_idx);
+			printf("|-*SDN Feature Index/Switch:\n");
+			printf("\t|-sdn_idx:[%d]\n", pmtl[i].sdn_t.sdn_idx);
+			printf("\t|-apg_idx:[%d]\n", pmtl[i].sdn_t.apg_idx);
+			printf("\t|-vpnc_idx:[%d]\n", pmtl[i].sdn_t.vpnc_idx);
+			printf("\t|-vpns_idx:");
+			for (j = 0; j < MTLAN_VPNS_MAXINUM; j++) {
+				printf("[%d]", pmtl[i].sdn_t.vpns_idx_rl[j]);
+			}
+			printf("\n");
+			printf("\t|-dnsf_idx:[%d]\n", pmtl[i].sdn_t.dnsf_idx);
+			printf("\t|-urlf_idx:[%d]\n", pmtl[i].sdn_t.urlf_idx);
+			printf("\t|-nwf_idx:[%d]\n", pmtl[i].sdn_t.nwf_idx);
+			printf("\t|-cp_idx:[%d]\n", pmtl[i].sdn_t.cp_idx);
+			printf("\t|-gre_idx:");
+			for (j = 0; j < MTLAN_GRE_MAXINUM; j++) {
+				printf("[%d]", pmtl[i].sdn_t.gre_idx_rl[j]);
+			}
+			printf("\n");
+			printf("\t|-fw_idx:[%d]\n", pmtl[i].sdn_t.fw_idx);
+			printf("\t|-killsw_sw:[%d]\n", pmtl[i].sdn_t.killsw_sw);
+			printf("\t|-ahs_sw:[%d]\n", pmtl[i].sdn_t.ahs_sw);
+			printf("\t|-wan_idx:[%d]\n", pmtl[i].sdn_t.wan_idx);
+			printf("---------------------------------------\n");
+		}
+		FREE_MTLAN((void *)pmtl);
+		return 0;
+	}
+#endif
 	else if (!strcmp(base, "collect_debuglog")) {
 		if (argv[1]) {
 			if (!strcmp(argv[1], "klog"))
@@ -3103,7 +4049,6 @@ int main(int argc, char **argv)
 	return 0;
 }
 
-#if defined(CONFIG_BCMWL5)
 void exe_eu_wa_rr(void){
 	char cmd_cc_tmp[64];
 	char cmd_cc_ori[64];
@@ -3126,7 +4071,6 @@ void exe_eu_wa_rr(void){
 #ifdef NO_NBAND
 	return ;
 #endif
-
 	//find dfs ifname
 	strncpy(ifnames_tmp,nvram_safe_get("wl_ifnames"),sizeof(ifnames_tmp));
 
@@ -3200,4 +4144,3 @@ void exe_eu_wa_rr(void){
 	notify_rc("restart_acsd");
 
 }
-#endif

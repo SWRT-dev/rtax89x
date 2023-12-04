@@ -135,11 +135,11 @@ function initial(){
 
 	if(IPv6_support && ipv6_proto_orig != "disabled"){
 		document.form.ipv6_dns1_x.disabled = false;
-		document.form.ipv6_dns1_x.parentNode.parentNode.style.display = "";
+		document.form.ipv6_dns1_x.parentNode.parentNode.style.display = "";	
 	}
 	else{
 		document.form.ipv6_dns1_x.disabled = true;
-		document.form.ipv6_dns1_x.parentNode.parentNode.style.display = "none";
+		document.form.ipv6_dns1_x.parentNode.parentNode.style.display = "none";	
 	}
 
 	if(vpn_fusion_support) {
@@ -224,14 +224,6 @@ function addRow_Group(){
 		};
 		manually_dhcp_list_array[document.form.dhcp_staticip_x_0.value.toUpperCase()] = item_para;
 
-		if(vpn_fusion_support) {
-			var newRuleArray = new Array();
-			newRuleArray.push(document.form.dhcp_staticip_x_0.value);
-			newRuleArray.push("0");
-			newRuleArray.push("0");
-			vpnc_dev_policy_list_array.push(newRuleArray);
-		}
-
 		document.form.dhcp_staticip_x_0.value = "";
 		document.form.dhcp_staticmac_x_0.value = "";
 		document.form.dhcp_dnsip_x_0.value = "";
@@ -247,7 +239,15 @@ function del_Row(r){
 	var delIP = document.getElementById('dhcp_staticlist_table').rows[i].cells[1].innerHTML;
 
 	if(vpn_fusion_support) {
-		if(manually_dhcp_list_array_ori[delIP] != undefined) {
+		var policy_flag = false;
+		$.each(vpnc_dev_policy_list_array_ori, function(index, value){
+			if(value[0] == delIP){
+				policy_flag = true;
+				return false;
+			}
+		});
+
+		if(policy_flag){
 			if(!confirm("Remove the client's IP binding will also delete the client's policy in the exception list of <#VPN_Fusion#>. Are you sure you want to delete?"))/*untranslated*/
 				return false;
 		}
@@ -495,10 +495,9 @@ function validForm(){
 	document.form.dhcp_start.value = ipFilterZero(document.form.dhcp_start.value);
         document.form.dhcp_end.value = ipFilterZero(document.form.dhcp_end.value);
 
-	if(IPv6_support && ipv6_proto_orig != "disabled"){
-		if(document.form.ipv6_dns1_x.value != ""){
+    if(IPv6_support && ipv6_proto_orig != "disabled"){
+		if(document.form.ipv6_dns1_x.value != "")
 			if(!validator.isLegal_ipv6(document.form.ipv6_dns1_x)) return false;
-		}
 	}
 
 	return true;
@@ -760,7 +759,7 @@ function sortClientIP(){
 			  </tr>
 			  
 			  <tr>
-            <th><a class="hintstyle" href="javascript:void(0);" onClick="openHint(5,5);"><#LANHostConfig_LeaseTime_itemname#></a></th>
+            <th><a class="hintstyle" href="javascript:void(0);" onClick="openHint(5,5);"><#LANHostConfig_LeaseTime_itemname#> (<#Second#>)</a></th>
             <td>
               <input type="text" maxlength="6" name="dhcp_lease" class="input_15_table" value="<% nvram_get("dhcp_lease"); %>" onKeyPress="return validator.isNumber(this,event)" autocorrect="off" autocapitalize="off">
             </td>
@@ -788,19 +787,32 @@ function sortClientIP(){
 			  </thead>		
 			  
 			  <tr>
-				<th width="200"><a class="hintstyle" href="javascript:void(0);" onClick="openHint(5,7);"><#LANHostConfig_x_LDNSServer1_itemname#></a></th>
+				<th width="200"><a class="hintstyle" href="javascript:void(0);" onClick="openHint(5,7);"><#LANHostConfig_x_LDNSServer1_itemname#> 1</a></th>
 				<td>
 				  <input type="text" maxlength="15" class="input_15_table" name="dhcp_dns1_x" value="<% nvram_get("dhcp_dns1_x"); %>" onKeyPress="return validator.isIPAddr(this,event)" autocorrect="off" autocapitalize="off">
 				  <div id="yadns_hint" style="display:none;"></div>
 				</td>
 			  </tr>
+			<tr>
+				<th width="200"><a class="hintstyle" href="javascript:void(0);" onClick="openHint(5,7);"><#LANHostConfig_x_LDNSServer1_itemname#> 2</a></th>
+				<td>
+					<input type="text" maxlength="15" class="input_15_table" name="dhcp_dns2_x" value="<% nvram_get("dhcp_dns2_x"); %>" onKeyPress="return validator.isIPAddr(this,event)">
+				</td>
+			</tr>
 			<tr style="display:none;">
 				<th width="200"><#ipv6_dns_serv#></th>
 				<td>
 					<input type="text" maxlength="39" class="input_32_table" name="ipv6_dns1_x" value="<% nvram_get("ipv6_dns1_x"); %>" autocorrect="off" autocapitalize="off">
 				</td>
 			</tr>
-			  <tr>
+			<tr>
+				<th><#LAN_Advertise_Router_IP_DNS#></th>
+				<td>
+					<input type="radio" value="1" name="dhcpd_dns_router" class="content_input_fd" onClick="return change_common_radio(this, 'LANHostConfig', 'dhcpd_dns_router', '1')" <% nvram_match("dhcpd_dns_router", "1", "checked"); %>><#checkbox_Yes#>
+					<input type="radio" value="0" name="dhcpd_dns_router" class="content_input_fd" onClick="return change_common_radio(this, 'LANHostConfig', 'dhcpd_dns_router', '0')" <% nvram_match("dhcpd_dns_router", "0", "checked"); %>><#checkbox_No#>
+				</td>
+			</tr>
+			<tr>
 				<th><a class="hintstyle" href="javascript:void(0);" onClick="openHint(5,8);"><#LANHostConfig_x_WINSServer_itemname#></a></th>
 				<td>
 				  <input type="text" maxlength="15" class="input_15_table" name="dhcp_wins_x" value="<% nvram_get("dhcp_wins_x"); %>" onkeypress="return validator.isIPAddr(this,event)" autocorrect="off" autocapitalize="off"/>

@@ -125,8 +125,8 @@ zlib-clean:
 	-rm $(SRCDIR)/zlib/stamp-h2
 
 libid3tag/stamp-h2:
-	cd $(SRCDIR)/libid3tag \
-		touch stamp-h2;	
+	cd $(SRCDIR)/libid3tag && \
+		touch stamp-h2 && touch NEWS && touch AUTHORS && touch ChangeLog && autoreconf -i -f 	
 	cd $(SRCDIR)/libid3tag && \
 	AR=$(AR) AS=$(AS) LD=$(LD) NM=$(NM) CC=$(CC) CPP="$(CC) -E" GCC=$(CC) CXX=$(CXX) RANLIB=$(RANLIB) STRIP=$(STRIP) SIZE=$(SIZE) CXX=$(CXX) \
 	CPPFLAGS="-O2 -pipe -I$(CURRENT)/opt/include " \
@@ -134,10 +134,9 @@ libid3tag/stamp-h2:
 	$(CONFIGURE) \
 	--prefix=$(CURRENT)/opt \
 	--enable-shared --disable-debugging --disable-profiling --disable-dependency-tracking --disable-nls --enable-static=yes
-	sed -i "215c\lib_LTLIBRARIES = libid3tag_ms.la" $(SRCDIR)/libid3tag/Makefile
-	sed -i "324c\libid3tag_ms.la: \$$(libid3tag_la_OBJECTS) \$$(libid3tag_la_DEPENDENCIES)" $(SRCDIR)/libid3tag/Makefile
+	sed -i "s/libid3tag.la/libid3tag_ms.la/g" $(SRCDIR)/libid3tag/Makefile
 
-libid3tag: libid3tag/stamp-h2 zlib
+libid3tag: zlib libid3tag/stamp-h2
 	$(MAKE) -C $(SRCDIR)/libid3tag all
 	cd $(SRCDIR)/libid3tag && \
 	$(MAKE) install
@@ -186,7 +185,7 @@ libvorbis:
 	$(MAKE) install
 
 sqlite:
-	cd $(SRCDIR)/sqlite && \
+	cd $(SRCDIR)/sqlite && autoreconf -i -f && \
 	AR=$(AR) AS=$(AS) LD=$(LD) NM=$(NM) CC=$(CC) CPP="$(CC) -E" GCC=$(CC) CXX=$(CXX) RANLIB=$(RANLIB) STRIP=$(STRIP) \
 	$(CONFIGURE) \
 	CPPFLAGS="-O2   -pipe  -I$(CURRENT)/opt/include " \
@@ -293,6 +292,7 @@ expat-2.0.1-clean:
 #libdaemon add for avahi
 libdaemon/stamp-h1:
 		cd $(SRCDIR)/libdaemon && \
+		autoreconf -i -f && \
 		$(CONFIGURE) \
 		ac_cv_func_setpgrp_void=yes \
 		LDFLAGS=" -L$(CURRENT)/opt/lib -Wl,-rpath,/opt/lib -Wl,-rpath-link,$(CURRENT)/opt/lib " \

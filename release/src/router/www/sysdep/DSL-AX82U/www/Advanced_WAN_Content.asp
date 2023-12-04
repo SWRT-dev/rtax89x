@@ -233,7 +233,7 @@ function add_pvc() {
 
 function add_pvc_0() {
 	disable_pvc_summary();
-	enable_all_ctrl();
+	enable_all_ctrl(load_wan_unit);
 	
 	remove_bridge();
 
@@ -286,19 +286,12 @@ function showMSWANList(){
 		}
 	}
 	if(config_num == 0){
-		addRow = document.getElementById('MS_WAN_table').insertRow(2);	//0:thead 1:th 2:the 1st rule
-		for (var i = 0; i < 7; i++) {
-			cell[i] = addRow.insertCell(i);
-			if (i==3)
-					cell[i].innerHTML = "<center><#IPConnection_VSList_Norule#></center>";
-			else
-					cell[i].innerHTML = "&nbsp";
-			cell[i].style.color = "white";
-		}
 		if(!isSupport("is_ax5400_i1")){
-			cell[7] = addRow.insertCell(7);
-			cell[7].innerHTML = '<center><input class="add_btn" onclick="add_pvc_0();" value=""/></center>';
-			cell[7].style.color = "white";
+			addRow = document.getElementById('MS_WAN_table').insertRow(2);	//0:thead 1:th 2:the 1st rule
+			cell[0] = addRow.insertCell(0);
+			cell[0].colSpan = "8";
+			cell[0].style.color = "white";
+			cell[0].innerHTML = '<center><input class="add_btn" onclick="add_pvc_0();" value=""/></center>';
 		}
 	}
 	else{
@@ -370,18 +363,14 @@ function showMSWANList(){
 		if (row_count < 10) {
 			if(!isSupport("is_ax5400_i1")){
 				addRow = document.getElementById('MS_WAN_table').insertRow(row_count+2);
-				for (var i = 0; i < 7; i++) {
-					cell[i] = addRow.insertCell(i);
-					cell[i].innerHTML = "&nbsp";
-					cell[i].style.color = "white";
-				}
-				cell[7] = addRow.insertCell(7);
-				cell[7].style.color = "white";
+				cell[0] = addRow.insertCell(0);
+				cell[0].colSpan = "8";
+				cell[0].style.color = "white";
 				if(MSWANList[0][0] != "0"){
-					cell[7].innerHTML = '<center><input class="add_btn" onclick="add_pvc();" value=""/></center>';
+					cell[0].innerHTML = '<center><input class="add_btn" onclick="add_pvc();" value=""/></center>';
 				}
 				else{
-					cell[7].innerHTML = '<center><input class="add_btn" onclick="add_pvc_0();" value=""/></center>';
+					cell[0].innerHTML = '<center><input class="add_btn" onclick="add_pvc_0();" value=""/></center>';
 				}
 			}
 		}
@@ -1465,7 +1454,7 @@ function showDiableDHCPclientID(clientid_enable){
 												<th style="width:10%;"><center><#Internet#></center></th>
 												<th style="width:10%;"><center><#menu_dsl_iptv#></center></th>
 												<th style="width:10%;"><center><#PVC_edit#></center></th>
-												<th style="width:10%;" id="MS_WAN_add_del"><center><#list_add_delete#></center></th>
+												<th style="width:10%;" id="MS_WAN_add_del"><center><#CTL_del#></center></th>
 											</tr>
 									</table>
 
@@ -1770,7 +1759,7 @@ function showDiableDHCPclientID(clientid_enable){
 												<a class="hintstyle" href="javascript:void(0);" onClick="openHint(7,18);">Host-Uniq (<#Hexadecimal#>)</a>
 											</th>
 											<td align="left">
-												<input type="text" maxlength="32" class="input_32_table" name="wan_pppoe_hostuniq" value="<% nvram_get("wan_pppoe_hostuniq"); %>" onkeypress="return validator.isString(this, event);" autocorrect="off" autocapitalize="off"/>
+												<input type="text" maxlength="256" class="input_32_table" name="wan_pppoe_hostuniq" value="<% nvram_get("wan_pppoe_hostuniq"); %>" onkeypress="return validator.isString(this, event);" autocorrect="off" autocapitalize="off"/>
 											</td>
 										</tr>
 
@@ -1915,7 +1904,7 @@ function showDiableDHCPclientID(clientid_enable){
 <input type="hidden" name="action_mode" value="apply">
 <input type="hidden" name="flag" value="chg_pvc">
 <input type="hidden" name="action_script" value="">
-<input type="hidden" name="action_wait" value="">
+<input type="hidden" name="action_wait" value="2">
 <input type="hidden" name="current_page" value="Advanced_WAN_Content.asp">
 <input type="hidden" name="wan_unit" value="">
 </form>

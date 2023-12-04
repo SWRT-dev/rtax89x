@@ -301,6 +301,8 @@ function check_common_string(pwd, flag){
 // ---------- Viz add common string check for password 2015.09 end--------
 
 function validForm(){
+	if($("#defpassCheckbox").prop('checked')) return true;
+
 	if(!validator.chkLoginId(document.form.http_username_x)){
 		return false;
 	}
@@ -323,6 +325,12 @@ function validForm(){
 
 	if(is_KR_sku || is_SG_sku || is_AA_sku){		/* MODELDEP by Territory Code */
 		if(!validator.chkLoginPw_KR(document.form.http_passwd_x)){
+			return false;
+		}
+		if(document.form.http_passwd_x.value == document.form.http_username_x.value){
+			alert("<#JS_validLoginPWD#>");
+			document.form.http_passwd_x.focus();
+			document.form.http_passwd_x.select();
 			return false;
 		}
 	}
@@ -364,7 +372,6 @@ function submitForm(){
 		document.getElementById("error_status_field").style.display = "none";
 		document.getElementById('btn_modify').style.display = "none";
 		document.getElementById('loadingIcon').style.display = '';
-
 		setTimeout(function(){
 			httpApi.chpass(postData);
 		}, 100);
@@ -377,7 +384,7 @@ function submitForm(){
 	}
 	else
 		return;
-}	
+}
 
 
 var validator = {
@@ -417,7 +424,7 @@ var validator = {
 	chkLoginPw: function(obj){
 		
 		if(obj.value.length > 0 && obj.value.length < 5){
-			showError("<#JS_short_password#>");
+			showError("<#JS_short_password#> <#JS_password_length#>");
 			obj.value = "";
 			obj.focus();
 			obj.select();
@@ -459,9 +466,7 @@ var validator = {
 		return true;
 	},
 	
-	chkLoginPw_KR: function(obj){		//KR: Alphabets, numbers, specialcharacters mixed. 8 chars at least.
-						//S2: Mixed 2 out of Alphabets(Upper/Lower case), numbers, specialcharacters.
-						//    10 chars at least. Not have consecutive identical characters.
+	chkLoginPw_KR: function(obj){		//Alphabets, numbers, specialcharacters mixed
 		var string_length = obj.value.length;		
 		
 		if(!/[A-Za-z]/.test(obj.value) || !/[0-9]/.test(obj.value) || string_length < 10
@@ -522,8 +527,6 @@ function showError(str){
 <input type="hidden" name="flag" value="">
 <input type="hidden" name="login_authorization" value="">
 <input name="foilautofill" style="display: none;" type="password">
-<input type="hidden" name="http_username" value="">
-<input type="hidden" name="http_passwd" value="">
 <div class="main-field-bg">
 	<div class="main-field-padding">
 		<div class="logo-container">
@@ -548,6 +551,48 @@ function showError(str){
 			<div class="input-container">
 				<input type="password" id="http_passwd_2_x" name="http_passwd_2_x" tabindex="3" class="form-input" maxlength="33" autocapitalize="off" autocomplete="off" placeholder="<#Confirmpassword#>">
 			</div>
+			<div style="font-size: 16pt; display:none">
+				<input id="defpassCheckbox" type="checkbox" style="height:30px;width:30px;vertical-align: middle;">Use the default settings
+			</div>
+			<script>
+				$("#defpassCheckbox").change(function(){
+					var status = $(this).is(':checked');
+					if(status){
+						$("[name='http_username_x']")
+							.val("")
+							.prop('disabled', true)
+							.css({opacity: "0.3"})
+
+						$("[name='http_passwd_x']")
+							.val("")
+							.prop('disabled', true)
+							.css({opacity: "0.3"})
+
+						$("[name='http_passwd_2_x']")
+							.val("")
+							.prop('disabled', true)
+							.css({opacity: "0.3"})
+					}
+					else{
+						$("[name='http_username_x']")
+							.prop('disabled', false)
+							.css({opacity: "1"})
+
+						$("[name='http_passwd_x']")
+							.prop('disabled', false)
+							.css({opacity: "1"})
+
+						$("[name='http_passwd_2_x']")
+							.prop('disabled', false)
+							.css({opacity: "1"})						
+					}
+				})
+
+				if(isSupport("defpass")){
+					$("#defpassCheckbox").parent().show();
+					$("#defpassCheckbox").prop('checked', true).change()
+				}
+			</script>
 			<div id="error_status_field" class="error-hint-bg" style="display: none;" ></div>
 			<div id="btn_modify" class="login-btn-bg" onclick="submitForm();"><#CTL_modify#></div>
 			<div id="loadingIcon" class="loading-icon" style="display:none;">

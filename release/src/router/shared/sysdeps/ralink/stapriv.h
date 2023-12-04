@@ -23,7 +23,9 @@
  * $Id: stapriv.h,v 1.13 2007-07-26 11:22:24 yy Exp $
  */
 
+#if !defined(MUSL_LIBC) && !defined(RT4GAC86U)
 #include "linux/autoconf.h"
+#endif	// !MUSL_LIBC
 
 #define NDIS_802_11_LENGTH_SSID         32
 #define NDIS_802_11_LENGTH_RATES        8
@@ -110,18 +112,6 @@ typedef struct _PAIR_CHANNEL_FREQ_ENTRY
 	unsigned long   lChannel;
 	unsigned long   lFreq;
 } PAIR_CHANNEL_FREQ_ENTRY, *PPAIR_CHANNEL_FREQ_ENTRY;
-
-typedef union  _HTTRANSMIT_SETTING {
-	struct {
-		unsigned short  MCS:7;          // MCS
-		unsigned short  BW:1;           //channel bandwidth 20MHz or 40 MHz
-		unsigned short  ShortGI:1;
-		unsigned short  STBC:2;         //SPACE
-		unsigned short  rsv:3;
-		unsigned short  MODE:2;         // 0: CCK, 1:OFDM, 2:Mixedmode, 3:GreenField
-	} field;
-	unsigned short  word;
-} HTTRANSMIT_SETTING, *PHTTRANSMIT_SETTING;
 
 typedef union _LARGE_INTEGER {
 	struct {
@@ -355,7 +345,10 @@ enum WIFI_MODE{
 	WMODE_GN = 1 << 3,
 	WMODE_AN = 1 << 4,
 	WMODE_AC = 1 << 5,
-	WMODE_COMP = 6, /* total types of supported wireless mode, add this value once yow add new type */
+	WMODE_AX_24G = 1 << 6,
+        WMODE_AX_5G = 1 << 7,
+        WMODE_AX_6G = 1 << 8,
+	WMODE_COMP = 9, /* total types of supported wireless mode, add this value once yow add new type */
 };
 
 

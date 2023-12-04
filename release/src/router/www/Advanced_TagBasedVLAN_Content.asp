@@ -1706,7 +1706,7 @@ function show_LanToLanRoute_list(){
 	code +='<table width="97%" cellspacing="0" cellpadding="4" align="center" class="list_table" id="LanToLanRoute_list">';
 
 	if(cur_LanToLanRoute.length == 0)
-		code +="<tr><td style='color:#FFCC00;' colspan='3'>There is no LAN-to-LAN route.</td>";
+		code +="<tr><td style='color:#FFCC00;' colspan='3'><#TBVLAN_no_route#></td>";
 	else{
 		Object.keys(cur_LanToLanRoute).forEach(function(key){
 			code +='<tr id="row'+key+'">';
@@ -1985,7 +1985,7 @@ function del_LanToLanRoute(r){
 												function() {
 													var wans_dualwan_array = '<% nvram_get("wans_dualwan"); %>'.split(" ");
 													if(wans_dualwan_array.indexOf("lan") == -1 && orig_lan_trunk_type != "0"){
-														if(!confirm("Enable VLAN feature will disable bonding function in \'LAN > Switch Control\' page, Are you sure to continue?")){//untranslated
+														if(!confirm("<#TBVLAN_disable_Binding_confirm#>")){
 															curState = "0";
 															$('#vlan_enable').find('.iphone_switch').animate({backgroundPosition: -37}, "slow");
 															return false;

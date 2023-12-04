@@ -285,12 +285,8 @@ out:
  *	Buffers may only be allocated from interrupts using a @gfp_mask of
  *	%GFP_ATOMIC.
  */
-#ifdef CONFIG_SKB_RECYCLER
-struct sk_buff *___alloc_skb(unsigned int size, gfp_t gfp_mask, int flags, int node)
-#else
 struct sk_buff *__alloc_skb(unsigned int size, gfp_t gfp_mask,
 			    int flags, int node)
-#endif
 {
 	struct kmem_cache *cache;
 	struct skb_shared_info *shinfo;
@@ -376,24 +372,6 @@ nodata:
 	skb = NULL;
 	goto out;
 }
-
-#ifdef CONFIG_SKB_RECYCLER
-EXPORT_SYMBOL(___alloc_skb);
-
-struct sk_buff *__alloc_skb(unsigned int size, gfp_t gfp_mask, int flags, int node)
-{
-	struct sk_buff *skb;
-
-	if (likely(!(flags & SKB_ALLOC_FCLONE) && (skb = skb_recycler_alloc(NULL, size)))) {
-		skb->truesize = SKB_TRUESIZE(size);
-		skb->data = skb->head;
-		skb_reset_tail_pointer(skb);
-		return skb;
-	}
-
-	return ___alloc_skb(size, gfp_mask, flags, node);
-}
-#endif
 EXPORT_SYMBOL(__alloc_skb);
 
 /**
@@ -553,7 +531,7 @@ struct sk_buff *__netdev_alloc_skb(struct net_device *dev,
 	if (unlikely(length > SKB_RECYCLE_SIZE))
 		len = length;
 
-	skb = ___alloc_skb(len + NET_SKB_PAD, gfp_mask,
+	skb = __alloc_skb(len + NET_SKB_PAD, gfp_mask,
 			  SKB_ALLOC_RX, NUMA_NO_NODE);
 	if (!skb)
 		goto skb_fail;

@@ -126,7 +126,7 @@ NTSTATUS dcerpc_wbint_Sid2Gid_r(struct dcerpc_binding_handle *h, TALLOC_CTX *mem
 struct tevent_req *dcerpc_wbint_Sid2Gid_send(TALLOC_CTX *mem_ctx,
 					     struct tevent_context *ev,
 					     struct dcerpc_binding_handle *h,
-					     const char *_dom_name /* [in] [unique,charset(UTF8)] */,
+					     const char *_dom_name /* [in] [charset(UTF8),unique] */,
 					     struct dom_sid *_sid /* [in] [ref] */,
 					     uint64_t *_gid /* [out] [ref] */);
 NTSTATUS dcerpc_wbint_Sid2Gid_recv(struct tevent_req *req,
@@ -134,7 +134,7 @@ NTSTATUS dcerpc_wbint_Sid2Gid_recv(struct tevent_req *req,
 				   NTSTATUS *result);
 NTSTATUS dcerpc_wbint_Sid2Gid(struct dcerpc_binding_handle *h,
 			      TALLOC_CTX *mem_ctx,
-			      const char *_dom_name /* [in] [unique,charset(UTF8)] */,
+			      const char *_dom_name /* [in] [charset(UTF8),unique] */,
 			      struct dom_sid *_sid /* [in] [ref] */,
 			      uint64_t *_gid /* [out] [ref] */,
 			      NTSTATUS *result);
@@ -168,7 +168,7 @@ NTSTATUS dcerpc_wbint_Uid2Sid_r(struct dcerpc_binding_handle *h, TALLOC_CTX *mem
 struct tevent_req *dcerpc_wbint_Uid2Sid_send(TALLOC_CTX *mem_ctx,
 					     struct tevent_context *ev,
 					     struct dcerpc_binding_handle *h,
-					     const char *_dom_name /* [in] [charset(UTF8),unique] */,
+					     const char *_dom_name /* [in] [unique,charset(UTF8)] */,
 					     uint64_t _uid /* [in]  */,
 					     struct dom_sid *_sid /* [out] [ref] */);
 NTSTATUS dcerpc_wbint_Uid2Sid_recv(struct tevent_req *req,
@@ -176,7 +176,7 @@ NTSTATUS dcerpc_wbint_Uid2Sid_recv(struct tevent_req *req,
 				   NTSTATUS *result);
 NTSTATUS dcerpc_wbint_Uid2Sid(struct dcerpc_binding_handle *h,
 			      TALLOC_CTX *mem_ctx,
-			      const char *_dom_name /* [in] [charset(UTF8),unique] */,
+			      const char *_dom_name /* [in] [unique,charset(UTF8)] */,
 			      uint64_t _uid /* [in]  */,
 			      struct dom_sid *_sid /* [out] [ref] */,
 			      NTSTATUS *result);

@@ -123,9 +123,7 @@ define(function(){
 				menuName: "VPN",
 				index: "menu_VPN", 
 				tab: [
-					{url: "Advanced_VPN_PPTP.asp", tabName: "<#BOP_isp_heart_item#>"},
-					{url: "Advanced_VPN_OpenVPN.asp", tabName: "__INHERIT__"},
-					{url: "Advanced_VPN_IPSec.asp", tabName: "__INHERIT__"},
+					{url: "Advanced_VPNServer_Content.asp", tabName: "<#BOP_isp_heart_item#>"},
 					{url: "Advanced_VPNClient_Content.asp", tabName: (vpn_fusion_support) ? "<#VPN_Fusion#>" : "<#vpnc_title#>"},
 					{url: "Advanced_TOR_Content.asp", tabName: "TOR"},
 					{url: "Advanced_Instant_Guard.asp", tabName: "<#Instant_Guard_title#>"},
@@ -369,6 +367,10 @@ define(function(){
 			menus: function(){
 				var retArray = [];
 
+				if(!dnsfilter_support){
+					retArray.push("DNSFilter.asp");
+				}
+
 				if(!wifiRadar_support){
 					retArray.push("menu_WifiRadar");
 				}
@@ -477,6 +479,7 @@ define(function(){
 					retArray.push("menu_VPN");
 					retArray.push("menu_VLAN");
 					retArray.push("menu_Firewall");
+					retArray.push("menu_ParentalControl");
 				}
 				if (!softcenter_support || '<% nvram_get("sc_installed"); %>' != '1'){
 					retArray.push("menu_Softcenter");
@@ -488,6 +491,7 @@ define(function(){
 							menuTree.list.splice(i,1);
 					}
 				}
+
 				/*MODEL DEPENDENT*/
 				if(based_modelid == "GT-AXY16000" || based_modelid == "RT-AX89U"){
 					retArray.push("menu_WifiRadar");
@@ -528,17 +532,9 @@ define(function(){
 					retArray.push("Main_ConnStatus_Content.asp");
 					retArray.push("Main_TrafficMonitor_realtime.asp");
 				}
-				
-				if(!pptpd_support){
-					retArray.push("Advanced_VPN_PPTP.asp");
-				}
 
-				if(!openvpnd_support){
-					retArray.push("Advanced_VPN_OpenVPN.asp");
-				}	
-
-				if(!ipsec_srv_support){
-					retArray.push("Advanced_VPN_IPSec.asp");
+				if(!pptpd_support && !openvpnd_support && !ipsec_srv_support){
+					retArray.push("Advanced_VPNServer_Content.asp");
 				}
 
 				if(!vpnc_support){
@@ -600,7 +596,7 @@ define(function(){
 					retArray.push("Advanced_Notification_Content.asp");
 				}
 
-				if(!smart_connect_support || Qcawifi_support){
+				if(!smart_connect_support || Qcawifi_support || Rawifi_support){
 					retArray.push("Advanced_Smart_Connect.asp");
 				}
 				
@@ -791,4 +787,3 @@ define(function(){
 
 	return menuTree;
 });
-

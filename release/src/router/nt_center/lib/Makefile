@@ -3,7 +3,7 @@ include ../Makefile.config
 ifeq ($(ASUSWRT_SDK),y)
 -include $(SRCBASE)/router/.config
 
-CFLAGS = -Os -Wall $(EXTRACFLAGS) -fPIC
+CFLAGS = $(if $(RTCONFIG_DEBUG),-g,-Os) -Wall $(EXTRACFLAGS) -fPIC
 CFLAGS += -I. -I$(TOP)/nt_center/
 CFLAGS += -I$(TOP)/sqlite 
 CFLAGS += -I$(TOP)/shared #Just For rtconfig.h , do not include share library.
@@ -14,15 +14,22 @@ LDFLAGS += -L$(TOP)/sqlite/.libs -lsqlite3
 ifeq ($(RTCONFIG_QCA),y)
 LDFLAGS += -L$(LIBDIR)
 EXTRACC += -ldl
+else ifeq ($(RTCONFIG_MT798X),y)
+LDFLAGS += -L$(LIBDIR)
 endif
+ifneq ($(RTCONFIG_WLMODULE_MT7915D_AP),y)
 LDFLAGS += -lm
 EXTRACC += -lpthread #Depend on sqlite
 EXTRALD += -lpthread #Depend on sqlite
+endif
 
 LD_BINARY  += $(LDFLAGS) $(EXTRACC)
 LD_LIBRARY += $(LDFLAGS) $(EXTRALD)
 
 OBJS = nt_share.o nt_utility.o linklist.o hashtable.o nt_db_stat.o
+ifeq ($(RT4GAC86U),y)
+OBJS += $(LIBDIR)/libc_nonshared.a
+endif
 
 vpath %.c $(SRCBASE)/nt_center/
 
@@ -48,12 +55,12 @@ libnt.a: $(OBJS)
 nt_db: nt_db.o nt_utility.o nt_db_stat.o linklist.o
 	@echo " [$@] CC $@"
 	@$(CC) -o $@ $^ $(LD_BINARY) -lm
-	@$(STRIP) $@
+	@$(if $(RTCONFIG_DEBUG),,$(STRIP) $@)
 
 nt_db_test: nt_db_test.o nt_utility.o nt_db_stat.o linklist.o nt_share.o
 	@echo " [$@] CC $@"
 	@$(CC) -o $@ $^ $(LD_BINARY)
-	@$(STRIP) $@
+	@$(if $(RTCONFIG_DEBUG),,$(STRIP) $@)
 
 clean:
 	rm -f *.o *.so *.a .*.depend nt_db nt_db_test
@@ -72,7 +79,7 @@ clean:
 
 else # DSL_ASUSWRT_SDK
 
-CFLAGS = -Os -Wall $(EXTRACFLAGS) -fPIC
+CFLAGS = $(if $(RTCONFIG_DEBUG),-g,-Os) -Wall $(EXTRACFLAGS) -fPIC
 CFLAGS += -I. $(TC_CFLAGS)
 CFLAGS += -I$(APP_NOTIFICATION_CENTER_DIR)
 CFLAGS += -I$(APP_SQLITE_DIR)
@@ -87,7 +94,7 @@ all: libnt.so libnt.a nt_db
 libnt.so: $(OBJS)
 	@echo " [$@] LD $@"
 	@$(CC) -shared $(CFLAGS) -o $@ $^
-	@$(STRIP) $@
+	@$(if $(RTCONFIG_DEBUG),,$(STRIP) $@)
 
 libnt.a: $(OBJS)
 	@echo " [$@] AR $@"
@@ -97,12 +104,12 @@ libnt.a: $(OBJS)
 nt_db: nt_db.o nt_utility.o nt_db_stat.o linklist.o
 	@echo " [$@] CC $@"
 	@$(CC) -o $@ $^ $(LDFLAGS)
-	@$(STRIP) $@
+	@$(if $(RTCONFIG_DEBUG),,$(STRIP) $@)
 
 nt_db_test: nt_db_test.o nt_utility.o nt_db_stat.o linklist.o nt_share.o
 	@echo " [$@] CC $@"
 	@$(CC) -o $@ $^ $(LDFLAGS)
-	@$(STRIP) $@
+	@$(if $(RTCONFIG_DEBUG),,$(STRIP) $@)
 
 clean:
 	rm -f *.o *.so *.a .*.depend nt_db nt_db_test

@@ -894,16 +894,18 @@ function show_menu(){
 function show_footer(){
 	var width;
 	width = window.screen.width;
+	var now = new Date();
+	var year = now.getFullYear();
 	footer_code = '<div align="center" class="bottom-image"></div>\n';
 	if(width <= 480)
 	{
 		footer_code +='<div align="center" class="copyright">\n';
 		footer_code +='<span style="margin-right:150px; font-size:13px;"><a id="handToPhone" style="color:#CCC;">手机版</a> | <a style="color:#F90;">完整版</a></span>\n';
-		footer_code +='<span>'+multiLanguage_array[multi_INT][3]+'</span></div>\n';
+		footer_code +='<span>'+year+multiLanguage_array[multi_INT][3]+'</span></div>\n';
 		}
 	else
 	{
-		footer_code +='<div align="center" class="copyright">'+multiLanguage_array[multi_INT][3]+'</div>\n';
+		footer_code +='<div align="center" class="copyright">'+year+multiLanguage_array[multi_INT][3]+'</div>\n';
 		}
 	$("footer").innerHTML = footer_code;
 	

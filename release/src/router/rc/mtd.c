@@ -469,7 +469,7 @@ int mtd_write_main(int argc, char *argv[])
 			break;
 		}
 	}
-
+	//_dprintf("===========[%s->%d]: iname[%s], dev[%s]\n", __FUNCTION__, __LINE__, iname, dev);
 	if ((iname == NULL) || (dev == NULL)) {
 		usage_exit(argv[0], "-i file -d part");
 	}
@@ -705,11 +705,12 @@ int mtd_write_main(int argc, char *argv[])
 				n &= ~(mi.writesize - 1);
 				wlen = n;
 			} else {
+				wlen = ROUNDUP(n, mi.writesize);
+				memset(bounce_buf, 0xff, wlen);	//fill 0xff as empty data in flash
 				if (!alloc)
 					memcpy(bounce_buf, p, n);
 				bounce = 1;
 				p = bounce_buf;
-				wlen = ROUNDUP(n, mi.writesize);
 			}
 		}
 
@@ -1187,6 +1188,10 @@ fail:
 #define PRE_COMMIT_KERNEL_NVRM_FILE "/var/.kernel_nvram.setting.prec"
 #define TEMP_KERNEL_NVRAM_FILE_NAME "/var/.kernel_nvram.setting.temp"
 #define KERNEL_NVRAM_FILE_NAME "/data/.kernel_nvram.setting"
+#ifdef RTCONFIG_HND_ROUTER_AX_6756
+#define PSI_FILE_NAME		"/data/psi"
+#define PSI_BACKUP_FILE_NAME	"/data/psibackup"
+#endif
 
 int hnd_nvram_erase()
 {
@@ -1219,7 +1224,13 @@ int hnd_nvram_erase()
 			KERNEL_NVRAM_FILE_NAME, strerror(errno));
 		err = errno;
 	}
+#ifdef RTCONFIG_HND_ROUTER_AX_6756
+	if (access(PSI_FILE_NAME, F_OK) != -1)
+		unlink(PSI_FILE_NAME);
 
+	if (access(PSI_BACKUP_FILE_NAME, F_OK) != -1)
+		unlink(PSI_BACKUP_FILE_NAME);
+#endif
 	sync();
 	_dprintf("Erasing nvram done\n");
 	return err;
@@ -1434,5 +1445,4 @@ bca_sys_upgrade(const char *path)
 
 	return ret;
 }
-
 #endif

@@ -31,6 +31,9 @@ install:
 		cd $(PKG_BUILD_DIR)/$${socdir} && rsync -avcH bdwlan* $(INSTALLFWDIR)/$${socdir} && cd - ; \
 		[ ! -e $(BUILD_NAME)/$${socdir} ] || install -m 644 $(BUILD_NAME)/$${socdir}/bdwlan* $(INSTALLFWDIR)/$${socdir} ; \
 	done
+	# Disable QDSS tracing
+	sed -ie "s,^\(.*\)_qdss_tracing=1,\1_qdss_tracing=0," $(INSTALLDIR)/lib/firmware/IPQ8074/firmware_rdp_feature.ini
+	sed -ie "s,^\(.*\)_qdss_tracing=1,\1_qdss_tracing=0," $(INSTALLDIR)/lib/firmware/IPQ8074A/firmware_rdp_feature.ini
 
 clean:
 	@#Nothing to do

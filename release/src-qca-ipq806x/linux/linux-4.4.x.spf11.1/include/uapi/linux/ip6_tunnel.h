@@ -18,6 +18,10 @@
 #define IP6_TNL_F_RCV_DSCP_COPY 0x10
 /* copy fwmark from inner packet */
 #define IP6_TNL_F_USE_ORIG_FWMARK 0x20
+/* allow remote endpoint on the local node */
+#define IP6_TNL_F_ALLOW_LOCAL_REMOTE 0x40
+/* Use FMR draft-03 mapping */
+#define IP6_TNL_F_USE_FMR_DRAFT 0x80
 
 struct ip6_tnl_parm {
 	char name[IFNAMSIZ];	/* name of tunnel device */

@@ -45,8 +45,6 @@ int sysctl_oom_dump_tasks = 1;
 
 DEFINE_MUTEX(oom_lock);
 
-extern void stop_and_free_skb_recycler(unsigned long *freed);
-
 #ifdef CONFIG_NUMA
 /**
  * has_intersects_mems_allowed() - check task eligiblity for kill
@@ -682,12 +680,6 @@ bool out_of_memory(struct oom_control *oc)
 
 	if (oom_killer_disabled)
 		return false;
-
-#ifdef CONFIG_SKB_RECYCLER
-	stop_and_free_skb_recycler(&freed);
-	if (freed > 0)
-		return true;
-#endif
 
 	blocking_notifier_call_chain(&oom_notify_list, 0, &freed);
 	if (freed > 0)

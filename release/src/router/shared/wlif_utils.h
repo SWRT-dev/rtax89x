@@ -44,7 +44,9 @@
 #define ETHER_ADDR_LEN 6
 #endif
 
-#ifdef RTCONFIG_AMAS_WGN
+#if defined(RTCONFIG_BCM_502L07P2)
+#define WLIFU_MAX_NO_BRIDGE		16
+#elif defined(RTCONFIG_AMAS_WGN)
 #define WLIFU_MAX_NO_BRIDGE		8
 #else
 #define WLIFU_MAX_NO_BRIDGE		2
@@ -174,9 +176,7 @@ extern unsigned char *get_wlmacstr_by_unit(char *unit);
 #define WLIF_SSID_MAX_SZ		32
 #define WLIF_PSK_MAX_SZ			64
 
-#ifdef RTCONFIG_HND_ROUTER_AX
 #define WLIF_DPP_PARAMS_MAX_SIZE	512
-#endif
 
 #define DPP_AKM		"dpp"
 #define PSK_AKM		"psk"
@@ -240,7 +240,6 @@ typedef struct wlif_wps_nw_settings {
 	bool invalid;		// Check for the validity of credentials
 } wlif_wps_nw_creds_t;
 
-#ifdef RTCONFIG_HND_ROUTER_AX
 // Structure to hold the network settings received in DPP config response.
 typedef struct wlif_dpp_config_settings {
 	char ssid[WLIF_SSID_MAX_SZ + /* '\0' */ 1];		// SSID
@@ -254,7 +253,6 @@ typedef struct wlif_dpp_config_settings {
 	char dpp_pass[2*WLIF_PSK_MAX_SZ + /* '\0' */ 1];	// PASS
 #endif
 } wlif_dpp_creds_t;
-#endif
 
 /* Struct to store the bss info */
 typedef struct wlif_bss {
@@ -367,6 +365,8 @@ void wl_rateset_get_fields(wl_rateset_args_u_t *rs, int rsver, uint32 **rscount,
 		uint8 **rsmcs, uint16 **rsvht_mcs, uint16 **rshe_mcs);
 int wl_rateset_get_args_info(void *wl, int *rs_len, int *rs_ver);
 bool rateset_overwrite_by_supportedRatesBitmap(char *name, char *prefix);
+double wl_get_txpwr_target_max(char *name);
+double get_wifi_maxpower(int target_unit);
 #endif
 #endif
 #endif /* _wlif_utils_h_ */

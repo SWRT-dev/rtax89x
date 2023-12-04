@@ -10,7 +10,7 @@ endif
 
 CFLAGS += -DASUS
 CFLAGS += -I$(TOP)/shared -I$(SRCBASE)/include
-LDFLAGS = -L$(TOP)/shared -lshared -L$(TOP_PLATFORM)/nvram${BCMEX}${EX7} ${EXTRA_NV_LDFLAGS} -lnvram
+LDFLAGS = -L$(TOP)/shared -lshared -L$(TOP_PLATFORM)/nvram${BCMEX}${EX7} ${EXTRA_NV_LDFLAGS} -lnvram -lm
 ifeq ($(RTCONFIG_BCM_502L07P2),y)
 LDFLAGS += -L$(TOP_PLATFORM)/ethctl_lib -lethctl
 endif
@@ -19,8 +19,10 @@ INSTALL = install
 ifeq ($(RTCONFIG_QTN),y)
 LDFLAGS += -L$(TOP)/libqcsapi_client -lqcsapi_client
 endif
+LDFLAGS += -L$(TOP)/json-c/.libs -ljson-c
 
-OBJS = sysstate.o dumplog.o respipc.o cpuusage.o cputemp.o ramusage.o
+
+OBJS = sysstate.o dumplog.o respipc.o cpuusage.o cputemp.o ramusage.o psstate.o tmpsize.o
 
 ifneq ($(wildcard ./prebuild),)
 all:

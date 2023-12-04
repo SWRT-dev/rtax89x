@@ -29,6 +29,10 @@
 #include "hotplug2.h"
 #include "rules.h"
 
+#if defined(MUSL_LIBC)
+#include <sys/sysmacros.h>
+#endif
+
 #ifdef HND_ROUTER
 #define inline  
 #endif

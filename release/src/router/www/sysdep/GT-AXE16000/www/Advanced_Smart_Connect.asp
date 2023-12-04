@@ -298,7 +298,7 @@ function genSteerPhyRateGreat(){
 }
 
 function genSteerCapability(){
-	let code = '<th>Capbility</th>';
+	let code = '<th><#Capability#></th>';
 	for(let i=0; i<wl_info.wl_if_total; i++){
 		if(smart_connect_array[i] === ''){
 			code += '<td align="center">- -</td>';
@@ -407,7 +407,7 @@ function genStaPhyRateGreat(){
 }
 
 function genStaCapability(){
-	let code = '<th style="width:12%">Capbility</th>';
+	let code = '<th style="width:12%"><#Capability#></th>';
 	for(let i=0; i<wl_info.wl_if_total; i++){
 		if(smart_connect_array[i] === ''){
 			code += '<td align="center">- -</td>';
@@ -468,7 +468,7 @@ function genIfQualityBWUtilization(){
 }
 
 function genIfQualityaCapability(){
-	let code = '<th style="width:12%">Capbility</th>';
+	let code = '<th style="width:12%"><#Capability#></th>';
 	for(let i=0; i<wl_info.wl_if_total; i++){
 		if(smart_connect_array[i] === ''){
 			code += '<td align="center">- -</td>';
@@ -529,8 +529,12 @@ function genIfSelectBand(){
 		_array.splice(i, 1);
 
 		code += '<td style="width:22%;" align="center">';
-		code += '<div>';
+		code += '<div>';			
 		for(let j=1; j<if_name_array.length; j++){
+			if((variable.smart_connect_selif_x >> 3) == 1 && i>0 && j>1){
+				continue
+			}
+
 			code += '<div style="margin: 3px 0;">' + j +': ';
 			code += '<select class="input_option" id="wl'+ i +'_bsd_if_select_policy_'+ j +'" name="wl'+ i +'_bsd_if_select_policy_'+ j +'" onChange="targetBandChange('+ i +', '+ j +')">';
 			for(let k=0; k<_array.length; k++){
@@ -544,6 +548,7 @@ function genIfSelectBand(){
 
 				code += '<option value="'+ _array[k][0] +'" class="content_input_fd" '+ flag +'>'+ _array[k][1] +'</option>';
 			}
+
 
 			if(j !== 1){
 		 		code += '<option value="none" class="content_input_fd" '+ flag_none +'>none</option>';
@@ -686,6 +691,10 @@ function applyRule(){
 		if(smart_connect_array[i] === ''){
 			continue;
 		}
+
+		if(based_modelid == 'GT-AXE16000'){		// wireless介面順序變換調整
+			shift = (i + 3) % 4;		// wireless unit ['1', '2', '3', '0']			
+		}
 		/*
 			Steering policy
 			['Bandwidth Utilization', 'X', 'X', 'RSSI value', 'PHY rate less', 'PHY rate great', 'binary string']
@@ -738,7 +747,7 @@ function applyRule(){
 			return '0x' + parseInt(binary, 2).toString(16);
 		})();
 
-		variable['wl'+ i +'_bsd_steering_policy'] = bsd_steering_policy.join(' ');
+		variable['wl'+ shift +'_bsd_steering_policy'] = bsd_steering_policy.join(' ');
 
 		/*
 			STA Selection Policy
@@ -782,7 +791,7 @@ function applyRule(){
 			return '0x' + parseInt(binary, 2).toString(16);
 		})();
 
-		variable['wl'+ i +'_bsd_sta_select_policy'] = bsd_sta_select_policy.join(' ');
+		variable['wl'+ shift +'_bsd_sta_select_policy'] = bsd_sta_select_policy.join(' ');
 		
 		/*
 			Interface Quality
@@ -798,12 +807,13 @@ function applyRule(){
 
 			let binary_array = binary.split('');
 			let length = binary_array.length;
+
 			let cap_value = document.querySelector('#wl'+ i +'_bsd_if_qualify_policy_vht_s').value;
-			if(cap_value === '3'){
-				binary_array[length-11] = '1';
+			if(cap_value === '3'){				
+				binary_array[length-12] = '1';
 			}
 			else if(cap_value === '4'){
-				binary_array[length-10] = '1';
+				binary_array[length-11] = '1';
 			}
 			else if(cap_value === '1'){
 				binary_array[length-3] = '1';
@@ -817,12 +827,12 @@ function applyRule(){
 				binary_array[length-3] = '0';
 				binary_array[length-2] = '0';
 			}
-
+			
 			binary = binary_array.join('');
 			return '0x' + parseInt(binary, 2).toString(16);
 		})();
 
-		variable['wl'+ i +'_bsd_if_qualify_policy'] = bsd_if_qualify_policy.join(' ');
+		variable['wl'+ shift +'_bsd_if_qualify_policy'] = bsd_if_qualify_policy.join(' ');
 
 		let if_array = [];
 		if(smart_connect_array[i] !== ''){
@@ -840,7 +850,7 @@ function applyRule(){
 			}
 		}
 		
-		variable['wl'+ i +'_bsd_if_select_policy'] = if_array.join(' ');
+		variable['wl'+ shift +'_bsd_if_select_policy'] = if_array.join(' ');
 
 		/*
 			Bounce Detect 
@@ -858,7 +868,7 @@ function applyRule(){
 	httpApi.nvramSet(variable, function(){
 		showLoading(10);
 		setTimeout(function(){
-			location.href=location.href;
+			location.reload();
 		}, 10000);
 		
 	});
@@ -884,7 +894,7 @@ function restoreRule(){
 	httpApi.nvramSet(restoreData, function(){
 		showLoading(10);
 		setTimeout(function(){
-			location.href=location.href;
+			location.reload();
 		}, 10000);
 		
 	});

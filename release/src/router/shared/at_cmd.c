@@ -45,17 +45,17 @@ static inline int Gobi_AtCommand(int unit, const char *cmd, const char *file)
 		cprintf("# %s wait process(%d): fd(%d) pid(%d)!\n", __func__, owner, fd, getpid());
 		sleep(1);
 	}
-	sprintf(buf, "%d", getpid());
+	snprintf(buf, sizeof(buf), "%d", getpid());
 	write(fd, buf, strlen(buf));
 
 	unlink(file);
 
 	usb_modem_prefix(unit, prefix, sizeof(prefix));
 
-	if (nvram_match(strcat_r(prefix, "act_type", tmp), "tty"))
-		modem_act_node = nvram_get(strcat_r(prefix, "act_bulk", tmp));
+	if (nvram_match(strlcat_r(prefix, "act_type", tmp, sizeof(tmp)), "tty"))
+		modem_act_node = nvram_get(strlcat_r(prefix, "act_bulk", tmp, sizeof(tmp)));
 	else
-		modem_act_node = nvram_get(strcat_r(prefix, "act_int", tmp));
+		modem_act_node = nvram_get(strlcat_r(prefix, "act_int", tmp, sizeof(tmp)));
 
 	if (modem_act_node != NULL)
 	{
@@ -174,7 +174,6 @@ int Gobi_SimCardReady(const char *status)
 	return 0;
 }
 
-
 // system("chat -t 1 -e '' 'AT+CGSN' OK >> /dev/ttyACM0 < /dev/ttyACM0 2>/tmp/at_cgsn; [ `sed -n 4p /tmp/at_cgsn | wc -m ` = 16 ] && v=`sed -n 4p /tmp/at_cgsn` || v=FAIL; echo $v");
 char *Gobi_IMEI(int unit, char *line, int size)
 {
@@ -194,6 +193,23 @@ char *Gobi_IMEI(int unit, char *line, int size)
 			return p;
 	}
 	return NULL;
+}
+
+// system("chat -t 1 -e '' 'AT+EGMR=1,7,\"xxxx\"' OK >> /dev/ttyACM0 < /dev/ttyACM0 2>/tmp/at_egmr; [ `sed -n 4p /tmp/at_egmr | wc -m ` = 16 ] && v=`sed -n 4p /tmp/at_egmr` || v=FAIL; echo $v");
+char *Gobi_setIMEI(int unit, char *line, int size, const char *IMEI)
+{
+	char atCmd[32];
+	const char *tmpFile = "/tmp/at_egmr";
+	char *p = NULL;
+
+	snprintf(atCmd, sizeof(atCmd), "+EGMR=1,7,\"%s\"", IMEI);
+
+	if (Gobi_AtCommand(unit, atCmd, tmpFile) >= 0
+	    && (p = get_line_by_str(line, size, tmpFile, "OK")) != NULL)
+	{
+		skip_space(p);
+	}
+	return p;
 }
 
 // system("chat -t 1 -e '' 'AT+CGNWS' OK >> /dev/ttyACM0 < /dev/ttyACM0 2>/tmp/at_cgnws; grep +CGNWS: /tmp/at_cgnws | awk -F, '{print $4}' | grep 0x01 -q && v=`grep +CGNWS: /tmp/at_cgnws | awk -F, '{print $7}'` || v=FAIL; echo $v");
@@ -344,6 +360,8 @@ char * Gobi_FwVersion(int unit, char *line, int size)
 			(p = get_line_by_str(line, size, tmpFile, "Revision: WWHC")) != NULL)
 #elif defined(RT4GAC68U)
 			(p = get_line_by_str(line, size, tmpFile, "WWHC")) != NULL)
+#elif defined(RT4GAC86U) || defined(RT4GAX56)
+			(p = get_line_by_str(line, size, tmpFile, "Revision: ")) != NULL)
 #else
 			(p = get_line_by_str(line, size, tmpFile, "WWLC")) != NULL)
 #endif
@@ -355,7 +373,7 @@ char * Gobi_FwVersion(int unit, char *line, int size)
 		char *ptr = NULL;
 		if ((ptr = strstr(p, " [")))
 			*ptr = '\0';
-		sprintf(line, "WWHC%s", p);
+		snprintf(line, size, "WWHC%s", p);
 #endif
 	}
 	return p;

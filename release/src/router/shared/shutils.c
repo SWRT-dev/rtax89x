@@ -271,6 +271,9 @@ int _eval(char *const argv[], const char *path, int timeout, int *ppid)
 		chld = signal(SIGCHLD, SIG_DFL);
 	}
 
+#if defined(RTCONFIG_VALGRIND)
+	setenv("USER", nvram_get("http_username")? : "admin", 1);
+#endif
 #ifdef HND_ROUTER
 	p = nvram_safe_get("env_path");
 	snprintf(s, sizeof(s), "%s%s/sbin:/bin:/usr/sbin:/usr/bin:/opt/sbin:/opt/bin", *p ? p : "", *p ? ":" : "");
@@ -358,7 +361,7 @@ EXIT:
 		pid = getpid();
 
 		if ((fd = open("/dev/console", O_RDWR | O_NONBLOCK)) < 0) {
-			sprintf(s, "/tmp/eval.%d", pid);
+			snprintf(s, sizeof(s), "/tmp/eval.%d", pid);
 			fd = open(s, O_CREAT | O_RDWR | O_NONBLOCK, 0600);
 		} else
 			dup2(fd, STDIN_FILENO);
@@ -579,14 +582,14 @@ get_pid_by_name(char *name)
 
 	while ((next = readdir(dir)) != NULL) {
 		FILE *fp;
-		char filename[256];
+		char filename[sizeof("/proc/%s/cmdline") + 256];
 		char buffer[256];
 
 		/* If it isn't a number, we don't want it */
 		if (!isdigit(*next->d_name))
 			continue;
 
-		sprintf(filename, "/proc/%s/cmdline", next->d_name);
+		snprintf(filename, sizeof(filename), "/proc/%s/cmdline", next->d_name);
 		fp = fopen(filename, "r");
 		if (!fp) {
 			continue;
@@ -620,13 +623,13 @@ get_pid_by_thrd_name(char *name)
 
         while ((next = readdir(dir)) != NULL) {
                 FILE *fp;
-                char filename[256];
+		char filename[sizeof("/proc/%s/cmdline") + 256];
                 char buffer[256];
 
                 /* If it isn't a number, we don't want it */
                 if (!isdigit(*next->d_name))
                         continue;
-                sprintf(filename, "/proc/%s/comm", next->d_name);
+                snprintf(filename, sizeof(filename), "/proc/%s/comm", next->d_name);
                 fp = fopen(filename, "r");
                 if (!fp) {
                         continue;
@@ -643,6 +646,65 @@ get_pid_by_thrd_name(char *name)
 
         closedir(dir);
         return pid;
+}
+
+void replace_null_to_space(char *str, int len) {
+
+	int i = 0;
+	char *p = str;
+
+	for(i=0; i<len-1; i++){
+		if(*p == '\0')
+			*p = ' ';
+		p++;
+
+	}
+}
+
+pid_t
+get_pid_by_process_name(char *name)
+{
+	int i = 0;
+	size_t size = 0;
+	char p_name[128] = {0}, filename[256] = {0};
+	pid_t           pid = -1;
+	DIR             *dir;
+	struct dirent   *next;
+
+	if ((dir = opendir("/proc")) == NULL) {
+		perror("Cannot open /proc");
+		return -1;
+	}
+
+	while ((next = readdir(dir)) != NULL) {
+		/* If it isn't a number, we don't want it */
+		if (!isdigit(*next->d_name))
+			continue;
+
+		memset(filename, 0, sizeof(filename));
+		snprintf(filename, sizeof(filename), "/proc/%s/cmdline", next->d_name);
+		FILE* f = fopen(filename,"r");
+		if(f){
+			size = fread(p_name, sizeof(char), sizeof(p_name), f);
+
+			if(size>0){
+				replace_null_to_space(p_name, size);
+				if('\n'==p_name[size-1])
+				p_name[size-1]='\0';
+			}else
+				memset(p_name, 0, sizeof(p_name));
+
+			fclose(f);
+		}
+
+		if (!strcmp(name, p_name)) {
+			pid = strtol(next->d_name, NULL, 0);
+			break;
+		}
+	}
+	closedir(dir);
+
+	return pid;
 }
 
 /*
@@ -1068,7 +1130,7 @@ get_ifname_unit(const char* ifname, int *unit, int *subunit)
 	}
 #endif
 
-	strcpy(str, ifname);
+	strlcpy(str, ifname, sizeof(str));
 
 	/* find the trailing digit chars */
 	len = sh_strrspn(str, digits);
@@ -1208,7 +1270,7 @@ _find_in_list(const char *haystack, const char *needle, char deli)
 	if (!haystack || !needle || !*haystack || !*needle)
 		return NULL;
 
-	sprintf(strde, "%c", deli);
+	snprintf(strde, sizeof(strde), "%c", deli);
 	needle_len = strlen(needle);
 	haystack_len = strlen(haystack);
 
@@ -1670,10 +1732,10 @@ static void put_ulong(strbuf_t *buf, unsigned long int value, int base,
  *	the first call, msize can be set to -1.
  */
 
-static int dsnprintf(char **s, int size, char *fmt, va_list arg, int msize)
+static int dsnprintf(char **s, int size, const char *fmt, va_list arg, int msize)
 {
 	strbuf_t	buf;
-	char		c;
+	char	c;
 
 	assert(s);
 	assert(fmt);
@@ -1865,7 +1927,7 @@ static int dsnprintf(char **s, int size, char *fmt, va_list arg, int msize)
  *	point, like %e, %f, %g...
  */
 
-int fmtAlloc(char **s, int n, char *fmt, ...)
+int fmtAlloc(char **s, int n, const char *fmt, ...)
 {
 	va_list	ap;
 	int		result;
@@ -1885,7 +1947,7 @@ int fmtAlloc(char **s, int n, char *fmt, ...)
  *	A vsprintf replacement.
  */
 
-int fmtValloc(char **s, int n, char *fmt, va_list arg)
+int fmtValloc(char **s, int n, const char *fmt, va_list arg)
 {
 	assert(s);
 	assert(fmt);
@@ -1897,7 +1959,7 @@ int fmtValloc(char **s, int n, char *fmt, va_list arg)
 /*
  *  * description: parse va and do system
  *  */
-int doSystem(char *fmt, ...)
+int doSystem(const char *fmt, ...)
 {
 	va_list		vargs;
 	char		*cmd = NULL;
@@ -2019,10 +2081,10 @@ wl_ether_etoa(const struct ether_addr *n)
 	for (i = 0; i < ETHER_ADDR_LEN; i++) {
 		if (i)
 			*c++ = ':';
-#if defined(RTCONFIG_LANTIQ)|| defined(RTCONFIG_LANTIQ)|| defined(RTCONFIG_QCA)			
-		c += sprintf(c, "%02X", n->ether_addr_octet[i] & 0xff);
+#if defined(RTCONFIG_LANTIQ)|| defined(RTCONFIG_LANTIQ)|| defined(RTCONFIG_QCA) || defined(RTCONFIG_MT798X) || defined(RTCONFIG_RALINK)
+		c += snprintf(c, sizeof(etoa_buf) - (c - etoa_buf), "%02X", n->ether_addr_octet[i] & 0xff);
 #else
-		c += sprintf(c, "%02X", n->octet[i] & 0xff);
+		c += snprintf(c, sizeof(etoa_buf) - (c - etoa_buf), "%02X", n->octet[i] & 0xff);
 #endif		
 	}
 	return etoa_buf;
@@ -2090,7 +2152,7 @@ char *enc_str(char *str, char *enc_buf)
         memset(buf2, 0, sizeof(buf2));
         memset(enc_buf, 0, ENC_WORDS_LEN);
 
-        strcpy((char *) buf, str);
+        strlcpy((char *) buf, str, sizeof(buf));
 
         shortstr_encrypt(buf, buf2, &used_shift);
         memcpy(enc_buf, buf2, DATA_WORDS_LEN);
@@ -2283,7 +2345,7 @@ int get_char_count(char *str, int ch)
 char *get_process_name_by_pid(const int pid)
 {
 	static char name[1024];
-	sprintf(name, "/proc/%d/cmdline",pid);
+	snprintf(name, sizeof(name), "/proc/%d/cmdline",pid);
 	FILE* f = fopen(name,"r");
 	if(f){
 		size_t size;
@@ -2353,18 +2415,10 @@ sysfail:
  return NULL;
 }
 
-#if 0 // replaced by #define in shared.h
-int modprobe(const char *mod)
+int modprobe_q(const char *mod)
 {
-#if 1
-	return eval("modprobe", "-s", (char *)mod);
-#else
-	int r = eval("modprobe", "-s", (char *)mod);
-	cprintf("modprobe %s = %d\n", mod, r);
-	return r;
-#endif
+	return eval("modprobe", "-q" , (char *)mod);
 }
-#endif // 0
 
 int modprobe_r(const char *mod)
 {
@@ -2424,7 +2478,10 @@ int remove_kmods(char *kmods_list)
 			return -2;
 		}
 	} else
-		p = strcpy(buf, kmods_list);
+	{
+		strlcpy(buf, kmods_list, sizeof(buf));
+		p = buf;
+	}
 
 	for (q = NULL; q != p;) {
 		q = strrchr(p, ' ') ? : p;
@@ -2457,9 +2514,22 @@ int num_of_wl_if()
 	return count;
 }
 
+int num_of_wan_if()
+{
+	char word[256], *next;
+	int count = 0;
+	char wan_ifnames[32] = { 0 };
+
+	strlcpy(wan_ifnames, nvram_safe_get("wan_ifnames"), sizeof(wan_ifnames));
+	foreach (word, wan_ifnames, next)
+		count++;
+
+	return count;
+}
+
 int num_of_5g_if()
 {
-#if defined(RTCONFIG_QCA)
+#if !defined(CONFIG_BCMWL5)
 	char prefix[] = "wlXXXXXXXXXXXX_";
 	int band, count = 0;
 
@@ -2469,7 +2539,6 @@ int num_of_5g_if()
 		if (nvram_pf_match(prefix, "nband", "1"))
 			count++;
 	}
-
 #else
 	char word[256], *next;
 	int count = 0;
@@ -2482,21 +2551,7 @@ int num_of_5g_if()
 		if(band == WLC_BAND_5G)
 			count++;
 	}
-
 #endif
-	return count;
-}
-
-int num_of_wan_if()
-{
-	char word[256], *next;
-	int count = 0;
-	char wan_ifnames[32] = { 0 };
-
-	strlcpy(wan_ifnames, nvram_safe_get("wan_ifnames"), sizeof(wan_ifnames));
-	foreach (word, wan_ifnames, next)
-		count++;
-
 	return count;
 }
 
@@ -2661,134 +2716,6 @@ found_next:
         return NULL;
 }
 
-#ifdef CONFIG_BCMWL5
-void retrieve_static_maclist_from_nvram(int idx,struct maclist *maclist,int maclist_buf_size)
-{
-	char prefix[16]={0};
-	struct ether_addr *ea;
-	char *buf = maclist;
-	char tmp[100];
-	char var[80], *next;
-	unsigned char sta_ea[6] = {0};
-	char *nv, *nvp, *b;
-#ifdef RTCONFIG_AMAS
-	char mac2g[32], mac5g[32], *next_mac;
-	char *reMac, *maclist2g, *maclist5g, *timestamp;
-	char stamac2g[18] = {0};
-	char stamac5g[18] = {0};
-#endif
-
-	if(!maclist) return;
-
-#ifdef RTCONFIG_AMAS
-	if (nvram_get_int("re_mode") == 1)
-		snprintf(prefix, sizeof(prefix), "wl%d.1_", idx);
-	else
-#endif
-	snprintf(prefix,16,"wl%d_",idx);
-
-#ifdef RTCONFIG_AMAS
-	if (is_cfg_relist_exist())
-	{
-		if (nvram_get_int("re_mode") == 1) {
-			nv = nvp = get_cfg_relist(0);
-			if (nv) {
-				while ((b = strsep(&nvp, "<")) != NULL) {
-					if ((vstrsep(b, ">", &reMac, &maclist2g, &maclist5g, &timestamp) != 4))
-						continue;
-					/* first mac for sta 2g of dut */
-					foreach_44 (mac2g, maclist2g, next_mac)
-						break;
-					/* first mac for sta 5g of dut */
-					foreach_44 (mac5g, maclist5g, next_mac)
-						break;
-
-					if (strcmp(reMac, get_lan_hwaddr()) == 0) {
-						snprintf(stamac2g, sizeof(stamac2g), "%s", mac2g);
-						//dbg("dut 2g sta (%s)\n", stamac2g);
-						snprintf(stamac5g, sizeof(stamac5g), "%s", mac5g);
-						//dbg("dut 5g sta (%s)\n", stamac5g);
-						break;
-					}
-				}
-				free(nv);
-			}
-		}
-	}
-#endif
-
-	maclist->count = 0;
-	if (!nvram_match(strcat_r(prefix, "macmode", tmp), "disabled")) {
-		memset(maclist, 0, sizeof(maclist_buf_size));
-		ea = &(maclist->ea[0]);
-
-		nv = nvp = strdup(nvram_safe_get(strcat_r(prefix, "maclist_x", tmp)));
-		if (nv) {
-			while ((b = strsep(&nvp, "<")) != NULL) {
-				if (strlen(b) == 0) continue;
-
-#ifdef RTCONFIG_AMAS
-				if(nvram_match(strcat_r(prefix, "macmode", tmp), "allow")){
-					if (nvram_get_int("re_mode") == 1) {
-						if (strcmp(b, stamac2g) == 0 ||
-							strcmp(b, stamac5g) == 0)
-							continue;
-					}
-				}
-#endif
-				//dbg("maclist sta (%s) in %s\n", b, wlif_name);
-				ether_atoe(b, sta_ea);
-				memcpy(ea, sta_ea, sizeof(struct ether_addr));
-				maclist->count++;
-				ea++;
-			}
-			free(nv);
-		}
-#ifdef RTCONFIG_AMAS
-		if (nvram_match(strcat_r(prefix, "macmode", tmp), "allow"))
-		{
-			nv = nvp = get_cfg_relist(0);
-			if (nv) {
-				while ((b = strsep(&nvp, "<")) != NULL) {
-					if ((vstrsep(b, ">", &reMac, &maclist2g, &maclist5g, &timestamp) != 4))
-						continue;
-
-					if (strcmp(reMac, get_lan_hwaddr()) == 0)
-						continue;
-
-					if (idx == 0) {
-						foreach_44 (mac2g, maclist2g, next_mac) {
-							if (check_re_in_macfilter(idx, mac2g))
-								continue;
-							//dbg("relist sta (%s) in %s\n", mac2g, wlif_name);
-							ether_atoe(mac2g, sta_ea);
-							memcpy(ea, sta_ea, sizeof(struct ether_addr));
-							maclist->count++;
-							ea++;
-						}
-					}
-					else
-					{
-						foreach_44 (mac5g, maclist5g, next_mac) {
-							if (check_re_in_macfilter(idx, mac5g))
-								continue;
-							//dbg("relist sta (%s) in %s\n", mac5g, wlif_name);
-							ether_atoe(mac5g, sta_ea);
-							memcpy(ea, sta_ea, sizeof(struct ether_addr));
-							maclist->count++;
-							ea++;
-						}
-					}
-				}
-				free(nv);
-			}
-		}
-#endif
-
-	}
-}
-#endif
-
 /* Compare two space-separated/null-terminated lists(str1 and str2)
  * NOTE : The individual names in the list should not exceed NVRAM_MAX_VALUE_LEN
  *
@@ -2823,4 +2750,322 @@ compare_lists(char *str1, char *str2)
 
        return 0;
 }
+#ifdef RTCONFIG_AMAS
+int check_if_exist_ifnames(char *need_check_ifname, char *ifname)
+{
+	char check_ifname[8] = {}, *next = NULL;
+	if(need_check_ifname && ifname){
+		if(nvram_safe_get(need_check_ifname)){
+			 foreach(check_ifname, nvram_safe_get(need_check_ifname), next) { // find target port interface name
+				if (!strncmp(check_ifname, ifname, strlen(check_ifname))) {
+				    return 1;
+				}
+			}
+		}
+        }
+	return 0;
+}
+#endif
 
+/*******************************************************************
+* NAME: get_sys_uptime
+* AUTHOR: Renjie Lee
+* CREATE DATE: 2022/08/15
+* DESCRIPTION: get system uptime from struct sysinfo.
+* INPUT:  None
+* OUTPUT: None
+* RETURN: 0, if something wrong; other values >= 0, if we get system uptime successfully.
+* NOTE:
+*******************************************************************/
+long get_sys_uptime()
+{
+	struct sysinfo si;
+	int err_code = -1;
+
+	memset(&si, 0, sizeof(si));
+	err_code = sysinfo(&si);
+	if(err_code != 0)
+	{
+		_dprintf("[%s]Error code=%d\n", __FUNCTION__, err_code);
+		return 0;
+	}
+	return si.uptime;
+}
+
+/*******************************************************************
+* NAME: wait_ntp_repeat
+* AUTHOR: Renjie Lee
+* CREATE DATE: 2022/08/29
+* DESCRIPTION: Wait for nvram 'ntp_ready' becoming to "1".
+* INPUT:  usec, time in microseconds (10^-6 seconds).
+*         count, number of loops.
+*         The maximum waiting time is (usec x count) micorseconds.
+*         So the maximum waiting time of wait_ntp_repeat(2*1000*1000, 3) is 2*3=6 seconds.
+* OUTPUT: None
+* RETURN: 0, if something wrong; other values >= 0, if we get system uptime successfully.
+* NOTE:
+*******************************************************************/
+void wait_ntp_repeat(unsigned long usec, unsigned int count)
+{
+	useconds_t small_time = 0;
+	unsigned int seconds = 0;
+
+	if(usec <= 0)
+	{
+		//default: 1 second.
+		small_time = 1000*1000;
+	}
+	else if(usec > 1000000)
+	{
+		seconds = usec/1000000;
+		small_time = usec%1000000;
+	}
+	else
+	{
+		small_time = usec;
+	}
+
+	if(count <= 0)
+	{
+		//default: 1 loop.
+		count = 1;
+	}
+
+	while(nvram_invmatch("ntp_ready", "1") && (count > 0))
+	{
+		sleep(seconds);
+		usleep(small_time);
+		count--;
+		logmessage("wait_ntp_repeat", "wait for ntp_ready...%d", count);
+	}
+
+	if(nvram_invmatch("ntp_ready", "1"))
+	{
+		logmessage("wait_ntp_repeat", "NTP is still not ready...", count);
+	}
+}
+
+int parse_ping_content(char *fname, ping_result_t *out)
+{
+	FILE *fp = NULL;
+	char linebuf[256] = {0};
+	char alias[160] = {0};
+	char ip_addr[64] = {0};
+	char scan_format[64] = {0};
+	int n = 0;
+	int ps;
+	int pr;
+	double t_min;
+	double t_avg;
+	double t_max;
+
+	if(!fname)
+	{
+		_dprintf("Null filename.\n");
+		return -1;
+	}
+
+	fp = fopen(fname, "r");
+	if(fp)
+	{
+		memset(linebuf, 0, sizeof(linebuf));
+		while(fgets(linebuf, sizeof(linebuf), fp))
+		{
+			if(strstr(linebuf, "PING "))
+			{
+				snprintf(scan_format, sizeof(scan_format), "PING %%%zus (%%%zu[^)]", sizeof(alias) -1, sizeof(ip_addr) -1);
+				n = sscanf(linebuf, scan_format, alias, ip_addr);
+				if(n == 2)
+				{
+					snprintf(out->alias, sizeof(out->alias), "%s", alias);
+					snprintf(out->ip_addr, sizeof(out->ip_addr), "%s", ip_addr);
+					out->name_valid = 1;
+				}
+			}
+			else if(strstr(linebuf, "packet loss"))
+			{
+				n = sscanf(linebuf, "%d packets transmitted, %d packets received", &ps, &pr);
+				if(n == 2)
+				{
+					out->pkt_sent = ps;
+					out->pkt_recv = pr;
+					if(ps > 0)
+					{
+						out->pkt_loss_rate = (ps - pr)*100.0/ps;
+						if(pr > 0)
+						{
+							out->data_valid = 1;
+						}
+					}
+				}
+				else
+				{
+					_dprintf("Failed to parse the [%s].\n", linebuf);
+					break;
+				}
+			}
+			else if(strstr(linebuf, "round-trip min/avg/max"))
+			{
+				n = sscanf(linebuf, "round-trip min/avg/max = %lf/%lf/%lf ms", &t_min, &t_avg, &t_max);
+				if(n == 3)
+				{
+					out->min = t_min;
+					out->avg = t_avg;
+					out->max = t_max;
+					out->data_valid = 1;
+					break;
+				}
+				else
+				{
+					_dprintf("Failed to parse the [%s].\n", linebuf);
+					break;
+				}
+			}
+			memset(linebuf, 0, sizeof(linebuf));
+		}
+		fclose(fp);
+	}
+	else
+	{
+		_dprintf("Cannot open [%s].\n", fname);
+	}
+
+	return 0;
+}
+
+/*******************************************************************
+* NAME: ping_target_with_size
+* AUTHOR: Renjie Lee
+* CREATE DATE: 2022/10/07
+* DESCRIPTION: Ping a target with specific packet size.
+* INPUT:  target, the target for ping command
+*         pkt_size, send pkt_size data bytes in packets (default:56)
+*         ping_cnt, send only ping_cnt pings
+*         wait_time, seconds to wait for the first response (default:10) (after all -c CNT packets are sent)
+*         loss_rate, packet loss rate, 0.0 <= loss_rate <= 100.0
+* OUTPUT: None
+* RETURN: 0, if something wrong; 1, function works correctly.
+* NOTE:
+*******************************************************************/
+int ping_target_with_size(char *target, unsigned int pkt_size, unsigned int ping_cnt, unsigned int wait_time, double loss_rate)
+{
+	char ping_result[160] = {0};
+	char ping_done[160] = {0};
+	char cmdbuf[1024] = {0};
+	ping_result_t data;
+	int sig;
+	sigset_t set;
+
+	if(!target || (pkt_size <= 0) || (ping_cnt <= 0) || (wait_time <= 0) || (loss_rate < 0))
+	{
+		return 0;
+	}
+	else
+	{
+		snprintf(ping_result, sizeof(ping_result), "/tmp/ping_%s_%d", target, pkt_size);
+		unlink(ping_result);
+		snprintf(ping_done, sizeof(ping_done), "/tmp/ping_%s_%d.done", target, pkt_size);
+		unlink(ping_done);
+
+		if(fork() == 0)
+		{
+			//child
+
+			setsid();
+
+			// reset signal handlers
+			for (sig = 1; sig < _NSIG; sig++)
+			{
+				signal(sig, SIG_DFL);
+			}
+
+			// unblock signals if called from signal handler
+			sigemptyset(&set);
+			sigprocmask(SIG_SETMASK, &set, NULL);
+
+			snprintf(cmdbuf, sizeof(cmdbuf), "ping -c %d -W %d -s %d %s > %s 2>&1 || true && echo \"\" >> %s", ping_cnt, wait_time, pkt_size, target, ping_result, ping_done);
+			system(cmdbuf);
+			logmessage("ping_target_with_size", "Ping test is complete.\n");
+			exit(0);
+		}
+		else
+		{
+			//parent
+			sleep(3);
+
+			if(f_exists(ping_result))
+			{
+				memset(&data, 0, sizeof(ping_result_t));
+				if(parse_ping_content(ping_result, &data) == 0)
+				{
+					//_dprintf("pkt_loss_rate=[%lf]\n", data.pkt_loss_rate);
+					if(data.pkt_loss_rate <= loss_rate)
+					{
+						logmessage("ping_target_with_size", "Successful to ping target(%s) with size(%d)\n", target, pkt_size);
+						return 1;
+					}
+					else
+					{
+						logmessage("ping_target_with_size", "Failed to ping target(%s) with size(%d)\n", target, pkt_size);
+						return 0;
+					}
+				}
+			}
+			logmessage("ping_target_with_size", "Cannot find ping result(%s)\n", ping_result);
+			return 0;
+		}
+	}
+	return 1;
+}
+
+/*******************************************************************
+* NAME: replace_literal_newline
+* AUTHOR: Renjie Lee
+* CREATE DATE: 2023/03/21
+* DESCRIPTION: Replace literal newline(s) ("\n")  with newline character(s) ('\n').
+*                        That is to say, from "\n" to '\n'.
+* INPUT:  inputstr, the string to be replaced.
+*         output, the replaced string will be stored in 'output'.
+*         buflen, the size of 'output' buffer.
+* OUTPUT: None
+* RETURN: -1 or -2, if something went wrong; 1, function works correctly.
+* NOTE:
+*******************************************************************/
+int replace_literal_newline(char *inputstr, char *output, int buflen)
+{
+	int in = 0;
+	int out = 0;
+	int len = 0;
+
+	if((!inputstr) || (strlen(inputstr) <= 0))
+	{
+		logmessage("replace_literal_newline", "Wrong inputstr.\n");
+		return -1;
+	}
+
+	if((!output) || (buflen == 0))
+	{
+		logmessage("replace_literal_newline", "Wrong output buffer\n");
+		return -2;
+	}
+
+	len = strlen(inputstr);
+	for(in = 0; (in < len) && (out < buflen); in++, out++)
+	{
+		if(in == len -1)
+		{
+			//boundary condition
+			output[out] = inputstr[in];
+		}
+		else if((inputstr[in] == '\\') && (inputstr[in+1] == 'n'))
+		{
+			output[out] = '\n';
+			in++;
+		}
+		else
+		{
+			output[out] = inputstr[in];
+		}
+	}
+	return 1;
+}

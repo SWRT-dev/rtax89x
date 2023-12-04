@@ -823,7 +823,6 @@ static void create_Vlan(int bitmask)
 {
 	const int vid = nvram_get_int("vlan_vid");
 	const int prio = nvram_get_int("vlan_prio") & 0x7;
-	const int stb_x = nvram_get_int("switch_stb_x");
 	unsigned int mbr = bitmask & 0xffff;
 	unsigned int untag = (bitmask >> 16) & 0xffff;
 	unsigned int mbr_qca, untag_qca;
@@ -835,8 +834,7 @@ static void create_Vlan(int bitmask)
 	mbr_qca   = convert_n56u_portmask_to_model_portmask(mbr);
 	untag_qca = convert_n56u_portmask_to_model_portmask(untag);
 	dbg("%s: mbr_qca:%08x, untag_qca:%08x\n", __func__, mbr_qca, untag_qca);
-	if ((nvram_match("switch_wantag", "none") && stb_x > 0) ||
-	    nvram_match("switch_wantag", "hinet")) {
+	if (untag & 0x10) {
 		vtype = VLAN_TYPE_WAN_NO_VLAN;
 	} else if (mbr & RTN56U_WAN_GMAC) {
 		/* setup VLAN for WAN (WAN1 or WAN2), not VoIP/STB */
@@ -1091,7 +1089,7 @@ rtkswitch_Reset_Storm_Control(void)
 	return 0;
 }
 
-void ATE_port_status(phy_info_list *list)
+void ATE_port_status(int verbose, phy_info_list *list)
 {
 	int i, len;
 	char buf[50];
@@ -1113,7 +1111,8 @@ void ATE_port_status(phy_info_list *list)
 		else
 			; // break;
 	}
-	puts(buf);
+	if (verbose)
+		puts(buf);
 }
 
 /* Callback function which is used to fin brvX interface, X must be number.
@@ -1285,3 +1284,59 @@ void set_jumbo_frame(void)
 		_eval(ifconfig_argv, NULL, 0, NULL);
 	}
 }
+
+#ifdef RTCONFIG_NEW_PHYMAP
+extern int get_trunk_port_mapping(int trunk_port_value)
+{
+	return trunk_port_value;
+}
+
+/* phy port related start */
+void get_phy_port_mapping(phy_port_mapping *port_mapping)
+{
+	int i;
+	static phy_port_mapping port_mapping_static = {
+#if defined(PLAX56_XP4)
+		.count = 2,
+		.port[0] = { .phy_port_id = WAN_PORT,  .label_name = "W0", .cap = PHY_PORT_CAP_WAN, .max_rate = 1000, .ifname = "eth0" },
+		.port[1] = { .phy_port_id = LAN4_PORT, .label_name = "L1", .cap = PHY_PORT_CAP_LAN, .max_rate = 1000, .ifname = "eth1" }
+#else
+		.count = 5,
+		.port[0] = { .phy_port_id = WAN_PORT,  .label_name = "W0", .cap = PHY_PORT_CAP_WAN, .max_rate = 1000, .ifname = "eth0" },
+		.port[1] = { .phy_port_id = LAN1_PORT, .label_name = "L1", .cap = PHY_PORT_CAP_LAN, .max_rate = 1000, .ifname = "eth1" },
+		.port[2] = { .phy_port_id = LAN2_PORT, .label_name = "L2", .cap = PHY_PORT_CAP_LAN, .max_rate = 1000, .ifname = "eth1" },
+		.port[3] = { .phy_port_id = LAN3_PORT, .label_name = "L3", .cap = PHY_PORT_CAP_LAN, .max_rate = 1000, .ifname = "eth1" },
+		.port[4] = { .phy_port_id = LAN4_PORT, .label_name = "L4", .cap = PHY_PORT_CAP_LAN, .max_rate = 1000, .ifname = "eth1" }
+#endif
+	};
+
+	if (!port_mapping)
+		return;
+
+	memcpy(port_mapping, &port_mapping_static, sizeof(phy_port_mapping));
+
+///////////////// Add USB port define here ////////////////////////
+#if defined(RTAC58U) || defined(RTAC82U) || defined(RTAC95U)
+////  1 USB3 port device
+	i = port_mapping->count++;
+	port_mapping->port[i].phy_port_id = -1;
+	port_mapping->port[i].label_name = "U1";
+	port_mapping->port[i].cap = PHY_PORT_CAP_USB;
+	port_mapping->port[i].max_rate = 5000;
+	port_mapping->port[i].ifname = NULL;
+#elif defined(RT4GAC53U)
+////  1 USB2 port device
+	i = port_mapping->count++;
+	port_mapping->port[i].phy_port_id = -1;
+	port_mapping->port[i].label_name = "U1";
+	port_mapping->port[i].cap = PHY_PORT_CAP_USB;
+	port_mapping->port[i].max_rate = 480;
+	port_mapping->port[i].ifname = NULL;
+#endif
+
+	add_sw_cap(port_mapping);
+	swap_wanlan(port_mapping);
+	return;
+}
+/* phy port related end.*/
+#endif

@@ -187,6 +187,7 @@ var ipsec_profile_client_5_ext = decodeURIComponent('<% nvram_char_to_ascii("","
 var all_profile_subnet_list = "";
 var control_profile_flag = true;
 var serverList_maxNum = 0;
+var vpnc_activate_maximum = ((isSupport("MaxRule_VPN_FUSION_Conn") == "0") ? 2 : parseInt(isSupport("MaxRule_VPN_FUSION_Conn")));
 var openvpnc_max = 5;
 
 var faq_href1 = "https://nw-dlcdnet.asus.com/support/forward.html?model=&type=Faq&lang="+ui_lang+"&kw=&num=123";
@@ -253,18 +254,20 @@ function initial(){
 	}
 	for(var i = 0; i < vpnc_dev_policy_list_array.length; i += 1) {
 		var vpnc_dev_policy_ipaddr = vpnc_dev_policy_list_array[i][0];
-		var dhcp_staticlist_mac = dhcp_staticlist_array[vpnc_dev_policy_ipaddr].mac;
-		var dhcp_staticlist_dns = dhcp_staticlist_array[vpnc_dev_policy_ipaddr].dns;
-		if(dhcp_staticlist_dns == "")
-			dhcp_staticlist_dns = "<#Setting_factorydefault_value#>";
-		var dhcp_staticlist_hostname = dhcp_staticlist_array[vpnc_dev_policy_ipaddr].hostname;
-		if(dhcp_staticlist_mac != undefined) {
+		if(dhcp_staticlist_array[vpnc_dev_policy_ipaddr] != undefined){
+			var dhcp_staticlist_mac = dhcp_staticlist_array[vpnc_dev_policy_ipaddr].mac;
+			var dhcp_staticlist_dns = dhcp_staticlist_array[vpnc_dev_policy_ipaddr].dns;
+			if(dhcp_staticlist_dns == "")
+				dhcp_staticlist_dns = "<#Setting_factorydefault_value#>";
+			var dhcp_staticlist_hostname = dhcp_staticlist_array[vpnc_dev_policy_ipaddr].hostname;
 			vpnc_dev_policy_list_array[i].splice(0, 0, dhcp_staticlist_mac);
 			vpnc_dev_policy_list_array[i].splice(2, 0, dhcp_staticlist_dns);
 			vpnc_dev_policy_list_array[i].splice(5, 0, dhcp_staticlist_hostname);
 		}
-		else {
-			vpnc_dev_policy_list_array.splice(i, 1);
+		else{
+			vpnc_dev_policy_list_array[i].splice(0, 0, "");
+			vpnc_dev_policy_list_array[i].splice(2, 0, "<#Setting_factorydefault_value#>");
+			vpnc_dev_policy_list_array[i].splice(5, 0, "");
 		}
 	}
 	vpnc_dev_policy_list_array_ori = JSON.parse(JSON.stringify(vpnc_dev_policy_list_array));
@@ -327,7 +330,7 @@ function initial(){
 
 	document.getElementById("faq1").href=faq_href2;		//this id is include in string : #VPN_Fusion_FAQ#	
 
-	$("#ip_conflict_hint").html("<#vpn_openvpn_conflict#>: Please change your router LAN subnet, please refer to this <a target='_blank'>FAQ</a> for detail");/* untranslated */
+	$("#ip_conflict_hint").html("<#vpn_openvpn_conflict#>: <#vpnc_ip_conflict_hint#>");
 	$("#ip_conflict_hint a").attr("href", faq_href3);
 
 }
@@ -358,7 +361,7 @@ function gen_exception_list_table() {
 				"width" : "30%"
 			},
 			{
-				"title" : "<#CTL_Activate#>",
+				"title" : "<#VPN_Fusion_Activate#>",
 				"width" : "10%"
 			}
 		],
@@ -925,6 +928,7 @@ function show_vpnc_rulelist(){
 									code += "<img title='<#usb_initializing#>' src='/images/InternetScan.gif'>";
 									break;
 								case "1" :
+								case "7" :
 									code += "<div title='<#vpn_openvpn_conflict#>' class='vpnc_ipconflict_icon'></div>";
 									$("#ip_conflict_hint").show();
 									break;
@@ -1075,7 +1079,7 @@ function connect_Row(rowdata) {
 		serverList_maxNum--;
 	}
 	else { //"vpnc" making connection
-		if(serverList_maxNum >= 4) {
+		if(serverList_maxNum >= vpnc_activate_maximum) {
 			alert("It reached the max number of concurrent active VPN connections, please deactivate one of active VPN profile before activate a new one.");
 			return;
 		}
@@ -2070,7 +2074,7 @@ function save_ipsec_profile_panel() {
 		else if(getRadioItemCheck(document.ipsec_form.ipsec_remote_gateway_method) == "1") {
 			if(!validator.domainName_flag(document.ipsec_form.ipsec_remote_gateway.value)) {
 				document.ipsec_form.ipsec_remote_gateway.focus();
-				alert(document.ipsec_form.ipsec_remote_gateway.value + ": is invalid Domain Name");/*untranslated*/
+				alert(document.ipsec_form.ipsec_remote_gateway.value + "<#JS_invalid_domain#>");
 				return false;
 			}
 			if(!validator.isEmpty(document.ipsec_form.ipsec_remote_id))
@@ -2189,8 +2193,8 @@ function save_ipsec_profile_panel() {
 
 					var subnetIP = existSubnetObj.value.split("/")[0];
 					var maskCIDR = parseInt(existSubnetObj.value.split("/")[1], 10);
-					if (isNaN(maskCIDR) || (maskCIDR != 24 && maskCIDR != 23)){
-						alert("Mask address must be 23 or 24.");/*untranslated*/
+					if (isNaN(maskCIDR) || maskCIDR < 8 || maskCIDR > 32){
+						alert("Mask address must be 8 ~ 32.");/*untranslated*/
 						existSubnetObj.focus();
 						existSubnetObj.select();
 						return false;
@@ -2679,10 +2683,11 @@ function parseArrayToStr_dhcp_staticlist() {
 	var dhcp_staticlist = "";
 	for(var i = 0; i < vpnc_dev_policy_list_array.length; i += 1) {
 		if(vpnc_dev_policy_list_array[i].length != 0) {
-			dhcp_staticlist += "<";
-
 			if(vpnc_dev_policy_list_array[i].length == 6) {
 				var temp_mac = vpnc_dev_policy_list_array[i][0];
+				if(temp_mac == "")
+					continue;
+				dhcp_staticlist += "<";
 				var temp_ip = vpnc_dev_policy_list_array[i][1];
 				var temp_dns = vpnc_dev_policy_list_array[i][2];
 				var temp_hostname = vpnc_dev_policy_list_array[i][5];
@@ -2811,6 +2816,7 @@ function update_vpnc_profile_status(_vpnc_status_array) {
 							status_hint = "<img title='<#usb_initializing#>' src='/images/InternetScan.gif'>";
 							break;
 						case "1" :
+						case "7" :
 							status_hint = "<div title='<#vpn_openvpn_conflict#>' class='vpnc_ipconflict_icon'></div>";
 							$("#ip_conflict_hint").show();
 							break;

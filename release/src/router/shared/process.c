@@ -10,9 +10,12 @@
 #include <unistd.h>
 #include <signal.h>
 #include <dirent.h>
+#include <limits.h>
 
 #include "shared.h"
-
+#if defined(RTCONFIG_QCA) && defined(RTCONFIG_CONNDIAG)
+#include <limits.h>
+#endif
 
 //# cat /proc/1/stat
 //1 (init) S 0 0 0 0 -1 256 287 10043 109 21377 7 110 473 1270 9 0 0 0 27 1810432 126 2147483647 4194304 4369680 2147450688 2147449688 717374852 0 0 0 514751 2147536844 0 0 0 0
@@ -26,7 +29,7 @@ char *psname(int pid, char *buffer, int maxlen)
 
 	if (maxlen <= 0) return NULL;
 	*buffer = 0;
-	sprintf(path, "/proc/%d/stat", pid);
+	snprintf(path, sizeof(path), "/proc/%d/stat", pid);
 	if (((fn=f_read_string(path, buf, sizeof(buf))) > 4) && ((p = strrchr(buf, ')')) != NULL)) {
 		*p = 0;
 		if (((p = strchr(buf, '(')) != NULL) && (atoi(buf) == pid)) {
@@ -132,6 +135,44 @@ int module_loaded(const char *module)
 	return d_exists(sys_path);
 }
 
+int process_mem_used(int pid)
+{
+	FILE *fp;
+	char proc_status_path[PATH_MAX];
+	char line_buf[300];
+	char VmSize[32];
+	snprintf(proc_status_path, sizeof(proc_status_path), "/proc/%d/status", pid);
+	//_dprintf("path=[%s]\n", proc_status_path);
+	fp = fopen(proc_status_path, "r");
+	if (fp) {
+		while (fgets(line_buf, sizeof(line_buf), fp)) {
+			//_dprintf("line_buf=[%s]\n", line_buf);
+			if (strstr(line_buf, "VmSize:")) {
+				sscanf(line_buf, "%*s%s", VmSize);
+				fclose(fp);
+				return atoi(VmSize);
+			}
+		}
+		fclose(fp);
+	}
+	return 0;
+}
+
+void suicide_by_mem_limit(int limit)
+{
+	int curr_pid = (int)getpid();
+	int mem = process_mem_used(curr_pid);
+	//_dprintf("limit=%d, mem=%d\n", limit, mem);
+	if (limit > 0 && limit < mem) {
+		pid_t pid;
+		char s_pid[16];
+		snprintf(s_pid, sizeof(s_pid), "%d", curr_pid);
+        char *suicide_argv[] = {"kill", "-9", s_pid, NULL};
+		_eval(suicide_argv, NULL, 0, &pid);
+	}
+	return;
+}
+
 #if defined(RTCONFIG_PTHSAFE_POPEN)
 #include <unistd.h>
 #include <stdlib.h>
@@ -168,7 +209,7 @@ static int un_tcpsock_connect(char *path, int nodelay)
 	}
 
 	uaddr.sun_family = AF_LOCAL;
-	strcpy(uaddr.sun_path, path);
+	strlcpy(uaddr.sun_path, path, sizeof(uaddr.sun_path));
 
 	if ( connect(sock, (struct sockaddr*)(&uaddr), sizeof(uaddr)) == -1 ) {
 		close(sock);

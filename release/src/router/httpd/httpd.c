@@ -126,6 +126,8 @@ char host_name[64];
 char referer_host[64];
 char current_page_name[128];
 char user_agent[1024];
+char request_content_range[64];
+long long request_file_size = 0;
 char gen_token[33];
 time_t login_timestamp_cache = 0;
 int url_do_auth = 0;
@@ -137,6 +139,12 @@ int ssl_stream_fd; 	// use Global for HTTPS stream fd in web.c
 int json_support = 0;
 char wl_band_list[8][8] = {{0}};
 char pidfile[32];
+char HTTPD_LOGIN_FAIL_LAN[32] = {0};
+char HTTPD_LOGIN_FAIL_WAN[32] = {0};
+char HTTPD_LAST_LOGIN_FAIL_TS[32] = {0};
+char HTTPD_LAST_LOGIN_FAIL_TS_W[32] = {0};
+char CAPTCHA_FAIL_NUM[32] = {0};
+char HTTPD_LOCK_NUM[32] = {0};
 
 #ifdef TRANSLATE_ON_FLY
 char Accept_Language[16];
@@ -250,6 +258,9 @@ int check_user_agent(char* user_agent);
 #if defined(RTCONFIG_IFTTT) || defined(RTCONFIG_ALEXA) || defined(RTCONFIG_GOOGLE_ASST)
 void add_ifttt_flag(void);
 #endif
+#ifdef RTCONFIG_NEW_PHYMAP
+extern int save_iptv_port(char *isp);
+#endif
 
 int check_current_ip_is_lan_or_wan();
 
@@ -261,16 +272,18 @@ int change_passwd = 0;
 int x_Setting = 0;
 int skip_auth = 0;
 char url[128];
+char referer_url[128] = {0};
 int http_port = 0;
 char *http_ifname = NULL;
 #ifdef RTCONFIG_IPV6
 int http_ipv6_only = 0;
+#else
+const int http_ipv6_only = 0;
 #endif
 time_t login_dt=0;
 char login_url[128];
 int login_error_status = 0;
 char cloud_file[256];
-int add_try = 0;
 char indexpage[128];
 
 
@@ -280,16 +293,12 @@ uaddr login_uip = {0}; // the logined ip
 unsigned int app_login_ip = 0; // IPv6 compat: the logined ip
 time_t login_timestamp=0; // the timestamp of the logined ip
 time_t login_timestamp_tmp=0; // the timestamp of the current session.
-time_t last_login_timestamp=0; // the timestamp of the current session.
 unsigned int login_ip_tmp = 0; // IPv6 compat: the ip of the current session.
 uaddr login_uip_tmp = {0}; // the ip of the current session.
-usockaddr login_usa_tmp = {0};
-unsigned int login_try=0;
+usockaddr login_usa_tmp = {{{0}}};
 //Add by Andy for handle the login block mechanism by LAN/WAN
 time_t login_timestamp_tmp_wan=0; // the timestamp of the current session.
-time_t last_login_timestamp_wan=0; // the timestamp of the current session.
 time_t auth_check_dt=0;
-unsigned int login_try_wan=0;
 int cur_login_ip_type = -1;	//0:LAN, 1:WAN, -1:ERROR
 int lock_flag = 0;
 
@@ -298,7 +307,6 @@ time_t request_timestamp = 0;
 time_t turn_off_auth_timestamp = 0;
 int temp_turn_off_auth = 0;	// for QISxxx.htm pages
 
-int amas_support = 0;
 int HTS = 0;	//HTTP Transport Security
 
 struct timeval alarm_tv;
@@ -365,26 +373,40 @@ void Debug2File(const char *path, const char *fmt, ...)
 }
 #endif
 
-void sethost(char *host)
+void sethost(const char *host)
 {
-	char *cp;
+	char *p = host_name;
+	size_t len;
 
-	if(!host) return;
+	if (!host || *host == '\0')
+		goto error;
 
-	memset(host_name, 0, sizeof(host_name));
-	strlcpy(host_name, host, sizeof(host_name));
+	while (*host == '.') host++;
 
-	cp = host_name;
-	for ( cp = cp + 7; *cp && *cp != '\r' && *cp != '\n'; cp++ );
-	*cp = '\0';
+	len = strcspn(host, "\r\n");
+	while (len > 0 && strchr(" \t", host[len - 1]) != NULL)
+		len--;
+	if (len > sizeof(host_name) - 1)
+		goto error;
+
+	while (len-- > 0) {
+		int c = *host++;
+		if (((c | 0x20) < 'a' || (c | 0x20) > 'z') &&
+		    ((c < '0' || c > '9')) &&
+		    strchr(".-_:[]", c) == NULL) {
+			p = host_name;
+			break;
+		}
+		*p++ = c;
+	}
+
+error:
+	*p = '\0';
 }
 
 char *gethost(void)
 {
-	if(strlen(host_name)) {
-		return host_name;
-	}
-	else return(nvram_safe_get("lan_ipaddr"));
+	return host_name[0] ? host_name : nvram_safe_get("lan_ipaddr");
 }
 
 #include <sys/sysinfo.h>
@@ -499,23 +521,23 @@ send_login_page(int fromapp_flag, int error_status, char* url, char* file, int l
 {
 	char inviteCode[256]={0};
 	char buf[128] = {0};
-	//char url_tmp[64]={0};
-	char *cp, *file_var=NULL;
 
 	HTTPD_DBG("error_status = %d, logintry = %d\n", error_status, logintry);
 
 	if(logintry){
 		if(!cur_login_ip_type)
 		{
-			++login_try;
+			int httpd_login_fail_lan_t = nvram_get_int(HTTPD_LOGIN_FAIL_LAN);
+			nvram_set_int(HTTPD_LOGIN_FAIL_LAN, ++httpd_login_fail_lan_t);
 			if(error_status != LOGINLOCK)
-				last_login_timestamp = login_timestamp_tmp;
+				nvram_set_int(HTTPD_LAST_LOGIN_FAIL_TS, login_timestamp_tmp);
 		}
 		else
 		{
-			++login_try_wan;
+			int httpd_login_fail_wan_t = nvram_get_int(HTTPD_LOGIN_FAIL_WAN);
+			nvram_set_int(HTTPD_LOGIN_FAIL_WAN, ++httpd_login_fail_wan_t);
 			if(error_status != LOGINLOCK)
-				last_login_timestamp_wan= login_timestamp_tmp_wan;
+				nvram_set_int(HTTPD_LAST_LOGIN_FAIL_TS_W, login_timestamp_tmp_wan);
 		}
 	}
 
@@ -529,31 +551,10 @@ send_login_page(int fromapp_flag, int error_status, char* url, char* file, int l
 	login_error_status = error_status;
 
 	if(fromapp_flag == 0){
-		if(strncmp(login_url, "cloud_sync.asp", strlen(login_url))==0){
-			if(file != NULL){
-				cp = strstr(file,"flag=");
-				if(cp != (char*) 0){
-					file_var = &cp[5];
-					memset(cloud_file, 0, sizeof(cloud_file));
-					strncpy(cloud_file, file_var, sizeof(cloud_file));
-				}
-			}
-		}
-		else if(strncmp(login_url, "cfg_onboarding.cgi", strlen(login_url))==0){
-			if(file != NULL){
-				cp = strstr(file,"id=");
-				if(cp != (char*) 0){
-					file_var = &cp[3];
-					if(!check_cmd_whitelist(file_var) && (strlen(file_var) == 12)){
-						memset(cloud_file, 0, sizeof(cloud_file));
-						strlcpy(cloud_file, file_var, sizeof(cloud_file));
-					}
-				}
-			}
-		}
+		store_file_var(login_url, file);
 		snprintf(inviteCode, sizeof(inviteCode), "<script>window.top.location.href='/Main_Login.asp';</script>");
 	}else{
-		snprintf(inviteCode, sizeof(inviteCode), "\"error_status\":\"%d\"", error_status);
+		snprintf(inviteCode, sizeof(inviteCode), "\"error_status\":\"%d\", \"captcha_on\":\"%d\", \"last_time_lock_warning\":\"%d\"", error_status, captcha_on(), last_time_lock_warning());
 		if(error_status == LOGINLOCK){
 			snprintf(buf, sizeof(buf), ",\"remaining_lock_time\":\"%ld\"", max_lock_time - login_dt);
 			strlcat(inviteCode, buf, sizeof(inviteCode));
@@ -638,31 +639,58 @@ send_headers( int status, char* title, char* extra_header, char* mime_type, int 
     (void) fprintf( conn_fp, "Server: %s\r\n", SERVER_NAME );
     (void) fprintf( conn_fp, "x-frame-options: SAMEORIGIN\r\n");
     (void) fprintf( conn_fp, "x-xss-protection: 1; mode=block\r\n");
+
     if (fromapp != 0){
-	(void) fprintf( conn_fp, "Cache-Control: no-store\r\n");	
-	(void) fprintf( conn_fp, "Pragma: no-cache\r\n");
-	if(fromapp == FROM_DUTUtil){
-		(void) fprintf( conn_fp, "AiHOMEAPILevel: %d\r\n", EXTEND_AIHOME_API_LEVEL );
-		(void) fprintf( conn_fp, "Httpd_AiHome_Ver: %d\r\n", EXTEND_HTTPD_AIHOME_VER );
-		(void) fprintf( conn_fp, "Model_Name: %s\r\n", get_productid() );
-	}else if(fromapp == FROM_ASSIA){
-		(void) fprintf( conn_fp, "ASSIA_API_Level: %d\r\n", EXTEND_ASSIA_API_LEVEL );
-	}
+		if(fromapp == FROM_DUTUtil || fromapp == FROM_MyASUS){
+			(void) fprintf( conn_fp, "AiHOMEAPILevel: %d\r\n", EXTEND_AIHOME_API_LEVEL );
+			(void) fprintf( conn_fp, "Httpd_AiHome_Ver: %d\r\n", EXTEND_HTTPD_AIHOME_VER );
+			(void) fprintf( conn_fp, "Model_Name: %s\r\n", get_productid() );
+		}else if(fromapp == FROM_ASSIA){
+			(void) fprintf( conn_fp, "ASSIA_API_Level: %d\r\n", EXTEND_ASSIA_API_LEVEL );
+		}
     }
+
     now = time( (time_t*) 0 );
     (void) strftime( timebuf, sizeof(timebuf), RFC1123FMT, gmtime( &now ) );
     (void) fprintf( conn_fp, "Date: %s\r\n", timebuf );
-    if ( extra_header != (char*) 0 )
-	(void) fprintf( conn_fp, "%s\r\n", extra_header );
-    if ( mime_type != (char*) 0 ){
-	if(fromapp != FROM_BROWSER && fromapp != FROM_WebView)
-		(void) fprintf( conn_fp, "Content-Type: %s\r\n", "application/json;charset=UTF-8" );		
-	else
-		(void) fprintf( conn_fp, "Content-Type: %s\r\n", mime_type );
-    }
 
-    (void) fprintf( conn_fp, "Connection: close\r\n" );
-    (void) fprintf( conn_fp, "\r\n" );
+	if ( extra_header != (char*) 0 ){
+		if(!strcmp(extra_header, cache_object) && fromapp != 0){
+			extra_header = cache_long_object;
+		}
+		(void) fprintf( conn_fp, "%s\r\n", extra_header );
+	}
+
+	if ( mime_type != (char*) 0 ){
+		if(fromapp != FROM_BROWSER && fromapp != FROM_WebView)
+			(void) fprintf( conn_fp, "Content-Type: %s\r\n", "application/json;charset=UTF-8" );
+		else
+			(void) fprintf( conn_fp, "Content-Type: %s\r\n", mime_type );
+	}
+
+	(void) fprintf( conn_fp, "Connection: close\r\n" );
+
+	if ( request_content_range!=NULL && strncasecmp( request_content_range, "bytes=", 6 ) == 0 ) {
+		//- ex. bytes=0-123
+		off_t content_start = 0;
+		off_t content_end = 0;
+		off_t content_length = 0;
+
+		char *err = NULL;
+		char* cp = &request_content_range[6];
+		content_start = strtoll(cp, &err, 10);
+		content_end = strtoll(err+1, &err, 10);
+		if (content_end>=content_start) {
+			content_length = content_end - content_start + 1;
+
+			(void) fprintf( conn_fp, "Content-Length: %jd\r\n", (intmax_t) content_length);
+			(void) fprintf( conn_fp, "Content-Range: bytes %jd-%jd/%lld\r\n", (intmax_t) content_start, (intmax_t) content_end, request_file_size);
+
+			HTTPD_DBG("Content-Range: bytes %lld-%lld/%lld, Content-Length: %lld\n", content_start, content_end, request_file_size, content_length);
+		}
+	}
+
+	(void) fprintf( conn_fp, "\r\n" );
 }
 
 static void
@@ -670,19 +698,13 @@ send_token_headers( int status, char* title, char* extra_header, char* mime_type
 {
 	time_t now;
 	char timebuf[100];
-	char asus_token[32]={0};
-	memset(asus_token,0,sizeof(asus_token));
+	char asus_token[32]={0}, token_cookie[128] = {0};
 
-	if(nvram_match("x_Setting", "0") && strcmp( gen_token, "") != 0){
-		strncpy(asus_token, gen_token, sizeof(asus_token));
-	}else{
-		generate_token(asus_token, sizeof(asus_token));
-	}
-	add_asus_token(asus_token);
+	gen_asus_token_cookie(asus_token, sizeof(asus_token), token_cookie, sizeof(token_cookie));
 
     (void) fprintf( conn_fp, "%s %d %s\r\n", PROTOCOL, status, title );
     (void) fprintf( conn_fp, "Server: %s\r\n", SERVER_NAME );
-    if(fromapp == FROM_DUTUtil){
+    if(fromapp == FROM_DUTUtil || fromapp == FROM_MyASUS){
 	(void) fprintf( conn_fp, "AiHOMEAPILevel: %d\r\n", EXTEND_AIHOME_API_LEVEL );
 	(void) fprintf( conn_fp, "Httpd_AiHome_Ver: %d\r\n", EXTEND_HTTPD_AIHOME_VER );
 	(void) fprintf( conn_fp, "Model_Name: %s\r\n", get_productid() );
@@ -697,7 +719,7 @@ send_token_headers( int status, char* title, char* extra_header, char* mime_type
     if ( mime_type != (char*) 0 )
 	(void) fprintf( conn_fp, "Content-Type: %s\r\n", mime_type );
 
-	(void) fprintf( conn_fp, "Set-Cookie: asus_token=%s; HttpOnly;\r\n",asus_token );
+    (void) fprintf( conn_fp, "Set-Cookie: %s\r\n", token_cookie);
 
     (void) fprintf( conn_fp, "Connection: close\r\n" );
     (void) fprintf( conn_fp, "\r\n" );
@@ -708,7 +730,7 @@ send_token_headers( int status, char* title, char* extra_header, char* mime_type
 */
 int
 match( const char* pattern, const char* string )
-    {
+{
     const char* or;
 
     for (;;)
@@ -720,7 +742,7 @@ match( const char* pattern, const char* string )
 	    return 1;
 	pattern = or + 1;
 	}
-    }
+}
 
 
 int
@@ -867,10 +889,67 @@ void do_file(char *path, FILE *stream)
 	char buf[1024], tmp_path[256];
 	char *_path = mod_url_path(path, tmp_path, sizeof(tmp_path));
 	int nr;
+	int read_count = 0;
+
+	struct stat buf_size;
+	long long file_size = 0;
+	off_t content_start = 0;
+	off_t content_end = 0;
+	off_t content_length = 0;
+
+	if(stat(_path, &buf_size) == 0)
+		file_size = buf_size.st_size;
+
+	if ( request_content_range!=NULL && strncasecmp( request_content_range, "bytes=", 6 ) == 0 ) {
+		//- ex. bytes=0-123
+		// HTTPD_DBG("request range: %s\n", request_content_range);
+
+		char *err = NULL;
+		char* cp = &request_content_range[6];
+		content_start = strtoll(cp, &err, 10);
+		content_end = strtoll(err+1, &err, 10);
+
+		if (content_end>=content_start) {
+			content_length = content_end - content_start + 1;
+		}
+	}
 
 	if ((fp = fopen(_path, "r")) != NULL) {
-		while ((nr = fread(buf, 1, sizeof(buf), fp)) > 0)
+
+		int read_size = sizeof(buf);
+
+		if (content_length>0) {
+			if (content_start>=0) {
+				fseek(fp, content_start, SEEK_SET);
+			}
+
+			if (content_length<read_size) {
+				read_size = content_length;
+			}
+		}
+
+		while ((nr = fread(buf, 1, read_size, fp)) > 0) {
+
 			do_fwrite(buf, nr, stream);
+
+			if (content_length>0) {
+
+				read_count = read_count + read_size;
+
+				if (read_count>=content_length) {
+					// HTTPD_DBG("read count: %d", read_count);
+					break;
+				}
+				else if ( read_count + read_size > content_length) {
+					read_size = content_length - read_count;
+				}
+			}
+		}
+
+		if (content_length>0) {
+			HTTPD_DBG("response range=%lld-%lld/%lld, content_length=%lld\n", content_start, content_end, file_size, content_length);
+		}
+
 		fclose(fp);
 	}
 
@@ -969,9 +1048,11 @@ int max_lock_time = MAX_LOGIN_BLOCK_TIME;
 static void
 handle_request(void)
 {
+#if !defined(RTCONFIG_HND_ROUTER)
 	static long flush_cache_t1 = 0;
+#endif
 	char line[10000], *cur;
-	char *method, *path, *protocol, *authorization, *boundary, *alang, *cookies, *referer, *useragent;
+	char *method, *path, *protocol, *boundary, *alang, *cookies, *referer, *useragent, *range = NULL;
 	char *cp;
 	char *file;
 	int len;
@@ -981,7 +1062,7 @@ handle_request(void)
 	int mime_exception, do_referer, login_state = -1;
 	int fromapp=0;
 	int cl = 0, flags;
-	int referer_result = 1;
+	int referer_result = 1, lock_status = 0, add_try = 0;
 #ifdef RTCONFIG_FINDASUS
 	int i, isDeviceDiscovery=0;
 	char id_local[32],prouduct_id[32];
@@ -991,8 +1072,8 @@ handle_request(void)
 	/* Initialize the request variables. */
 	auth_result = 1;
 	url_do_auth = 0;
-	authorization = boundary = cookies = referer = useragent = NULL;
-	host_name[0] = 0;
+	boundary = cookies = referer = useragent = NULL;
+	host_name[0] = '\0';
 	bzero( line, sizeof line );
 
 	/* Parse the first line of the request. */
@@ -1089,13 +1170,6 @@ handle_request(void)
 			#endif
 		}
 #endif
-		else if ( strncasecmp( cur, "Authorization:", 14 ) == 0 )
-		{
-			cp = &cur[14];
-			cp += strspn( cp, " \t" );
-			authorization = cp;
-			cur = cp + strlen(cp) + 1;
-		}
 		else if ( strncasecmp( cur, "User-Agent:", 11 ) == 0 )
 		{
 			cp = &cur[11];
@@ -1116,6 +1190,10 @@ handle_request(void)
 			cp = &cur[8];
 			cp += strspn( cp, " \t" );
 			referer = cp;
+			if(referer)
+				strlcpy(referer_url, referer, sizeof(referer_url));
+			else
+				memset(referer_url, 0, sizeof(referer_url));
 			cur = cp + strlen(cp) + 1;
 			//_dprintf("httpd referer = %s\n", referer);
 		}
@@ -1159,6 +1237,13 @@ handle_request(void)
 			for ( cp = cp + 9; *cp && *cp != '\r' && *cp != '\n'; cp++ );
 			*cp = '\0';
 			cur = ++cp;
+		}
+		else if ( strncasecmp( cur, "Range:", 6 ) == 0 )
+		{
+			cp = &cur[6];
+			cp += strspn( cp, " \t" );
+			range = cp;
+			cur = cp + strlen(cp) + 1;
 		}
 	}
 
@@ -1229,11 +1314,13 @@ handle_request(void)
 		snprintf(current_page_name, sizeof(current_page_name), "%s", url);
 	}
 
+#if !defined(RTCONFIG_HND_ROUTER)
 	if (!strncmp(file, "Main_Login.asp", 14) && (uptime() - flush_cache_t1) > 10 * 60) {
 		/* free pagecahe when login, don't do it again in 10 minutes. */
 		f_write_string("/proc/sys/vm/drop_caches", "1", 0, 0);
 		flush_cache_t1 = uptime();
 	}
+#endif
 #if defined(RTCONFIG_QCA) && defined(RTCONFIG_QCA_LBD)
 	if (nvram_match("smart_connect_x", "1") && !nvram_match("wl_unit", "0")
 	 && strstr(url, "Advanced_Wireless_Content.asp")) {
@@ -1247,6 +1334,12 @@ handle_request(void)
 #endif
 	)
 		fromapp=1;
+
+	memset(request_content_range, 0, sizeof(request_content_range));
+	if(range != NULL)
+		strncpy(request_content_range, range, sizeof(request_content_range)-1);
+	else
+		strlcpy(request_content_range, "", sizeof(request_content_range));
 
 	memset(user_agent, 0, sizeof(user_agent));
 	if(useragent != NULL)
@@ -1305,46 +1398,16 @@ handle_request(void)
 	do_referer = 0;
 
 	if(!fromapp) {
-		if(!cur_login_ip_type && (lock_flag & LOCK_LOGIN_LAN)){
-			login_timestamp_tmp = uptime();
-			login_dt = login_timestamp_tmp - last_login_timestamp;
-			if(last_login_timestamp != 0 && login_dt > max_lock_time){
-				login_try = 0;
-				last_login_timestamp = 0;
-				lock_flag &= ~(LOCK_LOGIN_LAN);
-				login_error_status = 0;
-#ifdef RTCONFIG_CAPTCHA
-				login_fail_num = 0;
-				HTTPD_DBG("reset login_fail_num\n");
-#endif
-			}else{
-				if((strncmp(file, "Main_Login.asp", 14)==0 && login_error_status == LOGINLOCK)|| strstr(url, ".png")){
-				}else{
-					send_login_page(fromapp, LOGINLOCK, url, NULL, login_dt, NOLOGINTRY);
-					return;
-				}
+
+		lock_status = check_lock_status(&login_dt);
+
+		if(lock_status == FORCELOCK || lock_status == LOGINLOCK){
+			if(strncmp(file, "Main_Login.asp", 14) && !strstr(url, ".png")){
+				send_login_page(fromapp, lock_status, url, NULL, 0, NOLOGINTRY);
+				return;
 			}
 		}
-		else if(cur_login_ip_type && (lock_flag & LOCK_LOGIN_WAN)){
-			login_timestamp_tmp_wan= uptime();
-			login_dt = login_timestamp_tmp_wan - last_login_timestamp_wan;
-			if(last_login_timestamp_wan!= 0 && login_dt > max_lock_time){
-				login_try_wan= 0;
-				last_login_timestamp_wan= 0;
-				lock_flag &= ~(LOCK_LOGIN_WAN);
-				login_error_status = 0;
-#ifdef RTCONFIG_CAPTCHA
-				login_fail_num = 0;
-				HTTPD_DBG("reset login_fail_num\n");
-#endif
-			}else{
-				if((strncmp(file, "Main_Login.asp", 14)==0 && login_error_status == LOGINLOCK)|| strstr(url, ".png")){
-				}else{
-					send_login_page(fromapp, LOGINLOCK, url, NULL, login_dt, NOLOGINTRY);
-					return;
-				}
-			}
-		}
+
 		http_login_timeout(&login_uip_tmp, cookies, fromapp);	// 2008.07 James.
 		login_state = http_login_check();
 		// for each page, mime_exception is defined to do exception handler
@@ -1367,6 +1430,7 @@ handle_request(void)
 			}
 		}
 	}
+
 	x_Setting = nvram_get_int("x_Setting");
 
 	for (handler = &mime_handlers[0]; handler->pattern; handler++) {
@@ -1374,8 +1438,25 @@ handle_request(void)
 		if (do_ssl && !strcmp(url, "offline.htm"))
 			continue;
 #endif
-		if (match(handler->pattern, url))
+		if (match(handler->pattern, url) || customized_match(handler->pattern, url))
 		{
+			if ( request_content_range!=NULL && strncasecmp( request_content_range, "bytes=", 6 ) == 0) {
+#ifdef RTCONFIG_TC_GAME_ACC
+				//- This is the download request for tencent game file.
+				if (strncmp(file, "INO", 3)==0) {
+					char* real_tencent_file_path = get_real_tencent_file(file);
+					if (real_tencent_file_path!=NULL) {
+						struct stat buf_size;
+						if(stat(real_tencent_file_path, &buf_size) == 0)
+							request_file_size = buf_size.st_size;
+
+						HTTPD_DBG("real_tencent_file_path: %s, request_file_size: %lld\n", real_tencent_file_path, request_file_size);
+						free(real_tencent_file_path);
+					}
+				}
+#endif
+			}
+
 #ifdef RTCONFIG_LANTIQ
 			wave_handle_flag(url);
 #endif
@@ -1397,7 +1478,7 @@ handle_request(void)
 			}
 			if (handler->auth) {
 				url_do_auth = 1;
-#if defined(RTAX82U) || defined(DSL_AX82U) || defined(GSAX3000) || defined(GSAX5400) || defined(TUFAX5400) || defined(GTAX6000) || defined(GTAXE16000) || defined(GTAX11000_PRO)
+#if defined(RTAX82U) || defined(DSL_AX82U) || defined(GSAX3000) || defined(GSAX5400) || defined(TUFAX5400) || defined(GTAX6000) || defined(GTAXE16000) || defined(GTAX11000_PRO) || defined(GT10) || defined(RTAX82U_V2)
 				switch_ledg(LEDG_QIS_FINISH);
 #endif
 				if ((mime_exception&MIME_EXCEPTION_NOAUTH_FIRST)&&!x_Setting) {
@@ -1436,7 +1517,7 @@ handle_request(void)
 							return;
 						}
 					}
-					auth_result = auth_check(url, file, cookies, fromapp);
+					auth_result = auth_check(url, file, cookies, fromapp, &add_try);
 					if (auth_result != 0)
 					{
 						if(strcasecmp(method, "post") == 0 && handler->input)	//response post request
@@ -1518,9 +1599,6 @@ handle_request(void)
 #ifdef RTCONFIG_DSL_TCLINUX
 					&& !strstr(file, "TCC.log")
 #endif
-#ifdef RTCONFIG_IPSEC
-					&& !strstr(file, "ipsec.log")
-#endif
 #if defined(RTCONFIG_IFTTT) || defined(RTCONFIG_ALEXA) || defined(RTCONFIG_GOOGLE_ASST)
 					&& !strstr(file, "asustitle.png")
 #endif
@@ -1535,7 +1613,11 @@ handle_request(void)
 #ifdef RTCONFIG_IPSEC
 					&& !strstr(file, "renew_ikev2_cert_mobile.pem") && !strstr(file, "ikev2_cert_mobile.pem")
 					&& !strstr(file, "renew_ikev2_cert_windows.der") && !strstr(file, "ikev2_cert_windows.der")
+					&& !strstr(file, "server_ipsec.cert")
+					&& !strstr(file, "ipsec.log")
 #endif
+					&& !strstr(file, "get_download_info")
+					&& !strstr(file, "INO")
 #ifdef RTCONFIG_WIREGUARD
 					&& !strstr(file, "wgs_client.")
 #endif
@@ -2294,7 +2376,15 @@ void check_alive()
 		check_alive_count = 0;
 	}
 	else if(check_alive_count > 20){
+		struct in_addr ip_addr, temp_ip_addr, app_temp_ip_addr;
+		ip_addr.s_addr = login_ip;
+		app_temp_ip_addr.s_addr = app_login_ip;
+		temp_ip_addr.s_addr = login_ip_tmp;
+		//dbg("slow_post_read_count(%d) > 3\n", slow_post_read_count);
+		HTTPD_FB_DEBUG("login_ip = %s(%lu), app_login_ip = %s(%lu)\n", inet_ntoa(ip_addr), login_ip, inet_ntoa(app_temp_ip_addr), app_login_ip);
+		HTTPD_FB_DEBUG("login_ip_tmp = %s(%lu), url = %s\n", inet_ntoa(temp_ip_addr), login_ip_tmp, url);
 		logmessage("HTTPD", "waitting 10 minitues and restart\n");
+		check_lock_state();
 		notify_rc("restart_httpd");
 	}
 	else{
@@ -2395,6 +2485,7 @@ int main(int argc, char **argv)
 	//websSetVer();
 	//2008.08 magic
 	nvram_unset("login_timestamp");
+	nvram_unset("app_login_timestamp");
 	nvram_unset("login_ip"); /* IPv6 compat */
 	nvram_unset("login_ip_str");
 
@@ -2406,11 +2497,6 @@ int main(int argc, char **argv)
 	signal(SIGTERM, httpd_exit);
 
 	alarm(20);
-
-#ifdef RTCONFIG_HTTPS
-	//if (do_ssl)
-		start_ssl(http_port);
-#endif
 
 	/* Initialize listen socket */
 	for (i = 0; i < ARRAY_SIZE(listen_fd); i++)
@@ -2460,14 +2546,43 @@ int main(int argc, char **argv)
 
 	/* handler global variable */
 	get_index_page(indexpage, sizeof(indexpage));
-	get_wl_nband_list();
-#if defined(RTCONFIG_SW_HW_AUTH) && defined(RTCONFIG_AMAS)
-	amas_support = getAmasSupportMode();
-#endif
+	gen_wl_nband_array();
+
 	if(nvram_get_int("x_Setting") == 0){
 		save_ui_support_to_file();
 		save_iptvSettings_to_file();
 	}
+#ifdef RTCONFIG_JFFS2USERICON
+	renew_upload_icon();
+#endif
+#ifdef RTCONFIG_NEW_PHYMAP
+	save_iptv_port(nvram_safe_get("switch_wantag"));
+#endif
+#ifdef RTCONFIG_HTTPS
+	if(do_ssl){
+		strlcpy(HTTPD_LOGIN_FAIL_LAN, "httpds_login_fail_lan", sizeof(HTTPD_LOGIN_FAIL_LAN));
+		strlcpy(HTTPD_LOGIN_FAIL_WAN, "httpds_login_fail_wan", sizeof(HTTPD_LOGIN_FAIL_WAN));
+		strlcpy(HTTPD_LAST_LOGIN_FAIL_TS, "httpds_last_login_fail_ts", sizeof(HTTPD_LAST_LOGIN_FAIL_TS));
+		strlcpy(HTTPD_LAST_LOGIN_FAIL_TS_W, "httpds_last_login_fail_ts_w", sizeof(HTTPD_LAST_LOGIN_FAIL_TS_W));
+		strlcpy(CAPTCHA_FAIL_NUM, "httpds_captcha_fail_num", sizeof(CAPTCHA_FAIL_NUM));
+		strlcpy(HTTPD_LOCK_NUM, "httpds_lock_num", sizeof(HTTPD_LOCK_NUM));
+	}
+	else
+#endif
+	{
+		strlcpy(HTTPD_LOGIN_FAIL_LAN, "httpd_login_fail_lan", sizeof(HTTPD_LOGIN_FAIL_LAN));
+		strlcpy(HTTPD_LOGIN_FAIL_WAN, "httpd_login_fail_wan", sizeof(HTTPD_LOGIN_FAIL_WAN));
+		strlcpy(HTTPD_LAST_LOGIN_FAIL_TS, "httpd_last_login_fail_ts", sizeof(HTTPD_LAST_LOGIN_FAIL_TS));
+		strlcpy(HTTPD_LAST_LOGIN_FAIL_TS_W, "httpd_last_login_fail_ts_w", sizeof(HTTPD_LAST_LOGIN_FAIL_TS_W));
+		strlcpy(CAPTCHA_FAIL_NUM, "httpd_captcha_fail_num", sizeof(CAPTCHA_FAIL_NUM));
+		strlcpy(HTTPD_LOCK_NUM, "httpd_lock_num", sizeof(HTTPD_LOCK_NUM));
+	}
+
+#ifdef RTCONFIG_HTTPS
+reload_cert:
+	if (do_ssl)
+		start_ssl(http_port);
+#endif
 
 	/* Loop forever handling requests */
 	for (;;) {
@@ -2501,6 +2616,21 @@ int main(int argc, char **argv)
 		tv = timeout;
 		while ((count = select(max_fd + 1, &rfds, NULL, NULL, &tv)) < 0 && errno == EINTR)
 			continue;
+#ifdef RTCONFIG_HTTPS
+		if (do_ssl) {
+			if (
+#if defined(RTCONFIG_IPV6)
+			    (!http_ipv6_only && nvram_match("httpds_reload_cert", "1"))
+			 || (http_ipv6_only && nvram_match("httpds6_reload_cert", "1"))
+#else
+			    (nvram_match("httpds_reload_cert", "1"))
+#endif
+			) {
+				mssl_ctx_free();
+				goto reload_cert;
+			}
+		}
+#endif
 		if (count < 0) {
 			HTTPD_DBG("count = %d : return\n", count);
 			perror("select");
@@ -2623,20 +2753,6 @@ int main(int argc, char **argv)
 }
 
 #ifdef RTCONFIG_HTTPS
-#define HTTPS_CA_JFFS  "/jffs/cert.tgz"
-
-void save_cert(void)
-{
-	eval("tar", "-C", "/", "-czf", HTTPS_CA_JFFS, "etc/cert.pem", "etc/key.pem");
-}
-
-void erase_cert(void)
-{
-	unlink("/etc/cert.pem");
-	unlink("/etc/key.pem");
-	nvram_set("https_crt_gen", "0");
-}
-
 void start_ssl(int http_port)
 {
 	int lock;
@@ -2659,34 +2775,25 @@ void start_ssl(int http_port)
 		}
 	}
 
-	if (nvram_match("https_crt_gen", "1")) {
+	if (f_exists(HTTPS_CA_JFFS) && (!f_exists(HTTPD_ROOTCA_CERT) || !f_exists(HTTPD_ROOTCA_KEY) || !f_exists(HTTPD_CERT) || !f_exists(HTTPD_KEY)))
+		restore_cert();
+
+	if (nvram_match("https_crt_gen", "1"))
 		erase_cert();
-	}
 
 	retry = 1;
 	while (1) {
 		save = nvram_match("https_crt_save", "1");
 
-		/* check key/cert pairs */
-		if ((!f_exists("/etc/cert.pem")) || (!f_exists("/etc/key.pem")) || !mssl_cert_key_match("/etc/cert.pem", "/etc/key.pem")) {
+		/* check selected key/cert pairs */
+		if (!f_exists(HTTPD_CERT) || !f_exists(HTTPD_KEY)
+		 || !mssl_cert_key_match(HTTPD_CERT, HTTPD_KEY)
+		) {
 			ok = 0;
 			if (save) {
-				logmessage("httpd", "Save SSL certificate...%d", http_port);
-					if (eval("tar", "-xzf", HTTPS_CA_JFFS, "-C", "/", "etc/cert.pem", "etc/key.pem") == 0){
-						system("cat /etc/key.pem /etc/cert.pem > /etc/server.pem");
-						system("cp /etc/cert.pem /etc/cert.crt"); // openssl self-signed certificate for router.asus.com LAN access
-
-						// check key and cert pair, if they are mismatched, regenerate key and cert
-						if (mssl_cert_key_match("/etc/cert.pem", "/etc/key.pem")) {
-							logmessage("httpd", "mssl_cert_key_match : PASS");
-							ok = 1;
-						}
-					}
-
-					int save_intermediate_crt = nvram_match("https_intermediate_crt_save", "1");
-					if(save_intermediate_crt){
-						eval("tar", "-xzf", HTTPS_CA_JFFS, "-C", "/", "etc/intermediate_cert.pem");
-					}
+				logmessage("httpd", "Restore saved SSL certificate...%d", http_port);
+				if (restore_cert())
+					ok = 1;
 			}
 			if (!ok) {
 				erase_cert();
@@ -2695,16 +2802,26 @@ void start_ssl(int http_port)
 				f_read("/dev/urandom", &sn, sizeof(sn));
 
 				snprintf(t, sizeof(t), "%llu", sn & 0x7FFFFFFFFFFFFFFFULL);
-				eval("gencert.sh", t);
+				GENCERT_SH(t);
 			}
 		}
 
-		if ((save)) {
-			save_cert();
-		}
-
-		if (mssl_init("/etc/cert.pem", "/etc/key.pem")) {
+		if (mssl_init(HTTPD_CERT, HTTPD_KEY)) {
 			logmessage("httpd", "Succeed to init SSL certificate...%d", http_port);
+			/* Backup certificates if httpds initialization successful. */
+			if (save)
+				save_cert();
+
+			/* Unset reload flag if set */
+#if defined(RTCONFIG_IPV6)
+			if (!http_ipv6_only && nvram_get("httpds_reload_cert"))
+				nvram_unset("httpds_reload_cert");
+			else if (http_ipv6_only && nvram_get("httpds6_reload_cert"))
+				nvram_unset("httpds6_reload_cert");
+#else
+			if (nvram_get("httpds_reload_cert"))
+				nvram_unset("httpds_reload_cert");
+#endif
 			file_unlock(lock);
 			return;
 		}
@@ -2735,7 +2852,7 @@ int check_current_ip_is_lan_or_wan()
 		if (inet_aton(nvram_safe_get("lan_ipaddr"), &lan) == 0 ||
 		    inet_aton(nvram_safe_get("lan_netmask"), &mask) == 0)
 			return -1;
-		return (lan.s_addr & mask.s_addr) == (login_uip_tmp.in.s_addr & mask.s_addr);
+		return ((lan.s_addr & mask.s_addr) == (login_uip_tmp.in.s_addr & mask.s_addr))?0:1;
 #ifdef RTCONFIG_IPV6
 	case AF_INET6:
 		/* IPv6 addresses are dynamic, must be bind to bind to interface */

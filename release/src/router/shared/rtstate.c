@@ -110,7 +110,7 @@ int get_wan_state(int unit){
 
 	snprintf(prefix, 16, "wan%d_", unit);
 
-	return nvram_get_int(strcat_r(prefix, "state_t", tmp));
+	return nvram_get_int(strlcat_r(prefix, "state_t", tmp, sizeof(tmp)));
 }
 
 int get_wan_sbstate(int unit){
@@ -118,7 +118,7 @@ int get_wan_sbstate(int unit){
 
 	snprintf(prefix, 16, "wan%d_", unit);
 
-	return nvram_get_int(strcat_r(prefix, "sbstate_t", tmp));
+	return nvram_get_int(strlcat_r(prefix, "sbstate_t", tmp, sizeof(tmp)));
 }
 
 int get_wan_auxstate(int unit){
@@ -126,7 +126,7 @@ int get_wan_auxstate(int unit){
 
 	snprintf(prefix, 16, "wan%d_", unit);
 
-	return nvram_get_int(strcat_r(prefix, "auxstate_t", tmp));
+	return nvram_get_int(strlcat_r(prefix, "auxstate_t", tmp, sizeof(tmp)));
 }
 
 char *link_wan_nvname(int unit, char *buf, int size){
@@ -250,7 +250,7 @@ int get_wan_unit(char *ifname)
 	foreach (word, nvram_safe_get("wan_ifnames"), next) {
 		if(strncmp(ifname, "ppp", 3)==0) {
 			snprintf(prefix, sizeof(prefix), "wan%d_", unit);
-			if(strcmp(nvram_safe_get(strcat_r(prefix, "pppoe_ifname", tmp)), ifname)==0) {
+			if(strcmp(nvram_safe_get(strlcat_r(prefix, "pppoe_ifname", tmp, sizeof(tmp))), ifname)==0) {
 				found = 1;
 			}	
 		}
@@ -291,8 +291,9 @@ int get_wan_unit(char *ifname)
 		case WAN_LW4O6:
 		case WAN_MAPE:
 		case WAN_V6PLUS:
+		case WAN_OCNVC:
 #endif
-			if (nvram_match(strcat_r(prefix, "pppoe_ifname", tmp), ifname))
+			if (nvram_match(strlcat_r(prefix, "pppoe_ifname", tmp, sizeof(tmp)), ifname))
 				return unit;
 #ifdef RTCONFIG_USB_MODEM
 			if (dualwan_unit__usbif(unit))
@@ -300,7 +301,7 @@ int get_wan_unit(char *ifname)
 #endif
 			/* fall through */
 		default:
-			if (nvram_match(strcat_r(prefix, "ifname", tmp), ifname))
+			if (nvram_match(strlcat_r(prefix, "ifname", tmp, sizeof(tmp)), ifname))
 				return unit;
 #ifdef BLUECAVE
 			if (bluecave)
@@ -321,7 +322,7 @@ char *get_wanx_ifname(int unit)
 	char tmp[100], prefix[sizeof("wanXXXXXXXXXX_")];
 	
 	snprintf(prefix, sizeof(prefix), "wan%d_", unit);
-	wan_ifname = nvram_safe_get(strcat_r(prefix, "ifname", tmp));
+	wan_ifname = nvram_safe_get(strlcat_r(prefix, "ifname", tmp, sizeof(tmp)));
 
 	return wan_ifname;
 }
@@ -339,14 +340,14 @@ char *get_wan_ifname(int unit)
 #ifdef RTCONFIG_USB_MODEM
 	if (dualwan_unit__usbif(unit)) {
 		wan_ifname = (wan_proto == WAN_DHCP) ?
-			nvram_safe_get(strcat_r(prefix, "ifname", tmp)) :
-			nvram_safe_get(strcat_r(prefix, "pppoe_ifname", tmp));
+			nvram_safe_get(strlcat_r(prefix, "ifname", tmp, sizeof(tmp))) :
+			nvram_safe_get(strlcat_r(prefix, "pppoe_ifname", tmp, sizeof(tmp)));
 	} else
 #endif
 #if defined(RTAX82_XD6) || defined(RTAX82_XD6S)
 	if (!strncmp(nvram_safe_get("territory_code"), "CH", 2) &&
 		nvram_match(ipv6_nvname("ipv6_only"), "1"))
-		return nvram_safe_get(strcat_r(prefix, "ifname", tmp));
+		return nvram_safe_get(strlcat_r(prefix, "ifname", tmp, sizeof(tmp)));
 	else
 #endif
 	switch (wan_proto) {
@@ -357,17 +358,18 @@ char *get_wan_ifname(int unit)
 	case WAN_LW4O6:
 	case WAN_MAPE:
 #endif
-		wan_ifname = nvram_safe_get(strcat_r(prefix, "pppoe_ifname", tmp));
+		wan_ifname = nvram_safe_get(strlcat_r(prefix, "pppoe_ifname", tmp, sizeof(tmp)));
 		break;
 #ifdef RTCONFIG_SOFTWIRE46
 	case WAN_V6PLUS:
-		if (nvram_get_int("s46_hgw_case") >= S46_CASE_MAP_HGW_OFF) {
-			wan_ifname = nvram_safe_get(strcat_r(prefix, "pppoe_ifname", tmp));
+	case WAN_OCNVC:
+		if (nvram_pf_get_int(prefix, "s46_hgw_case") >= S46_CASE_MAP_HGW_OFF) {
+			wan_ifname = nvram_safe_get(strlcat_r(prefix, "pppoe_ifname", tmp, sizeof(tmp)));
 			break;
 		}
 #endif
 	default:
-		wan_ifname = nvram_safe_get(strcat_r(prefix, "ifname", tmp));
+		wan_ifname = nvram_safe_get(strlcat_r(prefix, "ifname", tmp, sizeof(tmp)));
 		break;
 	}
 
@@ -394,8 +396,8 @@ char *get_wan6_ifname(int unit)
 #ifdef RTCONFIG_USB_MODEM
 		if (dualwan_unit__usbif(unit)) {
 			wan_ifname = (wan_proto == WAN_DHCP) ?
-				nvram_safe_get(strcat_r(prefix, "ifname", tmp)) :
-				nvram_safe_get(strcat_r(prefix, "pppoe_ifname", tmp));
+				nvram_safe_get(strlcat_r(prefix, "ifname", tmp, sizeof(tmp))) :
+				nvram_safe_get(strlcat_r(prefix, "pppoe_ifname", tmp, sizeof(tmp)));
 		} else
 #endif
 		switch (wan_proto) {
@@ -403,12 +405,12 @@ char *get_wan6_ifname(int unit)
 		case WAN_PPTP:
 		case WAN_L2TP:
 			if (nvram_match(ipv6_nvname_by_unit("ipv6_ifdev", unit), "ppp")) {
-				wan_ifname = nvram_safe_get(strcat_r(prefix, "pppoe_ifname", tmp));
+				wan_ifname = nvram_safe_get(strlcat_r(prefix, "pppoe_ifname", tmp, sizeof(tmp)));
 				break;
 			}
 			/* fall through */
 		default:
-			wan_ifname = nvram_safe_get(strcat_r(prefix, "ifname", tmp));
+			wan_ifname = nvram_safe_get(strlcat_r(prefix, "ifname", tmp, sizeof(tmp)));
 			break;
 		}
 		break;
@@ -423,6 +425,19 @@ char *get_wan6_ifname(int unit)
 	}
 
 	return wan_ifname;
+}
+
+int get_wan6_unit(char* ifname)
+{
+	if (!ifname)
+		return 0;
+
+	if (!strncmp(ifname, "v6tun", 5)) {
+		return (strlen(ifname) > 5) ? atoi(ifname+5) : 0;
+	}
+	else {
+		return get_wan_unit(ifname);
+	}
 }
 #endif
 
@@ -509,7 +524,7 @@ set_wan_primary_ifunit(const int unit)
 	nvram_set_int("wan_primary", unit);
 	for (i = WAN_UNIT_FIRST; i < WAN_UNIT_MAX; i++) {
 		snprintf(prefix, sizeof(prefix), "wan%d_", i);
-		nvram_set_int(strcat_r(prefix, "primary", tmp), (i == unit) ? 1 : 0);
+		nvram_set_int(strlcat_r(prefix, "primary", tmp, sizeof(tmp)), (i == unit) ? 1 : 0);
 	}
 
 	return 0;
@@ -524,7 +539,7 @@ wan_primary_ifunit(void)
 	/* TODO: Why not just nvram_get_int("wan_primary")? */
 	for (unit = WAN_UNIT_FIRST; unit < WAN_UNIT_MAX; unit ++) {
 		snprintf(prefix, sizeof(prefix), "wan%d_", unit);
-		if (nvram_match(strcat_r(prefix, "primary", tmp), "1"))
+		if (nvram_match(strlcat_r(prefix, "primary", tmp, sizeof(tmp)), "1"))
 			return unit;
 	}
 
@@ -663,11 +678,11 @@ char *get_usb_xhci_port(int port)
 	char word[100], *next;
 	int i=0;
 
-	strcpy(xhci_string, "xxxxxxxx");
+	strlcpy(xhci_string, "xxxxxxxx", sizeof(xhci_string));
 
 	foreach(word, nvram_safe_get("xhci_ports"), next){
 		if(i == port){
-			strcpy(xhci_string, word);
+			strlcpy(xhci_string, word, sizeof(xhci_string));
 			break;
 		}
 		i++;
@@ -680,11 +695,11 @@ char *get_usb_ehci_port(int port)
 	char word[100], *next;
 	int i=0;
 
-	strcpy(ehci_string, "xxxxxxxx");
+	strlcpy(ehci_string, "xxxxxxxx", sizeof(ehci_string));
 
 	foreach(word, nvram_safe_get("ehci_ports"), next) {
 		if(i==port) {
-			strcpy(ehci_string, word);
+			strlcpy(ehci_string, word, sizeof(ehci_string));
 			break;
 		}		
 		i++;
@@ -697,11 +712,11 @@ char *get_usb_ohci_port(int port)
 	char word[100], *next;
 	int i=0;
 
-	strcpy(ohci_string, "xxxxxxxx");
+	strlcpy(ohci_string, "xxxxxxxx", sizeof(ohci_string));
 
 	foreach(word, nvram_safe_get("ohci_ports"), next) {
 		if(i==port) {
-			strcpy(ohci_string, word);
+			strlcpy(ohci_string, word, sizeof(ohci_string));
 			break;
 		}		
 		i++;
@@ -786,7 +801,7 @@ void add_wanscap_support(char *feature)
 	char features[128];
 	int len;
 
-	strcpy(features, nvram_safe_get("wans_cap"));
+	strlcpy(features, nvram_safe_get("wans_cap"), sizeof(features));
 
 	if((len = strlen(features))==0)
 		nvram_set("wans_cap", feature);
@@ -1125,7 +1140,7 @@ int get_modemunit_by_dev(const char *dev){
 	for(modem_unit = MODEM_UNIT_FIRST; modem_unit < MODEM_UNIT_MAX; ++modem_unit){
 		usb_modem_prefix(modem_unit, prefix, sizeof(prefix));
 
-		if(!strcmp(dev, nvram_safe_get(strcat_r(prefix, "act_dev", tmp))))
+		if(!strcmp(dev, nvram_safe_get(strlcat_r(prefix, "act_dev", tmp, sizeof(tmp)))))
 			return modem_unit;
 	}
 
@@ -1139,7 +1154,7 @@ int get_modemunit_by_node(const char *usb_node){
 	for(modem_unit = MODEM_UNIT_FIRST; modem_unit < MODEM_UNIT_MAX; ++modem_unit){
 		usb_modem_prefix(modem_unit, prefix, sizeof(prefix));
 
-		if(!strcmp(usb_node, nvram_safe_get(strcat_r(prefix, "act_path", tmp))))
+		if(!strcmp(usb_node, nvram_safe_get(strlcat_r(prefix, "act_path", tmp, sizeof(tmp)))))
 			return modem_unit;
 	}
 
@@ -1222,7 +1237,7 @@ char *get_default_ssid(int unit, int subunit)
 #endif
 
 #if defined(RTCONFIG_NEWSSID_REV5)
-#if defined(RTAX56_XD4) || defined(XD4PRO)
+#if defined(RTAX56_XD4) || defined(XD4PRO) || defined(XC5)
 	if (nvram_match("SSIDRULE", "RT-V5")){
 		post_5g = "";
 	}
@@ -1241,14 +1256,14 @@ char *get_default_ssid(int unit, int subunit)
 	macp = get_2g_hwaddr();
 	ether_atoe(macp, mac_binary);
 #if defined(RTCONFIG_SSID_AMAPS)
-	sprintf((char *)ssidbase, "%s_%02X_AMAPS", SSID_PREFIX, mac_binary[5]);
+	snprintf((char *)ssidbase, sizeof(ssidbase), "%s_%02X_AMAPS", SSID_PREFIX, mac_binary[5]);
 #elif defined(VZWAC1300)
 	if (nvram_match("odmpid", "ASUSMESH-AC1300"))
-		sprintf((char *)ssidbase, "ASUS_%02X_MESH", mac_binary[5]);
+		snprintf((char *)ssidbase, sizeof(ssidbase), "ASUS_%02X_MESH", mac_binary[5]);
 	else
-		sprintf((char *)ssidbase, "%s_%02X", SSID_PREFIX, mac_binary[5]);
+		snprintf((char *)ssidbase, sizeof(ssidbase), "%s_%02X", SSID_PREFIX, mac_binary[5]);
 #else
-	sprintf((char *)ssidbase, "%s_%02X", SSID_PREFIX, mac_binary[5]);
+	snprintf((char *)ssidbase, sizeof(ssidbase), "%s_%02X", SSID_PREFIX, mac_binary[5]);
 #endif /* RTCONFIG_SSID_AMAPS */
 #else
 	if (rev3
@@ -1260,27 +1275,27 @@ char *get_default_ssid(int unit, int subunit)
 		ether_atoe(macp, mac_binary);
 #if defined(RTAC58U) || defined(RTAC59U)
 		if (!strncmp(nvram_safe_get("territory_code"), "SP", 2))
-			sprintf((char *)ssidbase, "Spirit_%02X", mac_binary[5]);
+			snprintf((char *)ssidbase, sizeof(ssidbase), "Spirit_%02X", mac_binary[5]);
 		else if (!strncmp(nvram_safe_get("territory_code"), "CX/01", 5)
 		      || !strncmp(nvram_safe_get("territory_code"), "CX/05", 5))
-			sprintf((char *)ssidbase, "Stuff-Fibre_%02X", mac_binary[5]);
+			snprintf((char *)ssidbase, sizeof(ssidbase), "Stuff-Fibre_%02X", mac_binary[5]);
 		else
 #endif
 #ifdef RTAC68U
 		if (is_dpsta_repeater())
-			sprintf((char *)ssidbase, "%s_RP_%02X", SSID_PREFIX, mac_binary[5]);
+			snprintf((char *)ssidbase, sizeof(ssidbase), "%s_RP_%02X", SSID_PREFIX, mac_binary[5]);
 		else
 #endif
 #if defined(DSL_AX82U) && !defined(RTCONFIG_BCM_MFG)
 		if (is_ax5400_i1())
-			sprintf((char *)ssidbase, "OPTUSGR%02X%02X%02X", mac_binary[3], mac_binary[4], mac_binary[5]);
+			snprintf((char *)ssidbase, sizeof(ssidbase), "OPTUSGR%02X%02X%02X", mac_binary[3], mac_binary[4], mac_binary[5]);
 		else
 #endif
-			sprintf((char *)ssidbase, "%s_%02X", SSID_PREFIX, mac_binary[5]);
+			snprintf((char *)ssidbase, sizeof(ssidbase), "%s_%02X", SSID_PREFIX, mac_binary[5]);
 	} else {
 		macp = get_lan_hwaddr();
 		ether_atoe(macp, mac_binary);
-		sprintf((char *)ssidbase, "%s_%02X", get_productid(), mac_binary[5]);
+		snprintf((char *)ssidbase, sizeof(ssidbase), "%s_%02X", get_productid(), mac_binary[5]);
 	}
 #endif
 
@@ -1310,15 +1325,47 @@ char *get_default_ssid(int unit, int subunit)
 #elif defined(DSL_AX82U) && !defined(RTCONFIG_BCM_MFG)
 		if (is_ax5400_i1() && unit == WL_5G_BAND)
 			strlcat(ssid, "_5G", sizeof(ssid));
+#elif defined(RTAX53U)
+		if (!strncmp(nvram_safe_get("territory_code"), "JP", 2))
+		{
+			if(unit == WL_2G_BAND)
+				strlcat(ssid, "_2G", sizeof(ssid));
+			else
+				strlcat(ssid, "_5G", sizeof(ssid));
+		}
 #endif
 #if defined(RTCONFIG_NEWSSID_REV5)
-#if defined(RTAX56_XD4) || defined(XD4PRO)
+#if defined(RTAX56_XD4)
 		if (nvram_match("SSIDRULE", "RT-V5")){
 			strlcat(ssid, "_XD4", sizeof(ssid));
+		}
+#elif defined(XD4PRO) || defined(XC5)
+		if (nvram_match("SSIDRULE", "RT-V5")){
+			if(nvram_match("odmpid","ZenWiFi_XD4_Pro")){
+				strlcat(ssid, "_XD4_Pro", sizeof(ssid));
+			}else if(nvram_match("odmpid","ZenWiFi_XC5")){
+                                strlcat(ssid, "_XC5", sizeof(ssid));
+			}else{ /* odmpid","ZenWiFi_XD5" */
+				strlcat(ssid, "_XD5", sizeof(ssid));
+			}
 		}
 #elif defined(ET12) || defined(XT12)
 		strlcat(ssid, "_", sizeof(ssid));
 		strlcat(ssid, nvram_safe_get("model"), sizeof(ssid));
+#elif defined(XT8PRO)
+		strlcat(ssid, "_XT9", sizeof(ssid));
+#elif defined(BM68)
+		strlcat(ssid, "_BM68", sizeof(ssid));
+#elif defined(XT8_V2)
+		strlcat(ssid, "_XT8", sizeof(ssid));
+#elif defined(XD4S)
+		if(nvram_match("odmpid","ZenWiFi_XD4_Plus"))
+			strlcat(ssid, "_XD4_Plus", sizeof(ssid));
+		else
+			strlcat(ssid, "_XD4S", sizeof(ssid));
+#else
+		strlcat(ssid, "_", sizeof(ssid));
+		strlcat(ssid, get_productid(), sizeof(ssid));
 #endif
 
 #endif
@@ -1349,7 +1396,6 @@ char *get_default_ssid(int unit, int subunit)
 		{
 			strlcat(ssid, post_5g, sizeof(ssid));
 		}
-
 		break;
 	case WL_5G_2_BAND:
 #if !defined(RTCONFIG_NEWSSID_REV4)
@@ -1419,7 +1465,7 @@ char *get_default_ssid(int unit, int subunit)
 		strlcat(ssid, post_guest, sizeof(ssid));
 #endif
 		if (subunit > 1) {
-			sprintf(ssid2, "%s%d", ssid, subunit);
+			snprintf(ssid2, sizeof(ssid2), "%s%d", ssid, subunit);
 			strlcpy(ssid, ssid2, sizeof(ssid));
 		}
 	}

@@ -958,14 +958,25 @@ var validator = {
 		return false;
 	},
 
-	isValidHost: function(value) {
-        var urlregex = new RegExp("^([a-zA-Z0-9\.\-]+(\:[a-zA-Z0-9\.&amp;%\$\-]+)*@)*((25[0-5]|2[0-4][0-9]|[0-1]{1}[0-9]{2}|[1-9]{1}[0-9]{1}|[1-9])\.(25[0-5]|2[0-4][0-9]|[0-1]{1}[0-9]{2}|[1-9]{1}[0-9]{1}|[1-9]|0)\.(25[0-5]|2[0-4][0-9]|[0-1]{1}[0-9]{2}|[1-9]{1}[0-9]{1}|[1-9]|0)\.(25[0-5]|2[0-4][0-9]|[0-1]{1}[0-9]{2}|[1-9]{1}[0-9]{1}|[0-9])|([a-zA-Z0-9\-]+\.)*[a-zA-Z0-9\-]+\.(com|edu|gov|int|mil|net|org|biz|arpa|info|name|pro|aero|coop|museum|[a-zA-Z]{2}))$");
-        if(urlregex.test(value)){
-			return true;
+	isValidHost: function(value) {	//<#JS_validip#>
+		var err_count=0;
+		var alert_content = "<#JS_validip#>\n<#JS_valid_FQDN#>";
+		var urlregex = new RegExp("^([a-zA-Z0-9\.\-]+(\:[a-zA-Z0-9\.&amp;%\$\-]+)*@)*((25[0-5]|2[0-4][0-9]|[0-1]{1}[0-9]{2}|[1-9]{1}[0-9]{1}|[1-9])\.(25[0-5]|2[0-4][0-9]|[0-1]{1}[0-9]{2}|[1-9]{1}[0-9]{1}|[1-9]|0)\.(25[0-5]|2[0-4][0-9]|[0-1]{1}[0-9]{2}|[1-9]{1}[0-9]{1}|[1-9]|0)\.(25[0-5]|2[0-4][0-9]|[0-1]{1}[0-9]{2}|[1-9]{1}[0-9]{1}|[0-9])|([a-zA-Z0-9\-]+\.)*[a-zA-Z0-9\-]+\.(com|edu|gov|int|mil|net|org|biz|arpa|info|name|pro|aero|coop|museum|[a-zA-Z]{2}))$");
+		if(!urlregex.test(value)){
+			err_count++;
 		}
-		alert("It is invalid URL."); /*untranslated*/
-		return false;
-		
+
+		var rangere=new RegExp("^((([0-9A-Fa-f]{1,4}:){7}[0-9A-Fa-f]{1,4})|(([0-9A-Fa-f]{1,4}:){6}:[0-9A-Fa-f]{1,4})|(([0-9A-Fa-f]{1,4}:){5}:([0-9A-Fa-f]{1,4}:)?[0-9A-Fa-f]{1,4})|(([0-9A-Fa-f]{1,4}:){4}:([0-9A-Fa-f]{1,4}:){0,2}[0-9A-Fa-f]{1,4})|(([0-9A-Fa-f]{1,4}:){3}:([0-9A-Fa-f]{1,4}:){0,3}[0-9A-Fa-f]{1,4})|(([0-9A-Fa-f]{1,4}:){2}:([0-9A-Fa-f]{1,4}:){0,4}[0-9A-Fa-f]{1,4})|(([0-9A-Fa-f]{1,4}:){6}((\\b((25[0-5])|(1\\d{2})|(2[0-4]\\d)|(\\d{1,2}))\\b)\\.){3}(\\b((25[0-5])|(1\\d{2})|(2[0-4]\\d)|(\\d{1,2}))\\b))|(([0-9A-Fa-f]{1,4}:){0,5}:((\\b((25[0-5])|(1\\d{2})|(2[0-4]\\d)|(\\d{1,2}))\\b)\\.){3}(\\b((25[0-5])|(1\\d{2})|(2[0-4]\\d)|(\\d{1,2}))\\b))|(::([0-9A-Fa-f]{1,4}:){0,5}((\\b((25[0-5])|(1\\d{2})|(2[0-4]\\d)|(\\d{1,2}))\\b)\\.){3}(\\b((25[0-5])|(1\\d{2})|(2[0-4]\\d)|(\\d{1,2}))\\b))|([0-9A-Fa-f]{1,4}::([0-9A-Fa-f]{1,4}:){0,5}[0-9A-Fa-f]{1,4})|(::([0-9A-Fa-f]{1,4}:){0,6}[0-9A-Fa-f]{1,4})|(([0-9A-Fa-f]{1,4}:){1,7}:))$", "gi");
+		if(!rangere.test(value)){
+			err_count++;
+		}
+
+		if(err_count==2){
+			alert(value +" \n"+ alert_content);
+			return false;
+		}
+		else
+			return true;
 	},	
 
 	// 2010.07 James. {
@@ -1672,11 +1683,26 @@ var validator = {
 	psk_KR: function(psk_obj, flag){
 		
 		var psk_length = psk_obj.value.length;
+		var psk_length_trim = psk_obj.value.trim().length;
 		if(!/[A-Za-z]/.test(psk_obj.value) || !/[0-9]/.test(psk_obj.value) || psk_length < 8 || psk_length > 63 
 				|| !/[\!\"\#\$\%\&\'\(\)\*\+\,\-\.\/\:\;\<\=\>\?\@\[\\\]\^\_\`\{\|\}\~]/.test(psk_obj.value)){
 			alert("<#JS_PSK64Hex_kr#> <#JS_validPWD#>");
 			psk_obj.value = "";
 			psk_obj.focus();
+			return false;
+		}
+
+		if(psk_length != psk_length_trim){
+			alert("<#JS_PSK64Hex_whiteSpace#>");
+			psk_obj.focus();
+			psk_obj.select();
+			return false;
+		}
+
+		if(!this.string_KR(psk_obj)){
+			alert("<#JS_PSK64Hex#>");
+			psk_obj.focus();
+			psk_obj.select();
 			return false;
 		}
 
@@ -1878,7 +1904,27 @@ var validator = {
 				string_obj.value = "";
 				string_obj.focus();
 				return false;
-		}	
+		}
+
+		if(string_obj.value.charAt(0) == '"'){
+			if(flag != "noalert")
+				alert('<#JS_validstr1#> ["]');
+
+			string_obj.value = "";
+			string_obj.focus();
+
+			return false;
+		}
+		else if(string_obj.value.charAt(string_obj.value.length - 1) == '"'){
+			if(flag != "noalert"){
+				alert('<#JS_validstr3#> ["]');
+			}
+
+			string_obj.value = "";
+			string_obj.focus();
+
+			return false;
+		}
 		
 		var invalid_char = "";
 		for(var i = 0; i < string_obj.value.length; ++i){
@@ -2195,19 +2241,33 @@ var validator = {
 	},
 
 	wlKey: function(key_obj){
-		var wep_type = document.form.wl_wep_x.value;
+		var wep_type = "";
+		if (document.form === undefined) {
+			var wep_type_id = key_obj.id.slice(0, 8) + "x";
+			wep_type = document.getElementById(wep_type_id).value;
+		} else {
+			wep_type = document.form.wl_wep_x.value;
+		}
+
 		var iscurrect = true;
 		var str = "<#JS_wepkey#>";
+		var wl_key_type = '<% nvram_get("wl_key_type"); %>';
 
 		if(wep_type == "0")
 			iscurrect = true;	// do nothing
 		else if(wep_type == "1"){
 			if(key_obj.value.length == 5 && this.string(key_obj)){
-				document.form.wl_key_type.value = 1; /*Lock Add 11.25 for ralink platform*/
+				if (wl_key_type !== "") {
+					document.form.wl_key_type.value = 1; /*Lock Add 11.25 for ralink platform*/
+				}
+
 				iscurrect = true;
 			}
 			else if(key_obj.value.length == 10 && this.hex(key_obj)){
-				document.form.wl_key_type.value = 0; /*Lock Add 11.25 for ralink platform*/
+				if (wl_key_type !== "") {
+					document.form.wl_key_type.value = 0; /*Lock Add 11.25 for ralink platform*/
+				}
+
 				iscurrect = true;
 			}
 			else{
@@ -2218,11 +2278,17 @@ var validator = {
 		}
 		else if(wep_type == "2"){
 			if(key_obj.value.length == 13 && this.string(key_obj)){
-				document.form.wl_key_type.value = 1; /*Lock Add 11.25 for ralink platform*/
+				if (wl_key_type !== "") {
+  					document.form.wl_key_type.value = 1; /*Lock Add 11.25 for ralink platform*/
+				}
+
 				iscurrect = true;
 			}
 			else if(key_obj.value.length == 26 && this.hex(key_obj)){
-				document.form.wl_key_type.value = 0; /*Lock Add 11.25 for ralink platform*/
+				if (wl_key_type !== "") {
+					document.form.wl_key_type.value = 0; /*Lock Add 11.25 for ralink platform*/
+				}
+
 				iscurrect = true;
 			}
 			else{
@@ -2300,7 +2366,7 @@ var validator = {
 
 	domainName_flag: function(_value) {
 		//domin name
-		var domainNameFormat = /^((?:(?:(?:\w[\.\-\+]?)*)\w)+)((?:(?:(?:\w[\.\-\+]?){0,62})\w)+)\.(\w{2,6})$/; 
+		var domainNameFormat = /^((?:(?:(?:\w[\.\-\+]?)*)\w)+)((?:(?:(?:\w[\.\-\+]?){0,62})\w)+)\.(\w{2,})$/; 
 		if(domainNameFormat.test(_value))
 			return true;
 		else
@@ -2336,5 +2402,14 @@ var validator = {
 			}
 		}
 		return status;
+	},
+
+	isMobileNumber: function(_value){
+		var re = /^(\+?[1-9]{1}[0-9]{7,14}|[0-9]{7,14})$/g;
+		if(re.test(_value))
+			return true;
+		else{
+			return false;
+		}
 	}
 };

@@ -1,12 +1,17 @@
 #! /bin/sh
-
-APPS_DEV=`/userfs/bin/tcapi get Apps_Entry apps_dev`
-APPS_MOUNTED_PATH=`/userfs/bin/tcapi get Apps_Entry apps_mounted_path`
-APPS_INSTALL_FOLDER=`/userfs/bin/tcapi get Apps_Entry apps_install_folder`
-APPS_INSTALL_PATH=$APPS_MOUNTED_PATH/$APPS_INSTALL_FOLDER
-APPS_SERVER=`/userfs/bin/tcapi get Apps_Entry apps_ipkg_server`
+	if [ -f "/userfs/bin/tcapi" ]; then
+		APPS_DEV=`/userfs/bin/tcapi get Apps_Entry apps_dev`
+		APPS_MOUNTED_PATH=`/userfs/bin/tcapi get Apps_Entry apps_mounted_path`
+		APPS_INSTALL_FOLDER=`/userfs/bin/tcapi get Apps_Entry apps_install_folder`
+		APPS_SERVER=`/userfs/bin/tcapi get Apps_Entry apps_ipkg_server`
+	else 
+		APPS_DEV=`nvram get apps_dev`
+		APPS_MOUNTED_PATH=`nvram get apps_mounted_path`
+		APPS_INSTALL_FOLDER=`nvram get apps_install_folder`
+		APPS_SERVER=`nvram get apps_ipkg_server`
+	fi
 IPKG_ERROR=""
-
+APPS_INSTALL_PATH=$APPS_MOUNTED_PATH/$APPS_INSTALL_FOLDER
 #S50asuslighttpd check
 if [ ! -f "$APPS_INSTALL_PATH/etc/init.d/S50asuslighttpd" ]; then
 	cp -f $APPS_INSTALL_PATH/etc/apps_asus_script/mes_* $APPS_INSTALL_PATH/tmp/

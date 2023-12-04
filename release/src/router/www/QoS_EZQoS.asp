@@ -14,12 +14,12 @@
 <link rel="stylesheet" type="text/css" href="usp_style.css">
 <link rel="stylesheet" type="text/css" href="device-map/device-map.css">
 <link rel="stylesheet" type="text/css" href="css/icon.css">
+<script type="text/javascript" src="/js/jquery.js"></script>
+<script type="text/javascript" src="/calendar/jquery-ui.js"></script>
 <script type="text/javascript" src="/state.js"></script>
 <script type="text/javascript" src="/popup.js"></script>
 <script type="text/javascript" src="/help.js"></script>
 <script type="text/javascript" src="/validator.js"></script>
-<script type="text/javascript" src="/js/jquery.js"></script>
-<script type="text/javascript" src="/calendar/jquery-ui.js"></script>
 <script type="text/javascript" src="/general.js"></script>
 <script type="text/javascript" src="/switcherplugin/jquery.iphone-switch.js"></script>
 <script type="text/javascript" src="/form.js"></script>
@@ -864,7 +864,7 @@ function determineActionScript(){
 		document.form.action_script.value = "restart_qos;restart_firewall;";
 		document.form.action_wait.value = "15";
 	}
-	else if(document.form.qos_enable.value == "1" && document.form.qos_type.value == "1" && (fc_disable  != "" && runner_disable != "")){ //HND Router
+	else if(document.form.qos_enable.value == "1" && document.form.qos_type.value == "1" && (fc_disable_orig != "" && runner_disable_orig != "")){ //HND Router
 		document.form.action_script.value = "restart_qos;restart_firewall;";
 		document.form.action_wait.value = "15";
 	}

@@ -1,6 +1,6 @@
 include ${TOP}/common.mak
 
-CFLAGS += -Wall -O
+CFLAGS += -Wall -O $(if $(RTCONFIG_DEBUG),-g)
 
 ifeq ($(RTCONFIG_BCMARM),y)
 CFLAGS += $(EXTRA_FLAG)
@@ -31,6 +31,11 @@ LDFLAGS += -L$(TOP)/json-c/.libs -ljson-c
 CFLAGS += -I$(TOP)/libasc
 LDFLAGS += -L$(TOP)/libasc -lasc
 
+ifeq ($(RTCONFIG_QTN),y)
+CFLAGS += -I$(TOP)/libqcsapi_client -I$(TOP)/httpd -I./sysdeps/qtn
+LDFLAGS += -L$(TOP)/libqcsapi_client -lqcsapi_client
+endif
+
 OBJS = utility.o ahs.o
 
 ifneq ($(wildcard ./prebuild),)
@@ -44,7 +49,7 @@ ahs: $(OBJS)
 	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $^
 
 install: all
-	$(STRIP) ahs
+	$(if $(RTCONFIG_DEBUG),,$(STRIP) ahs)
 	$(INSTALL) -d $(INSTALLDIR)/ahs/usr/sbin
 	$(INSTALL) ahs $(INSTALLDIR)/ahs/usr/sbin
 

@@ -177,14 +177,74 @@ function getInterface(){
 		'60G': [['3', '60 GHz','3']]
 	}
 
-
 	if(system.smartConnectSupport && variable.smart_connect_x != '0'){		// Smart Connect
 		if(variable.smart_connect_x == '1'){	// Tri/Dual-Band Smart Connect		
-			if(system.band5g2Support){
-				if(dwb_info.mode == '1'){
-					if(system.band6gSupport){
-						//_temp = typeObj['triBand6GHzMeshSmartConnect'];
-						_temp = typeObj['triBandSmartConnect'];
+			if(system.modelName === 'GT-AXE16000' || system.modelName === 'GT-BE98' || system.modelName === 'GT-BE98_PRO'){
+				if(variable.smart_connect_selif_x === '15'){
+					_temp = typeObj['quadBandSmartConnect'];
+				}
+				else if(variable.smart_connect_selif_x === '14'){
+					_temp = typeObj['5L5H6GSmartCommect'];
+				}
+				else if(variable.smart_connect_selif_x === '13'){
+					_temp = typeObj['2.4G5H6GSmartCommect'];
+				}
+				else if(variable.smart_connect_selif_x === '11'){
+					_temp = typeObj['2.4G5L6GSmartCommect'];
+				}
+				else if(variable.smart_connect_selif_x === '7'){
+					_temp = typeObj['2.4G5L5HSmartCommect'];
+				}
+				else if(variable.smart_connect_selif_x === '12'){
+					_temp = typeObj['5H6GSmartCommect'];
+				}
+				else if(variable.smart_connect_selif_x === '10'){
+					_temp = typeObj['5L6GSmartCommect'];
+				}
+				else if(variable.smart_connect_selif_x === '9'){
+					_temp = typeObj['2.4G6GSmartCommect'];
+				}
+				else if(variable.smart_connect_selif_x === '6'){
+					_temp = typeObj['5L5HSmartCommect'];
+				}
+				else if(variable.smart_connect_selif_x === '5'){
+					_temp = typeObj['2.4G5HSmartCommect'];
+				}
+				else if(variable.smart_connect_selif_x === '3'){
+					_temp = typeObj['2.4G5LSmartCommect'];
+				}
+			}
+			else if(system.modelName === 'RT-BE96U'){
+				if(variable.smart_connect_selif_x === '11'){
+					_temp = typeObj['triBandSmartConnect'];
+				}
+				else if(variable.smart_connect_selif_x === '3'){
+					_temp = typeObj['triBand6GHzMeshSmartConnect'];
+				}				
+			}
+			else{
+				if(system.band5g2Support){
+					if(dwb_info.mode == '1'){
+						if(system.band6gSupport){
+							//_temp = typeObj['triBand6GHzMeshSmartConnect'];
+							_temp = typeObj['triBandSmartConnect'];
+						}
+						else{
+							if(odmpid === 'GT6'){								
+								_temp = typeObj['GT6triBandMeshSmartConnect'];
+							}
+							else {
+								_temp = typeObj['triBandMeshSmartConnect'];
+							}
+							
+							if(isSupport("amas_fronthaul_network")){
+								var fh_ap_enabled = httpApi.nvramGet(["fh_ap_enabled"]).fh_ap_enabled;
+								if(fh_ap_enabled == "2"){
+									_temp[0][1] = '<#smart_connect_tri#>';
+									_temp[1][1] = '5 GHz-2 (Backhaul)';
+								}
+							}
+						}
 					}
 					else{
 						_temp = typeObj['triBandMeshSmartConnect'];
@@ -198,12 +258,9 @@ function getInterface(){
 					}
 				}
 				else{
-					_temp = typeObj['triBandSmartConnect'];
+					_temp = typeObj['dualBandSmartConnect'];
 				}	
 			}
-			else{
-				_temp = typeObj['dualBandSmartConnect'];
-			}	
 		}
 		else if(variable.smart_connect_x == '3'){
 			_temp = typeObj['dualBand6GHzSmartConnect'];
@@ -217,7 +274,21 @@ function getInterface(){
 	}
 	else{
 		if(system.band2gSupport){
-			_temp = _temp.concat(typeObj['2.4G']);
+			if(system.modelName === 'GT-AXE16000'){
+				_temp = _temp.concat(typeObj['2.4G-AXE16000']);
+			}
+			else if(system.modelName === 'GT-BE98'){
+				_temp = _temp.concat(typeObj['2.4G-BE98']);
+			}
+			else if(system.modelName === 'GT-BE98_PRO'){
+				_temp = _temp.concat(typeObj['2.4G-BE98_PRO']);
+			}
+			else if(odmpid === 'GT6'){
+				_temp = _temp.concat(typeObj['2.4G-GT6']);
+			}
+			else{
+				_temp = _temp.concat(typeObj['2.4G']);
+			}
 		}
 
 		if(system.band5gSupport){
@@ -247,7 +318,11 @@ function getInterface(){
 			});
 		}
 		else{
-			wlInterface[wlc_band][2] = wlc_band + '.1';
+			for(let i =0;i<wlInterface.length;i++){
+				if(wlInterface[i][0] === wlc_band){
+					wlInterface[i][2] = wlInterface[i][2] + '.1';
+				}
+			}
 		}
 	}
 
@@ -317,14 +392,14 @@ function genElement(){
 			if(show_dwb_hint){
 				if(band6g_support){
 					code += '<div class="dwb_hint">6 GHz <#AiMesh_backhaul_band_5GHz-2_desc1#></div>';
-					code += '<div class="dwb_hint"><#AiMesh_backhaul_band_5GHz-2_desc2#></div>';
-					break;
 				}
 				else{
 					code += '<div class="dwb_hint">5 GHz-2 <#AiMesh_backhaul_band_5GHz-2_desc1#></div>';
-					code += '<div class="dwb_hint"><#AiMesh_backhaul_band_5GHz-2_desc2#></div>';
-					break;
 				}
+				var $dwb_hint = $("<div>").addClass("dwb_hint").html('<#AiMesh_backhaul_band_5GHz-2_desc2#>');
+				$dwb_hint.find(".faq-link").attr("onclick", "top.change_wl_unit_status(" + dwb_info.band + ");");
+				code += $dwb_hint[0].outerHTML;
+				break;
 			}
 		}
 
@@ -339,8 +414,11 @@ function genElement(){
 			code += '<div class="info-block">';                                                                                                                                               
 			code += '<div class="info-title"><#WLANConfig11b_AuthenticationMethod_itemname#></div>';
 			code += '<div><select id="wl'+ unit +'_auth_mode_x" class="input_option" onchange="updateVariable(this.id, value)">'+ _temp +'</select></div>';
+			if(unit != '2'){
+				code += '<span id="wl'+ unit +'_open_suggest" style="color:#FC0;display:none">Suggest to use "Enhanced Open transition" for better device compatibility</span>';
+			}
+			
 			code += '</div>';
-
 			code += '<div id="wl'+ unit +'_no_wp3_hint" class="wpa3_hint" style="display:none;">';
 			code += '<span><#AiMesh_confirm_msg10#> <a id="wl'+ unit +'_wpa3FaqLink" class="faq-link" target="_blank" href="">FAQ</a></span>';
 			code += '</div>';
@@ -362,7 +440,7 @@ function genElement(){
             if(_authMode != 'owe' && _authMode != 'openowe'){            
                 code += '<div class="info-block">';
                 code += '<div class="info-title"><#WPA-PSKKey#></div>';
-                code += '<div><input type="text" class="input-size-25" id="wl'+ unit +'_wpa_psk" oninput="updateVariable(this.id, value, false)"></div>';
+                code += '<div><input type="password" class="input-size-25" id="wl'+ unit +'_wpa_psk" oninput="updateVariable(this.id, value, false)" onfocus="plainPasswordSwitch(this, \'focus\');" onblur="plainPasswordSwitch(this, \'blur\')"></div>';
                 code += '</div>';
             }
 		}
@@ -432,22 +510,23 @@ function genSmartConnect(){
 	var _smart_connect_x = variable['smart_connect_x']
 	if(system.band5g2Support){
 		if(dwb_info.mode == '1'){
-			if(isSupport("wifi6e")){
-				_optionArray = [['<#wl_securitylevel_0#>', '0'], ['<#smart_connect_tri#>', '1'], ['<#smart_connect_dual#>', '3']];
+			_optionArray = [['<#wl_securitylevel_0#>', '0'], ['<#smart_connect_dual#>', '1']];
+			if(isSupport("amas_fronthaul_network")){
+				var fh_ap_enabled = httpApi.nvramGet(["fh_ap_enabled"]).fh_ap_enabled;
+				if(fh_ap_enabled == "2")
+					_optionArray[1][0] = '<#smart_connect_tri#>';
 			}
-			else{
-				_optionArray = [['<#wl_securitylevel_0#>', '0'], ['<#smart_connect_dual#>', '1']];
-				if(isSupport("amas_fronthaul_network")){
-					var fh_ap_enabled = httpApi.nvramGet(["fh_ap_enabled"]).fh_ap_enabled;
-					if(fh_ap_enabled == "2")
-						_optionArray[1][0] = '<#smart_connect_tri#>';
-				}
-			}			
 		}
 		else{
 			if(isSupport("wifi6e")){
 				_optionArray = [['<#wl_securitylevel_0#>', '0'], ['<#smart_connect_tri#>', '1'], ['<#smart_connect_dual#>', '3']];
-			}				
+			}
+			else if(system.modelName == 'RT-BE96U'){
+				_optionArray = [['<#wl_securitylevel_0#>', '0'], ['<#smart_connect_tri#>', '1'], ['2.4 GHz and 5 GHz Smart Connect', '3']];
+				if(variable['smart_connect_selif_x'] == '3'){
+					_smart_connect_x = '3';
+				}
+			}			
 			else{
 				_optionArray = [['<#wl_securitylevel_0#>', '0'], ['<#smart_connect_tri#>', '1'], ['5GHz Smart Connect', '2']];
 			}				
@@ -517,7 +596,12 @@ function genAuthMethod(unit, id, nmode_x, auth_mode_x){
 		}	
 	}
 	else if(unit == '3'){
-		auth_array = authObj['60G'];
+		if(system.modelName === 'GT-AXE16000' || system.modelName === 'GT-BE98' || system.modelName === 'GT-BE98_PRO'){
+			auth_array = authObj['normalWithWPA3OWE'];
+		}
+		else{
+			auth_array = authObj['60G'];
+		}
 	}
 	else if(nmode_x == '2'){	// Legacy mode
 		if(system.modelName == 'BLUECAVE'){
@@ -534,6 +618,10 @@ function genAuthMethod(unit, id, nmode_x, auth_mode_x){
 					}
 					else{
 						auth_array = authObj['wifiNewCertWPA3'];
+						if(system.modelName === 'RT-AX92U' && unit === '2'
+						|| system.BRCMplatform && band5g_11ax_support && system.modelName !== 'RT-AX92U'){
+							auth_array.pop();
+						}
 					}
 				}
 				else{
@@ -542,20 +630,54 @@ function genAuthMethod(unit, id, nmode_x, auth_mode_x){
 							auth_array = authObj['6G'];
 						}
 						else{
-							auth_array = authObj['allWithWPA3OWE'];
+							if(wpa3_enterprise_support){
+								auth_array = authObj['allWithWPA3OWEWPA3E'];
+								if(system.modelName === 'RT-AX92U' && unit === '2'
+								|| system.BRCMplatform && band5g_11ax_support && system.modelName !== 'RT-AX92U'){
+									auth_array.pop();
+								}
+							}
+							else{
+								auth_array = authObj['allWithWPA3OWE'];
+								if(system.modelName === 'RT-AX92U' && unit === '2'
+								|| system.BRCMplatform && band5g_11ax_support && system.modelName !== 'RT-AX92U'){
+									auth_array.pop();
+								}
+							}							
 						}
 					}
 					else{
-						auth_array = authObj['allWithWPA3'];
+						if(wpa3_enterprise_support){
+							auth_array = authObj['allWithWPA3WPA3E'];
+							if(system.modelName === 'RT-AX92U' && unit === '2'
+							|| system.BRCMplatform && band5g_11ax_support && system.modelName !== 'RT-AX92U'){
+								auth_array.pop();
+							}
+						}
+						else{
+							auth_array = authObj['allWithWPA3'];
+							if(system.modelName === 'RT-AX92U' && unit === '2'
+							|| system.BRCMplatform && band5g_11ax_support && system.modelName !== 'RT-AX92U'){
+								auth_array.pop();
+							}
+						}						
 					}
 				}
 			}
 			else{
 				if(system.newWiFiCertSupport){
 					auth_array = authObj['wifiNewCertNoWPA3'];
+					if(system.modelName === 'RT-AX92U' && unit === '2'
+					|| system.BRCMplatform && band5g_11ax_support && system.modelName !== 'RT-AX92U'){
+						auth_array.pop();
+					}
 				}
 				else{
 					auth_array = authObj['allWithoutWPA3'];
+					if(system.modelName === 'RT-AX92U' && unit === '2'
+					|| system.BRCMplatform && band5g_11ax_support && system.modelName !== 'RT-AX92U'){
+						auth_array.pop();
+					}
 				}
 			}
 		}
@@ -577,6 +699,10 @@ function genAuthMethod(unit, id, nmode_x, auth_mode_x){
 		else{
 			auth_array = authObj['normalWithoutWPA3'];
 		}
+	}
+
+	if(is_KR_sku){ //remove Open System
+		auth_array = auth_array.filter(subArr => subArr[1] !== 'open');
 	}
 
 	if(isSupport("amas") && isSupport("amasRouter") && (isSwMode("rt") || isSwMode("ap"))){
@@ -639,16 +765,29 @@ function genAuthMethod(unit, id, nmode_x, auth_mode_x){
 	if(auth_mode_x == 'psk' || auth_mode_x == 'psk2' || auth_mode_x == 'sae' || auth_mode_x == 'pskpsk2' || auth_mode_x == 'psk2sae'){
 		genWPAEncryption(unit, 'wl'+ unit +'_crypto', auth_mode_x);
 		getWPAKey(unit, 'wl'+ unit +'_wpa_psk', variable['wl'+ unit +'_wpa_psk']);
+		if(document.getElementById('wl'+ unit +'_open_suggest')){
+			document.getElementById('wl'+ unit +'_open_suggest').style.display = 'none';
+		}
 	}
 	else if(auth_mode_x == 'shared'){
 		genWEPEncryption(unit, 'wl'+ unit +'_wep_x');
 		genWEPKeyIndex(unit, 'wl'+ unit +'_key');
 		getWEPKey(unit, 'wl'+ unit +'_wep_key', variable['wl'+ unit +'_key']);
+		if(document.getElementById('wl'+ unit +'_open_suggest')){
+			document.getElementById('wl'+ unit +'_open_suggest').style.display = 'none';
+		}
     }
     else if(auth_mode_x == 'owe' || auth_mode_x == 'openowe'){
         genWPAEncryption(unit, 'wl'+ unit +'_crypto', auth_mode_x);
+		if(document.getElementById('wl'+ unit +'_open_suggest')){
+			document.getElementById('wl'+ unit +'_open_suggest').style.display = 'none';
+		}
     }
 	else if(auth_mode_x == 'open'){
+		if(document.getElementById('wl'+ unit +'_open_suggest')){
+			document.getElementById('wl'+ unit +'_open_suggest').style.display = '';
+		}
+		
 		if(nmode_x == '2'){
 			if(wepEncryption != '0'){
 				genWEPEncryption(unit, 'wl'+ unit +'_wep_x', auth_mode_x);
@@ -663,6 +802,9 @@ function genAuthMethod(unit, id, nmode_x, auth_mode_x){
 	}
 	else if(auth_mode_x == 'wpa' || auth_mode_x == 'wpa2' || auth_mode_x == 'wpawpa2'){
 		genWPAEncryption(unit, 'wl'+ unit +'_crypto', auth_mode_x);
+		if(document.getElementById('wl'+ unit +'_open_suggest')){
+			document.getElementById('wl'+ unit +'_open_suggest').style.display = 'none';
+		}
 	}
 }
 
@@ -764,6 +906,21 @@ function apply(rc_flag){
 		'rc_service': rc_flag
 	}
 
+	if(variable.smart_connect_x === '0'){
+		delete variable['smart_connect_selif_x'];
+	}
+
+	if(system.modelName == 'RT-BE96U'){
+		if(variable['smart_connect_x'] == '1'){
+			variable['smart_connect_selif_x'] = '11';
+			variable['smart_connect_x'] = '1';
+		}
+		else{
+			variable['smart_connect_selif_x'] = '3';
+			variable['smart_connect_x'] = '1';
+		}
+	}
+
 	if(validateInput()){
 		if(isSupport("amas_fronthaul_network")){
 			if(system.triBandSupport && dwb_info.mode && variable['smart_connect_x'] == "1"){
@@ -772,9 +929,18 @@ function apply(rc_flag){
 		}
 		postObj = Object.assign(postObj, variable);
 		httpApi.nvramSet(postObj, function(){
+			if (Qcawifi_support || Rawifi_support) {
+				var restart_needed_time = this.restart_needed_time;	// restart wireless time
+				if (restart_needed_time) {
+					var tmp_rc_time = parseInt(restart_needed_time);
+					if (!isNaN(tmp_rc_time) && tmp_rc_time > 0 && tmp_rc_time < 300) {
+						rc_time = tmp_rc_time;
+					}
+				}
+			}
 			parent.showLoading(rc_time);
 			setTimeout(function(){
-				location.href = location.href;
+				location.reload();
 			}, rc_time*1000);
 		});
 	}
@@ -785,7 +951,15 @@ function updateVariable(id, value, flag){
 	variable[id] = value;
 	var prefix = id.split('_')[0];
 	var wpsEnable = variable['wps_enable'];
-	
+	if(system.modelName == 'RT-BE96U'){
+		if(value == '1'){
+			variable.smart_connect_selif_x = '11';
+		}
+		else if(value == '3'){
+			variable.smart_connect_selif_x = '3';
+		}
+	}
+
 	if(band6g_support && (id == "smart_connect_x")){
 		if(value == '0' || value == '3'){
 			if(variable['wl0_auth_mode_x'] == 'psk2sae'){
@@ -830,8 +1004,11 @@ function updateVariable(id, value, flag){
 	else if(value == 'psk2sae' && nvram[prefix + '_mfp'] == '0'){	
 		variable[prefix + '_mfp'] = '1';
 	}
-	else if(value == 'psk2' || value == 'pskpsk2' || value == 'wpa' || value == 'wpa2'){
+	else if(value == 'psk2' || value == 'pskpsk2' || value == 'wpawpa2' || value == 'wpa2'){
 		if(mbo_support && nvram[prefix + '_mbo_enable'] == '1' && nvram[prefix + '_mfp'] == '0'){
+			variable[prefix + '_mfp'] = '1';
+		}
+		else if((value == 'pskpsk2' || value == 'wpawpa2') && nvram[prefix + '_mfp'] == '2'){
 			variable[prefix + '_mfp'] = '1';
 		}
 	}
@@ -963,10 +1140,12 @@ function validateInput(){
 		id = prefix + '_wep_key';
 		obj = document.getElementById(id);
 		if(obj){
+            var wep_index = variable[prefix+'_key'];
 			if(!validator.wlKey(obj)){
 				obj.focus();
 				return false;
 			}
+            variable[prefix+'_key'+wep_index] = variable[prefix+'_wep_key'];
 		}
 
 		if(system.AMESHSupport && (parent.isSwMode("rt") || parent.isSwMode("ap"))){

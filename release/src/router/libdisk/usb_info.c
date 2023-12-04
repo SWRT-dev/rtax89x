@@ -1507,14 +1507,8 @@ int set_usb_common_nvram(const char *action, const char *device_name, const char
 }
 
 char *find_port_paths_by_nvram(char *target_type, char *str, int str_len){
-	char *ptr_type;
-	int i;
-	char cmd[128], ret[PATH_MAX];
-	char *p, w, *ptr;
-	int len;
-	FILE *fp;
-	char port_path[8];
-	int first_set = 1;
+	char *ptr, *ptr_type, cmd[128];
+	int i, j, len, first_set = 1;
 
 	memset(str, 0, str_len);
 	len = 0;
@@ -1526,42 +1520,24 @@ char *find_port_paths_by_nvram(char *target_type, char *str, int str_len){
 		if(target_type != NULL && strcmp(ptr_type, target_type))
 			continue;
 
-		snprintf(cmd, sizeof(cmd), "nvram show |grep =%s$", ptr_type);
-		if((fp = popen(cmd, "r")) == NULL)
-			continue;
+		for(j = 1; j <= MAX_USB_PORT; ++j){
+			snprintf(cmd, sizeof(cmd), "usb_path%d", j);
 
-		while(fgets(ret, sizeof(ret), fp) != NULL){
-			if((p = strchr(ret, '=')) != NULL){
-				w = *p;
-				*p = '\0';
-			}
-			else
-				w = -1;
-
-			if(strncmp(ret, "usb_path", 8) || strlen(ret) == strlen("usb_path")){
-				if(w != -1)
-					*p = w;
+			if(strcmp(ptr_type, nvram_safe_get(cmd)))
 				continue;
-			}
-
-			snprintf(port_path, sizeof(port_path), "%s", ret+strlen("usb_path"));
 
 			if(first_set){
 				first_set = 0;
 
-				snprintf(ptr, str_len-len, ">");
+				snprintf(ptr, str_len, ">");
 				len = strlen(str);
 				ptr = str+len;
 			}
 
-			snprintf(ptr, str_len-len, "%s>", port_path);
+			snprintf(ptr, str_len-len, "%d>", j);
 			len = strlen(str);
 			ptr = str+len;
-
-			if(w != -1)
-				*p = w;
 		}
-		pclose(fp);
 	}
 
 	if(!len)
@@ -1670,6 +1646,18 @@ int detect_usb_devices(){
 		// Get USB node.
 		if(!get_usb_node_by_string(d->d_name, usb_node, sizeof(usb_node)))
 			continue;
+
+		if(!get_path_by_node(usb_node, port_path, sizeof(port_path)))
+			continue;
+
+#ifdef RTCONFIG_INTERNAL_GOBI
+		if(nvram_get_int("usb_gobi") != 1 && !strcmp(port_path, nvram_safe_get("usb_buildin")))
+			continue;
+#ifndef RTCONFIG_USB_MULTIMODEM
+		if(nvram_get_int("usb_gobi") == 1 && strcmp(port_path, nvram_safe_get("usb_buildin")))
+			continue;
+#endif
+#endif
 
 		//usb_dbg("Get the USB device(%s) on usb_node %s...\n", dev_name, usb_node);
 		set_usb_common_nvram("add", dev_name, usb_node, dev_type);
@@ -1810,6 +1798,7 @@ void clean_modem_state(int modem_unit, int flag){
 		nvram_unset(strcat_r(prefix2, "act_rssi", tmp2));
 		nvram_unset(strcat_r(prefix2, "act_sinr", tmp2));
 		nvram_unset(strcat_r(prefix2, "act_band", tmp2));
+		nvram_unset(strcat_r(prefix2, "act_channel", tmp2));
 		nvram_unset(strcat_r(prefix2, "act_operation", tmp2));
 		nvram_unset(strcat_r(prefix2, "act_provider", tmp2));
 		nvram_unset(strcat_r(prefix2, "act_imsi", tmp2));
@@ -1860,6 +1849,7 @@ void clean_modem_state(int modem_unit, int flag){
 		nvram_unset(strcat_r(prefix2, "act_startsec", tmp2));
 		nvram_unset(strcat_r(prefix2, "act_simdetect", tmp2));
 		nvram_unset(strcat_r(prefix2, "act_num", tmp2));
+		nvram_unset(strcat_r(prefix2, "act_cmee", tmp2));
 #ifdef RTCONFIG_USB_SMS_MODEM
 		nvram_unset(strcat_r(prefix2, "act_smsc", tmp2));
 #endif
@@ -2021,7 +2011,7 @@ int isSerialInterface(const char *interface_name, const int specifics, const uns
 {
 	int ret = 1;
 	char interface_class[4];
-#if defined(RTCONFIG_QCA)
+#if defined(RTCONFIG_QCA) || (defined(RTCONFIG_RALINK) && defined(RTCONFIG_USB_PRINTER))
 	char iface_class[4], bus[64], *p, path[sizeof("/sys/bus/usb/devices/1-1.2.3.4.5.6.7:1-1/bInterfaceClassXXXXXX")];
 	DIR *d;
 	struct dirent *de;
@@ -2039,7 +2029,7 @@ int isSerialInterface(const char *interface_name, const int specifics, const uns
 	if(strcmp(interface_class, "ff"))
 		return 0;
 
-#if defined(RTCONFIG_QCA)
+#if defined(RTCONFIG_QCA) || (defined(RTCONFIG_RALINK) && defined(RTCONFIG_USB_PRINTER))
 	/* Find all interface of the USB device, if any one of it is 7, which is USB printer, return 0. */
 	strlcpy(bus, interface_name, sizeof(bus));
 	if ((p = strrchr(bus, ':')) == NULL)
@@ -2370,10 +2360,21 @@ char *get_gobi_portpath(){
 #ifdef RT4GAC68U
 	//return "3"; old layout. there is the USB 2.0 port.
 	return "2";
-#else // 4G-AC55U, 4G-AC53U
+#elif defined(RT4GAX56)
+	return "1";
+#else // 4G-AC55U, 4G-AC53U, 4G-AC86U
 	return "2";
 #endif
 
 	return "";
 }
 #endif
+
+int is_builtin_modem(char *modem_type){
+	if(!strcmp(modem_type, "gobi"))
+		return 1;
+	else if(nvram_get_int("modem_model") == 1 || nvram_get_int("modem_model") == 2)
+		return 1;
+
+	return 0;
+}

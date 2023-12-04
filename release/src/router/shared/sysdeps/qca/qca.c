@@ -23,6 +23,7 @@
 #include <shutils.h>
 #include <shared.h>
 #include <qca.h>
+
 extern int get_ap_mac(const char *ifname, struct iwreq *pwrq);
 extern int diff_current_bssid(int unit, char bssid_str[]);
 
@@ -494,17 +495,17 @@ static int __get_QCA_sta_info_by_ifname(const char *ifname, char subunit_id, int
 		/* Parse ACAPS ~ IEs (maybe empty string, RSN, WME, or both).
 		 * ACAPS is empty on ILQ2.x ~ SPF10, is "NULL" on SPF11
 		 */
-//		{ .key = "HTCAPS",	.fmt = "%s",	.var = &r->htcaps },
-//		{ .key = "VHTCAPS",	.fmt = "%s",	.var = &r->vhtcaps },
+		{ .key = "HTCAPS",	.fmt = "%s",	.var = &r->htcaps },
+		{ .key = "VHTCAPS",	.fmt = "%s",	.var = &r->vhtcaps },
 		{ .key = "ASSOCTIME",	.fmt = "%s",	.var = &r->conn_time },
 
 		{ .key = NULL, .fmt = NULL, .var = NULL },
 	}, part3_tbl[] = {
 		/* Parse MODE ~ PSMODE */
 		{ .key = "MODE",	.fmt = "IEEE80211_MODE_%s", .var = r->mode },
-//		{ .key = "PSMODE",	.fmt = "%u",	.var = &r->psm },
-//		{ .key = "RXNSS",	.fmt = "%u",	.var = &r->rxnss },
-//		{ .key = "TXNSS",	.fmt = "%u",	.var = &r->txnss },
+		{ .key = "PSMODE",	.fmt = "%u",	.var = &r->psm },
+		{ .key = "RXNSS",	.fmt = "%u",	.var = &r->rxnss },
+		{ .key = "TXNSS",	.fmt = "%u",	.var = &r->txnss },
 
 		{ .key = NULL, .fmt = NULL, .var = NULL },
 	};
@@ -748,6 +749,166 @@ int get_qca_sta_info_by_ifname(const char *ifname, char subunit_id, WIFI_STA_TAB
 		return __get_QCA_sta_info_by_ifname(ifname, subunit_id, handler_qca_sta_info, sta_info);
 }
 
+struct find_vap_by_sta_priv_s {
+	char *addr;
+
+	int found;
+};
+
+/* Helper of rssi_check_unit()
+ * @src:	pointer to WLANCONFIG_LIST
+ * @arg:
+ * @return:
+ * 	0:	success
+ *  otherwise:	error
+ */
+static int handle_find_vap_by_sta(const WLANCONFIG_LIST *src, void *arg)
+{
+	unsigned char ea1[6] = { 0 }, ea2[6] = { 0 };
+	struct find_vap_by_sta_priv_s *priv = arg;
+
+	if (!src || !arg || !priv->addr)
+		return -1;
+	if (priv->found)
+		return 0;
+
+	if (!ether_atoe(priv->addr, ea1) || !ether_atoe(src->addr, ea2) || memcmp(ea1, ea2, sizeof(ea1)))
+		return 0;
+
+	priv->found = 1;
+	return 0;
+}
+
+/* Check whether @sta_addr exist on @vap, if not, find correct VAP and return it by @vap.
+ * @sta_addr:
+ * @vap:	pointer to char pointer, length IFNAMSIZ.
+ * @return:
+ *    < 0:	error
+ * 	0:	@sta_addr is not found in all VAP at same band
+ * 	1:	@sta_addr is found, @vap maybe update
+ */
+int find_vap_by_sta(char *sta_addr, char *vap)
+{
+	int band, y, max_subnet;
+	char prefix[sizeof("wlX.XXX_")], ifname[IFNAMSIZ];
+	struct find_vap_by_sta_priv_s priv;
+
+	if (!sta_addr || *sta_addr == '\0' || !vap || *vap == '\0')
+		return -1;
+
+	memset(&priv, 0, sizeof(priv));
+	priv.addr = sta_addr;
+	__get_qca_sta_info_by_ifname(ifname, 0, handle_find_vap_by_sta, &priv);
+	if (priv.found)
+		return 1;
+
+	band = -1;
+	get_wlif_unit(vap, &band, NULL);
+	if (band < 0 || band >= MAX_NR_WL_IF)
+		return -1;
+
+	/* Find correct VAP for @sta_addr. */
+	max_subnet = num_of_mssid_support(band);
+	for (y = 0; y < max_subnet; ++y) {
+		snprintf(prefix, sizeof(prefix), "wl%d.%d_", band, y);
+		if (!nvram_pf_match(prefix, "bss_enabled", "1"))
+			continue;
+
+		get_wlxy_ifname(band, y, ifname);
+		if (!strcmp(ifname, vap))
+			continue;
+
+		memset(&priv, 0, sizeof(priv));
+		priv.addr = sta_addr;
+		if (!__get_qca_sta_info_by_ifname(ifname, 0, handle_find_vap_by_sta, &priv) && priv.found) {
+			strlcpy(vap, ifname, IFNAMSIZ);
+			break;
+		}
+	}
+
+	return priv.found? 1 : 0;
+}
+
+/* wlX_XXX on CAP/RE both. */
+static const char *reload_qcawifi_params[] = {
+	/* Effect module parameters, reload if changed. */
+	"twt", "atf",
+#if defined(RTCONFIG_WIFI_QCA9990_QCA9990) \
+ || defined(RTCONFIG_WIFI_QCA9994_QCA9994) \
+ || defined(RTCONFIG_WIFI_QCN5024_QCN5054)
+	"hwol",
+#endif
+	/* Effect VPHY settings and won't be set if it equal to default value we assumed.
+	 * qcawifi modules must be reloaded due to VPHY interface always exist and hold
+	 * last settings.
+	 */
+	"frameburst",
+#if defined(RTCONFIG_WIFI_QCN5024_QCN5054)
+	"precacen",
+#endif
+	NULL
+};
+
+#if defined(RTCONFIG_NO_RELOAD_WIFI_DRV_IF_POSSIBLE)
+/* Return true if qca-wifi modules must be reloaded.
+ * In general, if WiFi settings that effect module parameters of qca-wifi modules hasn't been changed,
+ * all VAP are destroied successful, VPHY parameters that will be set if different from default value,
+ * and hostapd configurations are removed from hostapd instance,it should be okay not to reload qca-wifi modules.
+ * If you want to always reload qca-wifi modules in ATE mode, check it in rc.
+ * @return:
+ * 	0:	no need to reload qca-wifi drivers
+ *  otherwise:	must reload qca-wifi drivers
+ */
+int __need_to_reload_wifi_drv(void)
+{
+	const char **p;
+	int i, reload = 0;;
+	char main_prefix[sizeof("wlX_XXX")], cache_prefix[sizeof("wlX_cache_XXX")];
+
+	if (nvram_match("reload_wifidrv", "1"))
+		return 1;
+
+	for (i = WL_2G_BAND; !reload && i < MAX_NR_WL_IF; ++i) {
+		SKIP_ABSENT_BAND(i);
+
+		snprintf(main_prefix, sizeof(main_prefix), "wl%d_", i);
+		snprintf(cache_prefix, sizeof(cache_prefix), "wl%d_cache_", i);
+		for (p = &reload_qcawifi_params[0]; !reload && p && *p; ++p) {
+			if (*nvram_pf_safe_get(cache_prefix, *p) == '\0'
+			 || *nvram_pf_safe_get(main_prefix, *p) == '\0')
+				continue;
+			if (!strcmp(nvram_pf_safe_get(main_prefix, *p), nvram_pf_safe_get(cache_prefix, *p)))
+				continue;
+			reload++;
+		}
+	}
+
+	return reload;
+}
+
+/* Copy wlX_XXX to wlX_cache_XXX. It will be used to test whether qca-wifi modules
+ * must be reloaded during restart wireless or not.
+ */
+int save_wl_params_for_testing_reload_wifi_drv(void)
+{
+	const char **p;
+	int i;
+	char main_prefix[sizeof("wlX_XXX")], cache_prefix[sizeof("wlX_cache_XXX")];
+
+	for (i = WL_2G_BAND; i < MAX_NR_WL_IF; ++i) {
+		SKIP_ABSENT_BAND(i);
+
+		snprintf(main_prefix, sizeof(main_prefix), "wl%d_", i);
+		snprintf(cache_prefix, sizeof(cache_prefix), "wl%d_cache_", i);
+		for (p = &reload_qcawifi_params[0]; p && *p; ++p) {
+			nvram_pf_set(cache_prefix, *p, nvram_pf_get(main_prefix, *p));
+		}
+	}
+
+	return 0;
+}
+#endif
+
 #ifdef RTCONFIG_AMAS
 /**
  * @brief add beacon vise by unit and subunit
@@ -792,7 +953,7 @@ void add_beacon_vsie_by_unit(int unit, int subunit, char *hexdata)
 	//_dprintf("%s: ifname=%s\n", __func__, ifname);
 
 	if (ifname && strlen(ifname)) {
-		snprintf(cmd, sizeof(cmd), "hostapd_cli -i%s set_vsie %d DD%02X%02X%02X%02X%s",
+		snprintf(cmd, sizeof(cmd), "hostapd_cli set_vsie -i%s %d DD%02X%02X%02X%02X%s",
 			ifname, pktflag, (uint8_t)len, (uint8_t)OUI_ASUS[0], (uint8_t)OUI_ASUS[1], (uint8_t)OUI_ASUS[2], hexdata);
 		_dprintf("%s: cmd=%s\n", __func__, cmd);
 		system(cmd);
@@ -871,7 +1032,6 @@ void add_beacon_vsie(char *hexdata)
 		_dprintf("%s: cmd=%s\n", __func__, cmd);
 		system(cmd);
 	}
-
 #ifdef RTCONFIG_BHCOST_OPT
 		unit++;
 	}
@@ -922,7 +1082,7 @@ void del_beacon_vsie_by_unit(int unit, int subunit, char *hexdata)
 	//_dprintf("%s: ifname=%s\n", __func__, ifname);
 
 	if (ifname && strlen(ifname)) {
-		snprintf(cmd, sizeof(cmd), "hostapd_cli -i%s del_vsie %d DD%02X%02X%02X%02X%s",
+		snprintf(cmd, sizeof(cmd), "hostapd_cli del_vsie -i%s %d DD%02X%02X%02X%02X%s",
 			ifname, pktflag, (uint8_t)len, (uint8_t)OUI_ASUS[0], (uint8_t)OUI_ASUS[1], (uint8_t)OUI_ASUS[2], hexdata);
 		_dprintf("%s: cmd=%s\n", __func__, cmd);
 		system(cmd);
@@ -1111,7 +1271,7 @@ void Pty_stop_wlc_connect(int band)
 }
 
 #ifdef RTCONFIG_BHCOST_OPT
-#if defined(RTAX89U) && !defined(RAX120)
+#if defined(RTAX89U)
 #define PORT_UNITS 11
 #elif defined(RTAC59_CD6R) || defined(RTAC59_CD6N)
 #define PORT_UNITS 6
@@ -1119,15 +1279,12 @@ void Pty_stop_wlc_connect(int band)
 #define PORT_UNITS 6
 #endif
 
+#ifdef RTCONFIG_AMAS_ETHDETECT
 //Aimesh RE: vport to eth name
 static const char *query_ifname[PORT_UNITS] = { //Aimesh RE
 #if defined(RTAX89U) || (GTAXY16000)
 //	L1	L2	L3	L4	L5	L6	L7	L8	WAN1	WAN2	SFP+
-#if defined(RAX120)
-	"eth3", "eth2", "eth1", "eth0", "eth4", "eth5"
-#else
 	"eth2", "eth1", "eth0", "eth0", "eth0", "eth0", "eth0", "eth0", "eth3", "eth5", "eth4"
-#endif
 #elif defined(RTAC59_CD6R) || defined(RTAC59_CD6N)
 //	P0	P1	P2	P3	P4	P5
 	NULL,   "vlan1",NULL,   NULL,   "vlan4",NULL
@@ -1139,6 +1296,7 @@ static const char *query_ifname[PORT_UNITS] = { //Aimesh RE
 	NULL,   NULL,   NULL,   NULL,   NULL,   NULL
 #endif
 };
+#endif
 
 void Pty_start_wlc_connect(int band, char *bssid)
 {
@@ -1605,6 +1763,23 @@ int update_band_info(int unit)
 	}	
 	return 0;
 }	
+
+
+/**
+ * @brief Post sent action to amas_wlcconnect
+ *
+ */
+void post_sent_action() {}
+
+/**
+ * @brief Backhaul changed sysdeps function
+ *
+ * @param iftype BH defif
+ */
+void post_bh_changed(int iftype) {
+
+}
+
 
 /*
  * get_radar_status()
@@ -2272,4 +2447,3 @@ double get_wifi_6G_maxpower()
 	return 0;
 }
 #endif
-

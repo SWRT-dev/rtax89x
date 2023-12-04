@@ -186,6 +186,10 @@ function initial(){
 			document.form.ipsec_clients_start.value = "10.10.11";
 		}
 	}
+	var ipsec_block_intranet = httpApi.nvramGet(["ipsec_block_intranet"]).ipsec_block_intranet;
+	if(ipsec_block_intranet == "")
+		ipsec_block_intranet = "0";
+	setRadioValue(document.form.vpn_server_client_access, ipsec_block_intranet);
 
 	changeAdvDeadPeerDetection(document.form.ipsec_dead_peer_detection);
 	setClientsEnd();
@@ -261,7 +265,7 @@ var external_ip_retry_cnt = MAX_RETRY_NUM;
 function show_warning_message(){
 	var set_ddns_text = '<a href="../Advanced_ASUSDDNS_Content.asp" target="_blank" style="text-decoration: underline; font-family:Lucida Console;"><#vpn_ipsec_set_DDNS#></a>';
 	var set_ip_and_ddns_text = wanlink_ipaddr() + ', ' + set_ddns_text;
-	if(realip_support && (based_modelid == "BRT-AC828" || wans_mode != "lb")){
+	if(realip_support && (based_modelid == "BRT-AC828"|| wans_mode != "lb")){
 		if(realip_state != "2" && external_ip_retry_cnt > 0){
 			if( external_ip_retry_cnt == MAX_RETRY_NUM )
 				get_real_ip();
@@ -660,6 +664,9 @@ function applyRule() {
 			}
 			document.form.ipsec_client_list_1.value = ipsec_client_list_1;
 			document.form.ipsec_client_list_2.value = ipsec_client_list_2;
+
+			document.form.ipsec_block_intranet.disabled = false;
+			document.form.ipsec_block_intranet.value = getRadioValue(document.form.vpn_server_client_access);
 		}
 		else {
 			if(document.form.ipsec_profile_1.value != "") {
@@ -671,6 +678,7 @@ function applyRule() {
 			document.form.ipsec_profile_2.disabled = true;
 			document.form.ipsec_client_list_1.disabled = true;
 			document.form.ipsec_client_list_2.disabled = true;
+			document.form.ipsec_block_intranet.disabled = true;
 		}
 
 		document.form.ipsec_server_enable.value = ipsec_server_enable;
@@ -738,7 +746,6 @@ function update_connect_status() {
 		var parseArray = [];
 
 		ipsec_connect_status_array[get_ipsec_conn[index][0]] = [];
-
 		if(item[0] != undefined && item[0] == get_ipsec_conn[index][0] && item[1] != undefined){
 			var itemRow = item[1].split('<');
 			for(var i = 0; i < itemRow.length; i += 1) {
@@ -761,6 +768,7 @@ function update_connect_status() {
 		}
 	});
 
+
 	if(totalcnt > 0) {
 		var code = "";
 		code +='<a class="hintstyle2" href="javascript:void(0);" onClick="showIPSecClients(conn_name_array, event);">';
@@ -774,6 +782,7 @@ function update_connect_status() {
 function close_connect_status() {
 	$("#connection_ipsec_profile_panel").fadeOut(300);
 }
+
 function showIPSecClients(ipsec_conn_name_array, e) {
 	var html = "";
 
@@ -781,7 +790,7 @@ function showIPSecClients(ipsec_conn_name_array, e) {
 	$("#connection_ipsec_profile_panel").css("position", "absolute");
 	$("#connection_ipsec_profile_panel").css("top", "440px");
 	$("#connection_ipsec_profile_panel").css("left", "225px");
-
+	
 	html += "<div class='ipsec_connect_status_title_bg'>";
 	html += "<div class='ipsec_connect_status_title' style='width:240px;'>Remote IP</div>";/*untranslated*/
 	html += "<div class='ipsec_connect_status_title'><#statusTitle_Client#></div>";
@@ -823,10 +832,13 @@ function export_cert(_mode) {
 			location.href = "ikev2_cert_mobile.pem";
 	}
 	else if(_mode == "1") {//renew
-		if(!check_ddns_status()){
-			alert("Update failed, please check your DDNS setting.");/* untranslated */
-			window.location.href = "Advanced_ASUSDDNS_Content.asp";
-			return false;
+		var ddns_enable_x = httpApi.nvramGet(["ddns_enable_x"]).ddns_enable_x;
+		if(ddns_enable_x == "1"){
+			if(!check_ddns_status()){
+				alert("Update failed, please check your DDNS setting.");/* untranslated */
+				window.location.href = "Advanced_ASUSDDNS_Content.asp";
+				return false;
+			}
 		}
 		$(".button_gen.ipsec_active.renew").hide();
 		$(".ipsec_inactive.renew_hint").hide();
@@ -877,6 +889,7 @@ function export_cert(_mode) {
 <input type="hidden" name="ipsec_profile_2" id="ipsec_profile_2" value="">
 <input type="hidden" name="ipsec_client_list_1" id="ipsec_client_list_1" value="">
 <input type="hidden" name="ipsec_client_list_2" id="ipsec_client_list_2" value="">
+<input type="hidden" name="ipsec_block_intranet" value="<% nvram_get("ipsec_block_intranet"); %>" disabled>
 
 <table class="content" align="center" cellpadding="0" cellspacing="0">
 	<tr>
@@ -969,6 +982,17 @@ function export_cert(_mode) {
 											<td>
 												<input id="ipsec_preshared_key" name="ipsec_preshared_key" type="password" autocapitalization="off" onBlur="switchType(this, false);" onFocus="switchType(this, true);" class="input_25_table" maxlength="32" placeholder="<#vpn_preshared_key_hint#>" autocomplete="off" autocorrect="off" autocapitalize="off">
 												<div id="preshared_key_strength"></div>
+											</td>
+										</tr>
+										<tr class="ipsec_setting_content">
+											<th><#vpn_access#></th>
+											<td>
+												<input type="radio" name="vpn_server_client_access" id="vpn_server_client_access_internet" class="input" value="1">
+												<label for="vpn_server_client_access_internet">Internet only</label>
+												<input type="radio" name="vpn_server_client_access" id="vpn_server_client_access_both" class="input" value="0">
+												<label for="vpn_server_client_access_both"><#vpn_access_WANLAN#></label>
+												<br>
+												<span class="hint-color">The access setting will be applied to both IPSec VPN and Instant Guard.</span><!-- untranslated -->
 											</td>
 										</tr>
 									</table>

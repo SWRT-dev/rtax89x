@@ -179,7 +179,7 @@ void start_ubifs(void)
 	if (!nvram_get_int("ubifs_clean_fs")) {
 		/* attach ubi */
 		snprintf(dev_mtd, sizeof(dev_mtd), "/dev/mtd%d", mtd_part);
-		_dprintf("*** ubifs: attach (%s, %d)\n", dev_mtd, UBI_DEV_NUM);
+		_dprintf("*** ubifs: attach (%s, %s)\n", dev_mtd, UBI_DEV_NUM);
 		eval("ubiattach", "-p", dev_mtd, "-d", UBI_DEV_NUM);
 	}
 
@@ -206,7 +206,7 @@ void start_ubifs(void)
 
 			/* attach ubi */
 			snprintf(dev_mtd, sizeof(dev_mtd), "/dev/mtd%d", mtd_part);
-			_dprintf("*** ubifs: attach (%s, %d)\n", dev_mtd, UBI_DEV_NUM);
+			_dprintf("*** ubifs: attach (%s, %s)\n", dev_mtd, UBI_DEV_NUM);
 			eval("ubiattach", "-p", dev_mtd, "-d", UBI_DEV_NUM);
 
 			/* make ubi volume */

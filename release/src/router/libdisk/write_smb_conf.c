@@ -27,6 +27,10 @@
 #include <bcmnvram.h>
 #include <shutils.h>
 #include <shared.h>
+#ifdef RTCONFIG_WIREGUARD
+#include <vpn_utils.h>
+#include <network_utility.h>
+#endif
 
 #include "usb_info.h"
 #include "disk_initial.h"
@@ -187,6 +191,58 @@ int get_ipsec_subnet(char *buf, int len)
 	return 0;
 }
 
+#ifdef RTCONFIG_WIREGUARD
+void get_wgsc_subnet(char *buf, size_t len)
+{
+	int unit, c_unit;
+	char prefix[32] = {0}, c_prefix[32] = {0};
+	char addrs[64] = {0}, addr[INET6_ADDRSTRLEN] = {0}, *next = NULL;
+	char *p, mask[INET_ADDRSTRLEN] = {0};
+	unsigned long prefixlen;
+
+	if (!buf)
+		return;
+
+	memset(buf, 0, len);
+	for (unit = 1; unit <= WG_SERVER_MAX; unit++) {
+		snprintf(prefix, sizeof(prefix), "wgs%d_", unit);
+		if (!nvram_pf_get_int(prefix, "enable"))
+			continue;
+		if (!nvram_pf_get_int(prefix, "lanaccess"))
+			continue;
+
+		for (c_unit = 1; c_unit <= WG_SERVER_CLIENT_MAX; c_unit++) {
+			snprintf(c_prefix, sizeof(c_prefix), "wgs%d_c%d_", unit, c_unit);
+			if (!nvram_pf_get_int(c_prefix, "enable"))
+				continue;
+
+			strlcpy(addrs, nvram_pf_safe_get(c_prefix, "addr"), sizeof(addrs));
+			foreach_44 (addr, addrs, next) {
+				p = strchr(addr, '/');
+				if (p) {
+					*p = '\0';
+					if (is_valid_ip4(addr)) {
+						prefixlen = strtoul(p+1, NULL, 10);
+						memset(mask, 0, sizeof(mask));
+						if (prefixlen != 32)
+							convert_cidr_to_subnet_mask(prefixlen, mask, sizeof(mask));
+						strlcat(buf, addr, len);
+						if (mask[0]) {
+							strlcat(buf, "/", len);
+							strlcat(buf, mask, len);
+						}
+						strlcat(buf, " ", len);
+					}
+				}
+			}
+		}
+	}
+
+	if (buf[0])
+		trimWS(buf);
+}
+#endif
+
 int main(int argc, char *argv[])
 {
 	FILE *fp;
@@ -217,8 +273,11 @@ int main(int argc, char *argv[])
 	int dup, same_m_pt = 0;
 	char unique_share_name[PATH_MAX];
 	int st_samba_mode = nvram_get_int("st_samba_mode");
-#if defined(RTCONFIG_SAMBA36X)
+#if defined(RTCONFIG_SAMBA36X) || defined(RTCONFIG_SAMBA4)
 	spnego = 1;
+#endif
+#ifdef RTCONFIG_WIREGUARD
+	char wgsc_subnet[1024] = {0};
 #endif
 
 	if (access(SAMBA_CONF, F_OK) == 0)
@@ -249,7 +308,7 @@ int main(int argc, char *argv[])
 	if (*p_computer_name)
 		fprintf(fp, "workgroup = %s\n", p_computer_name);
 
-#if defined(RTCONFIG_SAMBA36X)
+#if defined(RTCONFIG_SAMBA36X) || defined(RTCONFIG_SAMBA4)
 	fprintf(fp, "max protocol = SMB2\n"); /* enable SMB1 & SMB2 simultaneously, rewrite when GUI is ready!! */
 	fprintf(fp, "passdb backend = smbpasswd\n");
 //#endif
@@ -265,7 +324,9 @@ int main(int argc, char *argv[])
 #endif
 
 	fprintf(fp, "unix charset = UTF8\n");		// ASUS add
+#if !defined(RTCONFIG_SAMBA4)	// samba4 not support display charset
 	fprintf(fp, "display charset = UTF8\n");	// ASUS add
+#endif
 	fprintf(fp, "load printers = no\n");	//Andy Chiu, 2017/1/20. Add for Samba printcap issue.
 	fprintf(fp, "printing = bsd\n");
 	fprintf(fp, "printcap name = /dev/null\n");
@@ -284,7 +345,7 @@ int main(int argc, char *argv[])
 	// share mode
 	else if(st_samba_mode == 1 || st_samba_mode == 3){
 //#if defined(RTCONFIG_SAMBA3) && defined(RTCONFIG_SAMBA36X)
-#if defined(RTCONFIG_SAMBA36X)
+#if defined(RTCONFIG_SAMBA36X) || defined(RTCONFIG_SAMBA4)
 		fprintf(fp, "auth methods = guest\n");
 		fprintf(fp, "guest account = %s\n", nvram_get("http_username")? : "admin");
 		fprintf(fp, "map to guest = Bad Password\n");
@@ -333,6 +394,12 @@ int main(int argc, char *argv[])
 #ifdef RTCONFIG_BCM_7114
 		fprintf(fp, "socket options = IPTOS_LOWDELAY TCP_NODELAY SO_RCVBUF=131072 SO_SNDBUF=131072\n");
 #endif
+#elif defined(RTCONFIG_RALINK)
+#if defined(RTCONFIG_SAMBA4)
+		fprintf(fp, "socket options = TCP_NODELAY SO_KEEPALIVE SO_RCVBUF=960000 SO_SNDBUF=960000\n");
+#else
+		fprintf(fp, "socket options = TCP_NODELAY SO_KEEPALIVE SO_RCVBUF=65536 SO_SNDBUF=65536\n");
+#endif
 #else
 		fprintf(fp, "socket options = TCP_NODELAY SO_KEEPALIVE SO_RCVBUF=65536 SO_SNDBUF=65536\n");
 #endif
@@ -349,7 +416,7 @@ int main(int argc, char *argv[])
 	fprintf(fp, "wide links = no\n"); 		// ASUS add
 	fprintf(fp, "bind interfaces only = yes\n");	// ASUS add
 	fprintf(fp, "interfaces = lo br0 %s/%s %s\n", nvram_safe_get("lan_ipaddr"), nvram_safe_get("lan_netmask"), (is_routing_enabled() && nvram_get_int("smbd_wanac")) ? nvram_safe_get("wan0_ifname") : "");
-#if defined(RTCONFIG_PPTPD) || defined(RTCONFIG_ACCEL_PPTPD) || defined(RTCONFIG_OPENVPN) || defined(RTCONFIG_IPSEC)
+//#if defined(RTCONFIG_PPTPD) || defined(RTCONFIG_ACCEL_PPTPD) || defined(RTCONFIG_OPENVPN) || defined(RTCONFIG_IPSEC)
 	int ip[5];
 	char pptpd_subnet[16];
 	char openvpn_subnet[32];
@@ -373,15 +440,32 @@ int main(int argc, char *argv[])
 			get_ipsec_subnet(ipsec_subnet, sizeof(ipsec_subnet));
 		}
 #endif /* RTCONFIG_IPSEC */
-	}
+#ifdef RTCONFIG_WIREGUARD
+		get_wgsc_subnet(wgsc_subnet, sizeof(wgsc_subnet));
 #endif
+	}
+//#endif
 	if(nvram_invmatch("re_mode", "1"))
 	{
-#if defined(RTCONFIG_PPTPD) || defined(RTCONFIG_ACCEL_PPTPD) || defined(RTCONFIG_OPENVPN) || defined(RTCONFIG_IPSEC)
-		fprintf(fp, "hosts allow = 127.0.0.1 %s/%s %s %s %s\n", nvram_safe_get("lan_ipaddr"), nvram_safe_get("lan_netmask"), pptpd_subnet, openvpn_subnet, ipsec_subnet);
-#else
-		fprintf(fp, "hosts allow = 127.0.0.1 %s/%s\n", nvram_safe_get("lan_ipaddr"), nvram_safe_get("lan_netmask"));
+		fprintf(fp, "hosts allow = 127.0.0.1 %s/%s", nvram_safe_get("lan_ipaddr"), nvram_safe_get("lan_netmask"));
+#if defined(RTCONFIG_PPTPD) || defined(RTCONFIG_ACCEL_PPTPD)
+		if (pptpd_subnet[0])
+			fprintf(fp, " %s", pptpd_subnet);
 #endif
+#ifdef RTCONFIG_OPENVPN
+		if (openvpn_subnet[0])
+			fprintf(fp, " %s", openvpn_subnet);
+#endif
+#ifdef RTCONFIG_IPSEC
+		if (ipsec_subnet[0])
+			fprintf(fp, " %s", ipsec_subnet);
+#endif
+#ifdef RTCONFIG_WIREGUARD
+		if (wgsc_subnet[0])
+			fprintf(fp, " %s", wgsc_subnet);
+#endif
+		fprintf(fp, "\n");
+
 		fprintf(fp, "hosts deny = 0.0.0.0/0\n");
 	}
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,36)
@@ -391,7 +475,7 @@ int main(int argc, char *argv[])
 #endif
 #ifdef RTCONFIG_RECVFILE
 	if(!nvram_get_int("stop_samba_recv")
-#if defined(RTCONFIG_SAMBA36X)
+#if defined(RTCONFIG_SAMBA36X) || defined(RTCONFIG_SAMBA4)
 			&& 0
 #endif
 			)
@@ -402,7 +486,7 @@ int main(int argc, char *argv[])
 	fprintf(fp, "map hidden = no\n");
 	fprintf(fp, "map read only = no\n");
 	fprintf(fp, "map system = no\n");
-#ifdef RTCONFIG_SAMBA36X
+#ifdef RTCONFIG_SAMBA36X || defined(RTCONFIG_SAMBA4)
 	fprintf(fp, "store dos attributes = no\n");
 #else
 	fprintf(fp, "store dos attributes = yes\n");
@@ -414,7 +498,7 @@ int main(int argc, char *argv[])
 
 	if(nvram_invmatch("re_mode", "1"))
 	{
-#if !defined(RTCONFIG_SAMBA36X)
+#if !defined(RTCONFIG_SAMBA36X) && !defined(RTCONFIG_SAMBA4)
 		fprintf(fp, "[ipc$]\n");
 #if defined(RTCONFIG_PPTPD) || defined(RTCONFIG_ACCEL_PPTPD) || defined(RTCONFIG_OPENVPN) || defined(RTCONFIG_IPSEC)
 		fprintf(fp, "hosts allow = 127.0.0.1 %s/%s %s %s %s\n", nvram_safe_get("lan_ipaddr"), nvram_safe_get("lan_netmask"), pptpd_subnet, openvpn_subnet, ipsec_subnet);

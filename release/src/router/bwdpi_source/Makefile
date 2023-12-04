@@ -15,13 +15,13 @@ export BWDPI_BCM6750 := y
 endif
 
 # BCM4912 : seperate bin / header / modules from bcm6756
-ifeq ($(BUILD_NAME),$(filter $(BUILD_NAME),ET12 XT12 GT-AX6000 GT-AX11000_PRO GT-AXE16000))
+ifeq ($(BRCM_CHIP),4912)
 export BWDPI_BCM4912 := y
 CFLAGS += -DBRCM_CHIP4912
 endif
 
 # BCM6753 : seperate bin / header / modules from bcm6756
-ifeq ($(BUILD_NAME),$(filter $(BUILD_NAME),GT10))
+ifeq ($(BRCM_CHIP),6855)
 export BWDPI_BCM6753 := y
 endif
 
@@ -277,8 +277,6 @@ install: all
 ifeq ($(RTCONFIG_SOC_IPQ8064),y)
 	@cp -f modules/ipq806x/* RC_INDEP/
 else ifeq ($(RTCONFIG_SOC_IPQ8074),y)
-	@$(if $(RTCONFIG_SPF8_QSDK),cp -f modules/ipq807x/* RC_INDEP/)				# SPF8
-	@$(if $(RTCONFIG_SPF11_QSDK),cp -f modules/ipq807x_spf11/* RC_INDEP/)			# SPF11.0
 	@$(if $(RTCONFIG_SPF11_1_QSDK),cp -f modules/ipq807x_spf11.1/* RC_INDEP/)		# SPF11.1
 	@$(if $(RTCONFIG_SPF11_4_QSDK),cp -f modules/ipq807x_spf11.4/* RC_INDEP/)		# SPF11.4
 else ifeq ($(RTCONFIG_SOC_IPQ40XX),y)

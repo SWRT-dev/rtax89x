@@ -17,6 +17,7 @@
 <script type="text/javascript" src="/help.js"></script>
 <script type="text/javascript" src="/js/jquery.js"></script>
 <script type="text/javascript" src="/switcherplugin/jquery.iphone-switch.js"></script>
+<script language="JavaScript" type="text/javascript" src="/js/httpApi.js"></script>
 <script>
 var label_mac = <% get_label_mac(); %>;
 var modelname = "<% nvram_get("modelname"); %>";
@@ -33,8 +34,12 @@ function uuRegister(mac){
 		window.open('https://router.uu.163.com/asus/pc.html#/acce?gwSn=' + _mac + '&type=asuswrt', '_blank');
 }
 function applyRule() {
+	var postdata = {};
+	postdata["uu_enable"] = document.form.uu_enable.value;
+	postdata["action_mode"] = "apply";
+	postdata["rc_service"] = "restart_uuacc;";
+	httpApi.nvramSet(postdata);
 	showLoading();
-	document.form.submit();
 }
 </script>
 </head>

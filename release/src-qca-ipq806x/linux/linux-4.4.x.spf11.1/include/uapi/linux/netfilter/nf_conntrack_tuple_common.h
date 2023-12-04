@@ -37,7 +37,7 @@ union nf_conntrack_man_proto {
 			__u8 offset;
 			__u8 length;
 		};
-		__be16 psid;
+		__be16 id;
 	} psid;
 };
 

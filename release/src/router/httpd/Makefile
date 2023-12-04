@@ -40,12 +40,12 @@ endif
 
 ifeq ($(RTCONFIG_RALINK),y)
 CFLAGS += -DRalink_WPS
-CFLAGS += -I$(TOP)/shared/sysdeps/ralink -I$(TOP)/wireless_tools
+CFLAGS += -I$(TOP)/shared/sysdeps/ralink -I$(TOP)/wireless_tools$(WTOOL_SUFFIX)
 endif
 
 ifeq ($(RTCONFIG_QCA),y)
 CFLAGS += -DQCA_WPS
-CFLAGS += -I$(TOP)/shared/sysdeps/qca -I$(TOP)/wireless_tools
+CFLAGS += -I$(TOP)/shared/sysdeps/qca -I$(TOP)/wireless_tools$(WTOOL_SUFFIX)
 endif
 
 ifeq ($(CONFIG_REALTEK),y)
@@ -54,11 +54,11 @@ endif
 
 ifeq ($(RTCONFIG_ALPINE),y)
 CFLAGS += -DALPINE_WPS
-CFLAGS += -I$(TOP)/httpd/sysdeps -I$(TOP)/shared/sysdeps/alpine -I$(TOP)/wireless_tools
+CFLAGS += -I$(TOP)/httpd/sysdeps -I$(TOP)/shared/sysdeps/alpine -I$(TOP)/wireless_tools$(WTOOL_SUFFIX)
 endif
 ifeq ($(RTCONFIG_LANTIQ),y)
 CFLAGS += -DLANTIQ_WPS
-CFLAGS += -I$(TOP)/shared/sysdeps/lantiq -I$(TOP)/wireless_tools
+CFLAGS += -I$(TOP)/shared/sysdeps/lantiq -I$(TOP)/wireless_tools$(WTOOL_SUFFIX)
 endif
 
 ifeq ($(RTN11P)$(RTN300),y)
@@ -106,6 +106,9 @@ ifeq ($(RTCONFIG_CAPTCHA),y)
 CFLAGS += -DCAPTCHA
 endif
 
+#Tencent download
+CFLAGS += -D _FILE_OFFSET_BITS=64
+
 ifneq ($(findstring CONFIG_BCM_KF_NETFILTER=, $(shell cat $(LINUXDIR)/.config)),)
 export CFLAGS += -DBCM_KF_NETFILTER
 endif
@@ -129,7 +132,7 @@ else
 ifeq ($(or $(RTCONFIG_HND_ROUTER_AX_675X),$(RTCONFIG_HND_ROUTER_AX_6756),$(RTCONFIG_HND_ROUTER_AX_6710),$(RTCONFIG_BCM_502L07P2)),y)
 OBJS += $(if $(wildcard sysdeps/web-broadcom_private.c),web-broadcom_private.o,prebuild/web-broadcom_private.o)
 endif
-OBJS += web-broadcom.o
+OBJS += $(if $(wildcard sysdeps/web-broadcom.c),web-broadcom.o,prebuild/web-broadcom.o)
 ifeq ($(RTCONFIG_QTN),y)
 OBJS += find_host_addr.o
 endif
@@ -302,21 +305,38 @@ LIBS += -L$(TOP)/libqcsapi_client_10g -lqcsapi_client
 endif
 
 ifeq ($(RTCONFIG_CONNDIAG),y)
+ifeq ($(RTCONFIG_LIB_CODB),y)
+CFLAGS += -I$(TOP)/libcodb
+LIBS += -L$(TOP)/libcodb -lcodb
+endif
 CFLAGS += -I$(TOP)/rc
 LIBS += -L$(TOP)/rc -lconn_diag
+endif
+
+ifeq ($(RTCONFIG_DNSQUERY_INTERCEPT),y)
+CFLAGS += -I$(TOP)/dnsqd
+CFLAGS += -I$(TOP)/sqlite
+CFLAGS += -I$(TOP)/json-c
+LIBS += -L$(TOP)/dnsqd -ldns_app_client
+LIBS += -L$(TOP)/sqlite/.libs -lsqlite3
+LIBS += -lpthread
+LIBS += -L$(TOP)/json-c/.libs -ljson-c
 endif
 
 CFLAGS += -I$(TOP)/libpasswd
 LIBS += -L$(TOP)/libpasswd -lpasswd
 
 ifeq ($(RTCONFIG_LANTIQ),y)
-LIBS += -L$(TOP)/fapi_wlan_common-05.04.00.131 -lfapiwlancommon -ldl -L$(TOP)/libhelper-1.4.0.2 -lhelper -L$(TOP)/libfapi-0.1 -lfapi -L$(TOP)/wireless_tools/ -liw
+LIBS += -L$(TOP)/fapi_wlan_common-05.04.00.131 -lfapiwlancommon -ldl -L$(TOP)/libhelper-1.4.0.2 -lhelper -L$(TOP)/libfapi-0.1 -lfapi -L$(TOP)/wireless_tools$(WTOOL_SUFFIX)/ -liw
 endif
 
 ifeq ($(RTCONFIG_LIBASUSLOG),y)
 CFLAGS += -I$(TOP)/libasuslog
 LIBS += -L$(TOP)/libasuslog -lasuslog
 endif
+
+CFLAGS += -I$(TOP)/libwebapi
+LIBS += -L$(TOP)/libwebapi -lwebapi
 
 ifeq ($(RTCONFIG_HND_ROUTER_AX_6710),y)
 CFLAGS +=-DRTCONFIG_HND_ROUTER_AX_6710
@@ -341,7 +361,7 @@ httpd: $(OBJS)
 install: all
 	@echo " [httpd] Installing to $(INSTALLDIR)"
 	@install -D httpd $(INSTALLDIR)/usr/sbin/httpd
-	@$(STRIP) $(INSTALLDIR)/usr/sbin/httpd
+	$(if $(RTCONFIG_DEBUG),,@$(STRIP) $(INSTALLDIR)/usr/sbin/httpd)
 	@cd $(INSTALLDIR)/usr/sbin/; ln -sf httpd httpds
 	@chmod 0500 $(INSTALLDIR)/usr/sbin/httpd
 	#@install -m 0755 test_apps $(INSTALLDIR)/usr/sbin
@@ -371,4 +391,3 @@ endif
 	@$(CC) $(CFLAGS) -M $< > $@
 
 -include $(OBJS:%.o=.%.depend)
-

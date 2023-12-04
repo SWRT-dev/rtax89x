@@ -163,7 +163,7 @@ int exec_for_host(int host, int obsolete, uint flags, host_exec func)
 	 * 4. If yes, DIR would be sda, sdb, etc.
 	 * 5. Search DIR in /proc/partitions.
 	 */
-	sprintf(hostbuf, "%d:", host);
+	snprintf(hostbuf, sizeof(hostbuf), "%d:", host);
 	if (!(usb_dev_disc = opendir("/sys/block")))
 		return 0;
 	while ((dp = readdir(usb_dev_disc))) {
@@ -205,7 +205,7 @@ int exec_for_host(int host, int obsolete, uint flags, host_exec func)
 			if (!strncmp(ptname, dsname, siz)) {
 				if (!strcmp(ptname, dsname) && !is_no_partition(dsname))
 					continue;
-				sprintf(line, "/dev/%s", ptname);
+				snprintf(line, sizeof(line), "/dev/%s", ptname);
 				result = (*func)(line, host_no, dsname, ptname, flags) || result;
 				flags &= ~(EFH_1ST_HOST | EFH_1ST_DISC);
 			}
@@ -218,7 +218,7 @@ int exec_for_host(int host, int obsolete, uint flags, host_exec func)
 
 	if ((usb_dev_disc = opendir(DEV_DISCS_ROOT))) {
 		while ((dp = readdir(usb_dev_disc))) {
-			sprintf(bfr, "%s/%s", DEV_DISCS_ROOT, dp->d_name);
+			snprintf(bfr, sizeof(bfr), "%s/%s", DEV_DISCS_ROOT, dp->d_name);
 			if (strncmp(dp->d_name, "disc", 4) != 0)
 				continue;
 
@@ -253,17 +253,17 @@ int exec_for_host(int host, int obsolete, uint flags, host_exec func)
 					{
 						if ((cp = strstr(bfr2, "/part"))) {
 							part_num = atoi(cp + 5);
-							sprintf(line, "%s/part%d", bfr, part_num);
-							sprintf(dsname, "disc%d", disc_num);
-							sprintf(ptname, "disc%d_%d", disc_num, part_num);
+							snprintf(line, sizeof(line), "%s/part%d", bfr, part_num);
+							snprintf(dsname, sizeof(dsname), "disc%d", disc_num);
+							snprintf(ptname, sizeof(ptname), "disc%d_%d", disc_num, part_num);
 						}
 						else if ((cp = strstr(bfr2, "/disc"))) {
 							*(++cp) = 0;
 							if (!is_no_partition(bfr2))
 								continue;
-							sprintf(line, "%s/disc", bfr);
-							sprintf(dsname, "disc%d", disc_num);
-							strcpy(ptname, dsname);
+							snprintf(line, sizeof(line), "%s/disc", bfr);
+							snprintf(dsname, sizeof(dsname), "disc%d", disc_num);
+							strlcpy(ptname, dsname, sizeof(ptname));
 						}
 						else {
 							continue;
@@ -376,7 +376,7 @@ void add_remove_usbhost(char *host, int add)
 		if (read(fd, pgm, sizeof(pgm) - 5) >= 0) {
 			if ((p = strchr(pgm, '\n')) != NULL)
 				*p = 0;
-			strcat(pgm, " usb");
+			strlcat(pgm, " usb", sizeof(pgm));
 		}
 		close(fd);
 	}
@@ -435,5 +435,127 @@ char *get_usb_storage_path(char *path)
 	}
 	return ret_path;
 }
+
+
+
+#ifdef RTCONFIG_NEW_PHYMAP
+static uint64_t get_usb_mib_by_ifname(char *ifname, char *type)
+{
+	char tmp[100], buf[32];
+	int result = 0;
+
+	if (!ifname || !type)
+		return result;
+
+	snprintf(tmp, sizeof(tmp), "/sys/class/net/%s/statistics/%s", ifname, type);
+
+	f_read_string(tmp, buf, sizeof(buf));
+	return strtoull(buf, NULL, 10);
+}
+
+void get_usb_modem_status(phy_info_list *list)
+{
+	int i;
+	char cap_buf[64] = {0};
+	phy_port_mapping port_mapping;
+	if (!list)
+		return;
+	get_phy_port_mapping(&port_mapping);
+	// Clean all state and dupex.
+	for (i = 0; i < port_mapping.count; i++) {
+		if ((port_mapping.port[i].cap & PHY_PORT_CAP_USB) > 0 ||
+			(port_mapping.port[i].cap & PHY_PORT_CAP_MOBILE) > 0) {
+			if (list->phy_info[i].cap == 0) {
+				snprintf(list->phy_info[i].label_name, sizeof(list->phy_info[i].label_name), "%s", 
+					port_mapping.port[i].label_name);
+				list->phy_info[i].cap = port_mapping.port[i].cap;
+				snprintf(list->phy_info[i].cap_name, sizeof(list->phy_info[i].cap_name), "%s", 
+					get_phy_port_cap_name(port_mapping.port[i].cap, cap_buf, sizeof(cap_buf)));
+				list->count++;
+			}
+			snprintf(list->phy_info[i].duplex, sizeof(list->phy_info[i].duplex), "none");
+			snprintf(list->phy_info[i].state, sizeof(list->phy_info[i].state), "down");
+		}
+	}
+
+	if (!is_router_mode())
+		return;
+
+#if defined(RTCONFIG_DUALWAN)
+	char *wans_dualwan = nvram_safe_get("wans_dualwan");
+	if (strlen(wans_dualwan)) {
+		int unit;
+		for(unit = WAN_UNIT_FIRST; unit < WAN_UNIT_MAX; ++unit) {
+			int wan = get_dualwan_by_unit(unit);
+			if (wan == WANS_DUALWAN_IF_USB) {
+				if (is_wan_connect(unit)) {
+					int i, usb_idx = 1;
+					char modem_path[16];
+					char usb_path_node[16];
+					char prefix[32], tmp[32];
+					for (i = 0; i < port_mapping.count; i++) {
+						if ((port_mapping.port[i].cap & PHY_PORT_CAP_USB) > 0 ||
+							(port_mapping.port[i].cap & PHY_PORT_CAP_MOBILE) > 0) {
+							snprintf(prefix, sizeof(prefix), "usb_path%d", usb_idx);
+							snprintf(list->phy_info[i].duplex, sizeof(list->phy_info[i].duplex), "none");
+							snprintf(list->phy_info[i].state, sizeof(list->phy_info[i].state), "down");
+							list->phy_info[i].link_rate = 0;
+							snprintf(modem_path, sizeof(modem_path), "%s", nvram_safe_get("usb_modem_act_path"));
+							if (nvram_get(prefix)) {
+								//_dprintf("%s=%s\n", prefix, nvram_safe_get(prefix));
+								snprintf(usb_path_node, sizeof(usb_path_node), "%s", nvram_safe_get(strlcat_r(prefix, "_node", tmp, sizeof(tmp))));
+								if (nvram_match(prefix, "modem") && !strcmp(usb_path_node, modem_path)) {
+									snprintf(list->phy_info[i].state, sizeof(list->phy_info[i].state), "up");
+									list->phy_info[i].link_rate = nvram_get_int(strlcat_r(prefix, "_speed", tmp, sizeof(tmp)));
+									if (list->status_and_speed_only == 0) {
+										char usb_ifname[8];
+										snprintf(usb_ifname, sizeof(usb_ifname), get_wan_ifname(unit));
+										//_dprintf("usb_ifname=%s\n", usb_ifname);
+										list->phy_info[i].tx_bytes = get_usb_mib_by_ifname(usb_ifname, "tx_bytes");
+										list->phy_info[i].rx_bytes = get_usb_mib_by_ifname(usb_ifname, "rx_bytes");
+										list->phy_info[i].tx_packets = get_usb_mib_by_ifname(usb_ifname, "tx_packets");
+										list->phy_info[i].rx_packets = get_usb_mib_by_ifname(usb_ifname, "rx_packets");
+										list->phy_info[i].crc_errors = get_usb_mib_by_ifname(usb_ifname, "rx_crc_errors");
+									}
+								} else {
+									snprintf(list->phy_info[i].state, sizeof(list->phy_info[i].state), "down");
+									list->phy_info[i].link_rate = 0;
+								}
+							} else {
+								int j;
+								for (j = 1; j <= MAX_USB_HUB_PORT; j++) {
+									snprintf(prefix, sizeof(prefix), "usb_path%d.%d", usb_idx, j);
+									snprintf(usb_path_node, sizeof(usb_path_node), "%s", nvram_safe_get(strlcat_r(prefix, "_node", tmp, sizeof(tmp))));
+									//_dprintf("prefix=%s, usb_path_node=%s\n", prefix, usb_path_node);
+									if (nvram_match(prefix, "modem") && !strcmp(usb_path_node, modem_path)) {
+										snprintf(list->phy_info[i].state, sizeof(list->phy_info[i].state), "up");
+										list->phy_info[i].link_rate = nvram_get_int(strlcat_r(prefix, "_speed", tmp, sizeof(tmp)));
+										if (list->status_and_speed_only == 0) {
+											char usb_ifname[8];
+											snprintf(usb_ifname, sizeof(usb_ifname), get_wan_ifname(unit));
+											//_dprintf("usb_ifname=%s\n", usb_ifname);
+											list->phy_info[i].tx_bytes = get_usb_mib_by_ifname(usb_ifname, "tx_bytes");
+											list->phy_info[i].rx_bytes = get_usb_mib_by_ifname(usb_ifname, "rx_bytes");
+											list->phy_info[i].tx_packets = get_usb_mib_by_ifname(usb_ifname, "tx_packets");
+											list->phy_info[i].rx_packets = get_usb_mib_by_ifname(usb_ifname, "rx_packets");
+											list->phy_info[i].crc_errors = get_usb_mib_by_ifname(usb_ifname, "rx_crc_errors");
+										}
+										break;
+									} else {
+										snprintf(list->phy_info[i].state, sizeof(list->phy_info[i].state), "down");
+										list->phy_info[i].link_rate = 0;
+									}
+								}
+							}
+							usb_idx++;
+						}
+					}
+				}
+			}
+		}
+	}
+#endif
+}
+#endif
 
 

@@ -656,13 +656,25 @@ int start_vlan(void)
 	close(s);
 #endif
 
-#if (defined(RTCONFIG_QCA) || (defined(RTCONFIG_RALINK) && (defined(RTCONFIG_RALINK_MT7620) || defined(RTCONFIG_RALINK_MT7621))))
-	if(!nvram_match("switch_wantag", "none")&&!nvram_match("switch_wantag", "")&&!nvram_match("switch_wantag", "hinet"))
-	{
+#if (defined(RTCONFIG_QCA) || defined(RTCONFIG_RALINK))
+	if (!nvram_match("switch_wantag", "none")
+	 && !nvram_match("switch_wantag", "")
+	 && !nvram_match("switch_wantag", "hinet")
+	 && !nvram_match("switch_wantag", "nowtv")) {
 		char wan_base_if[IFNAMSIZ] = "";
 
 		strlcpy(wan_base_if, get_wan_base_if(), sizeof(wan_base_if));
 		set_wan_tag(wan_base_if);
+	}
+#endif
+#ifdef RTCONFIG_DUPVIF
+	if (nvram_match("switch_wantag", "hinet_mesh")) {
+		if (!module_loaded("dupvif")) {
+			char prefix[] = "wanXXX_", params[16];
+			snprintf(prefix, sizeof(prefix), "wan%d_", WAN_UNIT_IPTV);
+			snprintf(params, sizeof(params), "nic=%s", nvram_pf_get(prefix, "ifname"));
+			modprobe("dupvif", params);
+		}
 	}
 #endif
 #ifdef CONFIG_BCMWL5
@@ -692,29 +704,14 @@ int start_vlan(void)
 #endif
 
 #if defined(HND_ROUTER)
-	if(!nvram_match("switch_wantag", "") && (nvram_get_int("switch_stb_x") > 0 || nvram_match("switch_wantag", "unifi_biz") || 
-		nvram_match("switch_wantag", "stuff_fibre") || nvram_match("switch_wantag", "spark") ||
-		nvram_match("switch_wantag", "2degrees") || nvram_match("switch_wantag", "slingshot") ||
-		nvram_match("switch_wantag", "orcon") || nvram_match("switch_wantag", "voda_nz") ||
-		nvram_match("switch_wantag", "tpg") || nvram_match("switch_wantag", "iinet") ||
-		nvram_match("switch_wantag", "aapt") || nvram_match("switch_wantag", "intronode") ||
-		nvram_match("switch_wantag", "amaysim") || nvram_match("switch_wantag", "dodo") ||
-		nvram_match("switch_wantag", "iprimus") || nvram_match("switch_wantag", "manual") ||
-		nvram_match("switch_wantag", "iprimus") || nvram_match("switch_wantag", "centurylink") ||
-		nvram_match("switch_wantag", "actrix") || nvram_match("switch_wantag", "jastel") ||
-		nvram_match("switch_wantag", "kpn_nl") || nvram_match("switch_wantag", "meo_iptv") ||
-		nvram_match("switch_wantag", "meo_br") ||
-		nvram_match("switch_wantag", "hinet_mesh") ||
-		nvram_match("switch_wantag", "google_fiber"))) {
-
-		if (strlen(nvram_safe_get("wan_ifname"))) {
-			ifconfig(nvram_safe_get("wan_ifname"), IFUP, NULL, NULL);
-			set_wan_tag(nvram_safe_get("wan_ifname"));
-		}
-		else {
-			ifconfig(WAN_IF_ETH, IFUP, NULL, NULL);
-			set_wan_tag(WAN_IF_ETH);
-		}
+	if (!nvram_match("switch_wantag", "")
+		&& (nvram_get_int("switch_stb_x") > 0 || (nvram_get_int("switch_stb_x") == 0 && nvram_get_int("switch_wan0tagid") > 0))) {
+		/*
+			case 1: STB != 0
+			case 2: STB == 0 && wan tag != 0
+		*/
+		ifconfig(wan_if_eth(), IFUP, NULL, NULL);
+		set_wan_tag(wan_if_eth());
 	}
 #elif defined(BLUECAVE)
 	if(!nvram_match("switch_wantag", "") && (nvram_get_int("switch_stb_x") > 0 || nvram_match("switch_wantag", "unifi_biz") || 
@@ -723,8 +720,10 @@ int start_vlan(void)
 		nvram_match("switch_wantag", "orcon") || nvram_match("switch_wantag", "voda_nz") ||
 		nvram_match("switch_wantag", "tpg") || nvram_match("switch_wantag", "iinet") ||
 		nvram_match("switch_wantag", "aapt") || nvram_match("switch_wantag", "intronode") ||
-		nvram_match("switch_wantag", "amaysim") || nvram_match("switch_wantag", "dodo") ||
-		nvram_match("switch_wantag", "iprimus") || nvram_match("switch_wantag", "manual"))) {
+		nvram_match("switch_wantag", "iprimus") || nvram_match("switch_wantag", "manual") ||
+		nvram_match("switch_wantag", "kpn_nl") || nvram_match("switch_wantag", "centurylink") ||
+		nvram_match("switch_wantag", "actrix") || nvram_match("switch_wantag", "jastel") ||
+		nvram_match("switch_wantag", "google_fiber"))) {
 		char *wan_base_if = "eth1";
 		ifconfig(wan_base_if, IFUP, NULL, NULL);
 		set_wan_tag(wan_base_if);
@@ -744,6 +743,14 @@ int stop_vlan(void)
 
 	if ((strtoul(nvram_safe_get("boardflags"), NULL, 0) & BFL_ENETVLAN) == 0) return 0;
 	
+#ifdef RTCONFIG_DUPVIF
+	if (nvram_match("switch_wantag", "hinet_mesh")) {
+		if (module_loaded("dupvif")) {
+			modprobe_r("dupvif");
+		}
+	}
+#endif
+
 	for (i = 0; i <= VLAN_MAXVID; i ++) {
 		/* get the address of the EMAC on which the VLAN sits */
 		snprintf(nvvar_name, sizeof(nvvar_name), "vlan%dhwname", i);
@@ -758,4 +765,3 @@ int stop_vlan(void)
 
 	return 0;
 }
-

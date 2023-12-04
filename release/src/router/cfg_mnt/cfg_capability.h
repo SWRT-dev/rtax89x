@@ -14,6 +14,11 @@ typedef struct _capability_ss {
 	unsigned int capSupportRole;
 } capability_s;
 
+typedef struct _led_capability_ss {
+	unsigned int type;
+	unsigned int subtype;
+} led_capability_s;
+
 extern json_object *cm_generateCapability(unsigned int role, capability_s *capablity);
 extern int cm_checkWifiAuthCap(char *mac, int capBandNum, int reBandNum, int type, char *name, char *outAuth, int outAuthLen);
 extern int cm_isCapSupported(char *reMac, int capType, int capSubtype);
@@ -55,6 +60,10 @@ enum capabilityType {
 #ifdef RTCONFIG_BHCOST_OPT
 	CONN_EAP_MODE = 23,
 #endif
+
+#ifdef RTCONFIG_AMAS_WGN
+	GUEST_NETWORK_NO_6G = 24, 	
+#endif
 	CAPABILITY_MAX
 };
 
@@ -84,8 +93,13 @@ enum capabilityType {
 #define WL_SCHED_V2		BIT(4)
 #define WIFI_RADIO		BIT(5)
 #define WL_SCHED_V3		BIT(6)
+#define REVERT_FW		BIT(7)
 #define SWITCHCTRL		BIT(8)
+#define PORT_STATUS		BIT(9)
 #define LOCAL_ACCESS		BIT(10)
+#define CABLE_DIAG		BIT(11)
+#define NO_FW_MANUAL		BIT(12)
+#define UPDATE			BIT(13)
 
 /* for LINK_AGGREGATION */
 #define LACP_ENABLE                    BIT(0)
@@ -132,6 +146,7 @@ enum capabilityType {
 #define WIFI_RADIO_2G		BIT(0)
 #define WIFI_RADIO_5G		BIT(1)
 #define WIFI_RADIO_5GH		BIT(2)
+#define WIFI_RADIO_6G		BIT(3)
 
 /* Capability support on role */
 #define CAP_SUPPORT		BIT(0)
@@ -153,7 +168,13 @@ static capability_s capability_list[] __attribute__ ((unused)) = {
 	{ FORCE_ROAMING, MANUAL_FORCE_ROAMING, RE_SUPPORT |CAP_SUPPORT},
 #endif
 #ifdef RTCONFIG_FRONTHAUL_DWB
-	{ FRONTHAUL_AP_CTL, FRONTHAUL_AP_OPTION_OFF | FRONTHAUL_AP_OPTION_ON, RE_SUPPORT | CAP_SUPPORT},
+	{ FRONTHAUL_AP_CTL,
+	FRONTHAUL_AP_OPTION_OFF
+#if defined(RTCONFIG_FRONTHAUL_AP_AUTO_OPT)
+	| FRONTHAUL_AP_OPTION_AUTO
+#endif
+	| FRONTHAUL_AP_OPTION_ON,
+	RE_SUPPORT | CAP_SUPPORT},
 #endif
 #ifdef RTCONFIG_STA_AP_BAND_BIND
 	{ STA_BINDING_AP, MANUAL_STA_BINDING, RE_SUPPORT |CAP_SUPPORT},

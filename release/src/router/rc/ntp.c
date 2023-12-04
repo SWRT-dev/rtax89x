@@ -78,6 +78,10 @@ static void ntp_service()
 		if (nvram_get_int("dnspriv_enable"))
 			notify_rc("restart_stubby");
 #endif
+#ifdef RTCONFIG_DNSSEC
+		if (nvram_get_int("dnssec_enable"))
+			kill_pidfile_s("/var/run/dnsmasq.pid", SIGINT);
+#endif
 #ifdef RTCONFIG_DISK_MONITOR
 		notify_rc("restart_diskmon");
 #endif
@@ -220,8 +224,9 @@ int ntp_main(int argc, char *argv[])
 				|| mediabridge_mode()
 #endif
 #ifdef RTCONFIG_DPSTA
-				|| ((dpsta_mode()||rp_mode()) && nvram_get_int("re_mode") == 0)
+				|| (dpsta_mode() && nvram_get_int("re_mode") == 0)
 #endif
+				|| (rp_mode() && nvram_get_int("re_mode") == 0)
 			 ) && nvram_get_int("wlc_state") != WLC_STATE_CONNECTED)
 		{
 			alarm(SECONDS_TO_WAIT);
@@ -236,8 +241,9 @@ int ntp_main(int argc, char *argv[])
 
 			nvram_set("ntp_server_tried", server);
 			if (nvram_match("ntp_ready", "0") || nvram_match("ntp_debug", "1") ||
-				!strstr(nvram_safe_get("time_zone_x"), "DST"))
+				!strstr(nvram_safe_get("time_zone_x"), "DST")) {
 				logmessage("ntp", "start NTP update");
+			}
 
 		if (is_router_mode()) {	// try simultaneously
 #if defined(RTCONFIG_IPV6) && (defined(RTAX82_XD6) || defined(RTAX82_XD6S))
@@ -284,6 +290,11 @@ int ntp_main(int argc, char *argv[])
 			args[2] = server;
 		}
 			sleep(SECONDS_TO_WAIT);
+			/* Restart DDNS when reconnected */
+			if(nvram_get_int("ntp_ready") == 1) {
+				stop_ddns();
+				start_ddns(NULL);
+			}
 			set_alarm();
 		}
 

@@ -42,7 +42,7 @@ typedef struct rt3052_esw_reg {
 	unsigned int val;
 } esw_reg;
 
-#if defined(RTCONFIG_RALINK_MT7620) 
+#if defined(RTCONFIG_RALINK_MT7620) || defined(RTCONFIG_RALINK_MT7622)
 #define REG_ESW_PORT_PVC_P0		0x2010
 #define REG_ESW_PORT_PCR_P0		0x2004
 

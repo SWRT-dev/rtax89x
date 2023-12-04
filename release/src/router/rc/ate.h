@@ -7,6 +7,7 @@ enum ate_led_color {
 	LED_COLOR_RED,
 	LED_COLOR_GREEN,
 	LED_COLOR_ORANGE,
+	LED_COLOR_PURPLE,
 
 	LED_COLOR_MAX
 };
@@ -44,6 +45,15 @@ static inline int setAllLedOn2(void)
 	puts("0");
 	return 0;
 }
+#endif
+
+#if defined(RTCONFIG_INTERNAL_GOBI)
+extern int setgobi_imei(const char *imei);
+#endif
+
+/* ate-ralink.c */
+#if defined(RTCONFIG_RALINK)
+extern int _dump_txbftable(void);
 #endif
 
 #if defined(RTCONFIG_TCODE)

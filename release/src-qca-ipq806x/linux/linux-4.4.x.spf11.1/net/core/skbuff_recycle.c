@@ -128,7 +128,6 @@ inline struct sk_buff *skb_recycler_alloc(struct net_device *dev,
 
 	return skb;
 }
-EXPORT_SYMBOL(skb_recycler_alloc);
 
 inline bool skb_recycler_consume(struct sk_buff *skb)
 {
@@ -276,7 +275,7 @@ static int __init skb_prealloc_init_list(void)
 	struct sk_buff *skb;
 
 	for (i = 0; i < SKB_RECYCLE_MAX_PREALLOC_SKBS; i++) {
-		skb = ___alloc_skb(SKB_RECYCLE_MAX_SIZE + NET_SKB_PAD,
+		skb = __alloc_skb(SKB_RECYCLE_MAX_SIZE + NET_SKB_PAD,
 				  GFP_KERNEL, 0, NUMA_NO_NODE);
 		if (unlikely(!skb))
 			return -ENOMEM;
@@ -410,19 +409,6 @@ static ssize_t proc_skb_flush_write(struct file *file,
 	spin_unlock_irqrestore(&glob_recycler.lock, flags);
 #endif
 	return count;
-}
-
-/* If OOM, stop skb recycler. */
-void stop_and_free_skb_recycler(unsigned long *freed)
-{
-	if (stop_recycle)
-		return;
-
-	stop_recycle = 1;
-	schedule_on_each_cpu(&skb_recycler_flush_task);
-	if (freed)
-		*freed = 1;
-	printk(KERN_NOTICE "skb recycler stopped due to OOM.\n");
 }
 
 static const struct file_operations proc_skb_flush_fops = {

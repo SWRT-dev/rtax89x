@@ -109,9 +109,9 @@ get_wlname_by_mac(unsigned char *mac, char *wlname)
 	ether_etoa(mac, eabuf);
 	/* find out the wl name from mac */
 	for (i = 0; i < MAX_NVPARSE; i++) {
-		sprintf(wlname, "wl%d", i);
-		sprintf(tmptr, "wl%d_hwaddr", i);
-		sprintf(bss_en, "wl%d_bss_enabled", i);
+		snprintf(wlname, sizeof(wlname), "wl%d", i);
+		snprintf(tmptr, sizeof(tmptr), "wl%d_hwaddr", i);
+		snprintf(bss_en, sizeof(bss_en), "wl%d_bss_enabled", i);
 		wl_hw = nvram_get(tmptr);
 		if (wl_hw) {
 			if (!strncasecmp(wl_hw, eabuf, sizeof(eabuf)) &&
@@ -120,9 +120,9 @@ get_wlname_by_mac(unsigned char *mac, char *wlname)
 		}
 
 		for (j = 1; j < WL_MAXBSSCFG; j++) {
-			sprintf(wlname, "wl%d.%d", i, j);
-			sprintf(tmptr, "wl%d.%d_hwaddr", i, j);
-			sprintf(bss_en, "wl%d.%d_bss_enabled", i, j);
+			snprintf(wlname, sizeof(wlname), "wl%d.%d", i, j);
+			snprintf(tmptr, sizeof(tmptr), "wl%d.%d_hwaddr", i, j);
+			snprintf(bss_en, sizeof(bss_en), "wl%d.%d_bss_enabled", i, j);
 			wl_hw = nvram_get(tmptr);
 			if (wl_hw) {
 				if (!strncasecmp(wl_hw, eabuf, sizeof(eabuf)) &&
@@ -200,12 +200,12 @@ void get_ifname_by_wlmac_prep(void)
 
 	for (i = 0; i < WLIFU_MAX_NO_BRIDGE; i++) {
 		if (i == 0) {
-			sprintf(if_names, "lan_ifnames");
-			sprintf(if_name, "lan_ifname");
+			snprintf(if_names, sizeof(if_names), "lan_ifnames");
+			snprintf(if_name, sizeof(if_name), "lan_ifname");
 		}
 		else {
-			sprintf(if_names, "lan%d_ifnames", i);
-			sprintf(if_name, "lan%d_ifname", i);
+			snprintf(if_names, sizeof(if_names), "lan%d_ifnames", i);
+			snprintf(if_name, sizeof(if_name), "lan%d_ifname", i);
 		}
 
 		strncpy(nv_lan_ifnames[i], nvram_safe_get(if_names), 256);
@@ -346,7 +346,7 @@ get_wsec(wsec_info_t *info, unsigned char *mac, char *osifname)
 	else if (osifname_to_nvifname(os_name, wl_prefix, sizeof(wl_prefix)))
 		return WLIFU_ERR_INVALID_PARAMETER;
 
-	strcat(wl_prefix, "_");
+	strlcat(wl_prefix, "_", sizeof(wl_prefix));
 	memset(info, 0, sizeof(wsec_info_t));
 
 	/* get wds setting */
@@ -375,26 +375,26 @@ get_wsec(wsec_info_t *info, unsigned char *mac, char *osifname)
 	/* interface unit */
 	info->unit = unit;
 	/* interface os name */
-	strcpy(info->osifname, os_name);
+	strlcpy(info->osifname, os_name, sizeof(info->osifname));
 	/* interface address */
 	memcpy(info->ea, mac, ETHER_ADDR_LEN);
 	/* ssid */
 	if (wds && wds_wsec)
 		strncpy(info->ssid, wds_ssid, MAX_SSID_LEN);
 	else {
-		value = nvram_safe_get(strcat_r(wl_prefix, "ssid", comb));
+		value = nvram_safe_get(strlcat_r(wl_prefix, "ssid", comb, sizeof(comb)));
 		strncpy(info->ssid, value, MAX_SSID_LEN);
 	}
 	/* auth */
-	if (nvram_match(strcat_r(wl_prefix, "auth", comb), "1"))
+	if (nvram_match(strlcat_r(wl_prefix, "auth", comb, sizeof(comb)), "1"))
 		info->auth = 1;
 	/* nas auth mode */
-	value = nvram_safe_get(strcat_r(wl_prefix, "auth_mode", comb));
+	value = nvram_safe_get(strlcat_r(wl_prefix, "auth_mode", comb, sizeof(comb)));
 	info->akm = !strcmp(value, "radius") ? WLIFU_AUTH_RADIUS : 0;
 	if (wds && wds_wsec)
 		akms = wds_akms;
 	else
-		akms = nvram_safe_get(strcat_r(wl_prefix, "akm", comb));
+		akms = nvram_safe_get(strlcat_r(wl_prefix, "akm", comb, sizeof(comb)));
 	foreach(akm, akms, akmnext) {
 		if (!strcmp(akm, "wpa"))
 			info->akm |= WPA_AUTH_UNSPECIFIED;
@@ -408,12 +408,12 @@ get_wsec(wsec_info_t *info, unsigned char *mac, char *osifname)
 			info->akm |= WPA2_AUTH_PSK | WPA2_AUTH_FT;
 	}
 	/* wsec encryption */
-	value = nvram_safe_get(strcat_r(wl_prefix, "wep", comb));
+	value = nvram_safe_get(strlcat_r(wl_prefix, "wep", comb, sizeof(comb)));
 	info->wsec = !strcmp(value, "enabled") ? WEP_ENABLED : 0;
 	if (wds && wds_wsec)
 		value = wds_crypto;
 	else
-		value = nvram_safe_get(strcat_r(wl_prefix, "crypto", comb));
+		value = nvram_safe_get(strlcat_r(wl_prefix, "crypto", comb, sizeof(comb)));
 	if (CHECK_NAS(info->akm)) {
 		if (!strcmp(value, "tkip"))
 			info->wsec |= TKIP_ENABLED;
@@ -423,8 +423,8 @@ get_wsec(wsec_info_t *info, unsigned char *mac, char *osifname)
 			info->wsec |= TKIP_ENABLED|AES_ENABLED;
 	}
 	/* nas role setting, may overwrite later in wds case */
-	value = nvram_safe_get(strcat_r(wl_prefix, "mode", comb));
-	infra = nvram_safe_get(strcat_r(wl_prefix, "infra", comb));
+	value = nvram_safe_get(strlcat_r(wl_prefix, "mode", comb, sizeof(comb)));
+	infra = nvram_safe_get(strlcat_r(wl_prefix, "infra", comb, sizeof(comb)));
 	if (!strcmp(value, "ap")) {
 		info->flags |= WLIFU_WSEC_AUTH;
 	}
@@ -455,7 +455,7 @@ get_wsec(wsec_info_t *info, unsigned char *mac, char *osifname)
 
 		/* did not find WDS link configuration, use wireless' */
 		if (!wds_wsec)
-			strcpy(wds_role, "auto");
+			strlcpy(wds_role, "auto", sizeof(wds_role));
 
 		/* get right role */
 		if (!strcmp(wds_role, "sup"))
@@ -465,7 +465,7 @@ get_wsec(wsec_info_t *info, unsigned char *mac, char *osifname)
 		else /* if (!strcmp(wds_role, "auto")) */
 			lrole = WL_WDS_WPA_ROLE_AUTO;
 
-		strcpy(buf, "wds_wpa_role");
+		strlcpy(buf, "wds_wpa_role", sizeof(buf));
 		ptr = (unsigned char *)buf + strlen(buf) + 1;
 		bcopy(info->remote, ptr, ETHER_ADDR_LEN);
 		ptr[ETHER_ADDR_LEN] = lrole;
@@ -495,53 +495,52 @@ get_wsec(wsec_info_t *info, unsigned char *mac, char *osifname)
 			info->psk[MAX_USER_KEY_LEN] = 0;
 		}
 		else {
-			value = nvram_safe_get(strcat_r(wl_prefix, "wpa_psk", comb));
+			value = nvram_safe_get(strlcat_r(wl_prefix, "wpa_psk", comb, sizeof(comb)));
 			strncpy((char *)info->psk, value, MAX_USER_KEY_LEN);
 			info->psk[MAX_USER_KEY_LEN] = 0;
 		}
 	}
 	/* user-supplied radius server secret */
 	if (CHECK_RADIUS(info->akm))
-		info->secret = nvram_safe_get(strcat_r(wl_prefix, "radius_key", comb));
+		info->secret = nvram_safe_get(strlcat_r(wl_prefix, "radius_key", comb, sizeof(comb)));
 	/* AP specific settings */
-	value = nvram_safe_get(strcat_r(wl_prefix, "mode", comb));
+	value = nvram_safe_get(strlcat_r(wl_prefix, "mode", comb, sizeof(comb)));
 	if (!strcmp(value, "ap")) {
 		/* gtk rekey interval */
 		if (CHECK_NAS(info->akm)) {
-			value = nvram_safe_get(strcat_r(wl_prefix, "wpa_gtk_rekey", comb));
+			value = nvram_safe_get(strlcat_r(wl_prefix, "wpa_gtk_rekey", comb, sizeof(comb)));
 			info->gtk_rekey_secs = (int)strtoul(value, NULL, 0);
 		}
 		/* wep key */
 		if (info->wsec & WEP_ENABLED) {
 			/* key index */
-			value = nvram_safe_get(strcat_r(wl_prefix, "key", comb));
+			value = nvram_safe_get(strlcat_r(wl_prefix, "key", comb, sizeof(comb)));
 			info->wep_index = (int)strtoul(value, NULL, 0);
 			/* key */
-			sprintf(key, "key%s", nvram_safe_get(strcat_r(wl_prefix, "key", comb)));
-			info->wep_key = nvram_safe_get(strcat_r(wl_prefix, key, comb));
+			snprintf(key, sizeof(key), "key%s", nvram_safe_get(strlcat_r(wl_prefix, "key", comb, sizeof(comb))));
+			info->wep_key = nvram_safe_get(strlcat_r(wl_prefix, key, comb, sizeof(comb)));
 		}
 		/* radius server host/port */
 		if (CHECK_RADIUS(info->akm)) {
 			/* update radius server address */
-			info->radius_addr = nvram_safe_get(strcat_r(wl_prefix, "radius_ipaddr",
-			                                            comb));
-			value = nvram_safe_get(strcat_r(wl_prefix, "radius_port", comb));
+			info->radius_addr = nvram_safe_get(strlcat_r(wl_prefix, "radius_ipaddr", comb, sizeof(comb)));
+			value = nvram_safe_get(strlcat_r(wl_prefix, "radius_port", comb, sizeof(comb)));
 			info->radius_port = htons((int)strtoul(value, NULL, 0));
 			/* 802.1x session timeout/pmk cache duration */
-			value = nvram_safe_get(strcat_r(wl_prefix, "net_reauth", comb));
+			value = nvram_safe_get(strlcat_r(wl_prefix, "net_reauth", comb, sizeof(comb)));
 			info->ssn_to = (int)strtoul(value, NULL, 0);
 		}
 	}
 	/* preauth */
-	value = nvram_safe_get(strcat_r(wl_prefix, "preauth", comb));
+	value = nvram_safe_get(strlcat_r(wl_prefix, "preauth", comb, sizeof(comb)));
 	info->preauth = (int)strtoul(value, NULL, 0);
 
 	/* verbose */
-	value = nvram_safe_get(strcat_r(wl_prefix, "nas_dbg", comb));
+	value = nvram_safe_get(strlcat_r(wl_prefix, "nas_dbg", comb, sizeof(comb)));
 	info->debug = (int)strtoul(value, NULL, 0);
 
 	/* get mfp setting */
-	info->mfp = atoi(nvram_safe_get(strcat_r(wl_prefix, "mfp", comb)));
+	info->mfp = atoi(nvram_safe_get(strlcat_r(wl_prefix, "mfp", comb, sizeof(comb))));
 
 	return WLIFU_WSEC_SUCCESS;
 }
@@ -809,7 +808,7 @@ void wl_ascii_str_to_hex_str(char *ascii_str, uint16 ascii_len, char *hex_str, u
 	}
 
 	while (ascii_str[i] != '\0' && i < (ascii_len - 1) && (i * 2) < (hex_len - 1)) {
-		sprintf((hex_str + i*2), "%02X", ascii_str[i]);
+		snprintf((hex_str + i*2), 3,"%02X", ascii_str[i]);
 		i = i + 1;
 	}
 	hex_str[hex_len - 1] = '\0';
@@ -1039,15 +1038,15 @@ wl_wlif_apply_creds(wlif_bss_t *bss, wlif_wps_nw_creds_t *creds)
 		for (i = 0; i < wlif_num; i++) {
 			if (i == unit) continue;
 			snprintf(prefix2, sizeof(prefix2), "wl%d", i);
-			nvram_set(strcat_r(prefix2, "_ssid", tmp), creds->ssid);
+			nvram_set(strlcat_r(prefix2, "_ssid", tmp, sizeof(tmp)), creds->ssid);
 		}
 
 		if (nvram_get_int("amesh_wps_enr") || nvram_get_int("rpx_wps_enr")) {
-			nvram_set(strcat_r(pfcred, "ssid", tmp), creds->ssid);
-			nvram_set(strcat_r(pfcred0, "ssid", tmp), creds->ssid);
-			nvram_set(strcat_r(pfcred1, "ssid", tmp), creds->ssid);
+			nvram_set(strlcat_r(pfcred, "ssid", tmp, sizeof(tmp)), creds->ssid);
+			nvram_set(strlcat_r(pfcred0, "ssid", tmp, sizeof(tmp)), creds->ssid);
+			nvram_set(strlcat_r(pfcred1, "ssid", tmp, sizeof(tmp)), creds->ssid);
 			if (wlif_num == 3)
-			nvram_set(strcat_r(pfcred2, "ssid", tmp), creds->ssid);
+			nvram_set(strlcat_r(pfcred2, "ssid", tmp, sizeof(tmp)), creds->ssid);
 		}
 
 		ret = 0;
@@ -1099,103 +1098,103 @@ wl_wlif_apply_creds(wlif_bss_t *bss, wlif_wps_nw_creds_t *creds)
 		for (i = 0; i < wlif_num; i++) {
 			if (i == unit) continue;
 			snprintf(prefix2, sizeof(prefix2), "wl%d", i);
-			nvram_set(strcat_r(prefix2, "_akm", tmp), val);
+			nvram_set(strlcat_r(prefix2, "_akm", tmp, sizeof(tmp)), val);
 		}
 
 		switch (creds->akm) {
 			case WLIF_WPA_AKM_PSK:
 				if (nvram_get_int("amesh_wps_enr") || nvram_get_int("rpx_wps_enr")) {
-					nvram_set(strcat_r(pfcred, "auth_mode", tmp), "psk");
-					nvram_set(strcat_r(pfcred0, "auth_mode", tmp), "psk");
-					nvram_set(strcat_r(pfcred1, "auth_mode", tmp), "psk");
+					nvram_set(strlcat_r(pfcred, "auth_mode", tmp, sizeof(tmp)), "psk");
+					nvram_set(strlcat_r(pfcred0, "auth_mode", tmp, sizeof(tmp)), "psk");
+					nvram_set(strlcat_r(pfcred1, "auth_mode", tmp, sizeof(tmp)), "psk");
 					if (wlif_num == 3)
-					nvram_set(strcat_r(pfcred2, "auth_mode", tmp), "psk");
+					nvram_set(strlcat_r(pfcred2, "auth_mode", tmp, sizeof(tmp)), "psk");
 				} else {
-					nvram_set(strcat_r(prefix, "_auth_mode_x", tmp), "psk");
+					nvram_set(strlcat_r(prefix, "_auth_mode_x", tmp, sizeof(tmp)), "psk");
 					if (!wps_configured)
 					for (i = 0; i < wlif_num; i++) {
 						if (i == unit) continue;
 						snprintf(prefix2, sizeof(prefix2), "wl%d", i);
-						nvram_set(strcat_r(prefix2, "_auth_mode_x", tmp), "psk");
+						nvram_set(strlcat_r(prefix2, "_auth_mode_x", tmp, sizeof(tmp)), "psk");
 					}
 				}
 			break;
 			case WLIF_WPA_AKM_PSK2:
 				if (nvram_get_int("amesh_wps_enr") || nvram_get_int("rpx_wps_enr")) {
-					nvram_set(strcat_r(pfcred, "auth_mode", tmp), "psk2");
-					nvram_set(strcat_r(pfcred0, "auth_mode", tmp), "psk2");
-					nvram_set(strcat_r(pfcred1, "auth_mode", tmp), "psk2");
+					nvram_set(strlcat_r(pfcred, "auth_mode", tmp, sizeof(tmp)), "psk2");
+					nvram_set(strlcat_r(pfcred0, "auth_mode", tmp, sizeof(tmp)), "psk2");
+					nvram_set(strlcat_r(pfcred1, "auth_mode", tmp, sizeof(tmp)), "psk2");
 					if (wlif_num == 3)
-					nvram_set(strcat_r(pfcred2, "auth_mode", tmp), "psk2");
+					nvram_set(strlcat_r(pfcred2, "auth_mode", tmp, sizeof(tmp)), "psk2");
 				} else {
-					nvram_set(strcat_r(prefix, "_auth_mode_x", tmp), "psk2");
+					nvram_set(strlcat_r(prefix, "_auth_mode_x", tmp, sizeof(tmp)), "psk2");
 					if (!wps_configured)
 					for (i = 0; i < wlif_num; i++) {
 						if (i == unit) continue;
 						snprintf(prefix2, sizeof(prefix2), "wl%d", i);
-						nvram_set(strcat_r(prefix2, "_auth_mode_x", tmp), "psk2");
+						nvram_set(strlcat_r(prefix2, "_auth_mode_x", tmp, sizeof(tmp)), "psk2");
 					}
 				}
 			break;
 			case (WLIF_WPA_AKM_PSK | WLIF_WPA_AKM_PSK2):
 				if (nvram_get_int("amesh_wps_enr") || nvram_get_int("rpx_wps_enr")) {
-					nvram_set(strcat_r(pfcred, "auth_mode", tmp), "psk2");
-					nvram_set(strcat_r(pfcred0, "auth_mode", tmp), "psk2");
-					nvram_set(strcat_r(pfcred1, "auth_mode", tmp), "psk2");
+					nvram_set(strlcat_r(pfcred, "auth_mode", tmp, sizeof(tmp)), "psk2");
+					nvram_set(strlcat_r(pfcred0, "auth_mode", tmp, sizeof(tmp)), "psk2");
+					nvram_set(strlcat_r(pfcred1, "auth_mode", tmp, sizeof(tmp)), "psk2");
 					if (wlif_num == 3)
-					nvram_set(strcat_r(pfcred2, "auth_mode", tmp), "psk2");
+					nvram_set(strlcat_r(pfcred2, "auth_mode", tmp, sizeof(tmp)), "psk2");
 				} else {
-					nvram_set(strcat_r(prefix, "_auth_mode_x", tmp), "pskpsk2");
+					nvram_set(strlcat_r(prefix, "_auth_mode_x", tmp, sizeof(tmp)), "pskpsk2");
 					if (!wps_configured)
 					for (i = 0; i < wlif_num; i++) {
 						if (i == unit) continue;
 						snprintf(prefix2, sizeof(prefix2), "wl%d", i);
-						nvram_set(strcat_r(prefix2, "_auth_mode_x", tmp), "pskpsk2");
+						nvram_set(strlcat_r(prefix2, "_auth_mode_x", tmp, sizeof(tmp)), "pskpsk2");
 					}
 				}
 			break;
 			default:
 				if (nvram_get_int("amesh_wps_enr") || nvram_get_int("rpx_wps_enr")) {
-					nvram_set(strcat_r(pfcred, "auth_mode", tmp), "open");
-					nvram_set(strcat_r(pfcred0, "auth_mode", tmp), "open");
-					nvram_set(strcat_r(pfcred1, "auth_mode", tmp), "open");
+					nvram_set(strlcat_r(pfcred, "auth_mode", tmp, sizeof(tmp)), "open");
+					nvram_set(strlcat_r(pfcred0, "auth_mode", tmp, sizeof(tmp)), "open");
+					nvram_set(strlcat_r(pfcred1, "auth_mode", tmp, sizeof(tmp)), "open");
 					if (wlif_num == 3)
-						nvram_set(strcat_r(pfcred2, "auth_mode", tmp), "open");
+						nvram_set(strlcat_r(pfcred2, "auth_mode", tmp, sizeof(tmp)), "open");
 				} else {
-					nvram_set(strcat_r(prefix, "_auth_mode_x", tmp), "open");
+					nvram_set(strlcat_r(prefix, "_auth_mode_x", tmp, sizeof(tmp)), "open");
 					if (!wps_configured)
 					for (i = 0; i < wlif_num; i++) {
 						if (i == unit) continue;
 						snprintf(prefix2, sizeof(prefix2), "wl%d", i);
-						nvram_set(strcat_r(prefix2, "_auth_mode_x", tmp), "open");
+						nvram_set(strlcat_r(prefix2, "_auth_mode_x", tmp, sizeof(tmp)), "open");
 					}
 				}
 			break;
 		}
 
-		nvram_set(strcat_r(prefix, "_wep", tmp), "0");
+		nvram_set(strlcat_r(prefix, "_wep", tmp, sizeof(tmp)), "0");
 		if (nvram_get_int("amesh_wps_enr") || nvram_get_int("rpx_wps_enr")) {
-			nvram_set(strcat_r(pfcred, "wep", tmp), "0");
-			nvram_set(strcat_r(pfcred0, "wep", tmp), "0");
-			nvram_set(strcat_r(pfcred1, "wep", tmp), "0");
+			nvram_set(strlcat_r(pfcred, "wep", tmp, sizeof(tmp)), "0");
+			nvram_set(strlcat_r(pfcred0, "wep", tmp, sizeof(tmp)), "0");
+			nvram_set(strlcat_r(pfcred1, "wep", tmp, sizeof(tmp)), "0");
 			if (wlif_num == 3)
-			nvram_set(strcat_r(pfcred2, "wep", tmp), "0");
+			nvram_set(strlcat_r(pfcred2, "wep", tmp, sizeof(tmp)), "0");
 		} else {
-			nvram_set(strcat_r(prefix, "_wep_x", tmp), "0");
+			nvram_set(strlcat_r(prefix, "_wep_x", tmp, sizeof(tmp)), "0");
 			if (!wps_configured)
 			for (i = 0; i < wlif_num; i++) {
 				if (i == unit) continue;
 				snprintf(prefix2, sizeof(prefix2), "wl%d", i);
-				nvram_set(strcat_r(prefix2, "_wep_x", tmp), "0");
+				nvram_set(strlcat_r(prefix2, "_wep_x", tmp, sizeof(tmp)), "0");
 			}
 		}
 
-		nvram_set(strcat_r(prefix, "_auth", tmp), "0");
+		nvram_set(strlcat_r(prefix, "_auth", tmp, sizeof(tmp)), "0");
 		if (!wps_configured)
 		for (i = 0; i < wlif_num; i++) {
 			if (i == unit) continue;
 			snprintf(prefix2, sizeof(prefix2), "wl%d", i);
-			nvram_set(strcat_r(prefix2, "_auth", tmp), "0");
+			nvram_set(strlcat_r(prefix2, "_auth", tmp, sizeof(tmp)), "0");
 		}
 
 		ret = 0;
@@ -1224,18 +1223,18 @@ wl_wlif_apply_creds(wlif_bss_t *bss, wlif_wps_nw_creds_t *creds)
 		for (i = 0; i < wlif_num; i++) {
 			if (i == unit) continue;
 			snprintf(prefix2, sizeof(prefix2), "wl%d", i);
-			nvram_set(strcat_r(prefix2, "_crypto", tmp), val);
+			nvram_set(strlcat_r(prefix2, "_crypto", tmp, sizeof(tmp)), val);
 		}
 
 		if (nvram_get_int("amesh_wps_enr") || nvram_get_int("rpx_wps_enr")) {
 			if (creds->encr == (WLIF_WPA_ENCR_TKIP | WLIF_WPA_ENCR_AES))
 				val = "aes";
 
-			nvram_set(strcat_r(pfcred, "crypto", tmp), val);
-			nvram_set(strcat_r(pfcred0, "crypto", tmp), val);
-			nvram_set(strcat_r(pfcred1, "crypto", tmp), val);
+			nvram_set(strlcat_r(pfcred, "crypto", tmp, sizeof(tmp)), val);
+			nvram_set(strlcat_r(pfcred0, "crypto", tmp, sizeof(tmp)), val);
+			nvram_set(strlcat_r(pfcred1, "crypto", tmp, sizeof(tmp)), val);
 			if (wlif_num == 3)
-			nvram_set(strcat_r(pfcred2, "crypto", tmp), val);
+			nvram_set(strlcat_r(pfcred2, "crypto", tmp, sizeof(tmp)), val);
 		}
 
 		ret = 0;
@@ -1249,15 +1248,15 @@ wl_wlif_apply_creds(wlif_bss_t *bss, wlif_wps_nw_creds_t *creds)
 		for (i = 0; i < wlif_num; i++) {
 			if (i == unit) continue;
 			snprintf(prefix2, sizeof(prefix2), "wl%d", i);
-			nvram_set(strcat_r(prefix2, "_wpa_psk", tmp), creds->nw_key);
+			nvram_set(strlcat_r(prefix2, "_wpa_psk", tmp, sizeof(tmp)), creds->nw_key);
 		}
 
 		if (nvram_get_int("amesh_wps_enr") || nvram_get_int("rpx_wps_enr")) {
-			nvram_set(strcat_r(pfcred, "wpa_psk", tmp), creds->nw_key);
-			nvram_set(strcat_r(pfcred0, "wpa_psk", tmp), creds->nw_key);
-			nvram_set(strcat_r(pfcred1, "wpa_psk", tmp), creds->nw_key);
+			nvram_set(strlcat_r(pfcred, "wpa_psk", tmp, sizeof(tmp)), creds->nw_key);
+			nvram_set(strlcat_r(pfcred0, "wpa_psk", tmp, sizeof(tmp)), creds->nw_key);
+			nvram_set(strlcat_r(pfcred1, "wpa_psk", tmp, sizeof(tmp)), creds->nw_key);
 			if (wlif_num == 3)
-			nvram_set(strcat_r(pfcred2, "wpa_psk", tmp), creds->nw_key);
+			nvram_set(strlcat_r(pfcred2, "wpa_psk", tmp, sizeof(tmp)), creds->nw_key);
 		}
 		ret = 0;
 	}
@@ -1721,8 +1720,16 @@ bool
 wl_wlif_is_map_onboarding(char *prefix)
 {
 	char map[WLIF_MIN_BUF] = {0}, *ptr = NULL;
-	uint16 map_val = 0;
+	uint16 map_val = 0, multiap_mode = 0;
 	bool ret;
+
+	ptr = nvram_safe_get("multiap_mode");
+	if (ptr[0] != '\0') {
+		multiap_mode = (uint16)strtoul(ptr, NULL, 0);
+	}
+	if (multiap_mode == 0) {
+		return FALSE;
+	}
 
 	snprintf(map, sizeof(map), "%s_map", prefix);
 	ptr = nvram_safe_get(map);
@@ -2077,6 +2084,7 @@ int
 wl_wlif_map_configure_backhaul_sta_interface(wlif_bss_t *bss_in, wlif_wps_nw_creds_t *creds)
 {
 	char *list = nvram_safe_get("lan_ifnames");
+	char *bh_sta_list = nvram_safe_get("map_bhsta_ifnames");
 	wlif_bss_list_t	bss_list;
 	wlif_bss_t *bss = NULL;
 	int idx = 0, ret = -1;
@@ -2100,31 +2108,56 @@ wl_wlif_map_configure_backhaul_sta_interface(wlif_bss_t *bss_in, wlif_wps_nw_cre
 	}
 
 	wl_wlif_map_get_candidate_bhsta_bsslist(list, &bss_list, skip_ifname);
-	wl_wlif_select_bhsta_from_bsslist(&bss_list, creds->ssid, bh_ifname, sizeof(bh_ifname));
-	if (bh_ifname[0] != '\0') {
-		cprintf("Info: shared %s selected backhaul station ifname "
-			" %s for backhaul ssid %s\n", __func__, bh_ifname, creds->ssid);
+
+	/* If the backhaul STA list is present, just apply the backhaul STA credentials in all the
+	 * interfaces in the list
+	 */
+	if (strlen(bh_sta_list) > 0) {
+		cprintf("Info: shared %s apply backhaul SSID %s in ifnames %s\n", __func__,
+			creds->ssid, bh_sta_list);
 		for (idx = 0; idx < bss_list.count; idx++) {
 			bss = &bss_list.bss[idx];
-			if (!strcmp(bss->ifname, bh_ifname)) {
+			if (find_in_list(bh_sta_list, bss->ifname)) {
 				// apply the settings received from wps;
 				wl_wlif_apply_map_backhaul_creds(bss, creds);
 				nvram_set("map_onboarded", "1");
 				nvram_unset("wps_on_sta");
 			} else {
 				// uneset  the map settings and change mode from sta to AP
-				nvram_unset(strcat_r(bss->nvifname, "_map", tmp));
-				nvram_set(strcat_r(bss->nvifname, "_mode", tmp), "ap");
+				nvram_unset(strlcat_r(bss->nvifname, "_map", tmp, sizeof(tmp)));
+				nvram_set(strlcat_r(bss->nvifname, "_mode", tmp, sizeof(tmp)), "ap");
 			}
 		}
 		ret = 0;
 	} else {
-		cprintf("Err: shared %s multiap backhaul ifname not found for "
-			"backhaul ssid = %s \n", __func__, creds->ssid);
-		// In case of failure restore ap_scan parameter to 1 in supplicant.
-		for (idx = 0; idx < bss_list.count; idx++) {
-			bss = &bss_list.bss[idx];
-			wl_wlif_wpa_supplicant_update_ap_scan(bss->ifname, bss->nvifname, 1);
+		wl_wlif_select_bhsta_from_bsslist(&bss_list, creds->ssid, bh_ifname,
+			sizeof(bh_ifname));
+		if (bh_ifname[0] != '\0') {
+			cprintf("Info: shared %s selected backhaul station ifname "
+				" %s for backhaul ssid %s\n", __func__, bh_ifname, creds->ssid);
+			for (idx = 0; idx < bss_list.count; idx++) {
+				bss = &bss_list.bss[idx];
+				if (!strcmp(bss->ifname, bh_ifname)) {
+					// apply the settings received from wps;
+					wl_wlif_apply_map_backhaul_creds(bss, creds);
+					nvram_set("map_onboarded", "1");
+					nvram_unset("wps_on_sta");
+				} else {
+					// uneset  the map settings and change mode from sta to AP
+					nvram_set(strlcat_r(bss->nvifname, "_mode", tmp, sizeof(tmp)), "ap");
+					nvram_unset(strlcat_r(bss->nvifname, "_map", tmp, sizeof(tmp)));
+				}
+			}
+			ret = 0;
+		} else {
+			cprintf("Err: shared %s multiap backhaul ifname not found for "
+				"backhaul ssid = %s \n", __func__, creds->ssid);
+			// In case of failure restore ap_scan parameter to 1 in supplicant.
+			for (idx = 0; idx < bss_list.count; idx++) {
+				bss = &bss_list.bss[idx];
+				wl_wlif_wpa_supplicant_update_ap_scan(bss->ifname, bss->nvifname,
+					1);
+			}
 		}
 	}
 
@@ -2382,8 +2415,8 @@ rateset_overwrite_by_supportedRatesBitmap(char *name, char *prefix)
 	if (!rateControlBitmap)
 		return FALSE;
 
-	sr_bitmap_str = nvram_safe_get(strcat_r(prefix, "supported_rates_bitmap", tmp));
-	br_bitmap_str = nvram_safe_get(strcat_r(prefix, "basic_rates_bitmap", tmp));
+	sr_bitmap_str = nvram_safe_get(strlcat_r(prefix, "supported_rates_bitmap", tmp, sizeof(tmp)));
+	br_bitmap_str = nvram_safe_get(strlcat_r(prefix, "basic_rates_bitmap", tmp, sizeof(tmp)));
 	sr_bitmap = (uint32) strtoul(sr_bitmap_str, &ptr, 16);
 	br_bitmap = (uint16) strtoul(br_bitmap_str, &ptr, 16);
 
@@ -2471,4 +2504,99 @@ rateset_overwrite_by_supportedRatesBitmap(char *name, char *prefix)
 	return TRUE;
 }
 #endif
+#endif
+
+#if defined(CONFIG_BCMWL5)
+#define DIV_QUO(num, div) ((num)/div)  /* Return the quotient of division to avoid floats */
+#define DIV_REM(num, div) (((num%div) * 100)/div) /* Return the remainder of division */
+
+double wl_get_txpwr_target_max(char *name)
+{
+        int err;
+        txpwr_target_max_t target_pwr;
+        int i;
+	double ab;
+	int test_val;
+
+        if ((err = wl_iovar_get(name, "txpwr_target_max", (void *)&target_pwr,  sizeof(target_pwr))) < 0) {
+                fprintf(stderr, "Error: txpwr_target failed. Make sure interface is up.\n");
+                return err;
+        }
+
+        if (target_pwr.version != TXPWR_TARGET_VERSION) {
+                fprintf(stderr, "Error: version [%d] mismatch Driver version:%d\n",
+                        TXPWR_TARGET_VERSION, target_pwr.version);
+                return err;
+        }
+
+  test_val = nvram_get_int("tx_test_val");
+  if(test_val > 0) {
+        printf("maximum tx Power Target (chanspec:0x%x):\t", target_pwr.chanspec);
+        for (i = 0; i < target_pwr.rf_cores; i++)
+                printf("%2d.%02d  ",
+                       DIV_QUO(test_val, 4),
+                       DIV_REM(test_val, 4));
+        printf("\n");
+
+	ab = (double)(DIV_QUO(test_val, 4)) + (double)((double)(DIV_REM(test_val, 4))/100);
+	printf("chk ab=%f, txpwr-0=%d\n", ab, test_val);
+
+  } else {
+
+        printf("chk Maximum Tx Power Target (chanspec:0x%x):\t", target_pwr.chanspec);
+        for (i = 0; i < target_pwr.rf_cores; i++)
+                printf("%2d.%02d  ",
+                       DIV_QUO(target_pwr.txpwr[i], 4),
+                       DIV_REM(target_pwr.txpwr[i], 4));
+        printf("\n");
+
+	ab = (double)(DIV_QUO(target_pwr.txpwr[0], 4)) + (double)((double)(DIV_REM(target_pwr.txpwr[0], 4))/100);
+	printf("chk ab=%f, txpwr-0=%d\n", ab, target_pwr.txpwr[0]);
+  }
+
+        return ab;
+}
+
+double get_wifi_maxpower(int target_unit)
+{
+	int unit;
+	char word[100], *next;
+
+	foreach (word, nvram_safe_get("wl_ifnames"), next) {
+		unit = -1;
+		wl_ioctl(word, WLC_GET_INSTANCE, &unit, sizeof(unit));
+		if(unit < 0) {
+			printf("%s get unit fail\n", word);
+			continue;
+		}
+		if(unit == target_unit) {
+			printf("get wifi maxpower of wlif:%s\n", word);
+			return wl_get_txpwr_target_max(word);
+		}
+	}
+}
+
+double get_wifi_5G_maxpower()
+{
+	return get_wifi_maxpower(WL_5G_BAND);
+}
+
+double get_wifi_5GH_maxpower()
+{
+#if defined(RTCONFIG_HAS_5G_2)
+	return get_wifi_maxpower(WL_5G_2_BAND);
+#else
+	return 0;
+#endif
+}
+
+double get_wifi_6G_maxpower()
+{
+#if defined(RTCONFIG_WIFI6E)
+	return get_wifi_maxpower(WL_6G_BAND);
+#else
+	return 0;
+#endif
+}
+
 #endif

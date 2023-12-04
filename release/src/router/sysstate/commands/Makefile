@@ -17,6 +17,7 @@ INSTALL = install
 ifeq ($(RTCONFIG_QTN),y)
 LDFLAGS += -L$(TOP)/libqcsapi_client -lqcsapi_client
 endif
+LDFLAGS += -L$(TOP)/json-c/.libs -ljson-c
 
 OBJS = asuslog.o
 

@@ -23,11 +23,16 @@
 #define SYNC_NODE_ROUTER_ONLY	0
 #define SYNC_NODE_RE_ALL		1
 
+#define WGN_WL_BAND_2G			0
+#define WGN_WL_BAND_5G			1
+#define WGN_WL_BAND_5GH         2
+#define WGN_WL_BAND_6G			3
+
 #define WGN_MAX_NO_GUEST_NETWORK			8
-#define WGN_MAXINUM_SUBNET_RULELIST			256
-#define WGN_MAXINUM_VLAN_RULELIST			256
-#define WGN_VLAN_RULE_MAX_BUFFER_SIZE		1024 * WGN_MAXINUM_VLAN_RULELIST
-#define WGN_SUBNET_RULE_MAX_BUFFER_SIZE		1024 * WGN_MAXINUM_SUBNET_RULELIST
+#define WGN_MAXINUM_SUBNET_RULELIST			128
+#define WGN_MAXINUM_VLAN_RULELIST			128
+#define WGN_VLAN_RULE_MAX_BUFFER_SIZE		4096
+#define WGN_SUBNET_RULE_MAX_BUFFER_SIZE		4096
 
 #define WGN_GET_CFG_TYPE_ALL				0
 #define WGN_GET_CFG_TYPE_WGN_ONLY			1
@@ -39,9 +44,9 @@ typedef struct wgn_subnet_rule_t
 #define WGN_SUBNET_RULE_NVRAM 				"subnet_rulelist"	
 #define WGN_SUBNET_RULE_MAX_FIELDS			12
 #define WGN_SUBNET_RULE_IP_STRING_SIZE		16
-#define WGN_SUBNET_RULE_DOMIN_MAIN_SIZE		132
-#define WGN_SUBNET_RULE_MACIP_BINDING_SIZE	1024
-#define WGN_SUBNET_RULE_DNS_SIZE			132
+#define WGN_SUBNET_RULE_DOMIN_MAIN_SIZE		64
+#define WGN_SUBNET_RULE_MACIP_BINDING_SIZE	8
+#define WGN_SUBNET_RULE_DNS_SIZE			16
 	
 	char ipaddr[WGN_SUBNET_RULE_IP_STRING_SIZE+1];
 	char ipmask[WGN_SUBNET_RULE_IP_STRING_SIZE+1];
@@ -108,4 +113,7 @@ extern void 			wgn_check_settings(void);
 extern int 				wgn_guest_is_enabled(void);
 extern int 				wgn_check_vlan_invalid(char *word,char *iface);
 extern void 			wgn_subnet(const char *guest_ifname, char *net, int len);
+extern int 				wgn_get_band_by_unit(int unit);
+extern int 				wgn_get_unit_by_band(int band_type);
+extern char* 			wgn_get_band_by_ifnames(char *buffer, size_t buffer_size);
 #endif 	/* !__WGN_SHAREDH__ */

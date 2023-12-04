@@ -21,7 +21,7 @@ SRCFILE = qca_ipq807x.spf8
 else ifneq ($(findstring $(_BUILD_NAME_),$(SPF11.0_MODEL_LIST)),)
 SRCFILE = qca_ipq807x.spf11.0
 else ifneq ($(findstring $(_BUILD_NAME_),$(SPF11.1_MODEL_LIST)),)
-SRCFILE = qca_ipq807x.spf11.1
+SRCFILE = $(if $(RTCONFIG_MUSL_LIBC),qca_ipq807x.musl64.spf11.1,qca_ipq807x.spf11.1)
 else ifneq ($(findstring $(_BUILD_NAME_),$(IPQ807X_MODEL_LIST)),)
 SRCFILE = $(if $(RTCONFIG_MUSL_LIBC),qca_ipq807x.musl64,qca_ipq807x)
 endif
@@ -71,14 +71,18 @@ endif # RTCONFIG_BCM_7114
 endif # RTCONFIG_BCM7
 
 ifeq ($(RTCONFIG_HND_ROUTER_AX),y)
-ifeq ($(or $(HND_ROUTER_AX_675X),$(HND_ROUTER_AX_6756),$(HND_ROUTER_AX_6710),$(BCM_502L07P2)),y)
+ifeq ($(or $(RTCONFIG_HND_ROUTER_AX_675X),$(RTCONFIG_HND_ROUTER_AX_6756),$(RTCONFIG_HND_ROUTER_AX_6710),$(RTCONFIG_BCM_502L07P2)),y)
 ifneq ($(BCM_CHIP),)
+ifeq ($(BUILD_NAME),RT-AX82U_V2)
+SRCFILE = broadcom_arm_ax_$(BCM_CHIP)_src-rt-5.04axhnd.675x
+else
 SRCFILE = broadcom_arm_ax_$(BCM_CHIP)
+endif
 endif
 else
 SRCFILE = broadcom_arm_ax
 endif
-ifeq ($(or $(HND_ROUTER_AX_675X),$(HND_ROUTER_AX_6756),$(HND_ROUTER_AX_6710),$(BCM_502L07P2)),y)
+ifeq ($(or $(RTCONFIG_HND_ROUTER_AX_675X),$(RTCONFIG_HND_ROUTER_AX_6756),$(RTCONFIG_HND_ROUTER_AX_6710),$(RTCONFIG_BCM_502L07P2)),y)
 DSTDIR = $(INSTALLDIR)/lib/modules/$(LINUX_KERNEL)/kernel/fs
 else
 DSTDIR = $(INSTALLDIR)/lib/modules/4.1.51/kernel/fs

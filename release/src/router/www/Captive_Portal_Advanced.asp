@@ -13,13 +13,13 @@
 <link rel="stylesheet" type="text/css" href="form_style.css">
 <link rel="stylesheet" type="text/css" href="other.css">
 <link rel="stylesheet" type="text/css" href="Captive_Portal_Advanced.css">
+<script type="text/javascript" src="js/jquery.js"></script>
+<script type="text/javascript" src="calendar/jquery-ui.js"></script>
 <script type="text/javascript" src="state.js"></script>
 <script type="text/javascript" src="general.js"></script>
 <script type="text/javascript" src="popup.js"></script>
 <script type="text/javascript" src="help.js"></script>
 <script type="text/javascript" src="validator.js"></script>
-<script type="text/javascript" src="js/jquery.js"></script>
-<script type="text/javascript" src="calendar/jquery-ui.js"></script>
 <script type="text/javascript" src="form.js"></script>
 <script type="text/javascript" src="switcherplugin/jquery.iphone-switch.js"></script>
 <script type="text/javascript" src="jscolor/jscolor.js"></script>
@@ -85,6 +85,10 @@ function initial(){
 		document.getElementById("faq").href=faq_href;
 	else
 		$(".brt_series").remove();
+
+	document.form.captive_portal_adv_2g_ssid.value = decodeURIComponent('<% nvram_char_to_ascii("", "captive_portal_adv_2g_ssid"); %>');
+	document.form.captive_portal_adv_5g_ssid.value = decodeURIComponent('<% nvram_char_to_ascii("", "captive_portal_adv_5g_ssid"); %>');
+	document.form.captive_portal_adv_5g_2_ssid.value = decodeURIComponent('<% nvram_char_to_ascii("", "captive_portal_adv_5g_2_ssid"); %>');
 }
 function captivePortalAdvShowAndHide(_flag) {
 	if(_flag == 1) {
@@ -1377,7 +1381,7 @@ function edit_update_content_image(_component_id) {
 		}
 		else {
 			if(!validator.domainName_flag(image_walled_garden)) {
-				add_hint_msg($('input[name="edit_image_walled_garden"]'), "" + image_walled_garden + " is invalid Domain Name");/*untranslated*/
+				add_hint_msg($('input[name="edit_image_walled_garden"]'), "" + image_walled_garden + "<#JS_invalid_domain#>");
 				$("input[name=edit_image_walled_garden]").focus();
 				return;
 			}
@@ -1688,7 +1692,7 @@ function edit_update_content_text(_component_id) {
 		}
 		else {
 			if(!validator.domainName_flag(text_walled_garden)) {
-				add_hint_msg($('input[name="edit_text_walled_garden"]'), "" + text_walled_garden + " is invalid Domain Name");/*untranslated*/
+				add_hint_msg($('input[name="edit_text_walled_garden"]'), "" + text_walled_garden + "<#JS_invalid_domain#>");
 				$("input[name=edit_text_walled_garden]").focus();
 				return;
 			}

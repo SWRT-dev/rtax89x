@@ -310,6 +310,11 @@ function applyRule(){
 }
 
 function showWeaknessTable(){
+	if(based_modelid == '4G-AX56'){
+		$('#ftp_field').hide();
+		$('#samba_field').hide();
+	}
+
 	cal_panel_block("weakness_div", 0.25);
 	$('#weakness_div').fadeIn();
 }
@@ -1127,13 +1132,13 @@ function shadeHandle(flag){
 								<div id="port_forwarding"></div>
 							</td>
 						</tr>
-						<tr>
+						<tr id="ftp_field">
 							<th><#AiProtection_scan_item10#> -</th>
 							<td>
 								<div id="ftp_account"></div>
 							</td>
 						</tr>
-						<tr>
+						<tr id="samba_field">
 							<th><#AiProtection_scan_item11#> -</th>
 							<td>
 								<div id="samba_account"></div>

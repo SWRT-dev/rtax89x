@@ -28,7 +28,7 @@ var wan_unit = '<% get_parameter("wan_unit"); %>';
 if(tmo_support)
 	var theUrl = "cellspot.router"; 
 else
-	var theUrl = "router.asus.com";
+	var theUrl = "<#Web_DOMAIN_NAME#>";
 
 var htmlEnDeCode = (function() {
 	var charToEntityRegex,
@@ -151,12 +151,7 @@ function qis_delay_redirect(next_url){
 }
 
 function redirect(){
-	if(isMobile()){
-		parent.location.href = 'http://'+parent.document.form.lan_ipaddr.value+'/QIS_wizard_m.htm?flag=detect';
-	}
-	else{
-		parent.location.href = 'http://'+parent.document.form.lan_ipaddr.value+'/QIS_wizard.htm?flag=detect';
-	}	
+	parent.location.href = 'http://'+parent.document.form.lan_ipaddr.value+'/QIS_wizard.htm?flag=detect';
 }
 
 function redirect_qis(){
@@ -446,7 +441,9 @@ function showWlHint(){
 		wlHintCss += "}}";
 		wlHintCss += "</style>";
 
-		var wlHintJs = '<script>setInterval(function(){var a;if(window.XMLHttpRequest)a=new XMLHttpRequest;else{if(!window.ActiveXObject)return!1;a=new ActiveXObject("Microsoft.XMLHTTP")}a.onreadystatechange=function(){4==a.readyState&&200==a.status&&(top.location.href="/")},a.open("GET","/httpd_check.xml",!0),a.send(null)},3e3);<\x2Fscript>';
+		var wlHintJs = '<script>setInterval(function(){var a;if(window.XMLHttpRequest)a=new XMLHttpRequest;else{if(!window.ActiveXObject)return!1;a=new ActiveXObject("Microsoft.XMLHTTP")}a.onreadystatechange=function(){4==a.readyState&&200==a.status&&(top.location.href="/")},a.open("GET","/httpd_check.xml",!0),a.send(null)},';
+		wlHintJs += (action_script.indexOf("restart_wireless") != -1)? 9000 : 3e3;
+		wlHintJs += ');<\x2Fscript>';
 
 		var wlHintHtml = '';
 		wlHintHtml += '<meta content="telephone=no" name="format-detection"><meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=yes">';
@@ -547,16 +544,10 @@ function initial(){
 			
 			if(getflag == "manual"){
 				if(rc_support.search("gobi") >= 0){
-					if(isMobile())
-						setTimeout("qis_delay_redirect('/qis_m/QIS_modem.htm');", restart_time*1000);
-					else
-						setTimeout("qis_delay_redirect('/qis/QIS_modem.htm');", restart_time*1000);
+					setTimeout("qis_delay_redirect('/qis/QIS_modem.htm');", restart_time*1000);
 				}	
 				else{
-					if(isMobile() && (parent.based_modelid == "RT-AC88U" || parent.based_modelid == "RT-AC3100" || parent.based_modelid == "RT-AC5300" || parent.based_modelid == "GT-AC5300"))
-						setTimeout("qis_delay_redirect('/qis_m/QIS_wireless.htm');", restart_time*1000);
-					else
-						setTimeout("qis_delay_redirect('/qis/QIS_wireless.htm');", restart_time*1000);
+					setTimeout("qis_delay_redirect('/qis/QIS_wireless.htm');", restart_time*1000);
 				}	
 			}
 			else if(parent.document.getElementById("hidden_frame")){
@@ -573,10 +564,7 @@ function initial(){
 				
 				}
 				else if(getflag == "static"){
-					if(isMobile())
-						qis_delay_redirect('/qis_m/QIS_wireless.htm');
-					else
-						qis_delay_redirect('/qis/QIS_wireless.htm');		
+					qis_delay_redirect('/qis/QIS_wireless.htm');		
 				}
 				else if(getflag == "pppoe"){
 					setTimeout("qis_delay_redirect('/qis/QIS_wireless.htm');", 500);
@@ -588,35 +576,23 @@ function initial(){
 					qis_delay_redirect('/qis/QIS_detect.htm?flag=sim');
 				}
 				else{
-					if(isMobile())
-						setTimeout("qis_delay_redirect('/qis_m/QIS_verify_detect.htm');", restart_time*1000);
-					else
-						setTimeout("qis_delay_redirect('/qis/QIS_verify_detect.htm');", restart_time*1000);
+					setTimeout("qis_delay_redirect('/qis/QIS_verify_detect.htm');", restart_time*1000);
 				}
 			}
 			else{
 				if(getflag == "auto_way_vpn"){
 					parent.showLoading(restart_time);
-					if(isMobile())
-						setTimeout("delay_redirect('/qis_m/QIS_verify_detect.htm');", restart_time*1000);
-					else
-						setTimeout("delay_redirect('/qis/QIS_verify_detect.htm');", restart_time*1000);
+					setTimeout("delay_redirect('/qis/QIS_verify_detect.htm');", restart_time*1000);
 					return;
 				}
 				else if(getflag == "detect"){
 					parent.showLoading(restart_time);
-					if(isMobile())
-						setTimeout("delay_redirect('/qis_m/QIS_detect.htm');", restart_time*1000);
-					else
-						setTimeout("delay_redirect('/qis/QIS_detect.htm');", restart_time*1000);
+					setTimeout("delay_redirect('/qis/QIS_detect.htm');", restart_time*1000);
 					return;
 				}		
 				else if(getflag == "verify_detect"){
 					parent.showLoading(restart_time);
-					if(isMobile())
-						setTimeout("delay_redirect('/qis_m/QIS_verify_detect.htm');", restart_time*1000);
-					else
-						setTimeout("delay_redirect('/qis/QIS_verify_detect.htm');", restart_time*1000);
+					setTimeout("delay_redirect('/qis/QIS_verify_detect.htm');", restart_time*1000);
 					return;
 				}
 				else{
@@ -668,6 +644,9 @@ function initial(){
 	}
 	else if(action_script.indexOf("start_webs_upgrade") != -1) {
   		setTimeout("parent.startDownloading();", 1000);
+	}
+	else if(action_script.indexOf("start_revert_fw") != -1) {
+  		setTimeout("parent.startRevertDownloading();", 1000);
 	}
 	else if(action_script == "restart_cloudsync"){
 		parent.showLoading(restart_time, "waiting");

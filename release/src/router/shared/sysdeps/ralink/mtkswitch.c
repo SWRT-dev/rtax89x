@@ -28,7 +28,11 @@
 #include <shutils.h>
 #include <shared.h>
 #include <utils.h>
+#if defined(RT4GAC86U)
+#include <linux/autoconf.h>
+#else
 #include <linux/config.h>
+#endif
 #include <ralink.h>
 #include "mtkswitch.h"
 
@@ -74,7 +78,7 @@ void switch_fini(void)
 	close(esw_fd);
 }
 
-#if defined(RTCONFIG_RALINK_MT7620)
+#if defined(RTCONFIG_RALINK_MT7620) || defined(RTCONFIG_RALINK_MT7622)
 int mt7620_reg_read(int offset, unsigned int *value)
 {
 	struct ifreq ifr;
@@ -187,7 +191,7 @@ static int find_vlan_slot(int vid, unsigned int *vawd1)
 #endif		
 		value = (0x0 << 12) + i; //read VAWD#
 		write_VTCR(value);
-#if defined(RTCONFIG_RALINK_MT7620)		
+#if defined(RTCONFIG_RALINK_MT7620)	|| defined(RTCONFIG_RALINK_MT7622)	
 		mt7620_reg_read(REG_ESW_VLAN_VAWD1, &value);
 		if ((vid <= 0 ) && v == (i + 1) && !(value & 1))	/* find available vlan slot */
 #endif		
@@ -218,7 +222,7 @@ static int find_vlan_slot(int vid, unsigned int *vawd1)
  *     -1:	no vlan entry available
  *     -2:	invalid parameter
  */
-#if defined(RTCONFIG_RALINK_MT7620)
+#if defined(RTCONFIG_RALINK_MT7620) || defined(RTCONFIG_RALINK_MT7622)
 int mt7620_vlan_set(int idx, int vid, char *portmap, int stag)
 #endif
 {
@@ -340,7 +344,7 @@ static void keep_vtag_on(int port)
 
 }
 
-#if defined(RTCONFIG_RALINK_MT7620)
+#if defined(RTCONFIG_RALINK_MT7620) || defined(RTCONFIG_RALINK_MT7622)
 int mt7620_ioctl(int val, int val2)
 #endif
 {

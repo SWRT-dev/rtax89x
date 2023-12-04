@@ -18,7 +18,7 @@ else
 	HTTP_VERSION=3.1.0.97
 	OPENSSL_VERSION=1.0.2j.v001
 endif
-else ifeq ($(or $(RTCONFIG_QCA),$(RTCONFIG_LANTIQ)),y)
+else ifeq ($(or $(RTCONFIG_QCA),$(RTCONFIG_LANTIQ),$(RTCONFIG_RALINK_MT7622),$(RTCONFIG_MT798X)),y)
 ifeq ($(RTCONFIG_NEW_APP_ARM),y)
 	pkg_type=arm
 	DM_VERSION=9.1.0.101
@@ -86,6 +86,11 @@ certs-install: certs/ca-bundle.crt
 install:
 	mkdir -p $(INSTALLDIR)
 	( tar --exclude=.svn --exclude=*.bak -cpf - rom bin ) | ( cd $(INSTALLDIR) && tar -xpf - )
+ifeq ($(RTCONFIG_DEBUG),y)
+	$(if $(or $(RTCONFIG_SOC_IPQ8064),$(RTCONFIG_SOC_IPQ8074)),install -m 0755 $(if $(filter y,$(MUSL64)),gdb.ipq807x.musl64,gdb.ipq806x) $(INSTALLDIR)/bin/gdb)
+	$(if $(RTCONFIG_MT798X),install -m 0755 gdb-10.1-arm64-musl $(INSTALLDIR)/bin/gdb)
+	$(if $(RTCONFIG_RALINK_MT7621),install -m 0755 gdb.mips-musl $(INSTALLDIR)/bin/gdb)
+endif
 
 	$(MAKE) certs-install
 ifeq ($(RTCONFIG_LETSENCRYPT),y)
@@ -139,6 +144,9 @@ endif
 endif
 
 	mkdir -p $(INSTALLDIR)/usr/sbin
+ifeq ($(RTCONFIG_RALINK_MT7622),y)
+	install -m 0755 apps_scripts/mtketh_reset.sh $(INSTALLDIR)/usr/sbin
+endif
 ifeq ($(RTCONFIG_USB),y)
 ifneq ($(APP),none)
 	install -m 0755 apps_scripts/asusrouter $(INSTALLDIR)/rom/.asusrouter
@@ -195,9 +203,7 @@ endif
 else
 ifeq ($(RTCONFIG_HTTPS),y)
 	cp -f webs_scripts/swrt_webs_upgrade.sh $(INSTALLDIR)/usr/sbin/webs_upgrade.sh
-ifeq ($(RTCONFIG_FBWIFI),y)
-	cp -f webs_scripts/fbwifi_webs_update.sh $(INSTALLDIR)/usr/sbin/webs_update.sh
-else ifeq ($(RTAC68A),y)
+ifeq ($(RTAC68A),y)
 	cp -f webs_scripts/force_webs_update.sh $(INSTALLDIR)/usr/sbin/webs_update.sh
 else ifeq ($(RTCONFIG_FRS_LIVE_UPDATE),y)
 	cp -f webs_scripts/frs_live_update.sh $(INSTALLDIR)/usr/sbin/webs_update.sh
@@ -213,6 +219,19 @@ endif
 
 ifeq ($(RTCONFIG_URLFW),y)
 	cp -f webs_scripts/urlfw_webs_upgrade.sh $(INSTALLDIR)/usr/sbin/webs_upgrade.sh
+endif
+ifeq ($(RTCONFIG_SINGLEIMG_B),y)
+	cp -f webs_scripts/fwupg_flashing2.sh $(INSTALLDIR)/usr/sbin/fwupg_flashing2.sh
+	cp -f webs_scripts/fwupg_create_tmprootfs.sh $(INSTALLDIR)/usr/sbin/fwupg_create_tmprootfs.sh
+endif
+
+ifeq ($(RTCONFIG_REVERTFW),y)
+	cp -f webs_scripts/ssl_revert_note.sh $(INSTALLDIR)/usr/sbin/revert_note.sh
+ifeq ($(RTCONFIG_URLFW),y)
+	cp -f webs_scripts/urlfw_revert_upgrade.sh $(INSTALLDIR)/usr/sbin/revert_upgrade.sh
+else
+	cp -f webs_scripts/ssl_revert_upgrade.sh $(INSTALLDIR)/usr/sbin/revert_upgrade.sh
+endif
 endif
 
 ifeq ($(RTAC68U),y)
@@ -303,6 +322,26 @@ ifeq ($(BUILD_NAME), RT-AX82U)
 	install -m 0755 dlna/icon_lrg.rt-ax82u_gd.jpg $(INSTALLDIR)/rom/dlna/icon_gd_lrg.jpg
 	install -m 0755 dlna/icon_lrg.rt-ax82u_gd.png $(INSTALLDIR)/rom/dlna/icon_gd_lrg.png
 endif
+ifeq ($(BUILD_NAME), RT-AX82U_V2)
+	install -m 0755 dlna/icon_sm.rt-ax82u_v2_gd.jpg $(INSTALLDIR)/rom/dlna/icon_gd_sm.jpg
+	install -m 0755 dlna/icon_sm.rt-ax82u_v2_gd.png $(INSTALLDIR)/rom/dlna/icon_gd_sm.png
+	install -m 0755 dlna/icon_lrg.rt-ax82u_v2_gd.jpg $(INSTALLDIR)/rom/dlna/icon_gd_lrg.jpg
+	install -m 0755 dlna/icon_lrg.rt-ax82u_v2_gd.png $(INSTALLDIR)/rom/dlna/icon_gd_lrg.png
+endif
+ifeq ($(BUILD_NAME), GTAX6000)
+	install -m 0755 dlna/icon_sm.gt-ax6000_eva.jpg $(INSTALLDIR)/rom/dlna/icon_eva_sm.jpg
+	install -m 0755 dlna/icon_sm.gt-ax6000_eva.png $(INSTALLDIR)/rom/dlna/icon_eva_sm.png
+	install -m 0755 dlna/icon_lrg.gt-ax6000_eva.jpg $(INSTALLDIR)/rom/dlna/icon_eva_lrg.jpg
+	install -m 0755 dlna/icon_lrg.gt-ax6000_eva.png $(INSTALLDIR)/rom/dlna/icon_eva_lrg.png
+endif
+ifeq ($(BUILD_NAME),TUF-AX4200)
+	# Non-default icon files
+	mkdir -p $(INSTALLDIR)/rom/dlna.TUF-AX4200Q
+	install -m 0755 dlna/icon_sm.tuf-ax4200q.jpg $(INSTALLDIR)/rom/dlna.TUF-AX4200Q/icon_sm.jpg
+	install -m 0755 dlna/icon_sm.tuf-ax4200q.png $(INSTALLDIR)/rom/dlna.TUF-AX4200Q/icon_sm.png
+	install -m 0755 dlna/icon_lrg.tuf-ax4200q.jpg $(INSTALLDIR)/rom/dlna.TUF-AX4200Q/icon_lrg.jpg
+	install -m 0755 dlna/icon_lrg.tuf-ax4200q.png $(INSTALLDIR)/rom/dlna.TUF-AX4200Q/icon_lrg.png
+endif
 ifeq ($(and $(LJPG),$(SJPG),$(LPNG),$(SPNG)),)
 	$(warning Add media server icon for $(BUILD_NAME) !!!!!!!!!!!!)
 else
@@ -344,6 +383,29 @@ endif
 
 ifeq ($(RTCONFIG_HND_ROUTER_AX_6756), y)
 	install -m 0755 apps_scripts/brcm_cled.sh $(INSTALLDIR)/usr/sbin
+endif
+
+ifeq ($(RTCONFIG_BCM_MFG), y)
+ifeq ($(BUILD_NAME), GT10)
+	mkdir -p $(INSTALLDIR)/rom/dhd/6715b0_mfg
+	install -m 0644 dhd/6715b0_mfg/GT10/rtecdc_17.10.188.6401.bin $(INSTALLDIR)/rom/dhd/6715b0_mfg/rtecdc.bin
+endif
+ifeq ($(BUILD_NAME), RT-AXE7800)
+	mkdir -p $(INSTALLDIR)/rom/dhd/6715b0_mfg
+	install -m 0644 dhd/6715b0_mfg/RT-AXE7800/rtecdc_17.10.188.6401.bin $(INSTALLDIR)/rom/dhd/6715b0_mfg/rtecdc.bin
+endif
+ifeq ($(BUILD_NAME), RT-AX82U_V2)
+	mkdir -p $(INSTALLDIR)/rom/dhd/6715b0_mfg
+	install -m 0644 dhd/6715b0_mfg/RT-AX82U_V2/rtecdc_17.10.188.6401.bin $(INSTALLDIR)/rom/dhd/6715b0_mfg/rtecdc.bin
+endif
+endif
+
+ifeq ($(RTCONFIG_FSMD),y)
+	sed '/#/d' ../.config > $(INSTALLDIR)/rom/rtconfig
+endif
+
+ifeq ($(RTAX86U), y)
+	install -m 0755 9873w_b0-b4.bin $(INSTALLDIR)/rom
 endif
 
 .PHONY: dummy

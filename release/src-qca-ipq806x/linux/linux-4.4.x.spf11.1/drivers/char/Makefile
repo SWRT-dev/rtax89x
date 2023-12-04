@@ -64,7 +64,6 @@ obj-$(CONFIG_JS_RTC)		+= js-rtc.o
 js-rtc-y = rtc.o
 
 obj-$(CONFIG_TILE_SROM)		+= tile-srom.o
-#obj-$(CONFIG_DIAG_CHAR)		+= diag/
 
 obj-$(CONFIG_RTL8370_SDK)	+= rtl8370.o
 rtl8370-objs := .objs/rtl8370.obj

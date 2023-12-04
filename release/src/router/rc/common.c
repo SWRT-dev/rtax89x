@@ -667,7 +667,12 @@ void setup_ct_timeout(int connflag)
 			if (scan_icmp_unreplied_conntrack() > 0)
 			{
 //				write_ct_timeout("generic", NULL, 0);
-				write_ct_timeout("icmp", NULL, 0);
+#if defined(RTCONFIG_DUALWAN)
+				if(nvram_get_int("wandog_enable"))
+					write_ct_timeout("icmp", NULL, 1);
+				else
+#endif
+					write_ct_timeout("icmp", NULL, 0);
 				sleep(2);
 			}
 		}
@@ -716,9 +721,6 @@ void setup_conntrack(void)
 	snprintf(p, sizeof(p), "%s", nvram_safe_get("ct_tcp_timeout"));
 	if (strcmp(p,"0 0 0 0 0 0 0 0 0 0") && sscanf(p, "%u%u%u%u%u%u%u%u%u%u",
 		&v[0], &v[1], &v[2], &v[3], &v[4], &v[5], &v[6], &v[7], &v[8], &v[9]) == 10) {	// lightly verify
-#if defined(RTCONFIG_HND_ROUTER_AX_675X)
-		fprintf(stderr, "ct_tcp_timeout:[%s]\n", p);
-#endif
 		write_tcp_timeout("established", v[1]);
 		write_tcp_timeout("syn_sent", v[2]);
 		write_tcp_timeout("syn_recv", v[3]);
@@ -746,9 +748,6 @@ void setup_conntrack(void)
 
 	snprintf(p, sizeof(p), "%s", nvram_safe_get("ct_timeout"));
 	if (strcmp(p,"0 0") && sscanf(p, "%u%u", &v[0], &v[1]) == 2) {
-#if defined(RTCONFIG_HND_ROUTER_AX_675X)
-		fprintf(stderr, "ct_timeout:[%s]\n", p);
-#endif
 //		write_ct_timeout("generic", NULL, v[0]);
 		write_ct_timeout("icmp", NULL, v[1]);
 	}
@@ -860,10 +859,14 @@ void setup_conntrack(void)
 		ct_modprobe_r("pptp");
 		ct_modprobe_r("proto_gre");
 	}
-#ifdef RTCONFIG_HND_ROUTER_AX_6756
+#if defined(RTCONFIG_HND_ROUTER_AX_6756) || defined(RTCONFIG_MT798X)
 	f_write_string("/proc/sys/net/netfilter/nf_conntrack_helper", "1", 0, 0);
 #endif
 
+#ifdef RTCONFIG_BCMARM
+	/* mark only out of window RST segments as INVALID */
+	f_write_string("/proc/sys/net/netfilter/nf_conntrack_tcp_be_liberal", "1", 0, 0);
+#endif
 }
 
 void setup_pt_conntrack(void)
@@ -1214,10 +1217,10 @@ const zoneinfo_t tz_list[] = {
         {"PST8DST",	"US/Pacific"},		// (GMT-08:00) Pacific Time (US & Canada)
         {"MST7DST_1",	"US/Mountain"},		// (GMT-07:00) Mountain Time (US & Canada)
         {"MST7_2",	"US/Arizona"},		// (GMT-07:00) Arizona
-	{"MST7DST_3",	"America/Chihuahua"},	// (GMT-07:00) Chihuahua, La Paz, Mazatlan
+	{"MST7_3",	"America/Mazatlan"},	// (GMT-07:00) La Paz, Mazatlan //MST7DST_3
         {"CST6_2",	"Canada/Saskatchewan"},	// (GMT-06:00) Saskatchewan
-        {"CST6DST_3",	"Mexico/General"},	// (GMT-06:00) Guadalajara, Mexico City
-        {"CST6DST_3_1",	"America/Monterrey"},	// (GMT-06:00) Monterrey
+        {"CST6_3",	"Mexico/General"},	// (GMT-06:00) Guadalajara, Mexico City
+        {"CST6_3_1",	"America/Monterrey"},	// (GMT-06:00) Monterreyi, Chihuahua
         {"UTC6DST",	"US/Central"},		// (GMT-06:00) Central Time (US & Canada)
         {"EST5DST",	"US/Eastern"},		// (GMT-05:00) Eastern Time (US & Canada)
         {"UTC5_1",	"US/East-Indiana"},	// (GMT-05:00) Indiana (East)    US Eastern
@@ -1228,8 +1231,9 @@ const zoneinfo_t tz_list[] = {
         {"UTC4DST_2",	"America/Santiago"},	// (GMT-04:00) Santiago
         {"NST3.30DST",	"Canada/Newfoundland"},	// (GMT-03:30) Newfoundland
         {"EBST3",	"America/Araguaina"},	// (GMT-03:00) Brasilia //EBST3DST_1
+	{"UTC3DST",	"America/Saint-Pierre-et-Miquelon"},	// (GMT-03:00) Saint Pierre	//UTC2DST
 	{"UTC3",	"America/Araguaina"},	// (GMT-03:00) Buenos Aires, Georgetown
-        {"EBST3DST_2",	"America/Godthab"},	// (GMT-03:00) Greenland
+        {"UTC2_1",	"America/Godthab"},	// (GMT-03:00) Greenland	//EBST3DST_2
         {"UTC2",	"Atlantic/South_Georgia"},	// (GMT-02:00) South Georgia
         {"EUT1DST",     "Atlantic/Azores"},	// (GMT-01:00) Azores
         {"UTC1",        "Atlantic/Cape_Verde"},	// (GMT-01:00) Cape Verde Is.
@@ -1262,7 +1266,7 @@ const zoneinfo_t tz_list[] = {
 	{"UTC-3_5",     "Europe/Volgograd"},    // (GMT+03:00) Volgograd        //UTC-4_7
         {"IST-3",       "Asia/Baghdad"},	// (GMT+03:00) Baghdad
         {"UTC-3_6",     "Asia/Istanbul"},	// (GMT+03:00) Istanbul
-        {"UTC-3.30DST", "Asia/Tehran"},		// (GMT+03:00) Tehran        
+        {"UTC-3.30",	"Asia/Tehran"},		// (GMT+03:00) Tehran       //UTC-3.30DST 
         {"UTC-4_1",     "Asia/Muscat"},		// (GMT+04:00) Abu Dhabi, Muscat
         {"UTC-4_5",     "Europe/Samara"},	// (GMT+04:00) Izhevsk, Samara
 	{"UTC-4_4",     "Asia/Tbilisi"},	// (GMT+04:00) Tbilisi, Yerevan
@@ -1302,7 +1306,7 @@ const zoneinfo_t tz_list[] = {
         {"UTC-11_1",    "Pacific/Noumea"},	// (GMT+11:00) New Caledonia
         {"UTC-11_3",    "Asia/Srednekolymsk"},	// (GMT+11:00) Chokurdakh, Srednekolymsk
 	{"UTC-12",      "Pacific/Majuro"},	// (GMT+12:00) Marshall IS.
-	{"UTC-12DST",	"Pacific/Fiji"},	// (GMT+12:00) Fiji
+	{"UTC-12_3",	"Pacific/Fiji"},	// (GMT+12:00) Fiji
 	{"UTC-12_2",	"Asia/Anadyr"},		// (GMT+12:00) Anadyr, Petropavlovsk-Kamchatsky
 	{"NZST-12DST",  "Pacific/Auckland"},	// (GMT+12:00) Auckland, Wellington
 	{"UTC-13",      "Pacific/Tongatapu"},	// (GMT+13:00) Nuku'alofa
@@ -1338,28 +1342,47 @@ void time_zone_x_mapping(void)
 #endif
 
 	/* pre mapping because time_zone area changed*/
-	if (nvram_match("time_zone", "KST-9KDT"))
+	if (nvram_match("time_zone", "UTC-3.30DST")){
+		nvram_set("time_zone", "UTC-3.30");               /*Tehran*/
+                nvram_set("time_zone_dst", "0");
+	}else if (nvram_match("time_zone", "MST7DST_3")){
+		nvram_set("time_zone", "MST7");               /*Mazatlan*/
+		nvram_set("time_zone_dst", "0");
+	}else if (nvram_match("time_zone", "EBST3DST_2")){
+		nvram_set("time_zone", "UTC2_1");		/*Greenland*/
+		nvram_set("time_zone_dst", "0");
+	}else if (nvram_match("time_zone", "UTC-12DST")){             /*Fiji*/
+                nvram_set("time_zone", "UTC-12_3");
+                nvram_set("time_zone_dst", "0");
+        }else if (nvram_match("time_zone", "CST6DST_3")){		/*Guadalajara, Mexico City*/
+		nvram_set("time_zone", "CST6_3");
+		nvram_set("time_zone_dst", "0");
+	}else if (nvram_match("time_zone", "CST6DST_3_1")){	/*Monterrey*/
+                nvram_set("time_zone", "CST6_3_1");
+		nvram_set("time_zone_dst", "0");
+	}
+	/*}else if (nvram_match("time_zone", "KST-9KDT"))
 		nvram_set("time_zone", "UCT-9_1");
 	else if (nvram_match("time_zone", "RFT-9RFTDST"))
 		nvram_set("time_zone", "UCT-9_2");
-	else if (nvram_match("time_zone", "UTC-2DST_1"))	/*Minsk*/
+	else if (nvram_match("time_zone", "UTC-2DST_1"))	//Minsk
 		nvram_set("time_zone", "UTC-3_3");
-	else if (nvram_match("time_zone", "UTC-4_2"))		/*Moscow, St. Petersburg*/
+	else if (nvram_match("time_zone", "UTC-4_2"))		//Moscow, St. Petersburg
 		nvram_set("time_zone", "UTC-3_4");
-	else if (nvram_match("time_zone", "UTC-4_3"))		/*Volgograd*/
+	else if (nvram_match("time_zone", "UTC-4_3"))		//Volgograd
 		nvram_set("time_zone", "UTC-3_5");
-	else if (nvram_match("time_zone", "UTC-6_1"))		/*Yekaterinburg*/
+	else if (nvram_match("time_zone", "UTC-6_1"))		//Yekaterinburg
 		nvram_set("time_zone", "UTC-5_1");
-	else if (nvram_match("time_zone", "UTC-7_1"))		/*Novosibirsk*/
+	else if (nvram_match("time_zone", "UTC-7_1"))		//Novosibirsk
 		nvram_set("time_zone", "UTC-6_2");
-	else if (nvram_match("time_zone", "CST-8_2"))		/*Krasnoyarsk*/
+	else if (nvram_match("time_zone", "CST-8_2"))		//Krasnoyarsk
 		nvram_set("time_zone", "CST-7_2");
-	else if (nvram_match("time_zone", "UTC-9_2"))		/*Irkutsk*/
+	else if (nvram_match("time_zone", "UTC-9_2"))		//Irkutsk
 		nvram_set("time_zone", "UTC-8_1");
-	else if (nvram_match("time_zone", "UTC-10_3"))		/*Yakutsk*/
+	else if (nvram_match("time_zone", "UTC-10_3"))		//Yakutsk
 		nvram_set("time_zone", "UTC-9_3");
-	else if (nvram_match("time_zone", "UTC-11_2"))		/*Vladivostok*/
-		nvram_set("time_zone", "UTC-10_4");
+	else if (nvram_match("time_zone", "UTC-11_2"))		//Vladivostok
+		nvram_set("time_zone", "UTC-10_4");*/	
 	else if (nvram_match("time_zone", "UTC-12_1"))          /*Magadan*/
 		nvram_set("time_zone", "UTC-10_6");
 	else if (nvram_match("time_zone", "UTC4.30"))		/*Caracas*/
@@ -1393,6 +1416,9 @@ void time_zone_x_mapping(void)
 	else if (nvram_match("time_zone", "UTC-6_2")){  /*Novosibirsk*/
 		nvram_set("time_zone", "UTC-7_3");
 	}
+	else if (nvram_match("time_zone", "UTC2DST")){	/*Saint-Pierre-et-Miquelon*/
+		nvram_set("time_zone", "UTC3DST");
+	}
 
 	len = snprintf(tmpstr, sizeof(tmpstr), "%s", nvram_safe_get("time_zone"));
 	/* replace . with : */
@@ -1405,7 +1431,9 @@ void time_zone_x_mapping(void)
 
 	/* check time_zone_dst for daylight saving */
 	if (nvram_get_int("time_zone_dst"))
+    {
 		len += sprintf(tmpstr + len, ",%s", nvram_safe_get("time_zone_dstoff"));
+    }        
 #ifdef CONVERT_TZ_TO_GMT_DST
 	else	gettzoffset(tmpstr, tmpstr, sizeof(tmpstr));
 #endif
@@ -1799,6 +1827,42 @@ void collect_debuglog(int type)
 		strlcat(cmd, buf, sizeof(cmd));
 		system(cmd);
 		delete_tmplog();
+	}
+}
+
+void remove_guillemets_form_str(char *str_in,int sizeofbuf)//sizeofbuf not strlen
+{
+	char *tmp;
+	int i,tmp_idx;
+	int len;
+
+	if(str_in == NULL)
+		return;
+
+	_dprintf("from [%s]\n",str_in);
+
+	len = sizeofbuf;
+
+	tmp=malloc(len+1);
+	if(tmp == NULL)
+	{ //make sure conn_diag will not crash
+		for(i=0;i<len;i++){
+			if(str_in[i]=='<' || str_in[i]=='>')
+				memset(str_in,0,len);
+		}
+		return;
+	} else {
+		tmp_idx=0;
+		//remove '<' or '>'
+		memset(tmp,0,len+1);
+		for(i=0;i<len;i++){
+			if(str_in[i]!='<' && str_in[i]!='>'){
+				tmp[tmp_idx] = str_in[i];
+				tmp_idx++;
+			}
+		}
+		strncpy(str_in,tmp,len);
+		_dprintf("to [%s]\n",str_in);
 	}
 }
 

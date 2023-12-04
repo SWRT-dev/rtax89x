@@ -1122,9 +1122,10 @@ typedef struct wl_po {
 #define	WLC_PHY_TYPE_NULL	0xf
 
 /* MAC list modes */
+/* follow ACL definition of platform WiFi driver. */
 #define WLC_MACMODE_DISABLED	0	/* MAC list disabled */
-#define WLC_MACMODE_DENY	1	/* Deny specified (i.e. allow unspecified) */
-#define WLC_MACMODE_ALLOW	2	/* Allow specified (i.e. deny unspecified) */
+#define WLC_MACMODE_ALLOW       1      /* Allow specified (i.e. deny unspecified) */
+#define WLC_MACMODE_DENY        2      /* Deny specified (i.e. allow unspecified) */
 
 /*
  *

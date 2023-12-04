@@ -1324,7 +1324,9 @@ function applyRule(v,s){
 	var url = "media_apply.cgi";
 		url += "?action_mode=" + v;
 		if(v=="DLNA_SETTING"){
-			url += "&dms_enable=" + dlna_enable + "&dms_dir_manual=" + dms_dir_manual_value + "&daapd_enable=" + daapd_enable + "&mediasever_path=" + encodeURIComponent(dms_dir_x_array) + "&path_type=" + dms_dir_type_x_array + "&friendly_name=" + encodeURIComponent(dms_friendly_name_value) + "&itunes_name=" + encodeURIComponent(daapd_friendly_name_value) +"&t="+Math.random();}
+			url =  "media_apply.cgi?"+base64encode("action_mode="+v);
+			var urlparameter = "&dms_enable=" + dlna_enable + "&dms_dir_manual=" + dms_dir_manual_value + "&daapd_enable=" + daapd_enable + "&mediasever_path=" + dms_dir_x_array + "&path_type=" + dms_dir_type_x_array + "&friendly_name=" + dms_friendly_name_value + "&itunes_name=" + daapd_friendly_name_value +"&t="+Math.random();
+	url = url + base64encode(urlparameter);}
 		//alert(url);
 		$j.get(url,function(data){location.reload();});
 
@@ -1333,6 +1335,44 @@ function applyRule(v,s){
 		success: function(data){location.reload();}
 		});*/
 }
+  var urlBase64EncodeChars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
+function base64encode(str){
+    var out, i, len;
+    var c1, c2, c3;
+    
+    var base64EncodeChars = urlBase64EncodeChars
+    len = str.length;
+    i = 0;
+    out = "";
+    while(i < len){
+      c1 = str.charCodeAt(i++) & 0xff;
+      
+      if(i == len){
+        out += base64EncodeChars.charAt(c1 >> 2);
+        out += base64EncodeChars.charAt((c1 & 0x3) << 4);
+        out += "==";
+        break;
+      }
+      
+      
+      c2 = str.charCodeAt(i++);
+
+      if(i == len){
+        out += base64EncodeChars.charAt(c1 >> 2);
+        out += base64EncodeChars.charAt(((c1 & 0x3) << 4) | ((c2 & 0xF0) >> 4));
+        out += base64EncodeChars.charAt((c2 & 0xF) << 2);
+        out += "=";
+        break;
+      }
+      
+      c3 = str.charCodeAt(i++);
+      out += base64EncodeChars.charAt(c1 >> 2);
+      out += base64EncodeChars.charAt(((c1 & 0x3) << 4) | ((c2 & 0xF0) >> 4));
+      out += base64EncodeChars.charAt(((c2 & 0xF) << 2) | ((c3 & 0xC0) >> 6));
+      out += base64EncodeChars.charAt(c3 & 0x3F);
+    }
+    return out;
+  }
 function cancel_folderTree(){
 	this.FromObject ="0";
 	$j("#folderTree_panel").fadeOut(300);

@@ -88,6 +88,8 @@ const int allowed_local_icmpv6[] =
 
 #ifdef RTCONFIG_VPN_FUSION
 extern int write_vpn_fusion_nat(FILE *fp, const char* lan_ip);
+extern int write_vpn_fusion_filter(FILE *fp, const char* lan_ip);
+extern int write_vpn_fusion_mangle();
 #endif
 
 char *mac_conv(char *mac_name, int idx, char *buf);	// oleg patch
@@ -95,6 +97,16 @@ char *mac_conv(char *mac_name, int idx, char *buf);	// oleg patch
 void write_porttrigger(FILE *fp, char *wan_if, int is_nat);
 #ifdef WEB_REDIRECT
 void redirect_setting();
+#endif
+
+#ifdef RTCONFIG_MULTILAN_CFG
+const char URL_FILTER_INPUT_CHAIN[] = "URLFI";
+const char URL_FILTER_FORWARD_CHAIN[] = "URLFF";
+const char NW_SERVICE_FILTER_FORWARD_CHAIN[] = "NWFF";
+const char SDN_FILTER_INPUT_CHAIN[] = "SDN_FI";
+const char SDN_FILTER_FORWARD_CHAIN[] = "SDN_FF";
+const char SDN_INTERNAL_ACCESS_CHAIN[] ="SDN_IA";
+const char SDN_NAT_POSTROUTING[] = "SDN_NP";
 #endif
 
 struct datetime{
@@ -196,17 +208,10 @@ int host_addr_info(const char *name, int af, struct sockaddr_storage *buf)
 	return (addrtypes & af);
 }
 
-#if defined(RTCONFIG_HND_ROUTER_AX_6756)
 static inline int host_addrtypes(const char *name, int af)
 {
 	return host_addr_info(name, af, NULL);
 }
-#else
-inline int host_addrtypes(const char *name, int af)
-{
-	return host_addr_info(name, af, NULL);
-}
-#endif
 
 int ipt_addr_compact(const char *s, int af, int strict)
 {
@@ -255,7 +260,7 @@ void nvram_unsets(char *name, int count)
 }
 */
 
-static int addr_type_parse(const char *src, char *dst, int size)
+int addr_type_parse(const char *src, char *dst, int size)
 {
 	char addr[100], *next = addr;
 	struct in_addr min_addr, max_addr;
@@ -934,7 +939,7 @@ int timematch_conv2(char *mstr, int mstr_size, char *nv_date, char *nv_time, cha
 				snprintf(mstr, mstr_size, "%s", buf);
 			else {
 				snprintf(mstr2, sizeof(mstr2), "%s>%s", mstr, buf); // add ">"
-				strlcpy(mstr, mstr2, sizeof(mstr2));
+				strlcpy(mstr, mstr2, mstr_size);
 			}
 		}
 
@@ -957,6 +962,9 @@ char *iprange_ex_conv(char *ip, char *buf)
 	int mask;
 
 	strcpy(buf, "");
+
+	if (!ip || (ip && (strchr(ip, ':') || strchr(ip, '/') || strlen(ip) > INET_ADDRSTRLEN)))
+		return ip;
 
 	//printf("## iprange_ex_conv: %s, %d, %s\n", ip_name, idx, ip);	// tmp test
 	// scan all ip string
@@ -1549,7 +1557,7 @@ void write_port_forwarding(FILE *fp, char *config, char *lan_ip, char *lan_if)
 		}
 	}
 #endif	/* RTCONFIG_MULTIWAN_CFG */
-#if defined(RTAX56_XD4) || defined(XD4PRO) || defined(RTAC59_CD6N) || defined(PLAX56_XP4)
+#if defined(RTAX56_XD4) || defined(XD4PRO) || defined(RTAC59_CD6N) || defined(PLAX56_XP4) || defined(XC5)
 #if defined(PLAX56_XP4)
 	if(nvram_match("HwId", "B") || nvram_match("HwId", "D"))
 #endif // XP4
@@ -1566,6 +1574,9 @@ void nat_setting(char *wan_if, char *wan_ip, char *wanx_if, char *wanx_ip, char 
 #ifdef RTCONFIG_MULTIWAN_CFG
 	int wanx_rules = 0;
 #endif
+#ifdef RTCONFIG_SOFTWIRE46
+	char wan_prefix[16];
+#endif
 #ifdef RTCONFIG_TOR
 	char addr_new[32];
 	int addr_type;
@@ -1581,17 +1592,22 @@ void nat_setting(char *wan_if, char *wan_ip, char *wanx_if, char *wanx_ip, char 
 	gst.s_addr = htonl(dip);
 	strcpy(g_lan_ip, inet_ntoa(gst));
 #endif
-#ifdef RTCONFIG_MULTISERVICE_WAN
+
 	wan_unit = wan_ifunit(wan_if);
+
+#ifdef RTCONFIG_MULTISERVICE_WAN
 	if (wan_unit > WAN_UNIT_MULTISRV_BASE) return;
 #endif
-
 #ifdef RTCONFIG_IPV6
 #if defined(RTCONFIG_OPENVPN) || defined(RTCONFIG_WIREGUARD)
 	if (ipv6_enabled()) {
 		eval("ip6tables", "-t", "nat", "-F");
 	}
 #endif
+#endif
+
+#ifdef RTCONFIG_SOFTWIRE46
+	snprintf(wan_prefix, sizeof(wan_prefix), "wan%d_", wan_unit);
 #endif
 
 	sprintf(name, "%s_%s_%s", NAT_RULES, wan_if, wanx_if);
@@ -1640,6 +1656,10 @@ void nat_setting(char *wan_if, char *wan_ip, char *wanx_if, char *wanx_ip, char 
 
 	_dprintf("writting prerouting %s %s %s %s %s %s\n", wan_if, wan_ip, wanx_if, wanx_ip, lan_if, lan_ip);
 
+#if defined(RTCONFIG_SWITCH_QCA8075_QCA8337_PHY_AQR107_AR8035_QCA8033)
+	add_nat_rule_for_gpon_sfp_module(fp);
+#endif
+
 	//Log
 	//if (nvram_match("misc_natlog_x", "1"))
 	// 	fprintf(fp, "-A PREROUTING -i %s -j LOG --log-prefix ALERT --log-level 4\n", wan_if);
@@ -1670,13 +1690,11 @@ void nat_setting(char *wan_if, char *wan_ip, char *wanx_if, char *wanx_ip, char 
 			char *nv, *nvp, *item, *nextp, *ptr;
 			char proto[16], *next;
 		case WAN_V6PLUS:
-			if (nvram_get_int("s46_hgw_case") == S46_CASE_MAP_HGW_ON)
+			if (nvram_pf_get_int(wan_prefix, "s46_hgw_case") <= S46_CASE_MAP_HGW_ON)
 				break;
-		case WAN_LW4O6:
-		case WAN_MAPE:
 			fprintf(fp, "-A PREROUTING -i %s -d %s -j MAPE\n", lan_if, wan_ip);
 			foreach(proto, "tcp udp", next) {
-				nvp = nv = strdup(nvram_safe_get("ipv6_s46_ports"));
+				nvp = nv = strdup(nvram_safe_get(ipv6_nvname_by_unit("ipv6_s46_ports", wan_unit)));
 				for (item = strtok_r(nvp, " ", &nextp); item; item = strtok_r(NULL, " ", &nextp)) {
 					ptr = strchr(item, '-');
 					if (ptr)
@@ -1734,7 +1752,7 @@ void nat_setting(char *wan_if, char *wan_ip, char *wanx_if, char *wanx_ip, char 
 #endif
 
 #ifdef RTCONFIG_DNSFILTER
-	dnsfilter_settings(fp, lan_ip);
+	dnsfilter_settings(fp);
 #endif
 
 #ifdef RTCONFIG_PARENTALCTRL
@@ -1758,13 +1776,31 @@ void nat_setting(char *wan_if, char *wan_ip, char *wanx_if, char *wanx_ip, char 
 	/* ASUSWRT Parental Control */
 	pc_s *pc_list = NULL;
 	int pc_count;
+	int pc_count2;
 
 	get_all_pc_list(&pc_list);
 	pc_count = count_pc_rules(pc_list, 1);
+	pc_count2 = count_pc_rules(pc_list, 2);
 	free_pc_list(&pc_list);
 	pc_list = NULL;
 
-	if(nvram_get_int("MULTIFILTER_ALL") != 0 && pc_count > 0){
+#ifdef RTCONFIG_PC_REWARD
+	if((nvram_get_int("MULTIFILTER_ALL") != 0 && pc_count > 0)
+		|| (nvram_get_int("MULTIFILTER_ALL") != 0 && pc_count2 > 0)
+		){
+		config_pc_reward_redirect(fp);
+	}
+#endif
+
+	/* pc_block - 20220615
+		1. time-scheduling - BLOCK ALL DEVICES
+		2. time-scheduling - BLOCK
+		3. time-scheduling - TIME
+	*/
+	if (nvram_get_int("MULTIFILTER_BLOCK_ALL") == 1
+		|| (nvram_get_int("MULTIFILTER_ALL") != 0 && pc_count2 > 0)
+		|| (nvram_get_int("MULTIFILTER_ALL") != 0 && pc_count > 0)
+		) {
 		config_blocking_redirect(fp);
 	}
 #endif
@@ -1887,13 +1923,14 @@ void nat_setting(char *wan_if, char *wan_ip, char *wanx_if, char *wanx_ip, char 
 				char proto[16], *next;
 				int offset, psidlen, psid;
 			case WAN_V6PLUS:
-				if (nvram_get_int("s46_hgw_case") == S46_CASE_MAP_HGW_ON)
+			case WAN_OCNVC:
+				if (nvram_pf_get_int(wan_prefix, "s46_hgw_case") == S46_CASE_MAP_HGW_ON)
 					break;
 			case WAN_LW4O6:
 			case WAN_MAPE:
-				offset = nvram_get_int(ipv6_nvname("ipv6_s46_offset")) ? : 6;
-				psidlen = nvram_get_int(ipv6_nvname("ipv6_s46_psidlen"));
-				psid = nvram_get_int(ipv6_nvname("ipv6_s46_psid"));
+				offset = nvram_get_int(ipv6_nvname_by_unit("ipv6_s46_offset", wan_unit)) ? : 6;
+				psidlen = nvram_get_int(ipv6_nvname_by_unit("ipv6_s46_psidlen", wan_unit));
+				psid = nvram_get_int(ipv6_nvname_by_unit("ipv6_s46_psid", wan_unit));
 				if (offset < 0 || psidlen < 0 || psid < 0 ||
 				    offset + psidlen == 0 || offset + psidlen > 16)
 					break;
@@ -2000,7 +2037,6 @@ void nat_setting(char *wan_if, char *wan_ip, char *wanx_if, char *wanx_ip, char 
 	unlink(NAT_RULES);
 	symlink(name, NAT_RULES);
 
-	wan_unit = wan_ifunit(wan_if);
 	if(is_phy_connect2(wan_unit)){
 		/* force nat update */
 		nvram_set_int("nat_state", NAT_STATE_UPDATE);
@@ -2101,9 +2137,17 @@ void nat_setting2(char *lan_if, char *lan_ip, char *logaccept, char *logdrop)	//
 					":CLIENT_TO_INTERNET - [0:0]\n");
 			}
 #endif
+#ifdef RTCONFIG_VPN_FUSION
+			fprintf(fp,
+				":VPN_FUSION - [0:0]\n");
+#endif
 		}
 
 		_dprintf("writting prerouting 2 %s %s %s %s %s %s\n", wan_if, wan_ip, wanx_if, wanx_ip, lan_if, lan_ip);
+
+#if defined(RTCONFIG_SWITCH_QCA8075_QCA8337_PHY_AQR107_AR8035_QCA8033)
+		add_nat_rule_for_gpon_sfp_module(fp);
+#endif
 
 		//Log
 		//if (nvram_match("misc_natlog_x", "1"))
@@ -2175,15 +2219,22 @@ void nat_setting2(char *lan_if, char *lan_ip, char *logaccept, char *logdrop)	//
 				":CLIENT_TO_INTERNET - [0:0]\n");
 		}
 #endif
+#ifdef RTCONFIG_VPN_FUSION
+		fprintf(fp,
+				":VPN_FUSION - [0:0]\n");
+#endif
 	}
 
+#ifdef RTCONFIG_VPN_FUSION
+        write_vpn_fusion_nat(fp, lan_ip);
+#endif
 #ifdef RTCONFIG_YANDEXDNS
 	if (nvram_get_int("yadns_enable_x"))
 		write_yandexdns_filter(fp, lan_if, lan_ip);
 #endif
 
 #ifdef RTCONFIG_DNSFILTER
-	dnsfilter_settings(fp, lan_ip);
+	dnsfilter_settings(fp);
 #endif
 
 #ifdef RTCONFIG_PARENTALCTRL
@@ -2207,13 +2258,31 @@ void nat_setting2(char *lan_if, char *lan_ip, char *logaccept, char *logdrop)	//
 	/* ASUSWRT Parental Control */
 	pc_s *pc_list = NULL;
 	int pc_count;
+	int pc_count2;
 
 	get_all_pc_list(&pc_list);
 	pc_count = count_pc_rules(pc_list, 1);
+	pc_count2 = count_pc_rules(pc_list, 2);
 	free_pc_list(&pc_list);
 	pc_list = NULL;
 
-	if(nvram_get_int("MULTIFILTER_ALL") != 0 && pc_count > 0){
+#ifdef RTCONFIG_PC_REWARD
+	if((nvram_get_int("MULTIFILTER_ALL") != 0 && pc_count > 0)
+		|| (nvram_get_int("MULTIFILTER_ALL") != 0 && pc_count2 > 0)
+		){
+		config_pc_reward_redirect(fp);
+	}
+#endif
+
+	/* pc_block - 20220615
+		1. time-scheduling - BLOCK ALL DEVICES
+		2. time-scheduling - BLOCK
+		3. time-scheduling - TIME
+	*/
+	if (nvram_get_int("MULTIFILTER_BLOCK_ALL") == 1
+		|| (nvram_get_int("MULTIFILTER_ALL") != 0 && pc_count2 > 0)
+		|| (nvram_get_int("MULTIFILTER_ALL") != 0 && pc_count > 0)
+		) {
 		config_blocking_redirect(fp);
 	}
 #endif
@@ -2559,6 +2628,10 @@ void redirect_setting(void)
 #endif
 	}
 
+#if defined(RTCONFIG_SWITCH_QCA8075_QCA8337_PHY_AQR107_AR8035_QCA8033)
+	add_nat_rule_for_gpon_sfp_module(redirect_fp);
+#endif
+
 	fprintf(redirect_fp,
 		"-A PREROUTING ! -d %s -p tcp --dport 80 -j DNAT --to-destination %s:18017\n"
 		"-A PREROUTING -p udp --dport 53 -j DNAT --to-destination %s:18018\n",
@@ -2575,7 +2648,7 @@ void redirect_setting(void)
 	}
 #endif
 
-#if defined(RTAX56_XD4) || defined(XD4PRO) || defined(RTAC59_CD6N) || defined(PLAX56_XP4)
+#if defined(RTAX56_XD4) || defined(XD4PRO) || defined(RTAC59_CD6N) || defined(PLAX56_XP4) || defined(XC5)
 #if defined(PLAX56_XP4)
 	if(nvram_match("HwId", "B") || nvram_match("HwId", "D"))
 #endif // XP4
@@ -2691,7 +2764,7 @@ start_default_filter(int lanunit)
 	char *nv, *nvp, *b;
 	char *enable, *srcip, *accessType;
 	char *lan_if = nvram_safe_get("lan_ifname");
-	int evalRet;
+	int evalRet, n;
 
 	if (!is_routing_enabled())
 		return;
@@ -2708,6 +2781,10 @@ start_default_filter(int lanunit)
 #ifdef RTCONFIG_PROTECTION_SERVER
 	fprintf(fp, ":%sWAN - [0:0]\n", PROTECT_SRV_RULE_CHAIN);
 	fprintf(fp, ":%sLAN - [0:0]\n", PROTECT_SRV_RULE_CHAIN);
+#endif
+
+#if defined(RTCONFIG_SWITCH_QCA8075_QCA8337_PHY_AQR107_AR8035_QCA8033)
+	add_filter_rule_for_gpon_sfp_module(fp);
 #endif
 
 #ifdef RTCONFIG_RESTRICT_GUI
@@ -2902,6 +2979,26 @@ start_default_filter(int lanunit)
 		fprintf(fp, "-A INPUT -m state --state INVALID -j DROP\n");
 		fprintf(fp, "-A INPUT -i %s -m state --state NEW -j ACCEPT\n", lan_if);
 		fprintf(fp, "-A INPUT -i %s -m state --state NEW -j ACCEPT\n", "lo");
+
+#ifdef RTCONFIG_SOFTWIRE46
+		if (!strncmp(nvram_safe_get("territory_code"), "JP", 2)) {
+			fprintf(fp, "-A INPUT -i %s -j ACCEPT\n", lan_if);
+			fprintf(fp, "-A INPUT -i lo -j ACCEPT\n");
+			switch (get_ipv6_service()) {
+#ifdef RTCONFIG_6RELAYD
+			case IPV6_PASSTHROUGH:
+#endif
+			case IPV6_NATIVE_DHCP:
+				/* allow responses from the dhcpv6 server */
+				fprintf(fp, "-A INPUT -p udp --sport 547 --dport 546 -j ACCEPT\n");
+				break;
+			}
+			for (n = 0; n < sizeof(allowed_local_icmpv6)/sizeof(int); n++) {
+				fprintf(fp, "-A INPUT -p ipv6-icmp --icmpv6-type %i -j ACCEPT\n", allowed_local_icmpv6[n]);
+			}
+		}
+#endif
+
 		//fprintf(fp, "-A FORWARD -m state --state INVALID -j DROP\n");
 		fprintf(fp, "-A FORWARD -m state --state ESTABLISHED,RELATED -j ACCEPT\n");
 		fprintf(fp, "-A FORWARD -i %s -o %s -j ACCEPT\n", lan_if, lan_if);
@@ -3011,6 +3108,7 @@ int makeTimestr_content(char *tf, int size)
 }
 #endif
 
+#ifndef RTCONFIG_MULTILAN_CFG
 #ifdef WEBSTRFILTER
 #ifdef RTCONFIG_IPV6
 void write_UrlFilter(char *chain, char *lan_if, char *lan_ip, char *logdrop, FILE *fp, FILE *fp_ipv6)
@@ -3083,7 +3181,7 @@ void write_UrlFilter(char *chain, char *lan_if, char *lan_ip, char *logdrop, FIL
 							continue;
 					}
 
-					snprintf(list2, sizeof(list2), "%s|%02x|%s", list, strlen(p), p);
+					snprintf(list2, sizeof(list2), "%s|%02x|%s", list, (unsigned int)strlen(p), p);
 					strlcpy(list, list2, sizeof(list));
 				}
 
@@ -3124,7 +3222,7 @@ void write_UrlFilter(char *chain, char *lan_if, char *lan_ip, char *logdrop, FIL
 								continue;
 						}
 
-						snprintf(list2, sizeof(list2), "%s|%02x|%s", list, strlen(p), p);
+						snprintf(list2, sizeof(list2), "%s|%02x|%s", list, (unsigned int)strlen(p), p);
 						strlcpy(list, list2, sizeof(list));
 					}
 
@@ -3158,6 +3256,7 @@ void write_UrlFilter(char *chain, char *lan_if, char *lan_ip, char *logdrop, FIL
 #endif
 	}
 }
+#endif
 #endif
 
 /**
@@ -3213,13 +3312,15 @@ void allow_sroutes(FILE *fp)
 	__allow_sroutes(fp, "lan_", "route", nvram_get("lan_ifname"), nvram_get("lan_ipaddr"), nvram_get("lan_netmask"));
 }
 
-#if defined(RTCONFIG_HND_ROUTER_AX_6756) && \
+#if (defined(RTCONFIG_HND_ROUTER_AX_6756) || defined(RTCONFIG_MT798X)) && \
     (defined(RTCONFIG_VPNC) || defined(RTCONFIG_VPN_FUSION))
 int enable_gre_workaround(FILE *fp)
 {
 	fprintf(fp, "-A INPUT -p gre -j ACCEPT\n");
 	return 0;
 }
+#else
+static inline int enable_gre_workaround(FILE *fp) { return 0; }
 #endif
 
 #if defined(RTCONFIG_SOC_IPQ8074) && \
@@ -3245,6 +3346,49 @@ int enable_gre_for_ecm(int unit, FILE *fp)
 #else
 static inline int enable_gre_for_ecm(int unit, FILE *fp) { return 0; }
 #endif
+
+#if defined(RTCONFIG_MT798X)
+int enable_l2tp_workaround(FILE *fp)
+{
+	fprintf(fp, "-A INPUT -p udp --dport %d -j ACCEPT\n", 1701);
+	return 0;
+}
+#else
+static inline int enable_l2tp_workaround(FILE *fp) { return 0; }
+#endif
+
+#ifdef RTCONFIG_IPSEC
+void ipsec_intranet_access_FORWARD(FILE *fp, char *lan_ip)
+{
+	char name[] = {"ipsec_profile_1"};
+	char virtual_subnet[32] = {0};
+
+	if(nvram_match("ipsec_block_intranet", "1"))
+	{
+		if(fp && lan_ip && (strlen(lan_ip) > 0))
+		{
+			/*
+			**	iptables -t filter -A IPSEC_DROP_SUBNET_ICMP -s 10.10.10.0/24 -d 192.168.50.0/24 -j DROP
+			*/
+			get_virtual_subnet(name, virtual_subnet, sizeof(virtual_subnet));
+			if(strlen(virtual_subnet) > 0)
+			{
+				fprintf(fp, "-A IPSEC_DROP_SUBNET_ICMP -s %s.0/24 -d %s/24 -j DROP\n", virtual_subnet, lan_ip);
+			}
+			else
+			{
+				logmessage("firewall", "[%s]Failed to parse virtual subnet from %s\n", __FUNCTION__, name);
+				_dprintf("[firewall][%s]Failed to parse virtual subnet from %s\n", __FUNCTION__, name);
+			}
+		}
+		else
+		{
+			logmessage("firewall", "[%s]Null pointer or empty lan IP.\n", __FUNCTION__);
+			_dprintf("[firewall][%s]Null pointer or empty lan IP.\n", __FUNCTION__);
+		}
+	}
+}
+#endif /* RTCONFIG_IPSEC */
 
 void
 filter_setting(int wan_unit, char *lan_if, char *lan_ip, char *logaccept, char *logdrop)
@@ -3272,13 +3416,8 @@ filter_setting(int wan_unit, char *lan_if, char *lan_ip, char *logaccept, char *
 	char timef[256], *filterstr;
 #endif
 //2008.09 magic}
-//#if defined(RTCONFIG_QCA)
 	char wan_if[16]={0}, wan_ip[16]={0};
 	char wanx_if[16]={0}, wanx_ip[16]={0};
-//#else
-//	char *wan_if, *wan_ip;
-//	char *wanx_if, *wanx_ip;
-//#endif	
 #ifdef RTCONFIG_WIFI_SON
 	char lan_class[32];
 
@@ -3289,19 +3428,11 @@ filter_setting(int wan_unit, char *lan_if, char *lan_ip, char *logaccept, char *
 	snprintf(prefix, sizeof(prefix), "wan%d_", wan_unit);
 
 	wan_proto = get_wan_proto(prefix);
-//#if defined(RTCONFIG_QCA)
+
 	snprintf(wan_if, sizeof(wan_if), "%s", get_wan_ifname(wan_unit));
 	if(!strlen(wan_if))
 		snprintf(wan_if, sizeof(wan_if), "%s", nvram_safe_get(strcat_r(prefix, "ifname", tmp)));
 	snprintf(wanx_if, sizeof(wanx_if), "%s", get_wanx_ifname(wan_unit));
-//#else
-//	wan_if = get_wan_ifname(wan_unit);
-//	if (*wan_if == '\0')
-//		wan_if = nvram_safe_get(strcat_r(prefix, "ifname", tmp));
-//	wanx_if = get_wanx_ifname(wan_unit);
-//#endif	
-	//wan_ip = nvram_safe_get(strcat_r(prefix, "ipaddr", tmp));
-	//wanx_ip = nvram_safe_get(strcat_r(prefix, "xipaddr", tmp));
 	snprintf(wan_ip, sizeof(wan_ip), "%s", nvram_safe_get(strcat_r(prefix, "ipaddr", tmp)));
 	snprintf(wanx_ip, sizeof(wanx_ip), "%s", nvram_safe_get(strcat_r(prefix, "xipaddr", tmp)));
 
@@ -3334,8 +3465,21 @@ filter_setting(int wan_unit, char *lan_if, char *lan_ip, char *logaccept, char *
 	    ":WGNPControls - [0:0]\n"
 	    ":PControls - [0:0]\n"
 #endif
+#ifdef RTCONFIG_TIME_QUOTA
+	    ":TIME_QUOTA - [0:0]\n"
+#endif
 #if defined(WEB_REDIRECT)
 	    ":default_block - [0:0]\n"
+#endif
+#ifdef RTCONFIG_IPSEC
+		":IPSEC_DROP_SUBNET_ICMP - [0:0]\n"
+		":IPSEC_STRONGSWAN - [0:0]\n"
+#endif /* RTCONFIG_IPSEC */
+#ifdef RTCONFIG_WIREGUARD
+	    ":WGSI - [0:0]\n"
+	    ":WGSF - [0:0]\n"
+	    ":WGCI - [0:0]\n"
+	    ":WGCF - [0:0]\n"
 #endif
 #ifdef RTCONFIG_OPENVPN
 	    ":OVPNSI - [0:0]\n"
@@ -3343,9 +3487,26 @@ filter_setting(int wan_unit, char *lan_if, char *lan_ip, char *logaccept, char *
 	    ":OVPNCI - [0:0]\n"
 	    ":OVPNCF - [0:0]\n"
 #endif
-
+#ifdef RTCONFIG_GRE
+		":GREF - [0:0]\n"
+		":GREI - [0:0]\n"
+#endif
+#ifdef RTCONFIG_VPNC
+		":VPNCF - [0:0]\n"
+		":VPNCI - [0:0]\n"
+#endif
 	    ":logaccept - [0:0]\n"
 	    ":logdrop - [0:0]\n");
+#ifdef RTCONFIG_MULTILAN_CFG
+	fprintf(fp, ":%s - [0:0]\n"":%s - [0:0]\n"":%s - [0:0]\n",
+		SDN_FILTER_INPUT_CHAIN, SDN_FILTER_FORWARD_CHAIN, SDN_INTERNAL_ACCESS_CHAIN);
+	fprintf(fp, ":%s - [0:0]\n"":%s - [0:0]\n",
+		URL_FILTER_INPUT_CHAIN, URL_FILTER_FORWARD_CHAIN);
+	fprintf(fp, ":%s - [0:0]\n", NW_SERVICE_FILTER_FORWARD_CHAIN);
+#ifdef RTCONFIG_IPSEC
+	fprintf(fp, ":%s - [0:0]\n", IPSEC_SRV_SDN_F_CHAIN);
+#endif
+#endif
 
 #ifdef RTCONFIG_PROTECTION_SERVER
 	fprintf(fp, ":%sWAN - [0:0]\n", PROTECT_SRV_RULE_CHAIN);
@@ -3368,18 +3529,55 @@ filter_setting(int wan_unit, char *lan_if, char *lan_ip, char *logaccept, char *
 		    ":WGNPControls - [0:0]\n"
 		    ":PControls - [0:0]\n"
 #endif
+#ifdef RTCONFIG_TIME_QUOTA
+		    ":TIME_QUOTA - [0:0]\n"
+#endif
+#ifdef RTCONFIG_WIREGUARD
+		    ":WGSI - [0:0]\n"
+		    ":WGSF - [0:0]\n"
+		    ":WGCI - [0:0]\n"
+		    ":WGCF - [0:0]\n"
+#endif
 #ifdef RTCONFIG_OPENVPN
 		    ":OVPNSI - [0:0]\n"
 		    ":OVPNSF - [0:0]\n"
 		    ":OVPNCI - [0:0]\n"
 		    ":OVPNCF - [0:0]\n"
 #endif
+#ifdef RTCONFIG_GRE
+			":GREF - [0:0]\n"
+			":GREI - [0:0]\n"
+#endif
+#ifdef RTCONFIG_VPNC
+			":VPNCF - [0:0]\n"
+			":VPNCI - [0:0]\n"
+#endif
 		    ":ICMP_V6 - [0:0]\n"
 		    ":ICMP_V6_LOCAL - [0:0]\n"
 		    ":logaccept - [0:0]\n"
 		    ":logdrop - [0:0]\n",
 		nvram_match("ipv6_fw_enable", "1") ? "DROP" : "ACCEPT");
+#ifdef RTCONFIG_MULTILAN_CFG
+		fprintf(fp_ipv6, ":%s - [0:0]\n"":%s - [0:0]\n"":%s - [0:0]\n",
+			SDN_FILTER_INPUT_CHAIN, SDN_FILTER_FORWARD_CHAIN, SDN_INTERNAL_ACCESS_CHAIN);
+		fprintf(fp_ipv6, ":%s - [0:0]\n"":%s - [0:0]\n",
+			URL_FILTER_INPUT_CHAIN, URL_FILTER_FORWARD_CHAIN);
+		fprintf(fp_ipv6, ":%s - [0:0]\n", NW_SERVICE_FILTER_FORWARD_CHAIN);
+#endif
 	}
+#endif
+
+#ifdef RTCONFIG_IPSEC
+	/* Thesys should be the first two rules for FORWARD chain. */
+	fprintf(fp, "-A FORWARD -j IPSEC_DROP_SUBNET_ICMP\n");
+#ifdef RTCONFIG_MULTILAN_CFG
+	fprintf(fp, "-A FORWARD -j %s\n", IPSEC_SRV_SDN_F_CHAIN);
+#endif
+	fprintf(fp, "-A FORWARD -j IPSEC_STRONGSWAN\n");
+#endif /* RTCONFIG_IPSEC */
+
+#if defined(RTCONFIG_SWITCH_QCA8075_QCA8337_PHY_AQR107_AR8035_QCA8033)
+	add_filter_rule_for_gpon_sfp_module(fp);
 #endif
 
 #if defined(WEB_REDIRECT)
@@ -3392,11 +3590,7 @@ filter_setting(int wan_unit, char *lan_if, char *lan_ip, char *logaccept, char *
 	if (is_nat_enabled() && nvram_match("x_Setting", "0") &&
 			!find_word(nvram_safe_get("rc_support"), "defpsk"))
 	{
-#if defined(RTCONFIG_QCA)	
-		if(strlen(wan_if)){
-#else		
 		if (*wan_if) {
-#endif
 			/* Block all TCP ports, except 80 and 443. */
 			fprintf(fp,
 				"-A default_block -o %s -p tcp --dport 80 -j %s\n"
@@ -3452,6 +3646,25 @@ TRACE_PT("writing Internet Control\n");
 #endif
 
 #ifdef RTCONFIG_PARENTALCTRL
+#ifdef RTCONFIG_PC_REWARD
+	pc_s *pc_reward_list = NULL;
+	int pc_reward_count;
+
+	/* Parental Control Reward */
+	get_all_pc_reward_list(&pc_reward_list);
+	pc_reward_count = count_pc_rules(pc_reward_list, 1);
+	if (pc_reward_count > 0) {
+TRACE_PT("writing Reward Parental Control\n");
+		config_pc_reward_string(pc_reward_list, fp);
+
+#ifdef RTCONFIG_IPV6
+		if (ipv6_enabled()){
+			config_pc_reward_string(pc_reward_list, fp_ipv6);
+		}
+#endif
+	}
+	free_pc_list(&pc_reward_list);
+#endif //#ifdef RTCONFIG_PC_REWARD
 	pc_s *pc_list = NULL;
 	int pc_count;
 
@@ -3594,10 +3807,25 @@ TRACE_PT("writing Parental Control\n");
 		}
 #endif
 
+#ifdef RTCONFIG_VPN_FUSION
+        write_vpn_fusion_filter(fp, lan_ip);
+#endif
+
+#ifdef RTCONFIG_MULTILAN_CFG
+	fprintf(fp, "-I INPUT -p udp --dport 53  -j %s\n", URL_FILTER_INPUT_CHAIN);
+#ifdef RTCONFIG_IPV6
+	if (ipv6_enabled())
+	{
+		fprintf(fp_ipv6, "-I INPUT -p udp --dport 53  -j %s\n", URL_FILTER_INPUT_CHAIN);
+	}
+	fprintf(fp, "-A %s -j %s\n", SDN_FILTER_FORWARD_CHAIN, SDN_INTERNAL_ACCESS_CHAIN);	
+#endif	
+#else
 #ifdef RTCONFIG_IPV6
 		write_UrlFilter("INPUT", lan_if, lan_ip, logdrop, fp, fp_ipv6);
 #else
 		write_UrlFilter("INPUT", lan_if, lan_ip, logdrop, fp);
+#endif
 #endif
 
 		/* Filter known SPI state */
@@ -3692,6 +3920,7 @@ TRACE_PT("writing Parental Control\n");
 		case WAN_LW4O6:
 		case WAN_MAPE:
 		case WAN_V6PLUS:
+		case WAN_OCNVC:
 #endif
 		case WAN_DISABLED:
 			break;
@@ -3718,6 +3947,7 @@ TRACE_PT("writing Parental Control\n");
 			}
 #endif
 		}
+
 #ifdef RTCONFIG_SSH
 		if (nvram_get_int("sshd_enable") == 1) {
 			fprintf(fp, "-A INPUT -p tcp -m tcp --dport %d -j %s\n",
@@ -3803,12 +4033,9 @@ TRACE_PT("writing Parental Control\n");
 		}
 #endif
 
-#if defined(RTCONFIG_HND_ROUTER_AX_6756) && \
-    (defined(RTCONFIG_VPNC) || defined(RTCONFIG_VPN_FUSION))
 		enable_gre_workaround(fp);
-#endif
-
 		enable_gre_for_ecm(wan_unit, fp);
+		enable_l2tp_workaround(fp);
 
 		//Add for snmp daemon
 		if (nvram_match("snmpd_enable", "1"))
@@ -3827,6 +4054,7 @@ TRACE_PT("writing Parental Control\n");
 			case WAN_LW4O6:
 			case WAN_MAPE:
 			case WAN_V6PLUS:
+			case WAN_OCNVC:
 				fprintf(fp_ipv6, "-A INPUT -p 4 -j %s\n", "ACCEPT");
 				break;
 			}
@@ -3869,10 +4097,6 @@ TRACE_PT("writing Parental Control\n");
 			else {
 				fprintf(fp, "-A INPUT -p udp -m udp --dport %d -j %s\n",
 					nvram_get_int("tr_conn_port"), logaccept);
-			}
-
-			if( strlen(nvram_safe_get("tr_udp_echo_enable")) && (nvram_get_int("tr_udp_echo_enable") == 0) && strlen(nvram_safe_get("tr_udp_echo_port")) ){
-					fprintf(fp, "-A INPUT -p udp --dport %d -j %s\n", nvram_get_int("tr_udp_echo_port"), logaccept);
 			}
 
 			if(strlen(nvram_safe_get("tr_acs_url"))) {
@@ -3920,22 +4144,42 @@ TRACE_PT("writing Parental Control\n");
 #endif
 
 #ifdef RTCONFIG_WIREGUARD
-		write_wgs_fw_filter_input(fp);
+		fprintf(fp, "-A INPUT -j WGSI\n");
+		fprintf(fp, "-A INPUT -j WGCI\n");
 #ifdef RTCONFIG_IPV6
-		if (ipv6_enabled())
-			write_wgs_fw_filter_input(fp_ipv6);
+		if (ipv6_enabled()) {
+			fprintf(fp_ipv6, "-A INPUT -j WGSI\n");
+			fprintf(fp_ipv6, "-A INPUT -j WGCI\n");
+		}
 #endif
 #endif
 
 #ifdef RTCONFIG_OPENVPN
 		fprintf(fp, "-A INPUT -j OVPNSI\n");
 		fprintf(fp, "-A INPUT -j OVPNCI\n");
+#ifdef RTCONFIG_IPV6
 		if (ipv6_enabled()) {
 			fprintf(fp_ipv6, "-A INPUT -j OVPNSI\n");
 			fprintf(fp_ipv6, "-A INPUT -j OVPNCI\n");
 		}
 #endif
+#endif
 
+#ifdef RTCONFIG_GRE
+		fprintf(fp, "-A INPUT -j GREI\n");
+#ifdef RTCONFIG_IPV6
+		if (ipv6_enabled())
+			fprintf(fp_ipv6, "-A INPUT -j GREI\n");
+#endif
+#endif
+
+#ifdef RTCONFIG_MULTILAN_CFG
+		fprintf(fp, "-A INPUT -j %s\n", SDN_FILTER_INPUT_CHAIN);
+#ifdef RTCONFIG_IPV6
+		if (ipv6_enabled())
+			fprintf(fp_ipv6, "-A INPUT -j %s\n", SDN_FILTER_INPUT_CHAIN);
+#endif
+#endif
 		fprintf(fp, "-A INPUT -j %s\n", logdrop);
 	}
 
@@ -3947,6 +4191,17 @@ TRACE_PT("writing Parental Control\n");
 		fprintf(fp, "-I INPUT -p udp --dport %s:%s -j ACCEPT\n", nvram_safe_get("apps_dl_share_port_from"), nvram_safe_get("apps_dl_share_port_to"));
 		fprintf(fp, "-I INPUT -p tcp --dport %s:%s -j ACCEPT\n", nvram_safe_get("apps_dl_share_port_from"), nvram_safe_get("apps_dl_share_port_to"));
 	}
+
+#ifdef RTCONFIG_IPSEC
+	if (nvram_get_int("ipsec_server_enable") || nvram_get_int("ipsec_client_enable")
+#ifdef RTCONFIG_INSTANT_GUARD
+		 || nvram_get_int("ipsec_ig_enable")
+#endif /* RTCONFIG_INSTANT_GUARD */
+		)
+		{
+			ipsec_intranet_access_FORWARD(fp, lan_ip);
+		}
+#endif /* RTCONFIG_IPSEC */
 
 	/* Pass multicast */
 	if (nvram_get_int("mr_enable_x"))
@@ -3965,7 +4220,7 @@ TRACE_PT("writing Parental Control\n");
 	    dualwan_unit__usbif(wan_unit) ||
 #endif
 #ifdef RTCONFIG_SOFTWIRE46
-	    wan_proto == WAN_LW4O6 || wan_proto == WAN_MAPE || wan_proto == WAN_V6PLUS ||
+	    wan_proto == WAN_LW4O6 || wan_proto == WAN_MAPE || wan_proto == WAN_V6PLUS || wan_proto == WAN_OCNVC ||
 #endif
 	    wan_proto == WAN_PPPOE || wan_proto == WAN_PPTP || wan_proto == WAN_L2TP) {
 		fprintf(fp, "-A FORWARD -p tcp -m tcp --tcp-flags SYN,RST SYN -j TCPMSS --clamp-mss-to-pmtu\n");
@@ -4007,20 +4262,42 @@ TRACE_PT("writing Parental Control\n");
 		fprintf(fp, "-A FORWARD -m policy --dir in --pol ipsec -j %s\n", "ACCEPT");
 #endif
 #if defined(RTCONFIG_PPTPD) || defined(RTCONFIG_ACCEL_PPTPD)
-	if (nvram_get_int("pptpd_enable"))
+	if (nvram_get_int("pptpd_enable")) {
+#ifdef RTCONFIG_MULTILAN_CFG
+		char mtlan_if[32] = {0};
+		if (pptpd_get_lan_ifnames(mtlan_if, sizeof(mtlan_if))) {
+			char word[8] = {0};
+			char *next = NULL;
+			foreach(word, mtlan_if, next) {
+				fprintf(fp, "-A FORWARD -i %s -o %s -j %s\n", "pptp+", word, "ACCEPT");
+				fprintf(fp, "-A FORWARD -o %s -i %s -j %s\n", "pptp+", word, "ACCEPT");
+			}
+			fprintf(fp, "-A FORWARD -i %s -o %s -j %s\n", "pptp+", wan_if, "ACCEPT");
+		}
+		else
+			fprintf(fp, "-A FORWARD -i %s -j %s\n", "pptp+", "ACCEPT");
+#else
 		fprintf(fp, "-A FORWARD -i %s -j %s\n", "pptp+", "ACCEPT");
 #endif
+	}
+#endif
 #ifdef RTCONFIG_WIREGUARD
-	write_wgs_fw_filter_forward(fp);
+	fprintf(fp, "-A FORWARD -j WGSF\n");
 #ifdef RTCONFIG_IPV6
 	if (ipv6_enabled())
-		write_wgs_fw_filter_forward(fp_ipv6);
+		fprintf(fp_ipv6, "-A FORWARD -j WGSF\n");
 #endif
 #endif
 #ifdef RTCONFIG_OPENVPN
 	fprintf(fp, "-A FORWARD -j OVPNSF\n");
 	if (ipv6_enabled())
 		fprintf(fp_ipv6, "-A FORWARD -j OVPNSF\n");
+#endif
+
+#ifdef RTCONFIG_GRE
+		fprintf(fp, "-A FORWARD -j GREF\n");
+		if (ipv6_enabled())
+			fprintf(fp_ipv6, "-A FORWARD -j GREF\n");
 #endif
 
 	/* Filter out invalid WAN->WAN connections */
@@ -4048,6 +4325,7 @@ TRACE_PT("writing Parental Control\n");
 #endif
 #endif
 
+#ifndef RTCONFIG_MULTILAN_CFG
 	if(nvram_match("wifison_ready", "1"))
 	{
 #ifdef RTCONFIG_WIFI_SON
@@ -4096,6 +4374,7 @@ TRACE_PT("writing Parental Control\n");
 	fprintf(fp_ipv6, "-A FORWARD -o %s ! -i %s -j %s\n", wan6face, lan_if, logdrop);
 		}
 	}
+#endif
 #endif
 
 	/* Accept the redirect, might be seen as INVALID, packets */
@@ -4230,6 +4509,7 @@ TRACE_PT("writing Parental Control\n");
 	/*
 	network service filter
 	*/
+#ifndef RTCONFIG_MULTILAN_CFG
 	if (nvram_match("fw_lw_enable_x", "1"))
 	{
 		char lanwan_timematch[2048];
@@ -4257,7 +4537,7 @@ TRACE_PT("writing Parental Control\n");
 		}
 
 		if(apply) {
-			v4v6_ok = IPT_V4;
+			v4v6_ok = IPT_V4|IPT_V6;
 
 			// LAN/WAN filter
 			nv = nvp = strdup(nvram_safe_get("filter_lwlist"));
@@ -4270,8 +4550,8 @@ TRACE_PT("writing Parental Control\n");
 					g_buf_init(); // need to modified
 
 					setting = filter_conv(protoptr, flagptr, iprange_ex_conv(srcip, srcipbuf), srcport, iprange_ex_conv(dstip, dstipbuf), dstport);
-					if (srcip) v4v6_ok = ipt_addr_compact(srcipbuf, v4v6_ok, (v4v6_ok == IPT_V4));
-					if (dstip) v4v6_ok = ipt_addr_compact(dstipbuf, v4v6_ok, (v4v6_ok == IPT_V4));
+					if (srcip) v4v6_ok = ipt_addr_compact((*srcipbuf)?srcipbuf:srcip, v4v6_ok, (v4v6_ok == IPT_V4));
+					if (dstip) v4v6_ok = ipt_addr_compact((*dstipbuf)?dstipbuf:dstip, v4v6_ok, (v4v6_ok == IPT_V4));
 
 					/* separate lanwan timematch */
 					strcpy(lanwan_buf, lanwan_timematch);
@@ -4290,6 +4570,8 @@ TRACE_PT("writing Parental Control\n");
 				}
 				if(nv) free(nv);
 			}
+			//restore
+			v4v6_ok = IPT_V4;
 		}
 		// ICMP
 		foreach(ptr, nvram_safe_get("filter_lw_icmp_x"), icmplist)
@@ -4316,6 +4598,7 @@ TRACE_PT("writing Parental Control\n");
 		fprintf(fp_ipv6, "-A %s -i %s -o %s -j %s\n", chain, lan_if, wan6face, dtype);
 #endif
 	}
+#endif
 
 	// Block VPN traffic
 	if (nvram_match("fw_pt_pptp", "0")) {
@@ -4347,14 +4630,29 @@ TRACE_PT("writing Parental Control\n");
 	}
 #endif
 
+	//Filter for upnp client
+#ifdef RTCONFIG_UPNPC_NEW
+//	if(nvram_match("upnp_enable", "1") && nvram_match("upnpc_enable", "1"))	
+	{
+		fprintf(fp, "-I INPUT -d 239.255.255.250/32 -p udp -m udp --dport 1900 -j %s\n", logaccept);
+		fprintf(fp, "-I INPUT -p udp -m set --match-set upnp dst,dst -j %s\n", logaccept);
+		fprintf(fp, "-I OUTPUT -d 239.255.255.250/32 -p udp -m udp --dport 1900 -j SET --add-set upnp src,src --exist\n");
+	}
+#endif
+
 	// Filter from WAN to LAN
-#if 0 /* Never used */
+#if 1 
 	if (nvram_match("fw_wl_enable_x", "1"))
 	{
-		char wanlan_timematch[128];
+		char wanlan_timematch[2048];
+		char wanlan_buf[2048];
 		char ptr[32], *icmplist;
-		char /**dtype,*/ *ftype, *flag;
+		char *ftype; //, *dtype;
+		char protoptr[16], flagptr[16], flag[16];
+		char srcipbuf[32], dstipbuf[32];
 		int apply;
+		char *p, *g;
+
 
 		apply = timematch_conv(wanlan_timematch, "filter_wl_date_x", "filter_wl_time_x");
 
@@ -4368,26 +4666,32 @@ TRACE_PT("writing Parental Control\n");
 //			dtype = logaccept;
 			ftype = logdrop;
 		}
-
 		if(apply) {
 			v4v6_ok = IPT_V4;
-
 			// WAN/LAN filter
 			nv = nvp = strdup(nvram_safe_get("filter_wllist"));
-
 			if(nv) {
 				while ((b = strsep(&nvp, "<")) != NULL) {
 					if ((vstrsep(b, ">", &proto, &flag, &srcip, &srcport, &dstip, &dstport) != 6)) continue;
 
-					setting=filter_conv(proto, flag, srcip, srcport, dstip, dstport);
-					if (srcip) v4v6_ok = ipt_addr_compact(srcip, v4v6_ok, (v4v6_ok == IPT_V4));
-					if (dstip) v4v6_ok = ipt_addr_compact(dstip, v4v6_ok, (v4v6_ok == IPT_V4));
-					if (v4v6_ok & IPT_V4)
-		 			fprintf(fp, "-A FORWARD %s -i %s -o %s %s -j %s\n", wanlan_timematch, wan_if, lan_if, setting, ftype);
-#ifdef RTCONFIG_IPV6
-					if (ipv6_enabled() && (v4v6_ok & IPT_V6) && *wan6face)
-					fprintf(fp_ipv6, "-A FORWARD %s -i %s -o %s %s -j %s\n", wanlan_timematch, wan6face, lan_if, setting, ftype);
-#endif
+					(void)protoflag_conv(proto, protoptr, 0);
+					(void)protoflag_conv(proto, flagptr, 1);
+					g_buf_init(); // need to modified
+
+					setting=filter_conv(protoptr, flagptr, iprange_ex_conv(srcip, srcipbuf), srcport, iprange_ex_conv(dstip, dstipbuf), dstport);
+					if (srcip) v4v6_ok = ipt_addr_compact(srcipbuf, v4v6_ok, (v4v6_ok == IPT_V4));
+					if (dstip) v4v6_ok = ipt_addr_compact(dstipbuf, v4v6_ok, (v4v6_ok == IPT_V4));
+
+					/* separate lanwan timematch */
+					strcpy(wanlan_buf, wanlan_timematch);
+					p = wanlan_buf;
+					while(p){
+						if((g=strsep(&p, ">")) != NULL){
+							//cprintf("[timematch] g=%s, p=%s, wanlan=%s, buf=%s\n", g, p, wanlan_timematch, wanlan_buf);
+							if (v4v6_ok & IPT_V4)
+				 				fprintf(fp, "-A FORWARD %s -i %s -o %s %s -j %s\n", g, wan_if, lan_if, setting, ftype);
+						}
+					}
 				}
 				if(nv) free(nv);
 			}
@@ -4396,11 +4700,19 @@ TRACE_PT("writing Parental Control\n");
 		// ICMP
 		foreach(ptr, nvram_safe_get("filter_wl_icmp_x"), icmplist)
 		{
-			fprintf(fp, "-A FORWARD %s -i %s -o %s -p icmp --icmp-type %s -j %s\n", wanlan_timematch, wan_if, lan_if, ptr, ftype);
+			/* separate lanwan timematch */
+			strcpy(wanlan_buf, wanlan_timematch);
+			p = wanlan_buf;
+			while(p){
+				if((g=strsep(&p, ">")) != NULL){
+					//cprintf("[timematch] g=%s, p=%s, wanlan=%s, buf=%s\n", g, p, wanlan_timematch, wanlan_buf);
+					fprintf(fp, "-A FORWARD %s -i %s -o %s -p icmp --icmp-type %s -j %s\n", g, wan_if, lan_if, ptr, ftype);
 #ifdef RTCONFIG_IPV6
-			if (ipv6_enabled() && *wan6face)
-			fprintf(fp_ipv6, "-A FORWARD %s -i %s -o %s -p icmp --icmp-type %s -j %s\n", wanlan_timematch, wan6face, lan_if, ptr, ftype);
+					if (ipv6_enabled() && *wan6face)
+					fprintf(fp_ipv6, "-A FORWARD %s -i %s -o %s -p icmp --icmp-type %s -j %s\n", g, wan6face, lan_if, ptr, ftype);
 #endif
+				}
+			}
 		}
 
 		// thanks for Oleg
@@ -4422,17 +4734,13 @@ TRACE_PT("write porttrigger\n");
 	}
 #endif
 
-	// Allow from LAN
-	if (nvram_get_int("fw_enable_x"))
-		fprintf(fp, "-A FORWARD -i %s -j %s\n", lan_if, "ACCEPT");
-
 	/* Enable Virtual Servers
 	 * Accepts all DNATed connection, including VSERVER, UPNP, BATTLEIPs, etc
 	 * Don't bother to do explicit dst checking, 'coz it's done in PREROUTING */
 	if (is_nat_enabled())
 		fprintf(fp, "-A FORWARD -m conntrack --ctstate DNAT -j %s\n", logaccept);
 
-#if 0 /* Never used */
+#if 1 /* Never used */
 TRACE_PT("write wl filter\n");
 
 	if (nvram_match("fw_wl_enable_x", "1")) // Thanks for Oleg
@@ -4440,11 +4748,6 @@ TRACE_PT("write wl filter\n");
 		// Default
 		fprintf(fp, "-A FORWARD -i %s -o %s -j %s\n", wan_if, lan_if,
 			nvram_match("filter_wl_default_x", "DROP") ? logdrop : logaccept);
-#ifdef RTCONFIG_IPV6
-		if (ipv6_enabled() && *wan6face)
-		fprintf(fp_ipv6, "-A FORWARD -i %s -o %s -j %s\n", wan6face, lan_if,
-			nvram_match("filter_wl_default_x", "DROP") ? logdrop : logaccept);
-#endif
 	}
 #endif
 
@@ -4496,10 +4799,22 @@ TRACE_PT("write wl filter\n");
 		  "-A logdrop -j DROP\n");
 #endif
 
+#ifdef RTCONFIG_MULTILAN_CFG
+	fprintf(fp, "-I FORWARD -j %s\n", URL_FILTER_FORWARD_CHAIN);
+	fprintf(fp, "-I FORWARD -j %s\n", NW_SERVICE_FILTER_FORWARD_CHAIN);
+#ifdef RTCONFIG_IPV6
+	if (ipv6_enabled())
+	{
+		fprintf(fp_ipv6, "-I FORWARD -j %s\n", URL_FILTER_FORWARD_CHAIN);
+		fprintf(fp_ipv6, "-I FORWARD -j %s\n", NW_SERVICE_FILTER_FORWARD_CHAIN);
+	}
+#endif	
+#else
 #ifdef RTCONFIG_IPV6
 	write_UrlFilter("FORWARD", lan_if, lan_ip, logdrop, fp, fp_ipv6);
 #else
 	write_UrlFilter("FORWARD", lan_if, lan_ip, logdrop, fp);
+#endif
 #endif
 
 #ifdef CONTENTFILTER
@@ -4571,14 +4886,59 @@ TRACE_PT("write wl filter\n");
 #endif
 
 #ifdef RTCONFIG_DNSFILTER
-	dnsfilter_dot_rules(fp, lan_if);
+	dnsfilter_dot_rules(fp);
+#endif
+
+	// Allow LAN -> X after all (URL/Keyword/Network...) filter.
+#ifdef RTCONFIG_IPV6
+	if (ipv6_enabled() && *wan6face) {
+		if (nvram_match("ipv6_fw_enable", "1")) {
+			fprintf(fp_ipv6, "-A FORWARD -o %s -i %s -j %s\n", wan6face, lan_if, logaccept);
+		} else {	// The default DROP rule from the IPv6 firewall would take care of it
+			fprintf(fp_ipv6, "-A FORWARD -o %s ! -i %s -j %s\n", wan6face, lan_if, logdrop);
+		}
+	}
+#endif
+
+#ifdef RTCONFIG_WIREGUARD
+	fprintf(fp, "-A FORWARD -j WGCF\n");
+#ifdef RTCONFIG_IPV6
+	if (ipv6_enabled())
+		fprintf(fp_ipv6, "-A FORWARD -j WGCF\n");
+#endif
 #endif
 
 #ifdef RTCONFIG_OPENVPN
 	fprintf(fp, "-A FORWARD -j OVPNCF\n");
+#ifdef RTCONFIG_IPV6
 	if (ipv6_enabled())
 		fprintf(fp_ipv6, "-A FORWARD -j OVPNCF\n");
 #endif
+#endif
+
+#ifdef RTCONFIG_VPNC
+	fprintf(fp, "-A FORWARD -j VPNCF\n");
+	// if (ipv6_enabled())
+		// fprintf(fp_ipv6, "-A FORWARD -j VPNCF\n");
+#endif
+
+#ifdef RTCONFIG_MULTILAN_CFG
+		fprintf(fp, "-A FORWARD -j %s\n", SDN_FILTER_FORWARD_CHAIN);
+#ifdef RTCONFIG_IPV6
+		if (ipv6_enabled())
+			fprintf(fp_ipv6, "-A FORWARD -j %s\n", SDN_FILTER_FORWARD_CHAIN);
+#endif
+#endif
+
+#ifdef RTCONFIG_VPN_FUSION
+	fprintf(fp, "-A FORWARD -j VPNCF\n");
+	// if (ipv6_enabled())
+		// fprintf(fp_ipv6, "-A FORWARD -j VPNCF\n");
+#endif
+
+	// Allow from LAN
+	if (nvram_get_int("fw_enable_x"))
+		fprintf(fp, "-A FORWARD -i %s -j %s\n", lan_if, "ACCEPT");
 
 	// Default rule
 	if (nvram_get_int("fw_enable_x"))
@@ -4586,6 +4946,14 @@ TRACE_PT("write wl filter\n");
 #ifdef RTCONFIG_IPV6
 	if (ipv6_enabled() && nvram_match("ipv6_fw_enable", "1"))
 		fprintf(fp_ipv6, "-A FORWARD -j %s\n", logdrop);
+#endif
+
+#ifdef RTCONFIG_TIME_QUOTA
+	fprintf(fp, "-A TIME_QUOTA -j %s\n", logdrop);
+#ifdef RTCONFIG_IPV6
+	if (ipv6_enabled())
+		fprintf(fp_ipv6, "-A TIME_QUOTA -j %s\n", logdrop);
+#endif
 #endif
 
 	// extra filter
@@ -4612,7 +4980,6 @@ TRACE_PT("write wl filter\n");
 		rule_apply_checking("firewall", __LINE__, "/tmp/filter_rules_ipv6", evalRet);
 	}
 #endif
-
 }
 
 #if defined(RTCONFIG_DUALWAN) || defined(RTCONFIG_MULTICAST_IPTV) // RTCONFIG_DUALWAN || RTCONFIG_MULTICAST_IPTV
@@ -4680,8 +5047,21 @@ filter_setting2(char *lan_if, char *lan_ip, char *logaccept, char *logdrop)
 	    ":WGNPControls - [0:0]\n"
 	    ":PControls - [0:0]\n"
 #endif
+#ifdef RTCONFIG_TIME_QUOTA
+	    ":TIME_QUOTA - [0:0]\n"
+#endif
 #if defined(WEB_REDIRECT)
 	    ":default_block - [0:0]\n"
+#endif
+#ifdef RTCONFIG_IPSEC
+		":IPSEC_DROP_SUBNET_ICMP - [0:0]\n"
+		":IPSEC_STRONGSWAN - [0:0]\n"
+#endif /* RTCONFIG_IPSEC */
+#ifdef RTCONFIG_WIREGUARD
+	    ":WGSI - [0:0]\n"
+	    ":WGSF - [0:0]\n"
+	    ":WGCI - [0:0]\n"
+	    ":WGCF - [0:0]\n"
 #endif
 #ifdef RTCONFIG_OPENVPN
 	    ":OVPNSI - [0:0]\n"
@@ -4689,10 +5069,23 @@ filter_setting2(char *lan_if, char *lan_ip, char *logaccept, char *logdrop)
 	    ":OVPNCI - [0:0]\n"
 	    ":OVPNCF - [0:0]\n"
 #endif
-
+#ifdef RTCONFIG_GRE
+		":GREI - [0:0]\n"
+		":GREF - [0:0]\n"
+#endif
+#ifdef RTCONFIG_VPNC
+		":VPNCI - [0:0]\n"
+		":VPNCF - [0:0]\n"
+#endif
 	    ":logaccept - [0:0]\n"
 	    ":logdrop - [0:0]\n");
-
+#ifdef RTCONFIG_MULTILAN_CFG
+	fprintf(fp, ":%s - [0:0]\n"":%s - [0:0]\n"":%s - [0:0]\n",
+		SDN_FILTER_INPUT_CHAIN, SDN_FILTER_FORWARD_CHAIN, SDN_INTERNAL_ACCESS_CHAIN);
+	fprintf(fp, ":%s - [0:0]\n"":%s - [0:0]\n",
+		URL_FILTER_INPUT_CHAIN, URL_FILTER_FORWARD_CHAIN);
+	fprintf(fp, ":%s - [0:0]\n", NW_SERVICE_FILTER_FORWARD_CHAIN);
+#endif
 #ifdef RTCONFIG_PROTECTION_SERVER
 	fprintf(fp, ":%sWAN - [0:0]\n", PROTECT_SRV_RULE_CHAIN);
 	fprintf(fp, ":%sLAN - [0:0]\n", PROTECT_SRV_RULE_CHAIN);
@@ -4714,18 +5107,52 @@ filter_setting2(char *lan_if, char *lan_ip, char *logaccept, char *logdrop)
 		    ":WGNPControls - [0:0]\n"
 		    ":PControls - [0:0]\n"
 #endif
+#ifdef RTCONFIG_TIME_QUOTA
+		    ":TIME_QUOTA - [0:0]\n"
+#endif
+#ifdef RTCONFIG_WIREGUARD
+		    ":WGSI - [0:0]\n"
+		    ":WGSF - [0:0]\n"
+		    ":WGCI - [0:0]\n"
+		    ":WGCF - [0:0]\n"
+#endif
 #ifdef RTCONFIG_OPENVPN
 		    ":OVPNSI - [0:0]\n"
 		    ":OVPNSF - [0:0]\n"
 		    ":OVPNCI - [0:0]\n"
 		    ":OVPNCF - [0:0]\n"
 #endif
+#ifdef RTCONFIG_GRE
+			":GREI - [0:0]\n"
+			":GREF - [0:0]\n"
+#endif
+#ifdef RTCONFIG_VPNC
+			":VPNCI - [0:0]\n"
+			":VPNCF - [0:0]\n"
+#endif
 		    ":ICMP_V6 - [0:0]\n"
 		    ":ICMP_V6_LOCAL - [0:0]\n"
 		    ":logaccept - [0:0]\n"
 		    ":logdrop - [0:0]\n",
 		nvram_match("ipv6_fw_enable", "1") ? "DROP" : "ACCEPT");
+#ifdef RTCONFIG_MULTILAN_CFG
+		fprintf(fp_ipv6, ":%s - [0:0]\n"":%s - [0:0]\n"":%s - [0:0]\n",
+			SDN_FILTER_INPUT_CHAIN, SDN_FILTER_FORWARD_CHAIN, SDN_INTERNAL_ACCESS_CHAIN);
+		fprintf(fp_ipv6, ":%s - [0:0]\n"":%s - [0:0]\n",
+			URL_FILTER_INPUT_CHAIN, URL_FILTER_FORWARD_CHAIN);
+		fprintf(fp_ipv6, ":%s - [0:0]\n", NW_SERVICE_FILTER_FORWARD_CHAIN);
+#endif
 	}
+#endif
+
+#ifdef RTCONFIG_IPSEC
+	/* Thesys should be the first two rules for FORWARD chain. */
+	fprintf(fp, "-A FORWARD -j IPSEC_DROP_SUBNET_ICMP\n");
+	fprintf(fp, "-A FORWARD -j IPSEC_STRONGSWAN\n");
+#endif /* RTCONFIG_IPSEC */
+
+#if defined(RTCONFIG_SWITCH_QCA8075_QCA8337_PHY_AQR107_AR8035_QCA8033)
+	add_filter_rule_for_gpon_sfp_module(fp);
 #endif
 
 #if defined(WEB_REDIRECT)
@@ -4802,6 +5229,25 @@ TRACE_PT("writing Internet Control\n");
 #endif
 
 #ifdef RTCONFIG_PARENTALCTRL
+#ifdef RTCONFIG_PC_REWARD
+	pc_s *pc_reward_list = NULL;
+	int pc_reward_count;
+
+	/* Parental Control Reward */
+	get_all_pc_reward_list(&pc_reward_list);
+	pc_reward_count = count_pc_rules(pc_reward_list, 1);
+	if (pc_reward_count > 0) {
+TRACE_PT("writing Reward Parental Control\n");
+		config_pc_reward_string(pc_reward_list, fp);
+
+#ifdef RTCONFIG_IPV6
+		if (ipv6_enabled()){
+			config_pc_reward_string(pc_reward_list, fp_ipv6);
+		}
+#endif
+	}
+	free_pc_list(&pc_reward_list);
+#endif //#ifdef RTCONFIG_PC_REWARD
 	pc_s *pc_list = NULL;
 	int pc_count;
 
@@ -4954,10 +5400,25 @@ TRACE_PT("writing Parental Control\n");
 		}
 #endif
 
+#ifdef RTCONFIG_VPN_FUSION
+        write_vpn_fusion_filter(fp, lan_ip);
+#endif
+
+#ifdef RTCONFIG_MULTILAN_CFG
+	fprintf(fp, "-I INPUT -p udp --dport 53 -j %s\n", URL_FILTER_INPUT_CHAIN);
+#ifdef RTCONFIG_IPV6
+	if (ipv6_enabled())
+	{
+		fprintf(fp_ipv6, "-I INPUT -p udp --dport 53 -j %s\n", URL_FILTER_INPUT_CHAIN);
+	}
+#endif	
+	fprintf(fp, "-A %s -j %s\n", SDN_FILTER_FORWARD_CHAIN, SDN_INTERNAL_ACCESS_CHAIN);
+#else
 #ifdef RTCONFIG_IPV6
 		write_UrlFilter("INPUT", lan_if, lan_ip, logdrop, fp, fp_ipv6);
 #else
 		write_UrlFilter("INPUT", lan_if, lan_ip, logdrop, fp);
+#endif
 #endif
 
 		/* Filter known SPI state */
@@ -5064,6 +5525,7 @@ TRACE_PT("writing Parental Control\n");
 			case WAN_LW4O6:
 			case WAN_MAPE:
 			case WAN_V6PLUS:
+			case WAN_OCNVC:
 #endif
 			case WAN_DISABLED:
 				continue;
@@ -5093,6 +5555,7 @@ TRACE_PT("writing Parental Control\n");
 			}
 #endif
 		}
+
 #ifdef RTCONFIG_SSH
 		if (nvram_get_int("sshd_enable") == 1) {
 			fprintf(fp, "-A INPUT -p tcp -m tcp --dport %d -j %s\n",
@@ -5152,10 +5615,7 @@ TRACE_PT("writing Parental Control\n");
 			fprintf(fp, "-A INPUT -p 47 -j %s\n", logaccept);
 		}
 #endif
-#if defined(RTCONFIG_HND_ROUTER_AX_6756) && \
-    (defined(RTCONFIG_VPNC) || defined(RTCONFIG_VPN_FUSION))
 		enable_gre_workaround(fp);
-#endif
 #if defined(RTCONFIG_SOC_IPQ8074) || \
     (defined(RTCONFIG_VPNC) || defined(RTCONFIG_VPN_FUSION))
 		for (unit = WAN_UNIT_FIRST; unit < wan_max_unit; ++unit) {
@@ -5164,6 +5624,7 @@ TRACE_PT("writing Parental Control\n");
 			enable_gre_for_ecm(unit, fp);
 		}
 #endif
+		enable_l2tp_workaround(fp);
 
 #ifdef RTCONFIG_IPV6
 		switch (get_ipv6_service()) {
@@ -5182,6 +5643,7 @@ TRACE_PT("writing Parental Control\n");
 				case WAN_LW4O6:
 				case WAN_MAPE:
 				case WAN_V6PLUS:
+				case WAN_OCNVC:
 					fprintf(fp_ipv6, "-A INPUT -p 4 -j %s\n", "ACCEPT");
 					break;
 				default:
@@ -5272,22 +5734,42 @@ TRACE_PT("writing Parental Control\n");
 #endif
 
 #ifdef RTCONFIG_WIREGUARD
-		write_wgs_fw_filter_input(fp);
+		fprintf(fp, "-A INPUT -j WGSI\n");
+		fprintf(fp, "-A INPUT -j WGCI\n");
 #ifdef RTCONFIG_IPV6
-		if (ipv6_enabled())
-			write_wgs_fw_filter_input(fp_ipv6);
+		if (ipv6_enabled()) {
+			fprintf(fp_ipv6, "-A INPUT -j WGSI\n");
+			fprintf(fp_ipv6, "-A INPUT -j WGCI\n");
+		}
 #endif
 #endif
 
 #ifdef RTCONFIG_OPENVPN
 		fprintf(fp, "-A INPUT -j OVPNSI\n");
 		fprintf(fp, "-A INPUT -j OVPNCI\n");
+#ifdef RTCONFIG_IPV6
 		if (ipv6_enabled()) {
 			fprintf(fp_ipv6, "-A INPUT -j OVPNSI\n");
 			fprintf(fp_ipv6, "-A INPUT -j OVPNCI\n");
 		}
 #endif
+#endif
 
+#ifdef RTCONFIG_GRE
+		fprintf(fp, "-A INPUT -j GREI\n");
+#ifdef RTCONFIG_IPV6
+		if (ipv6_enabled())
+			fprintf(fp_ipv6, "-A INPUT -j GREI\n");
+#endif
+#endif
+
+#ifdef RTCONFIG_MULTILAN_CFG
+		fprintf(fp, "-A INPUT -j %s\n", SDN_FILTER_INPUT_CHAIN);
+#ifdef RTCONFIG_IPV6
+		if (ipv6_enabled())
+			fprintf(fp_ipv6, "-A INPUT -j %s\n", SDN_FILTER_INPUT_CHAIN);
+#endif
+#endif
 		fprintf(fp, "-A INPUT -j %s\n", logdrop);
 	}
 
@@ -5299,6 +5781,17 @@ TRACE_PT("writing Parental Control\n");
 		fprintf(fp, "-I INPUT -p udp --dport %s:%s -j ACCEPT\n", nvram_safe_get("apps_dl_share_port_from"), nvram_safe_get("apps_dl_share_port_to"));
 		fprintf(fp, "-I INPUT -p tcp --dport %s:%s -j ACCEPT\n", nvram_safe_get("apps_dl_share_port_from"), nvram_safe_get("apps_dl_share_port_to"));
 	}
+
+#ifdef RTCONFIG_IPSEC
+	if (nvram_get_int("ipsec_server_enable") || nvram_get_int("ipsec_client_enable")
+#ifdef RTCONFIG_INSTANT_GUARD
+		 || nvram_get_int("ipsec_ig_enable")
+#endif /* RTCONFIG_INSTANT_GUARD */
+		)
+		{
+			ipsec_intranet_access_FORWARD(fp, lan_ip);
+		}
+#endif /* RTCONFIG_IPSEC */
 
 	/* Pass multicast */
 	if (nvram_get_int("mr_enable_x"))
@@ -5326,7 +5819,7 @@ TRACE_PT("writing Parental Control\n");
 		    dualwan_unit__usbif(unit) ||
 #endif
 #ifdef RTCONFIG_SOFTWIRE46
-		    wan_proto == WAN_LW4O6 || wan_proto == WAN_MAPE || wan_proto == WAN_V6PLUS ||
+		    wan_proto == WAN_LW4O6 || wan_proto == WAN_MAPE || wan_proto == WAN_V6PLUS || wan_proto == WAN_OCNVC ||
 #endif
 		    wan_proto == WAN_PPPOE || wan_proto == WAN_PPTP || wan_proto == WAN_L2TP) {
 		clamp_mss:
@@ -5372,14 +5865,30 @@ TRACE_PT("writing Parental Control\n");
 		fprintf(fp, "-A FORWARD -m policy --dir in --pol ipsec -j %s\n", "ACCEPT");
 #endif
 #if defined(RTCONFIG_PPTPD) || defined(RTCONFIG_ACCEL_PPTPD)
-	if (nvram_get_int("pptpd_enable"))
+	if (nvram_get_int("pptpd_enable")) {
+#ifdef RTCONFIG_MULTILAN_CFG
+		char mtlan_if[32] = {0};
+		if (pptpd_get_lan_ifnames(mtlan_if, sizeof(mtlan_if))) {
+			char word[8] = {0};
+			char *next = NULL;
+			foreach(word, mtlan_if, next) {
+				fprintf(fp, "-A FORWARD -i %s -o %s -j %s\n", "pptp+", word, "ACCEPT");
+				fprintf(fp, "-A FORWARD -o %s -i %s -j %s\n", "pptp+", word, "ACCEPT");
+			}
+			fprintf(fp, "-A FORWARD -i %s -o %s -j %s\n", "pptp+", wan_if, "ACCEPT");
+		}
+		else
+			fprintf(fp, "-A FORWARD -i %s -j %s\n", "pptp+", "ACCEPT");
+#else
 		fprintf(fp, "-A FORWARD -i %s -j %s\n", "pptp+", "ACCEPT");
 #endif
+	}
+#endif
 #ifdef RTCONFIG_WIREGUARD
-	write_wgs_fw_filter_forward(fp);
+	fprintf(fp, "-A FORWARD -j WGSF\n");
 #ifdef RTCONFIG_IPV6
 	if (ipv6_enabled())
-		write_wgs_fw_filter_forward(fp_ipv6);
+		fprintf(fp_ipv6, "-A FORWARD -j WGSF\n");
 #endif
 #endif
 #ifdef RTCONFIG_OPENVPN
@@ -5387,7 +5896,11 @@ TRACE_PT("writing Parental Control\n");
 	if (ipv6_enabled())
 		fprintf(fp_ipv6, "-A FORWARD -j OVPNSF\n");
 #endif
-
+#ifdef RTCONFIG_GRE
+	fprintf(fp, "-A FORWARD -j GREF\n");
+	if (ipv6_enabled())
+		fprintf(fp_ipv6, "-A FORWARD -j GREF\n");
+#endif
 	for(unit = WAN_UNIT_FIRST; unit < wan_max_unit; ++unit){
 		if(!is_wan_connect(unit))
 			continue;
@@ -5412,15 +5925,7 @@ TRACE_PT("writing Parental Control\n");
 // ~ oleg patch
 		/* Filter out invalid WAN->WAN connections */
 		fprintf(fp, "-A FORWARD -o %s ! -i %s -j %s\n", wan_if, lan_if, logdrop);
-#ifdef RTCONFIG_IPV6
-		 if (ipv6_enabled() && *wan6face) {
-			if (nvram_match("ipv6_fw_enable", "1")) {
-				fprintf(fp_ipv6, "-A FORWARD -o %s -i %s -j %s\n", wan6face, lan_if, logaccept);
-			} else {	// The default DROP rule from the IPv6 firewall would take care of it
-			fprintf(fp_ipv6, "-A FORWARD -o %s ! -i %s -j %s\n", wan6face, lan_if, logdrop);
-			}
-		}
-#endif
+
 		if (strcmp(wanx_if, wan_if) && inet_addr_(wanx_ip) && dualwan_unit__nonusbif(unit)) {
 			fprintf(fp, "-A FORWARD -o %s ! -i %s -j %s\n", wanx_if, lan_if, logdrop);
 #ifdef RTCONFIG_AMAS_WGN
@@ -5570,6 +6075,7 @@ TRACE_PT("writing Parental Control\n");
 	/*
 	network service filter
 	*/
+#ifndef RTCONFIG_MULTILAN_CFG
 	if (nvram_match("fw_lw_enable_x", "1"))
 	{
 		char lanwan_timematch[2048];
@@ -5598,7 +6104,7 @@ TRACE_PT("writing Parental Control\n");
 		}
 
 		if(apply) {
-			v4v6_ok = IPT_V4;
+			v4v6_ok = IPT_V4|IPT_V6;
 
 			// LAN/WAN filter
 			nv = nvp = strdup(nvram_safe_get("filter_lwlist"));
@@ -5609,10 +6115,9 @@ TRACE_PT("writing Parental Control\n");
 					(void)protoflag_conv(proto, protoptr, 0);
 					(void)protoflag_conv(proto, flagptr, 1);
 					g_buf_init(); // need to modified
-
 					setting = filter_conv(protoptr, flagptr, iprange_ex_conv(srcip, srcipbuf), srcport, iprange_ex_conv(dstip, dstipbuf), dstport);
-					if (srcip) v4v6_ok = ipt_addr_compact(srcipbuf, v4v6_ok, (v4v6_ok == IPT_V4));
-					if (dstip) v4v6_ok = ipt_addr_compact(dstipbuf, v4v6_ok, (v4v6_ok == IPT_V4));
+					if (srcip) v4v6_ok = ipt_addr_compact((*srcipbuf)?srcipbuf:srcip, v4v6_ok, (v4v6_ok == IPT_V4));
+					if (dstip) v4v6_ok = ipt_addr_compact((*dstipbuf)?dstipbuf:dstip, v4v6_ok, (v4v6_ok == IPT_V4));
 					for(unit = WAN_UNIT_FIRST; unit < wan_max_unit; ++unit){
 						if(!is_wan_connect(unit))
 							continue;
@@ -5622,6 +6127,7 @@ TRACE_PT("writing Parental Control\n");
 						/* separate lanwan timematch */
 						strcpy(lanwan_buf, lanwan_timematch);
 						p = lanwan_buf;
+
 						while(p){
 							if((g=strsep(&p, ">")) != NULL){
 								//cprintf("[timematch] g=%s, p=%s, lanwan=%s, buf=%s\n", g, p, lanwan_timematch, lanwan_buf);
@@ -5646,6 +6152,9 @@ TRACE_PT("writing Parental Control\n");
 				}
 				if(nv) free(nv);
 			}
+
+			//restore
+			v4v6_ok = IPT_V4;
 		}
 
 		// ICMP
@@ -5698,6 +6207,7 @@ TRACE_PT("writing Parental Control\n");
 			fprintf(fp_ipv6, "-A %s -i %s -o %s -j %s\n", chain, lan_if, wan6face, dtype);
 #endif
 	}
+#endif
 
 	// Block VPN traffic
 	for(unit = WAN_UNIT_FIRST; unit < wan_max_unit; ++unit){
@@ -5737,15 +6247,21 @@ TRACE_PT("writing Parental Control\n");
 #endif
 
 	// Filter from WAN to LAN
-#if 0 /* Never used */
+#if 1 /* Never used */
 	if (nvram_match("fw_wl_enable_x", "1"))
 	{
-		char wanlan_timematch[128];
+		char wanlan_timematch[2048];
+		char wanlan_buf[2048];
 		char ptr[32], *icmplist;
-		char /**dtype,*/ *ftype, *flag;
+		char *ftype; //, *dtype;
+		char protoptr[16], flagptr[16], flag[16];
+		char srcipbuf[32], dstipbuf[32];
 		int apply;
+		char *p, *g;
 
-		apply = timematch_conv(wanlan_timematch, "filter_wl_date_x", "filter_wl_time_x");
+		memset(wanlan_timematch, 0, sizeof(wanlan_timematch));
+		memset(wanlan_buf, 0, sizeof(wanlan_buf));
+		apply = timematch_conv2(wanlan_timematch, sizeof(wanlan_timematch), "filter_wl_date_x", "filter_wl_time_x", "filter_wl_time2_x");
 
 		if (nvram_match("filter_wl_default_x", "DROP"))
 		{
@@ -5763,52 +6279,72 @@ TRACE_PT("writing Parental Control\n");
 
 			// WAN/LAN filter
 			nv = nvp = strdup(nvram_safe_get("filter_wllist"));
-
+ 
 			if(nv) {
 				while ((b = strsep(&nvp, "<")) != NULL) {
 					if ((vstrsep(b, ">", &proto, &flag, &srcip, &srcport, &dstip, &dstport) != 6)) continue;
+					(void)protoflag_conv(proto, protoptr, 0);
+					(void)protoflag_conv(proto, flagptr, 1);
+					g_buf_init(); // need to modified
 
-					setting=filter_conv(proto, flag, srcip, srcport, dstip, dstport);
-					if (srcip) v4v6_ok = ipt_addr_compact(srcip, v4v6_ok, (v4v6_ok == IPT_V4));
-					if (dstip) v4v6_ok = ipt_addr_compact(dstip, v4v6_ok, (v4v6_ok == IPT_V4));
-					if (v4v6_ok & IPT_V4)
-						for(unit = WAN_UNIT_FIRST; unit < WAN_UNIT_MAX; ++unit){
-							if(!is_wan_connect(unit))
-								continue;
+					setting = filter_conv(protoptr, flagptr, iprange_ex_conv(srcip, srcipbuf), srcport, iprange_ex_conv(dstip, dstipbuf), dstport);
+					if (srcip) v4v6_ok = ipt_addr_compact(srcipbuf, v4v6_ok, (v4v6_ok == IPT_V4));
+					if (dstip) v4v6_ok = ipt_addr_compact(dstipbuf, v4v6_ok, (v4v6_ok == IPT_V4));
+					for(unit = WAN_UNIT_FIRST; unit < wan_max_unit; ++unit){
+						if(!is_wan_connect(unit))
+							continue;
 
-							wan_if = get_wan_ifname(unit);
-
-				 			fprintf(fp, "-A FORWARD %s -i %s -o %s %s -j %s\n", wanlan_timematch, wan_if, lan_if, setting, ftype);
-			 			}
-
-#ifdef RTCONFIG_IPV6
-					if (ipv6_enabled() && (v4v6_ok & IPT_V6) && *wan6face)
-						fprintf(fp_ipv6, "-A FORWARD %s -i %s -o %s %s -j %s\n", wanlan_timematch, wan6face, lan_if, setting, ftype);
-#endif
-				}
-				free(nv);
+						wan_if = get_wan_ifname(unit);
+						/* separate lanwan timematch */
+						strlcpy(wanlan_buf, wanlan_timematch, sizeof(wanlan_buf));
+						p = wanlan_buf;
+						while(p){
+							if((g=strsep(&p, ">")) != NULL){
+								//cprintf("[timematch] g=%s, p=%s, wanlan=%s, buf=%s\n", g, p, wanlan_timematch, wanlan_buf);
+								if (v4v6_ok & IPT_V4)
+						 			fprintf(fp, "-A FORWARD %s -i %s -o %s %s -j %s\n", wanlan_timematch, wan_if, lan_if, setting, ftype);
+							}
+ 			 			}
+					}
+ 				}
+				if(nv) free(nv);
 			}
 		}
 
-		// ICMP
+ 		// ICMP
 		foreach(ptr, nvram_safe_get("filter_wl_icmp_x"), icmplist)
 		{
-			for(unit = WAN_UNIT_FIRST; unit < WAN_UNIT_MAX; ++unit){
+ 			for(unit = WAN_UNIT_FIRST; unit < WAN_UNIT_MAX; ++unit){
 				if(!is_wan_connect(unit))
 					continue;
 
 				wan_if = get_wan_ifname(unit);
-
-				fprintf(fp, "-A FORWARD %s -i %s -o %s -p icmp --icmp-type %s -j %s\n", wanlan_timematch, wan_if, lan_if, ptr, ftype);
+				/* separate lanwan timematch */
+				strcpy(wanlan_buf, wanlan_timematch);
+				p = wanlan_buf;
+				while(p){
+					if((g=strsep(&p, ">")) != NULL){
+						//cprintf("[timematch] g=%s, p=%s, wanlan=%s, buf=%s\n", g, p, wanlan_timematch, wanlan_buf);
+						if (v4v6_ok & IPT_V4)
+							fprintf(fp, "-A FORWARD %s -i %s -o %s -p icmp --icmp-type %s -j %s\n", wanlan_timematch, wan_if, lan_if, ptr, ftype);
+					}
+				}
 			}
 
 #ifdef RTCONFIG_IPV6
-			if (ipv6_enabled() && (v4v6_ok & IPT_V6) && *wan6face)
-				fprintf(fp_ipv6, "-A FORWARD %s -i %s -o %s -p icmp --icmp-type %s -j %s\n", wanlan_timematch, wan6face, lan_if, ptr, ftype);
+			/* separate lanwan timematch */
+			strcpy(wanlan_buf, wanlan_timematch);
+			p = wanlan_buf;
+			while(p){
+				if((g=strsep(&p, ">")) != NULL){
+					//cprintf("[timematch] g=%s, p=%s, wanlan=%s, buf=%s\n", g, p, wanlan_timematch, wanlan_buf);
+					if (ipv6_enabled() && (v4v6_ok & IPT_V6) && *wan6face)
+						fprintf(fp_ipv6, "-A FORWARD %s -i %s -o %s -p icmp --icmp-type %s -j %s\n", wanlan_timematch, wan6face, lan_if, ptr, ftype);
+				}
+			}
 #endif
 		}
-
-		// thanks for Oleg
+ 		// thanks for Oleg
 		// Default
 		// fprintf(fp, "-A FORWARD -i %s -o %s -j %s\n", wan_if, lan_if, dtype);
 	}
@@ -5833,35 +6369,31 @@ TRACE_PT("write porttrigger\n");
 	}
 #endif
 
-	// Allow from LAN
-	if (nvram_get_int("fw_enable_x"))
-		fprintf(fp, "-A FORWARD -i %s -j %s\n", lan_if, "ACCEPT");
-
 	/* Enable Virtual Servers
 	 * Accepts all DNATed connection, including VSERVER, UPNP, BATTLEIPs, etc
 	 * Don't bother to do explicit dst checking, 'coz it's done in PREROUTING */
 	if (is_nat_enabled())
 		fprintf(fp, "-A FORWARD -m conntrack --ctstate DNAT -j %s\n", logaccept);
 
-#if 0 /* Never used */
+#if 1 
 TRACE_PT("write wl filter\n");
 
 	for(unit = WAN_UNIT_FIRST; unit < wan_max_unit; ++unit){
 		if(!is_wan_connect(unit))
 			continue;
-
 		wan_if = get_wan_ifname(unit);
 
 		if (nvram_match("fw_wl_enable_x", "1")) // Thanks for Oleg
+		{
 			// Default
-			fprintf(fp, "-A FORWARD -i %s -o %s -j %s\n", wan_if, lan_if, nvram_match("filter_wl_default_x", "DROP") ? logdrop : logaccept);
+			for(unit = WAN_UNIT_FIRST; unit < wan_max_unit; ++unit){
+				if(!is_wan_connect(unit))
+					continue;
 
-
-#ifdef RTCONFIG_IPV6
-		if ((unit == wan_primary_ifunit_ipv6()) &&
-			ipv6_enabled() && *wan6face)
-			fprintf(fp_ipv6, "-A FORWARD -i %s -o %s -j %s\n", wan6face, lan_if, nvram_match("filter_wl_default_x", "DROP") ? logdrop : logaccept);
-#endif
+				wan_if = get_wan_ifname(unit);
+				fprintf(fp, "-A FORWARD -i %s -o %s -j %s\n", wan_if, lan_if, nvram_match("filter_wl_default_x", "DROP") ? logdrop : logaccept);
+			}
+		}
 	}
 #endif
 
@@ -5913,11 +6445,22 @@ TRACE_PT("write wl filter\n");
 		  "--log-tcp-sequence --log-tcp-options --log-ip-options\n"
 		  "-A logdrop -j DROP\n");
 #endif
-
+#ifdef RTCONFIG_MULTILAN_CFG
+	fprintf(fp, "-I FORWARD -j %s\n", URL_FILTER_FORWARD_CHAIN);
+	fprintf(fp, "-I FORWARD -j %s\n", NW_SERVICE_FILTER_FORWARD_CHAIN);
+#ifdef RTCONFIG_IPV6
+	if (ipv6_enabled())
+	{
+		fprintf(fp_ipv6, "-I FORWARD -j %s\n", URL_FILTER_FORWARD_CHAIN);
+		fprintf(fp_ipv6, "-I FORWARD -j %s\n", NW_SERVICE_FILTER_FORWARD_CHAIN);
+	}
+#endif	
+#else
 #ifdef RTCONFIG_IPV6
 	write_UrlFilter("FORWARD", lan_if, lan_ip, logdrop, fp, fp_ipv6);
 #else
 	write_UrlFilter("FORWARD", lan_if, lan_ip, logdrop, fp);
+#endif
 #endif
 
 #ifdef CONTENTFILTER
@@ -5960,14 +6503,64 @@ TRACE_PT("write wl filter\n");
 #endif
 
 #ifdef RTCONFIG_DNSFILTER
-	dnsfilter_dot_rules(fp, lan_if);
+	dnsfilter_dot_rules(fp);
+#endif
+
+	// Allow LAN -> X after all (URL/Keyword/Network...) filter.
+	for (unit = WAN_UNIT_FIRST; unit < wan_max_unit; ++unit) {
+		if(!is_wan_connect(unit))
+			continue;
+
+#ifdef RTCONFIG_IPV6
+		if ((get_ipv6_service_by_unit(unit) != IPV6_DISABLED)) {
+			if (nvram_match("ipv6_fw_enable", "1")) {
+				fprintf(fp_ipv6, "-A FORWARD -o %s -i %s -j %s\n", get_wan6_ifname(unit), lan_if, logaccept);
+			} else {	// The default DROP rule from the IPv6 firewall would take care of it
+				fprintf(fp_ipv6, "-A FORWARD -o %s ! -i %s -j %s\n", get_wan6_ifname(unit), lan_if, logdrop);
+			}
+		}
+#endif
+	}
+
+#ifdef RTCONFIG_WIREGUARD
+	fprintf(fp, "-A FORWARD -j WGCF\n");
+#ifdef RTCONFIG_IPV6
+	if (ipv6_enabled())
+		fprintf(fp_ipv6, "-A FORWARD -j WGCF\n");
+#endif
 #endif
 
 #ifdef RTCONFIG_OPENVPN
 	fprintf(fp, "-A FORWARD -j OVPNCF\n");
+#ifdef RTCONFIG_IPV6
 	if (ipv6_enabled())
 		fprintf(fp_ipv6, "-A FORWARD -j OVPNCF\n");
 #endif
+#endif
+
+#ifdef RTCONFIG_VPNC
+	fprintf(fp, "-A FORWARD -j VPNCF\n");
+	// if (ipv6_enabled())
+		// fprintf(fp_ipv6, "-A FORWARD -j VPNCF\n");
+#endif
+
+#ifdef RTCONFIG_MULTILAN_CFG
+		fprintf(fp, "-A FORWARD -j %s\n", SDN_FILTER_FORWARD_CHAIN);
+#ifdef RTCONFIG_IPV6
+		if (ipv6_enabled())
+			fprintf(fp_ipv6, "-A FORWARD -j %s\n", SDN_FILTER_FORWARD_CHAIN);
+#endif
+#endif
+
+#ifdef RTCONFIG_VPN_FUSION
+	fprintf(fp, "-A FORWARD -j VPNCF\n");
+	// if (ipv6_enabled())
+		// fprintf(fp_ipv6, "-A FORWARD -j VPNCF\n");
+#endif
+
+	// Allow from LAN
+	if (nvram_get_int("fw_enable_x"))
+		fprintf(fp, "-A FORWARD -i %s -j %s\n", lan_if, "ACCEPT");
 
 	// Default rule
 	if (nvram_get_int("fw_enable_x"))
@@ -5975,6 +6568,14 @@ TRACE_PT("write wl filter\n");
 #ifdef RTCONFIG_IPV6
 	if (ipv6_enabled() && nvram_match("ipv6_fw_enable", "1"))
 		fprintf(fp_ipv6, "-A FORWARD -j %s\n", logdrop);
+#endif
+
+#ifdef RTCONFIG_TIME_QUOTA
+	fprintf(fp, "-A TIME_QUOTA -j %s\n", logdrop);
+#ifdef RTCONFIG_IPV6
+	if (ipv6_enabled())
+		fprintf(fp_ipv6, "-A TIME_QUOTA -j %s\n", logdrop);
+#endif
 #endif
 
 	// extra filter
@@ -6070,6 +6671,16 @@ mangle_setting(char *wan_if, char *wan_ip, char *lan_if, char *lan_ip, char *log
 #endif
 	}
 
+#ifdef RTCONFIG_DNSQUERY_INTERCEPT
+        if(nvram_get_int("nfcm_enable") == 1)
+        {
+#ifdef RTCONFIG_AMAS
+            if(aimesh_re_node() == 0)
+#endif
+                eval("iptables", "-t", "mangle", "-A", "POSTROUTING", "-p", "udp", "--sport", "53", "-j", "QUEUE");
+        }
+#endif
+
 #ifdef RTCONFIG_IPV6
 	if (ipv6_enabled() && IS_TQOS()) {
 		/* Create QOSOx chain for TQoS */
@@ -6078,7 +6689,16 @@ mangle_setting(char *wan_if, char *wan_ip, char *lan_if, char *lan_ip, char *log
 			eval("ip6tables", "-t", "mangle", "-N", chain);
 		}
 	}
+#ifdef RTCONFIG_DNSQUERY_INTERCEPT
+        if(nvram_get_int("nfcm_enable") == 1)
+        {
+#ifdef RTCONFIG_AMAS
+            if(aimesh_re_node() == 0)
 #endif
+                eval("ip6tables", "-t", "mangle", "-A", "POSTROUTING", "-p", "udp", "--sport", "53", "-j", "QUEUE");
+        }
+#endif //RTCONFIG_DNSQUERY_INTERCEPT
+#endif //RTCONFIG_IPV6
 
 #ifdef RTCONFIG_FBWIFI
 	if(sw_mode() == SW_MODE_ROUTER){
@@ -6129,7 +6749,7 @@ mangle_setting(char *wan_if, char *wan_ip, char *lan_if, char *lan_ip, char *log
 			    ":DNSFILTERF - [0:0]\n"
 			    ":DNSFILTER_DOT - [0:0]\n");
 
-			dnsfilter6_settings(fp, lan_if, lan_ip);
+			dnsfilter6_settings(fp);
 
 			fprintf(fp, "COMMIT\n");
 			fclose(fp);
@@ -6199,6 +6819,8 @@ mangle_setting(char *wan_if, char *wan_ip, char *lan_if, char *lan_ip, char *log
 	/* mark connect to bypass CTF */
 	if (nvram_match("ctf_disable", "0")) {
 #endif
+#if 0
+/* remove mangle rules due to RU ISP DHCP issue */
 #if defined(RTCONFIG_BWDPI)
 		/* DPI engine */
 		if (IS_AQOS()) {
@@ -6208,6 +6830,7 @@ mangle_setting(char *wan_if, char *wan_ip, char *lan_if, char *lan_ip, char *log
 				eval("iptables", "-t", "mangle", "-A", "BWDPI_FILTER", "-i", wan_if, "-p", "udp", "--sport", "67", "--dport", "68", "-j", "DROP");
 				eval("iptables", "-t", "mangle", "-A", "PREROUTING", "-i", wan_if, "-p", "udp", "-j", "BWDPI_FILTER");
 		}
+#endif
 #endif
 		/* mark 80 port connection */
 		if (nvram_match("url_enable_x", "1") || nvram_match("keyword_enable_x", "1")) {
@@ -6258,6 +6881,7 @@ mangle_setting(char *wan_if, char *wan_ip, char *lan_if, char *lan_ip, char *log
 		case WAN_LW4O6:
 		case WAN_MAPE:
 		case WAN_V6PLUS:
+		case WAN_OCNVC:
 #ifdef RTCONFIG_BCMARM
 #ifdef HND_ROUTER
 			if (!nvram_match("fc_pt_war", "1"))
@@ -6279,6 +6903,9 @@ mangle_setting(char *wan_if, char *wan_ip, char *lan_if, char *lan_ip, char *log
 	eval("iptables", "-t", "mangle", "-A", "INPUT",
 	     "-p", "tcp", "-m", "state", "--state", "ESTABLISHED",
 			"-j", "EXTMARK", "--set-mark", "0x80000000/0x80000000");
+#endif
+#ifdef RTCONFIG_VPN_FUSION
+	write_vpn_fusion_mangle();
 #endif
 }
 
@@ -6322,6 +6949,16 @@ mangle_setting2(char *lan_if, char *lan_ip, char *logaccept, char *logdrop)
 #endif
 	}
 
+#ifdef RTCONFIG_DNSQUERY_INTERCEPT
+        if(nvram_get_int("nfcm_enable") == 1)
+        {
+#ifdef RTCONFIG_AMAS
+            if(aimesh_re_node() == 0)
+#endif
+                eval("iptables", "-t", "mangle", "-A", "POSTROUTING", "-p", "udp", "--sport", "53", "-j", "QUEUE");
+        }
+#endif
+
 #ifdef RTCONFIG_DNSFILTER
 #ifdef RTCONFIG_IPV6
 	if (nvram_get_int("dnsfilter_enable_x") && ipv6_enabled()) {
@@ -6334,7 +6971,7 @@ mangle_setting2(char *lan_if, char *lan_ip, char *logaccept, char *logdrop)
 				":DNSFILTERF - [0:0]\n"
 				":DNSFILTER_DOT - [0:0]\n");
 
-			dnsfilter6_settings(fp, lan_if, lan_ip);
+			dnsfilter6_settings(fp);
 
 			fprintf(fp, "COMMIT\n");
 			fclose(fp);
@@ -6353,7 +6990,16 @@ mangle_setting2(char *lan_if, char *lan_ip, char *logaccept, char *logdrop)
 			eval("ip6tables", "-t", "mangle", "-N", chain);
 		}
 	}
+#ifdef RTCONFIG_DNSQUERY_INTERCEPT
+        if(nvram_get_int("nfcm_enable") == 1)
+        {
+#ifdef RTCONFIG_AMAS
+            if(aimesh_re_node() == 0)
 #endif
+                eval("ip6tables", "-t", "mangle", "-I", "POSTROUTING", "-p", "udp", "--sport", "53", "-j", "QUEUE"); /*first rule*/
+        }
+#endif //RTCONFIG_DNSQUERY_INTERCEPT
+#endif //RTCONFIG_IPV6
 
 #ifdef RTCONFIG_FBWIFI
 	if(sw_mode() == SW_MODE_ROUTER){
@@ -6450,6 +7096,8 @@ mangle_setting2(char *lan_if, char *lan_ip, char *logaccept, char *logdrop)
 	/* mark connect to bypass CTF */
 	if (nvram_match("ctf_disable", "0")) {
 #endif
+#if 0
+/* remove mangle rules due to RU ISP DHCP issue */
 #if defined(RTCONFIG_BWDPI)
 		/* DPI engine */
 		if (IS_AQOS()) {
@@ -6469,6 +7117,7 @@ mangle_setting2(char *lan_if, char *lan_ip, char *logaccept, char *logdrop)
 				eval("iptables", "-t", "mangle", "-A", "PREROUTING", "-i", wan_if, "-p", "udp", "-j", "BWDPI_FILTER");
 			}
 		}
+#endif
 #endif
 		/* mark 80 port connection */
 		if (nvram_match("url_enable_x", "1") || nvram_match("keyword_enable_x", "1")) {
@@ -6521,6 +7170,9 @@ mangle_setting2(char *lan_if, char *lan_ip, char *logaccept, char *logdrop)
 #ifdef RTCONFIG_DUALWAN
 	if(!nvram_get_int("stop_adv_lb"))
 		set_load_balance();
+#endif
+#ifdef RTCONFIG_VPN_FUSION
+	write_vpn_fusion_mangle();
 #endif
 }
 #endif // RTCONFIG_DUALWAN
@@ -6655,7 +7307,7 @@ int start_firewall(int wanunit, int lanunit)
 	DIR *dir;
 	struct dirent *file;
 	FILE *fp;
-	char name[NAME_MAX];
+	char name[NAME_MAX * 2];
 	//char logaccept[32], logdrop[32];
 	//oleg patch ~
 	char logaccept[32], logdrop[32];
@@ -6664,6 +7316,7 @@ int start_firewall(int wanunit, int lanunit)
 	char wanx_if[IFNAMSIZ+1], wanx_ip[32];
 	char prefix[] = "wanXXXXXXXXXX_", tmp[100];
 	int lock;
+	char rp_if[32] = {0};
 
 	if (!is_routing_enabled())
 		return -1;
@@ -6702,6 +7355,13 @@ int start_firewall(int wanunit, int lanunit)
 //	}
 #endif
 
+#ifdef RTCONFIG_UPNPC_NEW
+//	if(nvram_match("upnp_enable", "1") && nvram_match("upnpc_enable", "1"))
+	{
+		eval("ipset", "create", "upnp", "hash:ip,port", "timeout", "3");
+	}
+#endif
+
 	/* Mcast needs rp filter to be turned off only for non default iface */
 	if (nvram_get_int("mr_enable_x") || nvram_get_int("udpxy_enable_x")) {
 		char wan_prefix[sizeof("wanXXXXXXXXXX_")];
@@ -6737,7 +7397,7 @@ int start_firewall(int wanunit, int lanunit)
 		while ((file = readdir(dir)) != NULL) {
 			if (strncmp(file->d_name, ".", NAME_MAX) != 0 &&
 			    strncmp(file->d_name, "..", NAME_MAX) != 0) {
-				sprintf(name, "/proc/sys/net/ipv4/conf/%s/rp_filter", file->d_name);
+				snprintf(name, sizeof(name), "/proc/sys/net/ipv4/conf/%s/rp_filter", file->d_name);
 				f_write_string(name, mcast_ifname &&
 					strncmp(file->d_name, mcast_ifname, NAME_MAX) == 0 ? "0" :
 					strncmp(file->d_name, "all", NAME_MAX) == 0 ? "-1" : "1", 0, 0);
@@ -6746,6 +7406,23 @@ int start_firewall(int wanunit, int lanunit)
 		closedir(dir);
 	} else
 		perror("/proc/sys/net/ipv4/conf");
+
+#if defined(RTCONFIG_MULTICAST_IPTV) && defined(RTCONFIG_HND_ROUTER_AX_6756)
+	/*
+		Movistar IPTV mcast issue :
+		vlan2 can't receive igmp packets with multi-routing, need to enable rp_filter = 2.
+		In SDK 5.02, BRCM add bypass igmp in fib_validate_source() to let packets go to ip_route_input_mc().
+		In Kernel 4.X, BRCM uses proc instead of kernel modifcation. 
+	*/
+	snprintf(rp_if, sizeof(rp_if), "%s", nvram_safe_get("wan10_ifname"));
+
+	if (nvram_get_int("switch_stb_x") > 6 && nvram_match("switch_wantag", "movistar")) {
+		if (strcmp(rp_if, "")) {
+			snprintf(name, sizeof(name), "/proc/sys/net/ipv4/conf/%s/rp_filter", rp_if);
+			f_write_string(name, "2", 0, 0);
+		}
+	}
+#endif
 
 	/* Determine the log type */
 	if (nvram_match("fw_log_x", "accept") || nvram_match("fw_log_x", "both"))
@@ -6760,9 +7437,9 @@ int start_firewall(int wanunit, int lanunit)
 	if (get_ipv6_service() != IPV6_DISABLED) {
 		if (!f_exists("/proc/sys/net/netfilter/nf_conntrack_frag6_timeout"))
 			modprobe("nf_conntrack_ipv6");
-		modprobe("ip6t_REJECT");
-		modprobe("ip6t_ROUTE");
-		modprobe("ip6t_LOG");
+		modprobe_q("ip6t_REJECT");
+		modprobe_q("ip6t_ROUTE");
+		modprobe_q("ip6t_LOG");
 		modprobe("xt_length");
 	} else {
 		modprobe_r("xt_length");
@@ -6834,6 +7511,10 @@ int start_firewall(int wanunit, int lanunit)
 #endif
 
 	enable_ip_forward();
+
+#ifdef RTCONFIG_MULTILAN_CFG
+	handle_sdn_feature(ALL_SDN, SDN_FEATURE_ALL_FIREWALL, RC_SERVICE_START);
+#endif
 
 	/* Tweak NAT performance... */
 /*
@@ -7027,8 +7708,17 @@ int start_firewall(int wanunit, int lanunit)
 	run_wgc_fw_scripts();
 #endif
 
+#ifdef RTCONFIG_GRE
+	run_gre_fw_scripts();
+#endif
+
 	/* Assuming wan interface doesn't change */
 	reload_upnp();
+
+#ifdef RTCONFIG_TIME_QUOTA
+	// notify sched_daemon to write time quota persist rules if any.
+	killall("sched_daemon", SIGUSR1);
+#endif
 
 leave:
 	file_unlock(lock);

@@ -27,12 +27,37 @@
 #include <utils.h>
 #include <shutils.h>
 #include <shared.h>
+#if defined (RTACRH18) || defined (RT4GAC86U) || defined (RTCONFIG_MT798X)
+#include <linux/autoconf.h>
+#else
 #include <linux/config.h>
+#endif
 #include <ralink_gpio.h>
 #include <ralink.h>
 
 #define RTKSWITCH_DEV	"/dev/rtkswitch"
+#if defined(RT4GAC86U)
+#define ETH_DEVNAME     "eth0"
+#define MII_IFNAME      "switch0"
+static void config_rtl_esw_LANWANPartition(int type)
+{
+    //reset_mt7531_esw();
+    //build_wan_lan_mask(type);
+    eval("swconfig", "dev", MII_IFNAME, "set", "enable_vlan", "1"); // enable vlan
 
+    eval("swconfig", "dev", MII_IFNAME, "vlan","1","set", "ports", "0 1 2 3 6"); // set lan port
+    eval("swconfig", "dev", MII_IFNAME, "vlan","2","set", "ports", "4 5"); // set wan port
+
+    eval("swconfig", "dev", MII_IFNAME, "set", "apply");    // apply changes
+
+    return;
+}
+#elif defined(RTCONFIG_MT798X)
+static void config_rtl_esw_LANWANPartition(int type)
+{
+// TBD.
+}
+#endif
 struct trafficCount_t
 {
 	long long rxByteCount;
@@ -45,18 +70,19 @@ int rtkswitch_ioctl(int val, int val2)
 	int value = 0;
 	int *p = NULL, invalid_ioctl_cmd = 0;
 	struct trafficCount_t portTraffic;
-
+#if !defined(RT4GAC86U)
 	fd = open(RTKSWITCH_DEV, O_RDONLY);
 	if (fd < 0) {
 		perror(RTKSWITCH_DEV);
 		return -1;
 	}
-
+#endif
 	switch (val) {
 	case 0:		/* check WAN port phy status */
 	case 3:		/* check LAN ports phy status */
 	case 6:
 	case 8:
+	config_rtl_esw_LANWANPartition(val2);
 	case 9:
 	case 10:
 	case 19:	/* Set WAN port txDelay */
@@ -167,11 +193,13 @@ int ralink_gpio_write_bit(int idx, int value)
 	int fd;
 	asus_gpio_info info;
 
+#if !defined(RT4GAC86U)
 	fd = open(RTKSWITCH_DEV, O_RDONLY);
 	if (fd < 0) {
 		perror(RTKSWITCH_DEV);
 		return -1;
 	}
+#endif
 
 	info.idx = idx;
 	info.value = value;
@@ -192,11 +220,13 @@ int ralink_gpio_read_bit(int idx)
 	int fd;
 	int value;
 
+#if !defined(RT4GAC86U)
 	fd = open(RTKSWITCH_DEV, O_RDONLY);
 	if (fd < 0) {
 		perror(RTKSWITCH_DEV);
 		return -1;
 	}
+#endif
 
 	value = idx;
 
@@ -216,11 +246,13 @@ int ralink_gpio_init(unsigned int idx, int dir)
 	int fd;
 	asus_gpio_info info;
 
+#if !defined(RT4GAC86U)
 	fd = open(RTKSWITCH_DEV, O_RDONLY);
 	if (fd < 0) {
 		perror(RTKSWITCH_DEV);
 		return -1;
 	}
+#endif
 
 	info.idx = idx;
 	info.value = dir;
@@ -270,11 +302,13 @@ unsigned int rtkswitch_wanPort_phyStatus(int wan_unit)
 	int fd;
 	unsigned int value;
 
+#if !defined(RT4GAC86U)
 	fd = open(RTKSWITCH_DEV, O_RDONLY);
 	if (fd < 0) {
 		perror(RTKSWITCH_DEV);
 		return -1;
 	}
+#endif
 
 	if (ioctl(fd, 0, &value) < 0) {
 		perror("ioctl");
@@ -292,11 +326,13 @@ unsigned int rtkswitch_lanPorts_phyStatus(void)
 	int fd;
 	unsigned int value;
 
+#if !defined(RT4GAC86U)
 	fd = open(RTKSWITCH_DEV, O_RDONLY);
 	if (fd < 0) {
 		perror(RTKSWITCH_DEV);
 		return -1;
 	}
+#endif
 
 	if (ioctl(fd, 3, &value) < 0) {
 		perror("ioctl");
@@ -314,11 +350,13 @@ unsigned int rtkswitch_WanPort_phySpeed(void)
 	int fd;
 	unsigned int value;
 
+#if !defined(RT4GAC86U)
 	fd = open(RTKSWITCH_DEV, O_RDONLY);
 	if (fd < 0) {
 		perror(RTKSWITCH_DEV);
 		return -1;
 	}
+#endif
 
 	if (ioctl(fd, 13, &value) < 0) {
 		perror("ioctl");
@@ -380,11 +418,6 @@ int rtkswitch_Reset_Storm_Control(void)
 	return 0;
 }
 
-typedef struct {
-	unsigned int link[5];
-	unsigned int speed[5];
-} phyState;
-
 int rtkswitch_AllPort_phyState(void)
 {
 	int fd;
@@ -402,11 +435,13 @@ int rtkswitch_AllPort_phyState(void)
 	if (get_model() == MODEL_RTN65U)
 		portMark = "W0=%C;L4=%C;L3=%C;L2=%C;L1=%C;";
 
+#if !defined(RT4GAC86U)
 	fd = open(RTKSWITCH_DEV, O_RDONLY);
 	if (fd < 0) {
 		perror(RTKSWITCH_DEV);
 		return -1;
 	}
+#endif
 
 	phyState pS;
 
@@ -440,11 +475,13 @@ int get_realtek_wan_bytecount(unsigned long *tx, unsigned long *rx)
 	int *p = NULL;
 	struct trafficCount_t portTraffic;
 
+#if !defined(RT4GAC86U)
 	fd = open(RTKSWITCH_DEV, O_RDONLY);
 	if (fd < 0) {
 		perror(RTKSWITCH_DEV);
 		return -1;
 	}
+#endif
 
 	p = (int*) &portTraffic;
 
@@ -470,11 +507,13 @@ int get_realtek_lans_bytecount(unsigned long *tx, unsigned long *rx)
 	int *p = NULL;
 	struct trafficCount_t portTraffic;
 
+#if !defined(RT4GAC86U)
 	fd = open(RTKSWITCH_DEV, O_RDONLY);
 	if (fd < 0) {
 		perror(RTKSWITCH_DEV);
 		return -1;
 	}
+#endif
 
 	p = (int*) &portTraffic;
 

@@ -69,6 +69,10 @@ extern "C" {
 #include <ext2fs/ext3_extents.h>
 #endif /* EXT2_FLAT_INCLUDES */
 
+#if defined(MUSL_LIBC)
+#include <sys/sysmacros.h>
+#endif
+
 #ifdef __CHECK_ENDIAN__
 #define __bitwise __attribute__((bitwise))
 #else

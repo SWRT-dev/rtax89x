@@ -20,7 +20,9 @@
 #include <sys/types.h>
 #include <sys/ioctl.h>
 #include <stdio.h>
+#ifndef MUSL_LIBC
 #include <math.h>
+#endif	// !MUSL_LIBC
 #include <errno.h>
 #include <fcntl.h>
 #include <ctype.h>
@@ -28,7 +30,9 @@
 #include <string.h>
 #include <unistd.h>
 #include <netdb.h>		/* gethostbyname, getnetbyname */
+#ifndef MUSL_LIBC
 #include <net/ethernet.h>	/* struct ether_addr */
+#endif	// !MUSL_LIBC
 #include <sys/time.h>		/* struct timeval */
 #include <unistd.h>
 

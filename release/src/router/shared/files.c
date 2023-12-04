@@ -20,6 +20,10 @@
 #include <limits.h>		//PATH_MAX
 #include "shutils.h"
 #include "shared.h"
+#if defined(RTACRH18) || defined(RT4GAC86U)
+#include <limits.h>
+#include <time.h>
+#endif
 
 unsigned int __dir_size__ = 0;
 
@@ -287,7 +291,7 @@ int check_if_dir_writable(const char *dir)
 	if (!dir || *dir == '\0')
 		return -1;
 
-	sprintf(tmp, "%s/.test_dir_writable", dir);
+	snprintf(tmp, sizeof(tmp), "%s/.test_dir_writable", dir);
 	if ((fp = fopen(tmp, "w")) != NULL) {
 		fclose(fp);
 		unlink(tmp);

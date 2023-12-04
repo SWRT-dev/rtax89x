@@ -25,7 +25,7 @@
 
 /*
  * Automatically generated make config: don't edit
- * Date: Wed Dec  1 17:00:25 2021
+ * Date: Thu Aug 17 15:09:24 2023
  */
 #ifndef __TMCFG__UDB_AUTOCONF_OUTPUT_H_
 #define __TMCFG__UDB_AUTOCONF_OUTPUT_H_
@@ -109,13 +109,13 @@
 #define TMCFG_CPU_64BITS 0 // n
 #define TMCFG_CPU_BIG_ENDIAN 0 // n
 #define TMCFG_CPU_LITTLE_ENDIAN 1 // y
-#define TMCFG_KERN_DIR "/opt/ASUS/asuswrt_AX89X_GPL_386_22790/release/src-qca-ipq806x/linux/linux-4.4.x.spf11.0"
+#define TMCFG_KERN_DIR "/opt/ASUS/asuswrt_GPL_RT-AX89U_3.0.0.4.388.32384/release/src-qca-ipq806x/linux/linux-4.4.x.spf11.1"
 #define TMCFG_KERN_ARCH "arm"
 
 /*
  * Toolchain (TC) configurations
  */
-#define TMCFG_TC_PFX "/opt/openwrt-gcc463.arm/bin/arm-openwrt-linux-uclibcgnueabi-"
+#define TMCFG_TC_PFX "/opt/ASUS/toolchains/openwrt-gcc463.arm/bin/arm-openwrt-linux-"
 
 /*
  * Advanced Build Options
@@ -160,7 +160,13 @@
 #define TMCFG_E_UDB_CORE_RULE_FORMAT_V2 0 // n
 #define TMCFG_E_UDB_CORE_MESH 1 // y
 #define TMCFG_E_UDB_CORE_URL_QUERY 1 // y
-#define TMCFG_E_UDB_CORE_DNS_BASE_URL 0 // n
+#define TMCFG_E_UDB_CORE_DNS_BASE_URL 1 // y
+
+/*
+ * DNS Based WRS Configs
+ */
+#define TMCFG_E_UDB_CORE_DEF_REDIR_DOMAIN "blocking.asus.hns.tm"
+#define TMCFG_E_UDB_CORE_MAX_DNS_ENTRY 1000
 #define TMCFG_E_UDB_CORE_SHN_QUERY 0 // n
 #define TMCFG_E_UDB_CORE_WBL 1 // y
 #define TMCFG_E_UDB_CORE_WBL_MAJ_VER 2
@@ -177,7 +183,7 @@
 #define TMCFG_E_UDB_CORE_WBL_URL_NUM 1024
 #define TMCFG_E_UDB_CORE_WEB_FUNC 1 // y
 #define TMCFG_E_UDB_CORE_DC 1 // y
-#define TMCFG_E_UDB_CORE_DC_UNKNOWN_DEVID 1 // y
+#define TMCFG_E_UDB_CORE_DC_UNKNOWN_DEVID 0 // n
 #define TMCFG_E_UDB_CORE_ANOMALY_PREVENT 1 // y
 #define TMCFG_E_UDB_CORE_VIRTUAL_PATCH 1 // y
 #define TMCFG_E_UDB_CORE_SWNAT 0 // n
@@ -187,10 +193,8 @@
 #define TMCFG_E_UDB_CORE_HWNAT 1 // y
 #define TMCFG_E_UDB_CORE_HWQOS 0 // n
 #define TMCFG_E_UDB_CORE_APP_PATROL 1 // y
-#define TMCFG_E_UDB_CORE_PATROL_TIME_QUOTA 1 // y
+#define TMCFG_E_UDB_CORE_PATROL_TIME_QUOTA 0 // n
 #define TMCFG_E_UDB_CORE_APP_REDIRECT_URL 1 // y
-#define TMCFG_E_UDB_CORE_PATROL_TIME_GRP_NUM 32
-#define TMCFG_E_UDB_CORE_PATROL_TIME_DEV_NUM 6
 #define TMCFG_E_UDB_CORE_PROG_CTRL 1 // y
 #define TMCFG_E_UDB_CORE_PROG_LIC_CTRL_NONE 1 // y
 #define TMCFG_E_UDB_CORE_PROG_LIC_CTRL_V1 0 // n
@@ -211,8 +215,8 @@
 #define TMCFG_E_UDB_SHELL_PROCFS 1 // y
 #define TMCFG_E_REL_PKG_MAJ_VER 2
 #define TMCFG_E_REL_PKG_MIN_VER 0
-#define TMCFG_E_REL_PKG_REV_VER 2
-#define TMCFG_E_REL_PKG_LOCAL_VER "4b635f32"
+#define TMCFG_E_REL_PKG_REV_VER 6
+#define TMCFG_E_REL_PKG_LOCAL_VER "6be3752-newgpl-32bit"
 
 /*
  * Accompany applications or modules
@@ -221,7 +225,7 @@
 /*
  * Kernel
  */
-#define TMCFG_APP_K_EXTRA_CFLAGS "-I/opt/QCA/qca-networking-2017-spf-8-0_qca_oem.git/qsdk/qca/src/qca-nss-ecm"
+#define TMCFG_APP_K_EXTRA_CFLAGS "-I/opt/ASUS/asuswrt_GPL_RT-AX89U_3.0.0.4.388.32384/release/src-qca-ipq806x/spf11.1/qca-nss-ecm/source"
 #define TMCFG_APP_K_TDTS_NFFW 0 // n
 #define TMCFG_APP_K_TDTS_UDBFW 1 // y
 #define TMCFG_APP_K_TDTS_UDBFW_EXTRA_SYMBOLS ""

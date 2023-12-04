@@ -3,7 +3,7 @@ KERNEL_3_4_X_MODEL_LIST := $(addprefix _,$(addsuffix _,BRT-AC828 RT-AC88N RT-AC8
 # Select QSDK
 IPQ806X_MODEL_LIST := $(addprefix _,$(addsuffix _,BRT-AC828 RT-AC88N RT-AC88S RT-AD7200))
 ifeq ($(MUSL64),y)
-SPF8_MODEL_LIST := #$(addprefix _,$(addsuffix _,GT-6000N))
+#SPF8_MODEL_LIST := $(addprefix _,$(addsuffix _,GT-6000N))
 SPF11.0_MODEL_LIST := $(addprefix _,$(addsuffix _,))
 SPF11.1_MODEL_LIST := $(addprefix _,$(addsuffix _,RT-AX89U))
 IPQ807X_MODEL_LIST := $(addprefix _,$(addsuffix _,GT-AXY16000))	# SPF11.4
@@ -193,6 +193,8 @@ define platformRouterOptions
 			echo "RTCONFIG_CFG80211=y" >>$(1); \
 			sed -i "/RTCONFIG_GLOBAL_INI\>/d" $(1); \
 			echo "RTCONFIG_GLOBAL_INI=y" >>$(1); \
+			sed -i "/RTCONFIG_HW_DOG/d" $(1); \
+			echo "RTCONFIG_HW_DOG=y" >>$(1); \
 		elif [ -n "$(findstring $(_BUILD_NAME_),$(IPQ807X_MODEL_LIST))" ] ; then \
 			sed -i "/RTCONFIG_SPF11_4_QSDK/d" $(1); \
 			echo "RTCONFIG_SPF11_4_QSDK=y" >>$(1); \
@@ -224,6 +226,8 @@ define platformRouterOptions
 			echo "RTCONFIG_SINGLE_HOSTAPD=y" >>$(1); \
 			sed -i "/RTCONFIG_MFP\>/d" $(1); \
 			echo "RTCONFIG_MFP=y" >>$(1); \
+			sed -i "/RTCONFIG_PAGECACHE_RATIO\>/d" $(1); \
+			echo "RTCONFIG_PAGECACHE_RATIO=y" >>$(1); \
 		else \
 			sed -i "/RTCONFIG_SOC_IPQ8074/d" $(1); \
 			echo "# RTCONFIG_SOC_IPQ8074 is not set" >>$(1); \
@@ -994,7 +998,7 @@ define platformKernelConfig
 		fi; \
 		if [ "$(IPV6SUPP)" = "y" ]; then \
 			if [ "$(IPQ806X)" = "y" -o "$(IPQ807X)" = "y" ]; then \
-				sed -i "/CONFIG_IPV6_MULTIPLE_TABLES is not set/d" $(1); \
+				sed -i "/CONFIG_IPV6_MULTIPLE_TABLES/d" $(1); \
 				echo "# CONFIG_IPV6_MULTIPLE_TABLES is not set" >>$(1); \
 			fi; \
 		fi; \

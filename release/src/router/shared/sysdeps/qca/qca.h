@@ -162,14 +162,14 @@ typedef struct _WLANCONFIG_LIST {
 	char txrate[10];
 	char rxrate[10];
 	int rssi;
-//	char htcaps[12];
-//	char vhtcaps[12];
+	char htcaps[12];
+	char vhtcaps[12];
 	char conn_time[12];
 	char mode[31];
 	char subunit_id;	/* '0': main 2G/5G network, '1' ~ '7': Guest network (MAX_NO_MSSID = 8), 'B': Facebook Wi-Fi, 'F': Free Wi-Fi, 'C': Captive Portal */
-//	unsigned int txnss;
-//	unsigned int rxnss;
-//	unsigned int psm;	/* power-save mode */
+	unsigned int txnss;
+	unsigned int rxnss;
+	unsigned int psm;	/* power-save mode */
 } WLANCONFIG_LIST;
 
 #if defined(RTCONFIG_WIFI_QCA9990_QCA9990) || \
@@ -606,6 +606,9 @@ enum ASUS_IOCTL_SUBCMD {
 #define OFFSET_AVGUPTIME		(MTD_FACTORY_BASE_ADDRESS + FTRY_PARM_SHIFT + 0x0D310)	// 4 byte, uint32_t, little-endian
 #endif
 
+#define MAX_PASS_ENC_LEN 64
+#define OFFSET_PASS_ENC			(MTD_FACTORY_BASE_ADDRESS + FTRY_PARM_SHIFT + 0x0FE60)  /*  64 bytes (MAX_PASS_ENC_LEN) */
+#define OFFSET_EISN			(MTD_FACTORY_BASE_ADDRESS + FTRY_PARM_SHIFT + 0x0FEA0)  /*  32 bytes */
 #if defined(RTCONFIG_ASUSCTRL)
 #define OFFSET_ASUSCTRL_FLAGS		(MTD_FACTORY_BASE_ADDRESS + FTRY_PARM_SHIFT + 0x0FEC0)  /*  8 bytes */
 #define ASUSCTRL_FLAGS_LENGTH		(8)
@@ -635,6 +638,9 @@ enum ASUS_IOCTL_SUBCMD {
 #define OFFSET_FAIL_BOOT_LOG		(MTD_FACTORY_BASE_ADDRESS + FTRY_PARM_SHIFT + 0x0FFD0)	//bit operation for max 100
 #define OFFSET_FAIL_DEV_LOG		(MTD_FACTORY_BASE_ADDRESS + FTRY_PARM_SHIFT + 0x0FFE0)	//bit operation for max 100
 #define OFFSET_SERIAL_NUMBER		(MTD_FACTORY_BASE_ADDRESS + FTRY_PARM_SHIFT + 0x0FFF0)  /*  16 bytes */
+
+#define PASS_OFFSET	OFFSET_PASS_ENC
+#define PASS_LEN	MAX_PASS_ENC_LEN
 
 /*
  * EEPROM definitions of each band.
@@ -791,6 +797,13 @@ typedef struct {
 #elif defined(RTAC58U) || defined(VZWAC1300) || defined(SHAC1300) || defined(RT4GAC53U)
 #define BD_2G_PREFIX	"boardData_1_0_IPQ4019_Y9803_wifi0"
 #define BD_5G_PREFIX	"boardData_1_0_IPQ4019_Y9803_wifi1"
+#define BD_2G_CHIP_DIR	"IPQ4019"
+#define BD_2G_HW_DIR	"hw.1"
+#define BD_5G_CHIP_DIR	"IPQ4019"
+#define BD_5G_HW_DIR	"hw.1"
+#elif defined(RT4GAC56)
+#define BD_2G_PREFIX	"boardData_1_0_IPQ4019_DK04_2G"
+#define BD_5G_PREFIX	"boardData_1_0_IPQ4019_DK04_5G"
 #define BD_2G_CHIP_DIR	"IPQ4019"
 #define BD_2G_HW_DIR	"hw.1"
 #define BD_5G_CHIP_DIR	"IPQ4019"

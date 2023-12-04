@@ -697,8 +697,10 @@ function unload_body(){
 var reboot_confirm=0;
 function applyRule(){
     if(validForm()){
-	if(document.form.usb_fs_ntfs_sparse.value != "<% nvram_get("usb_fs_ntfs_sparse"); %>"){
-		reboot_confirm=1;
+    	if(ntfs_sparse_support){
+		if(document.form.usb_fs_ntfs_sparse.value != "<% nvram_get("usb_fs_ntfs_sparse"); %>"){
+			reboot_confirm=1;
+		}
 	}
         
         if(reboot_confirm==1){
@@ -714,7 +716,7 @@ function applyRule(){
 		showLoading();
 		document.form.submit();
 	}
-     }
+    }
 }
 
 function validForm(){
@@ -749,6 +751,12 @@ function validForm(){
 			return false;
 		}
 		document.form.st_samba_workgroup.value = trim(document.form.st_samba_workgroup.value).toUpperCase();
+	}
+
+	if(!validator.range(document.form.st_max_user, 1, 99)){
+		document.form.st_max_user.focus();
+		document.form.st_max_user.select();
+		return false;
 	}
 
 	return true;
@@ -883,6 +891,14 @@ function switchUserType(flag){
 					</th>
 					<td>
 						<input type="text" name="st_samba_workgroup" id="st_samba_workgroup" class="input_20_table charToUpperCase" maxlength="15" value="<% nvram_get("st_samba_workgroup"); %>" autocorrect="off" autocapitalize="on">
+					</td>
+				</tr>
+				<tr>
+					<th>
+						<a class="hintstyle" href="javascript:void(0);" onClick="openHint(17,1);"><#ShareNode_MaximumLoginUser_itemname#></a>
+					</th>
+					<td>
+						<input type="text" name="st_max_user" class="input_3_table" maxlength="2" value="<% nvram_get("st_max_user"); %>" onKeyPress="return validator.isNumber(this, event);" autocorrect="off" autocapitalize="off">
 					</td>
 				</tr>
 				<tr id="ntfs_sparse_files" style="">

@@ -2,7 +2,7 @@ Package: mediaserver
 Architecture: i686
 Priority: optional
 Section: net
-Version: 1.0.0.53
+Version: 1.0.0.56
 Maintainer: ASUS
 Source: http://127.0.0.1/
 URL:http://www.asusnetwork.net:8081/meidaserverui/mediaserver.asp

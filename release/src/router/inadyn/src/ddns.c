@@ -517,6 +517,50 @@ error:
 	return 1;
 }
 
+#if defined(USE_IPV6) && defined(ASUSWRT)
+#define IPV6_ADDR_GLOBAL        0x0000U
+static int _get_ipv6_addr(const char *ifname, char *ipv6addr, const size_t len)
+{
+	FILE *f;
+	int ret = -1, scope, prefix;
+	unsigned char ipv6[16];
+	char dname[IFNAMSIZ], address[INET6_ADDRSTRLEN];
+
+	if(!ifname || !ipv6addr)
+		return ret;
+
+	f = fopen("/proc/net/if_inet6", "r");
+	if(!f)
+		return ret;
+
+	while (19 == fscanf(f,
+                        " %2hhx%2hhx%2hhx%2hhx%2hhx%2hhx%2hhx%2hhx%2hhx%2hhx%2hhx%2hhx%2hhx%2hhx%2hhx%2hhx %*x %x %x %*x %s",
+                        &ipv6[0], &ipv6[1], &ipv6[2], &ipv6[3], &ipv6[4], &ipv6[5], &ipv6[6], &ipv6[7], &ipv6[8], &ipv6[9], &ipv6[10], 
+                        &ipv6[11], &ipv6[12], &ipv6[13], &ipv6[14], &ipv6[15], &prefix, &scope, dname))
+	{
+		if(strcmp(ifname, dname))
+		{
+			continue;
+		}
+
+		if(inet_ntop(AF_INET6, ipv6, address, sizeof(address)) == NULL)
+		{
+			continue;
+	       }
+
+		if(scope == IPV6_ADDR_GLOBAL)
+		{
+			strlcpy(ipv6addr, address, len);
+			ret =0;
+			break;
+		}
+	}
+
+	fclose(f);
+	return ret;
+}
+#endif
+
 /*
  * Fetch IP, using any of the backends for each DDNS provider,
  * then check for address change.
@@ -524,6 +568,9 @@ error:
 static int get_address(ddns_t *ctx)
 {
 	char address[MAX_ADDRESS_LEN];
+#if defined(USE_IPV6) && defined(ASUSWRT)
+	char ip6_addr[INET6_ADDRSTRLEN] = {0};
+#endif
 	ddns_info_t *info;
 
 	info = conf_info_iterator(1);
@@ -542,6 +589,17 @@ static int get_address(ddns_t *ctx)
 				anychange++;
 				strlcpy(alias->address, address, sizeof(alias->address));
 			}
+#if defined(USE_IPV6) && defined(ASUSWRT)
+			memset(ip6_addr, 0, sizeof(ip6_addr));
+			if(nvram_get_int("ddns_ipv6_update") && !_get_ipv6_addr(iface, ip6_addr, sizeof(ip6_addr))) {
+				alias->ipv6_has_changed = strncmp(alias->ipv6_address, ip6_addr, sizeof(alias->ipv6_address)) != 0;
+				/* allow_ipv6 cannot for NO-IP and ASUS.COM */
+				if(alias->ipv6_has_changed && !allow_ipv6) {
+					memset(alias->ipv6_address, 0, sizeof(alias->ipv6_address));
+					strlcpy(alias->ipv6_address, ip6_addr, sizeof(alias->ipv6_address));
+				}
+			}
+#endif
 
 #ifdef ENABLE_SIMULATION
 			logit(LOG_WARNING, "In simulation, forcing IP# change ...");
@@ -551,8 +609,14 @@ static int get_address(ddns_t *ctx)
 
 		if (!anychange)
 			logit(LOG_INFO, "No IP# change detected for %s, still at %s", info->system->name, address);
-		else
-			logit(LOG_INFO, "Current IP# %s at %s", address, info->system->name);
+		else {
+#if defined(USE_IPV6) && defined(ASUSWRT)
+			if(ip6_addr[0] != '\0')
+				logit(LOG_INFO, "Current IP# %s<%s> at %s", address, ip6_addr, info->system->name);
+			else
+#endif
+				logit(LOG_INFO, "Current IP# %s at %s", address, info->system->name);
+		}
 
 	next:
 		info = conf_info_iterator(0);
@@ -596,8 +660,14 @@ static int check_alias_update_table(ddns_t *ctx)
 			}
 
 			alias->update_required = 1;
-			logit(LOG_NOTICE, "Update %s for alias %s, new IP# %s",
-			      override ? "forced" : "needed", alias->name, alias->address);
+#if defined(USE_IPV6) && defined(ASUSWRT)
+			if(alias->ipv6_address[0] != '\0')
+				logit(LOG_NOTICE, "Update %s for alias %s, new IP# %s<%s>",
+			      override ? "forced" : "needed", alias->name, alias->address, alias->ipv6_address);
+			else
+#endif
+				logit(LOG_NOTICE, "Update %s for alias %s, new IP# %s",
+				      override ? "forced" : "needed", alias->name, alias->address);
 		}
 
 		info = conf_info_iterator(0);
@@ -746,20 +816,34 @@ static int update_alias_table(ddns_t *ctx)
 			/* Run command or script on successful update. */
 			if (script_exec)
 				os_shell_execute(script_exec, alias->address,
-#ifdef USE_IPV6
+#if defined(USE_IPV6) && defined(ASUSWRT)
 				alias->ipv6_address,
 #endif
 				alias->name, event, rc);
 		}
 
 		//logit(LOG_NOTICE, "[%s, %d]<%d, %d>\n", __FUNCTION__, __LINE__, remember, rc);
-		if (RC_DDNS_RSP_NOTOK == rc || RC_DDNS_RSP_AUTH_FAIL == rc)
+		if (RC_DDNS_RSP_NOTOK == rc || RC_DDNS_RSP_AUTH_FAIL == rc
+#ifdef ASUSWRT
+			/* Time-out case */
+			|| RC_TCP_INVALID_REMOTE_ADDR == rc
+			|| RC_TCP_CONNECT_FAILED == rc
+			|| RC_TCP_SEND_ERROR == rc
+			|| RC_TCP_RECV_ERROR == rc
+			|| RC_OS_INVALID_IP_ADDRESS == rc
+			|| RC_DDNS_RSP_RETRY_LATER == rc
+			|| RC_DDNS_INVALID_CHECKIP_RSP == rc
+			/* connect_fail case */
+			|| RC_HTTPS_FAILED_CONNECT == rc
+			|| RC_HTTPS_FAILED_GETTING_CERT == rc
+#endif
+			)
 			remember = rc;
 
 		if (RC_DDNS_RSP_RETRY_LATER == rc && !remember)
 			remember = rc;
 #ifdef ASUSWRT
-		if(nvram_match("ddns_return_code", "ddns_query") && rc != RC_OK)
+		if((nvram_match("ddns_return_code", "ddns_query") || nvram_match("ddns_return_code", ",0")) && rc != RC_OK)
 		{
 			switch (rc) {
 				/* Return these cases (define in check_error()) will retry again in Inadyn,
@@ -772,18 +856,18 @@ static int update_alias_table(ddns_t *ctx)
 				case RC_OS_INVALID_IP_ADDRESS:
 				case RC_DDNS_RSP_RETRY_LATER:
 				case RC_DDNS_INVALID_CHECKIP_RSP:
+				case RC_DDNS_RSP_NOTOK:
 					logit(LOG_WARNING, "Will retry again ...");
-					nvram_set ("ddns_return_code", "Time-out");
-					nvram_set ("ddns_return_code_chk", "Time-out");
+					nvram_set("ddns_return_code", "ddns_query"); /* for Retry mechanism */
+					nvram_set("ddns_return_code_chk", "Time-out");
 					break;
 				case RC_HTTPS_FAILED_CONNECT:
 				case RC_HTTPS_FAILED_GETTING_CERT:
 					logit(LOG_WARNING, "Will retry again ...");
-					nvram_set ("ddns_return_code", "connect_fail");
-					nvram_set ("ddns_return_code_chk", "connect_fail");
+					nvram_set("ddns_return_code", "ddns_query"); /* for Retry mechanism */
+					nvram_set("ddns_return_code_chk", "connect_fail");
 					break;
 				case RC_DDNS_RSP_NOHOST:
-				case RC_DDNS_RSP_NOTOK:
 					nvram_set("ddns_return_code", "Update failed");
 					nvram_set("ddns_return_code_chk", "Update failed");
 					break;
@@ -941,36 +1025,46 @@ static int check_error(ddns_t *ctx, int rc)
 	const char *errstr = "Error response from DDNS server";
 
 	switch (rc) {
-	case RC_OK:
-		ctx->update_period = ctx->normal_update_period_sec;
-		break;
-
-	/* dyn_dns_update_ip() failed, inform the user the (network) error
-	 * is not fatal and that we will retry again in a short while. */
-	case RC_TCP_INVALID_REMOTE_ADDR: /* Probably temporary DNS error. */
-	case RC_TCP_CONNECT_FAILED:      /* Cannot connect to DDNS server atm. */
-	case RC_TCP_SEND_ERROR:
-	case RC_TCP_RECV_ERROR:
-	case RC_OS_INVALID_IP_ADDRESS:
-	case RC_DDNS_RSP_RETRY_LATER:
-	case RC_DDNS_INVALID_CHECKIP_RSP:
-		ctx->update_period = ctx->error_update_period_sec;
-		logit(LOG_WARNING, "Will retry again in %d sec ...", ctx->update_period);
-		break;
-
-	case RC_DDNS_RSP_NOTOK:
-	case RC_DDNS_RSP_AUTH_FAIL:
-		if (ignore_errors) {
-			logit(LOG_WARNING, "%s, ignoring ...", errstr);
+		case RC_OK:
+			ctx->update_period = ctx->normal_update_period_sec;
 			break;
-		}
-		logit(LOG_ERR, "%s, exiting!", errstr);
-		return 1;
 
-	/* All other errors, socket creation failures, invalid pointers etc.  */
-	default:
-		logit(LOG_ERR, "Unrecoverable error %d, exiting ...", rc);
-		return 1;
+		/* dyn_dns_update_ip() failed, inform the user the (network) error
+		 * is not fatal and that we will retry again in a short while. */
+		/* Time-out case */
+		case RC_TCP_INVALID_REMOTE_ADDR: /* Probably temporary DNS error. */
+		case RC_TCP_CONNECT_FAILED:      /* Cannot connect to DDNS server atm. */
+		case RC_TCP_SEND_ERROR:
+		case RC_TCP_RECV_ERROR:
+		case RC_OS_INVALID_IP_ADDRESS:
+		case RC_DDNS_RSP_RETRY_LATER:
+		case RC_DDNS_INVALID_CHECKIP_RSP:
+#ifndef ASUSWRT
+			ctx->update_period = ctx->error_update_period_sec;
+			logit(LOG_WARNING, "Will retry again in %d sec ...", ctx->update_period);
+			break;
+#else
+			logit(LOG_WARNING, "Will retry again, rc=%d", rc);
+			return 1;
+		/* connect_fail case */
+		case RC_HTTPS_FAILED_CONNECT:
+		case RC_HTTPS_FAILED_GETTING_CERT:
+			logit(LOG_WARNING, "Will retry again, rc=%d", rc);
+			return 1;
+#endif
+		case RC_DDNS_RSP_NOTOK:
+		case RC_DDNS_RSP_AUTH_FAIL:
+			if (ignore_errors) {
+				logit(LOG_WARNING, "%s, ignoring ...", errstr);
+				break;
+			}
+			logit(LOG_ERR, "%s, exiting!", errstr);
+			return 1;
+
+		/* All other errors, socket creation failures, invalid pointers etc.  */
+		default:
+			logit(LOG_ERR, "Unrecoverable error %d, exiting ...", rc);
+			return 1;
 	}
 
 	return 0;

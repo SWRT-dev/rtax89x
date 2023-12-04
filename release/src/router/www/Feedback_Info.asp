@@ -156,7 +156,6 @@ function get_debug_log_info(){
 function redirect(){
 	if(fb_state == "2")
 		httpApi.nvramSet({"action_mode": "apply", "fb_state" : "1"});
-
 	document.location.href = "Advanced_Feedback.asp";
 }
 

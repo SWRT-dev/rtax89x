@@ -40,6 +40,7 @@ int nvram_is_aae_enable();
 int nvram_set_aae_status(const char* api, const int curl_status, const char* aae_status);
 int nvram_set_server_status(const char* server, const int status, const char* status_text);
 int nvram_set_aae_sip_connected(const char* aae_sip_connected);
+int nvram_set_aae_deviceticket_expired(const char* exp_time_str);
 int nvram_get_aae_pwd(char** aae_pwd);
 int nvram_get_aae_username(char** aae_username);
 int nvram_save_value(const char* name, const char* value);
@@ -53,7 +54,6 @@ int nvram_get_https_wan_port(char* https_wan_port);
 int nvram_get_http_wan_port(char* http_wan_port);
 int nvram_get_http_enable(char* http_enable);
 */
-void WatchingNVram();
 int nvram_get_mac_addr(char* mac_addr);
 int nvram_get_link_internet();
 void aae_support_check(int *is_terminate);

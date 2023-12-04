@@ -27,11 +27,17 @@
 
 typedef uint32_t __u32;
 
-#if defined(RTN14U) || defined(RTAC52U) || defined(RTAC51U) || defined(RTN11P) || defined(RTN300) || defined(RTN54U) || defined(RTAC1200HP) || defined(RTN56UB1) || defined(RTN56UB2) ||defined(RTAC54U) || defined(RTAC51UP)|| defined(RTAC53) || defined(RTAC1200GA1) || defined(RTAC1200GU) || defined(RTAC1200) || defined(RTAC1200V2) || defined(RTN11P_B1) || defined(RPAC87) || defined(RTAC85U) || defined(RTAC85P) || defined(RTAC65U) || defined(RTN800HP) || defined(RTACRH26) || defined(TUFAC1750)
+#if defined(RTN14U) || defined(RTAC52U) || defined(RTAC51U) || defined(RTN11P) || defined(RTN300) || defined(RTN54U) || defined(RTAC1200HP) || defined(RTN56UB1) || defined(RTN56UB2) ||defined(RTAC54U) || defined(RTAC51UP)|| defined(RTAC53) || defined(RTAC1200GA1) || defined(RTAC1200GU) || defined(RTAC1200) || defined(RTAC1200V2) || defined(RTN11P_B1) || defined(RPAC87) || defined(RTAC85U) || defined(RTAC85P) || defined(RTAC65U) || defined(RTN800HP) || defined(RTACRH26) || defined(TUFAC1750) || defined(RTACRH18)  || defined(RT4GAC86U) || defined(RTCONFIG_WLMODULE_MT7915D_AP)
 const char WIF_5G[]	= "rai0";
 const char WIF_2G[]	= "ra0";
 const char WDSIF_5G[]	= "wdsi";
 const char APCLI_5G[]	= "apclii0";
+const char APCLI_2G[]	= "apcli0";
+#elif defined(RTCONFIG_MT798X)
+const char WIF_5G[]	= "rax0";
+const char WIF_2G[]	= "ra0";
+const char WDSIF_5G[]	= "wdsx";
+const char APCLI_5G[]	= "apclix0";
 const char APCLI_2G[]	= "apcli0";
 #else
 const char WIF_5G[]	= "ra0";
@@ -41,7 +47,7 @@ const char APCLI_5G[]	= "apcli0";
 const char APCLI_2G[]	= "apclii0";
 #endif
 
-typedef struct channel_info {
+struct channel_info {
 	unsigned char channel;
 	unsigned char bandwidth;
 	unsigned char extrach;
@@ -50,9 +56,9 @@ typedef struct channel_info {
 #if defined(RA_ESW)
 /* Read TX/RX byte count information from switch's register. */
 #if defined(RTCONFIG_RALINK_MT7620)
-int get_mt7620_wan_unit_bytecount(int unit, unsigned long *tx, unsigned long *rx)
+int get_mt7620_wan_unit_bytecount(int unit, unsigned long long *tx, unsigned long long *rx)
 #elif defined(RTCONFIG_RALINK_MT7621)
-int get_mt7621_wan_unit_bytecount(int unit, unsigned long *tx, unsigned long *rx)
+int get_mt7621_wan_unit_bytecount(int unit, unsigned long long *tx, unsigned long long *rx)
 #endif
 {
 #if defined(RTCONFIG_RALINK_MT7620)
@@ -62,22 +68,154 @@ int get_mt7621_wan_unit_bytecount(int unit, unsigned long *tx, unsigned long *rx
 #endif
 }
 #endif
+
+#if defined(RTCONFIG_MT798X)
+#include <limits.h>		//PATH_MAX, LONG_MIN, LONG_MAX
+#define GPIOLIB_DIR	"/sys/class/gpio"
+/* Export specified GPIO
+ * @return:
+ * 	0:	success
+ *  otherwise:	fail
+ */
+static int __export_gpio(uint32_t gpio)
+{
+	char gpio_path[PATH_MAX], export_path[PATH_MAX], gpio_str[] = "999XXX";
+
+	if (!d_exists(GPIOLIB_DIR)) {
+		_dprintf("%s does not exist!\n", __func__);
+		return -1;
+	}
+	snprintf(gpio_path, sizeof(gpio_path),"%s/gpio%d", GPIOLIB_DIR, gpio);
+	if (d_exists(gpio_path))
+		return 0;
+
+	snprintf(export_path, sizeof(export_path), "%s/export", GPIOLIB_DIR);
+	snprintf(gpio_str, sizeof(gpio_str), "%d", gpio);
+	f_write_string(export_path, gpio_str, 0, 0);
+
+	return 0;
+}
+
+#define PWM_SYS_PREFIX "/sys/class/pwm/pwmchip0"
+uint32_t is_pwm_exported(uint8_t channel)
+{
+	char path[PATH_MAX], tmpbuf[20];
+	snprintf(tmpbuf, sizeof(tmpbuf), "%u", channel);
+	snprintf(path, sizeof(path), PWM_SYS_PREFIX"/pwm%u", channel);
+	if (!d_exists(path))
+		return 0;
+	return 1;
+}
+
+uint32_t pwm_export(uint8_t channel, uint32_t period, uint32_t duty_cycle)
+{
+	char path[PATH_MAX], tmpbuf[20];
+
+	if (!d_exists(PWM_SYS_PREFIX))
+		return -1;
+
+	snprintf(tmpbuf, sizeof(tmpbuf), "%u", channel);
+	f_write_string(PWM_SYS_PREFIX"/export", tmpbuf, 0, 0);
+
+	snprintf(path, sizeof(path), PWM_SYS_PREFIX"/pwm%u/period", channel);
+	snprintf(tmpbuf, sizeof(tmpbuf), "%u", period);
+	f_write_string(path, tmpbuf, 0, 0);
+
+	snprintf(path, sizeof(path), PWM_SYS_PREFIX"/pwm%u/duty_cycle", channel);
+	snprintf(tmpbuf, sizeof(tmpbuf), "%u", duty_cycle);
+	f_write_string(path, tmpbuf, 0, 0);
+
+	// toggle enable to make the status correct
+	snprintf(path, sizeof(path), PWM_SYS_PREFIX"/pwm%u/enable", channel);
+	f_write_string(path, "1", 0, 0);
+	f_write_string(path, "0", 0, 0);
+
+	return 0;
+}
+
 uint32_t gpio_dir(uint32_t gpio, int dir)
 {
-	return ralink_gpio_init(gpio, dir);
+	char path[PATH_MAX], v[10], *dir_str = "in";
+
+	if (gpio >= GPIO_PWM_DEFSHIFT) return 0; // PWM, only output
+	if (dir == GPIO_DIR_OUT) {
+		dir_str = "out";		/* output, low voltage */
+		*v = '\0';
+		snprintf(path, sizeof(path), "%s/gpio%d/value", GPIOLIB_DIR, gpio);
+		if (f_read_string(path, v, sizeof(v)) > 0 && safe_atoi(v) == 1)
+			dir_str = "high";	/* output, high voltage */
+	} else if (dir == GPIO_DIR_OUT_LOW) {
+                dir_str = "low";
+        } else if (dir == GPIO_DIR_OUT_HIGH) {
+                dir_str = "high";
+        }
+
+	__export_gpio(gpio);
+	snprintf(path, sizeof(path), "%s/gpio%d/direction", GPIOLIB_DIR, gpio);
+	f_write_string(path, dir_str, 0, 0);
+
+	return 0;
 }
 
 uint32_t get_gpio(uint32_t gpio)
 {
-	return ralink_gpio_read_bit(gpio);
+	char path[PATH_MAX], value[10];
+
+	if (gpio >= GPIO_PWM_DEFSHIFT) { // PWM
+#if defined(RTCONFIG_PWMX2_GPIOX1_RGBLED) || defined(RTCONFIG_PWMX3_RGBLED)
+		snprintf(path, sizeof(path), PWM_SYS_PREFIX"/pwm%u/mm_enable", gpio - GPIO_PWM_DEFSHIFT);
+#else
+		snprintf(path, sizeof(path), PWM_SYS_PREFIX"/pwm%u/enable", gpio - GPIO_PWM_DEFSHIFT);
+#endif
+	} else {
+		snprintf(path, sizeof(path), "%s/gpio%d/value", GPIOLIB_DIR, gpio);
+	}
+	f_read_string(path, value, sizeof(value));
+
+	return safe_atoi(value);
 }
 
+uint32_t set_gpio(uint32_t gpio, uint32_t value)
+{
+	char path[PATH_MAX], val_str[10];
+
+	snprintf(val_str, sizeof(val_str), "%d", !!value);
+	if (gpio >= GPIO_PWM_DEFSHIFT) { // PWM
+#if defined(RTCONFIG_PWMX2_GPIOX1_RGBLED) || defined(RTCONFIG_PWMX3_RGBLED)
+		snprintf(path, sizeof(path), PWM_SYS_PREFIX"/pwm%u/mm_enable", gpio - GPIO_PWM_DEFSHIFT);
+#else
+		snprintf(path, sizeof(path), PWM_SYS_PREFIX"/pwm%u/enable", gpio - GPIO_PWM_DEFSHIFT);
+#endif
+	} else {
+		snprintf(path, sizeof(path), "%s/gpio%d/value", GPIOLIB_DIR, gpio);
+	}
+	f_write_string(path, val_str, 0, 0);
+
+	return 0;
+}
+
+#else // of RTCONFIG_MT798X
+uint32_t gpio_dir(uint32_t gpio, int dir)
+{
+	return ralink_gpio_init(gpio, dir);
+}
+#if defined(RT4GAC86U) || defined(RTCONFIG_WLMODULE_MT7915D_AP)
+uint32_t gpio_dir2(uint32_t gpio, int dir)
+{
+	return ralink_gpio_init2(gpio, dir);
+}
+#endif
+uint32_t get_gpio(uint32_t gpio)
+{
+	return ralink_gpio_read_bit(gpio);
+}
 
 uint32_t set_gpio(uint32_t gpio, uint32_t value)
 {
 	ralink_gpio_write_bit(gpio, value);
 	return 0;
 }
+#endif // of RTCONFIG_MT798X
 
 int get_switch_model(void)
 {
@@ -110,6 +248,13 @@ uint32_t set_phy_ctrl(uint32_t portmask, int ctrl)
 	// TODO
 	return 1;
 }
+
+#if defined(RTCONFIG_FITFDT)
+int get_imageheader_size(void)
+{
+	return sizeof(image_header_t);
+}
+#endif	/* RTCONFIG_FITFDT */
 
 #define SWAP_LONG(x) \
 	((__u32)( \
@@ -183,11 +328,16 @@ void set_radio(int on, int unit, int subunit)
 	//if (nvram_match(strcat_r(prefix, "radio", tmp), "0")) return;
 	// TODO: replace hardcoded 
 	// TODO: handle subunit
+#if defined(RTCONFIG_WLMODULE_MT7629_AP) || defined(RTCONFIG_WLMODULE_MT7915D_AP) || defined(RTCONFIG_WLMODULE_MT7628_AP) || defined(RTCONFIG_WLMODULE_MT7663E_AP)
+	// MTK suggested MT7629/MT7915D use ifconfig down/up to instead RadioOn=0/1
+	doSystem("ifconfig %s %s", unit ? WIF_5G: WIF_2G, on ? "up":"down");
+#else
 	if(unit==0)
 		doSystem("iwpriv %s set RadioOn=%d", WIF_2G, on);
 	else doSystem("iwpriv %s set RadioOn=%d", WIF_5G, on);
+#endif
 
-#if defined(RTAC1200HP) || defined(RTN56UB1) || defined(RTN56UB2) || defined(RTAC1200GA1) || defined(RTAC1200GU) || defined(RTAC85U) || defined(RTAC85P) || defined(RTAC65U)  || defined(RTN800HP)  || defined(RTACRH26) || defined(TUFAC1750) //5G:7612E 2G:7603E
+#if defined(RTAC1200HP) || defined(RTN56UB1) || defined(RTN56UB2) || defined(RTAC1200GA1) || defined(RTAC1200GU) || defined(RTAC85U) || defined(RTAC85P) || defined(RTAC65U)  || defined(RTN800HP)  || defined(RTACRH26) || defined(TUFAC1750) || defined(RTACRH18) || defined(RTCONFIG_WLMODULE_MT7915D_AP) //5G:7612E 2G:7603E
 	led_onoff(unit);
 #endif	
 }
@@ -203,7 +353,7 @@ char *wif_to_vif(char *wif)
 	for (unit = 0; unit < MAX_NR_WL_IF; unit++)
 	{
 		SKIP_ABSENT_BAND(unit);
-		for (subunit = 1; subunit < 4; subunit++)
+		for (subunit = 1; subunit < MAX_NO_MSSID; subunit++)
 		{
 			snprintf(prefix, sizeof(prefix), "wl%d.%d", unit, subunit);
 			
@@ -708,7 +858,7 @@ int get_channel_list_via_country(int unit, const char *country_code, char *buffe
 }
 
 
-#if defined(RTAC1200HP) || defined(RTN56UB1) || defined(RTN56UB2) || defined(RTAC1200GA1) || defined(RTAC1200GU) || defined(RTAC85U) || defined(RTAC85P) || defined(RTAC65U) || defined(RTN800HP) || defined(RTACRH26) || defined(TUFAC1750)
+#if defined(RTAC1200HP) || defined(RTN56UB1) || defined(RTN56UB2) || defined(RTAC1200GA1) || defined(RTAC1200GU) || defined(RTAC85U) || defined(RTAC85P) || defined(RTAC65U) || defined(RTN800HP) || defined(RTACRH26) || defined(TUFAC1750) || defined(RTACRH18) || defined(RTCONFIG_WLMODULE_MT7915D_AP)
 void led_onoff(int unit)
 {   
 #if defined(RTAC1200HP)
@@ -721,16 +871,29 @@ void led_onoff(int unit)
 }
 #endif
 
+static char wan_base_if[IFNAMSIZ] = "";
+int set_wan_base_if(char *wan_ifaces)
+{
+	strlcpy(wan_base_if, wan_ifaces, sizeof(wan_base_if));
+
+	return 0;
+}
+
 /* Return wan_base_if for start_vlan().
  * @return:	pointer to base interface name for start_vlan().
  */
 char *get_wan_base_if(void)
 {
-	static char wan_base_if[IFNAMSIZ] = "";
+	//static char wan_base_if[IFNAMSIZ] = "";
 
-#if defined(RTCONFIG_RALINK_MT7620) /* RT-N14U, RT-AC52U, RT-AC51U, RT-N11P, RT-N54U, RT-AC1200HP, RT-AC54U */
+	if (__get_wan_base_if) {
+		__get_wan_base_if(wan_base_if);
+		return wan_base_if;
+	}
+
+#if defined(RTCONFIG_RALINK_MT7620) || defined(RTCONFIG_RALINK_MT7628) /* RT-N14U, RT-AC52U, RT-AC51U, RT-N11P, RT-N54U, RT-AC1200HP, RT-AC54U */
 	strlcpy(wan_base_if, "eth2", sizeof(wan_base_if));
-#elif defined(RTCONFIG_RALINK_MT7621) /* RT-N56UB1, RT-N56UB2 */
+#elif (defined(RTCONFIG_RALINK_MT7621) && !defined(RTCONFIG_WLMODULE_MT7915D_AP)) /* RT-N56UB1, RT-N56UB2 */
 	strlcpy(wan_base_if, "eth3", sizeof(wan_base_if));
 #endif
 
@@ -812,16 +975,15 @@ char *get_wlifname(int unit, int subunit, int subunit_x, char *buf)
 			sprintf(buf, "%s", APCLI_5G);
 		else
 			sprintf(buf, "%s", APCLI_2G);
+		return buf;
 	}	
 	else
 #endif /* RTCONFIG_WIRELESSREPEATER */
 #if defined(RTCONFIG_AMAS)
-	if (sw_mode() == SW_MODE_AP && nvram_match("re_mode", "1")) {
-		if (subunit <= 1) {
-			strcpy(buf, "");
-			return buf;
-		}
-        }
+	if (sw_mode() == SW_MODE_AP && nvram_match("re_mode", "1") && (subunit <= 1)) {
+		strcpy(buf, "");
+		return buf;
+	}
 #endif  /* RTCONFIG_AMAS */
 	{
 		memset(wifbuf, 0, sizeof(wifbuf));
@@ -833,7 +995,18 @@ char *get_wlifname(int unit, int subunit, int subunit_x, char *buf)
 
 		snprintf(prefix, sizeof(prefix), "wl%d.%d_", unit, subunit);
 		if (nvram_match(strcat_r(prefix, "bss_enabled", tmp), "1"))
+		{
+#if defined(RTCONFIG_RALINK_BUILDIN_WIFI)
+#if defined(RTCONFIG_AMAS)
+			if (aimesh_re_node() && subunit >=2) {
+				sprintf(buf, "%s%d", wifbuf, subunit-1);
+			} else
+#endif
+			sprintf(buf, "%s%d", wifbuf, subunit);
+#else
 			sprintf(buf, "%s%d", wifbuf, subunit_x);
+#endif
+		}
 		else
 			sprintf(buf, "%s", "");
 	}	
@@ -874,7 +1047,7 @@ char *get_wlxy_ifname(int x, int y, char *buf)
 		}
 
 		snprintf(prefix, sizeof(prefix), "wl%d.%d_", x, i);
-		if (nvram_pf_match(prefix, "bss_enabled", "1"))
+		if (is_bss_enabled(prefix))
 			sidx++;
 	}
 
@@ -920,11 +1093,29 @@ int get_channel_list(int unit, int ch_list[], int size)
 	return ch_cnt;
 }
 
+uint64_t get_channel_list_mask(enum wl_band_id band)
+{
+	uint64_t m = 0;
+	int i, ch_list[64] = { 0 };
+
+	if (band < 0 || band >= WL_NR_BANDS)
+		return 0;
+
+	get_channel_list(band, ch_list, ARRAY_SIZE(ch_list));
+	for (i = 0; i < ARRAY_SIZE(ch_list) && ch_list[i] != 0; ++i)
+		m |= ch2bitmask(band, ch_list[i]);
+
+	return m;
+}
+
 int get_radar_channel_list(int unit, int radar_list[], int size)
 {
 	struct iwreq wrq;
 	char buffer[256], *data, *p = NULL, *tmplist = NULL, tmp[128], prefix[] = "wlXXXXXXXXXX_", *ifname;
-	int radar_cnt = 0;
+	int r, radar_cnt = 0;
+
+	if (!nvram_match("wlready", "1"))
+		return 0;
 
 	memset(buffer, 0, sizeof(buffer));
 	snprintf(prefix, sizeof(prefix), "wl%d_", unit);
@@ -934,8 +1125,8 @@ int get_radar_channel_list(int unit, int radar_list[], int size)
 	wrq.u.data.pointer = buffer;
 	wrq.u.data.length  = sizeof(buffer);
 	wrq.u.data.flags   = ASUS_SUBCMD_GDFSNOPCHANNEL;
-	if (wl_ioctl(ifname, RTPRIV_IOCTL_ASUSCMD, &wrq) < 0) {
-		dbg("wl_ioctl failed on %s (%d)\n", __FUNCTION__, __LINE__);
+	if ((r = wl_ioctl(ifname, RTPRIV_IOCTL_ASUSCMD, &wrq)) < 0) {
+		dbg("%s failed, ret %d\n", __func__, r);
 		return -1;
 	}
 
@@ -1156,6 +1347,30 @@ int get_channel_info(const char *ifname, int *channel, int *bw, int *nctrlsb)
         return 0;
 }
 
+int get_regular_class(const char* ifname)
+{
+	char data[32];
+	struct iwreq wrq;
+
+	memset(data, 0x00, sizeof(data));
+	wrq.u.data.length = strlen(data) + 1;
+	wrq.u.data.pointer = (caddr_t) data;
+	wrq.u.data.flags = ASUS_SUBCMD_GET_RCLASS;
+
+	if (wl_ioctl(ifname, RTPRIV_IOCTL_ASUSCMD, &wrq) < 0)
+	{
+		dbg("errors in getting rclass result\n");
+		return 0;
+	}
+
+	if (wrq.u.data.length > 0)
+	{
+		return atoi(wrq.u.data.pointer);
+	}
+
+	return 0;
+}
+
 char *get_wififname(int band)
 {
 	const char *wif[] = { WIF_2G, WIF_5G };
@@ -1175,3 +1390,142 @@ char *get_staifname(int band)
 	}
 	return (char*) sta[band];
 }
+
+int get_sta_ifname_unit(const char *ifname)
+{
+        int band;
+#if defined(RTCONFIG_HAS_5G_2)	
+	const char *sta[] = { APCLI_2G, APCLI_5G, APCLI_5G2};
+#else	
+	const char *sta[] = { APCLI_2G, APCLI_5G };
+#endif
+        if (!ifname)
+                return -1;
+        for (band = 0; band < min(MAX_NR_WL_IF, ARRAY_SIZE(sta)); ++band) {
+                SKIP_ABSENT_BAND(band);
+                if (!strncmp(ifname, sta[band], strlen(sta[band])))
+                        return band;
+        }
+        return -1;
+}
+
+#ifdef RTCONFIG_BONDING_WAN
+/** Return speed of a bonding interface.
+ * @bond_if:	name of bonding interface. LAN bond_if = bond0; WAN bond_if = bond1.
+ * @return:
+ *  <= 0	error
+ *  otherwise	link speed
+ */
+int get_bonding_speed(char *bond_if)
+{
+	int speed;
+	char confbuf[sizeof(SYS_CLASS_NET) + IFNAMSIZ + sizeof("/speedXXXXXX")];
+	char buf[32] = { 0 };
+
+	snprintf(confbuf, sizeof(confbuf), SYS_CLASS_NET "/%s/speed", bond_if);
+	if (f_read_string(confbuf, buf, sizeof(buf)) <= 0)
+		return 0;
+
+	speed = safe_atoi(buf);
+	if (speed <= 0)
+		speed = 0;
+
+	return speed;
+}
+
+/** Return link speed of a bonding slave port if it's connected or 0 if it's disconnected.
+ * @port:	0: WAN, 1~8: LAN1~8, 30: 10G base-T (RJ-45), 31: 10G SFP+
+ * @return:
+ *  <= 0:	disconnected
+ *  otherwise:	link speed
+ */
+int get_bonding_port_status(int port)
+{
+	int ret = 0;
+
+	if (__get_bonding_port_status)
+		ret = __get_bonding_port_status(port);
+
+	return ret;
+}
+#endif /* RTCONFIG_BONDING_WAN */
+
+int get_ap_mac(const char *ifname, struct iwreq *pwrq)
+{
+	return wl_ioctl(ifname, SIOCGIWAP, pwrq);
+}
+
+const unsigned char ether_zero[6]  = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
+const unsigned char ether_bcast[6] = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF };
+
+int chk_assoc(const char *ifname)
+{
+	struct iwreq wrq;
+	int ret;
+
+	if((ret = get_ap_mac(ifname, &wrq)) < 0)
+		return ret;
+
+#if 0
+cprintf("## %s(): ret(%d) ap_addr(%02x:%02x:%02x:%02x:%02x:%02x)\n", __func__, ret
+, wrq.u.ap_addr.sa_data[0], wrq.u.ap_addr.sa_data[1], wrq.u.ap_addr.sa_data[2]
+, wrq.u.ap_addr.sa_data[3], wrq.u.ap_addr.sa_data[4], wrq.u.ap_addr.sa_data[5]);
+#endif
+	if(memcmp(&(wrq.u.ap_addr.sa_data), ether_zero, 6) == 0)
+		return 0;	// Not-Associated
+	else if(memcmp(&(wrq.u.ap_addr.sa_data), ether_bcast, 6) == 0)
+		return -1;	// Invalid
+
+	return 1;
+}
+
+int get_ch_cch_bw(const char *wlif_name, int *ch, int *cch, int *bw)
+{
+	struct iwreq wrq;
+	char data[256];
+	char *p;
+	int cnt = 0;
+
+	if (wlif_name == NULL || wlif_name[0] == '\0')
+		return -1;
+
+	data[0] = '\0';
+	wrq.u.data.length = sizeof(data);
+	wrq.u.data.pointer = (caddr_t) data;
+	wrq.u.data.flags = ASUS_SUBCMD_GET_CH_BW;
+	if (wl_ioctl(wlif_name, RTPRIV_IOCTL_ASUSCMD, &wrq) < 0) { 
+		dbg("%s: wl_ioctl(%s, ASUS_SUBCMD_GET_CH_BW) fail\n", __func__, wlif_name);
+		return -1;
+	}
+	if (  ch != NULL && (p = strstr(data, "\nchannel: ")) != NULL ) {
+		p += 10;
+		*ch = atoi(p);
+		cnt++;
+	}
+	if ( cch != NULL && (p = strstr(data, "\ncen_ch1: ")) != NULL ) {
+		p += 10;
+		*cch = atoi(p);
+		cnt++;
+	}
+	if (  bw != NULL && (p = strstr(data, "\nbw: ")) != NULL ) {
+		p += 5;
+		*bw = atoi(p);
+		cnt++;
+	}
+	//cprintf("%s: wlif_name(%s) ch(%d) cch(%d) bw(%d)\n", __func__, wlif_name, *ch, *cch, *bw);
+	return cnt;
+}
+
+unsigned long long get_bitrate(const char *ifname)
+{
+	struct iwreq wrq;
+
+	if (ifname == NULL)
+		return -1;
+
+	if (wl_ioctl(ifname, SIOCGIWRATE, &wrq))
+		return -1;
+
+	return wrq.u.bitrate.value;
+}
+

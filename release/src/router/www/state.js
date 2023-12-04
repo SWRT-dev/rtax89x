@@ -22,6 +22,11 @@ function replaceAll(txt, replace, with_this) {
    return txt.replace(new RegExp(replace, 'g'),with_this);
 }
 
+/* String replace &#39; with ' for dict */
+function stringSafeGet(str){
+    return str.replace(new RegExp("&#39;", 'g'), "'");
+}
+
 /* Internet Explorer lacks this array method */
 if (!('indexOf' in Array.prototype)) {
 	Array.prototype.indexOf = function(find, i) {
@@ -438,20 +443,15 @@ var wl_info = {
 			})()
 };
 //wireless end
-var rc_support = '<% nvram_get("rc_support"); %>';
+
 function isSupport(_ptn){
 	var ui_support = [<% get_ui_support(); %>][0];
-	if(_ptn == "uu_accel"){
-		if(rc_support.search("uu_accel") != -1)
-			return true;
-		else if ('<% nvram_get("uu_enable"); %>' == 0)
-			return false;
-	}
 	return (ui_support[_ptn]) ? ui_support[_ptn] : 0;
 }
 
 var dnsfilter_support = isSupport("dnsfilter");
 dnsfilter_support = false;
+var dnssec_support = isSupport("dnssec");
 var spirit_logo_support = isSupport("spirit");
 var wifilogo_support = isSupport("WIFI_LOGO"); 
 var new_wifi_cert_support = isSupport("wifi2017"); 
@@ -468,6 +468,8 @@ var live_update_support = isSupport("update");
 var no_update_support = isSupport("noupdate");
 var no_fw_manual_support = isSupport("noFwManual");
 var afwupg_support = isSupport("afwupg");
+var betaupg_support = isSupport("betaupg");
+var revertfw_support = isSupport("revertfw");
 var cooler_support = isSupport("fanctrl");
 var power_support = isSupport("pwrctrl");
 var repeater_support = isSupport("repeater");
@@ -530,12 +532,14 @@ var IPv6_support = isSupport("ipv6");
 var IPv6_Passthrough_support = isSupport("ipv6pt");
 var IPv6_Only_support = isSupport("v6only");
 var Softwire46_support = isSupport("s46");
+var ocnvc_support = isSupport("ocnvc");
 var ParentalCtrl2_support = isSupport("PARENTAL2");
 var pptpd_support = isSupport("pptpd"); 
 var openvpnd_support = isSupport("openvpnd"); 
 var vpnc_support = isSupport("vpnc");
 var WebDav_support = isSupport("webdav"); 
-var HTTPS_support = isSupport("HTTPS"); 
+var HTTPS_support = isSupport("HTTPS");
+var ftp_ssl_support = isSupport("ftp_ssl");
 var nodm_support = isSupport("nodm"); 
 var wimax_support = isSupport("wimax");
 var downsize_4m_support = isSupport("sfp4m");
@@ -560,6 +564,7 @@ var swisscom_support = isSupport("swisscom");
 var tmo_support = isSupport("tmo");
 var atf_support = isSupport("atf");
 var pwrsave_support = isSupport("pwrsave");
+var pagecache_ratio_support = isSupport("pcache_ratio");
 var wl_mfp_support = isSupport("wl_mfp");	// For Protected Management Frames, ARM platform
 var bwdpi_support = isSupport("bwdpi");
 var bwdpi_mals_support = isSupport("dpi_mals");
@@ -573,6 +578,7 @@ var ipsec_srv_support = isSupport("ipsec_srv");
 var ipsec_cli_support = isSupport("ipsec_cli");
 var traffic_analyzer_support = isSupport("traffic_analyzer");
 var traffic_limiter_support = isSupport("traffic_limiter");
+var dns_dpi_support = isSupport("dns_dpi");
 var force_upgrade_support = isSupport("fupgrade");
 var odm_support = isSupport("odm");
 var adBlock_support = isSupport("adBlock");
@@ -602,6 +608,7 @@ var reboot_schedule_support = isSupport("reboot_schedule");
 var captivePortal_support = isSupport("captivePortal");
 var cp_freewifi_support = isSupport("cp_freewifi");
 var cp_advanced_support = isSupport("cp_advanced");
+var account_binding_support = isSupport("account_binding");
 var fbwifi_support = isSupport("fbwifi");
 var noiptv_support = isSupport("noiptv");
 var improxy_support = isSupport("improxy");
@@ -668,42 +675,55 @@ var mbo_support = (function(){
 var nt_center_support = (isSupport("nt_center") && isSupport("nt_center_ui"));
 var dblog_support = isSupport("dblog");
 var wan_bonding_support = isSupport("wanbonding");
+var wbmenu_support = isSupport("wbmenu");
 var MaxRule_parentctrl = isSupport("MaxRule_parentctrl");
 var MaxRule_bwdpi_wrs = isSupport("MaxRule_bwdpi_wrs");
 var isp_customize_tool_support = isSupport('isp_customize_tool');
+var lacp_support = isSupport("lacp");
+
 // return enum bs_port_id
 function wanAggr_p2_num(wanports_bond){
 	var p2_port = "4";
-	if (based_modelid == "RT-AX89U" || based_modelid == "GT-AXY16000" || based_modelid == "XT12") {
+
+	if (wbmenu_support || based_modelid == "XT12" || based_modelid == "ET12") {
 		p2_port = wanports_bond.split(" ")[1];
 		if (typeof(p2_port) == 'undefined')
 			p2_port = "-1";
 	}
+	else if(based_modelid == "RT-AXE7800")
+		p2_port = "2";
+
 	return p2_port;
 }
 // wanports_bond = "P1 P2"; Px follow enum bs_port_id definition on QCA platform.
 function wanAggr_p2_name(wanports_bond){
 	var p2_port_str = "LAN 4";
 	var modelname = "<% nvram_get("modelname"); %>";
-	if (based_modelid == "RT-AX89U" || based_modelid == "GT-AXY16000" || based_modelid == "XT12"){
-		var p2_port = wanAggr_p2_num(wanports_bond);
+	var p2_port = wanAggr_p2_num(wanports_bond);
 
+	if (wbmenu_support || based_modelid == "XT12" || based_modelid == "ET12"){
 		if (typeof(p2_port) == 'undefined') {
 			return p2_port_str;
-		} else if (p2_port >= 1 && p2_port <= 8){
+		} else if (parseInt(p2_port) >= 1 && parseInt(p2_port) <= 8){
 			p2_port_str = "LAN " + p2_port;
 			if(based_modelid == "XT12"){
-				if(p2_port == 3)
+				if(p2_port == "3")
 					p2_port_str = "2.5G/1G LAN";
+			} else if (based_modelid == "TUF-AX4200" || based_modelid == "TUF-AX6000") {
+				if (p2_port == 5)
+					p2_port_str = "2.5G LAN";
 			}
-		} else if (p2_port == 30){
+		} else if (p2_port == "30"){
 			if(modelname == "RAX120")
 				p2_port_str = "5G base-T";
 			else
 				p2_port_str = "10G base-T";
-		} else if (p2_port == 31){
+		} else if (p2_port == "31"){
 			p2_port_str = "10G SFP+";
 		}
+	}
+	else{
+		p2_port_str = "LAN " + p2_port;
 	}
 
 	return p2_port_str;
@@ -717,6 +737,7 @@ function wanAggr_p2_conflicts_w_stb_port(stb,p2){
 	return (stb_ports[stb].indexOf(p2) == -1)? false : true;
 }
 var qca_support = isSupport("qca");
+var mtk_support = isSupport("mtk");
 var geforceNow_support = isSupport("nvgfn");
 var fileflex_support = isSupport("fileflex");
 var re_mode = '<% nvram_get("re_mode"); %>';
@@ -724,7 +745,9 @@ var conndiag_support = (function(){
 	return (isSupport("conndiag") && ('<% nvram_get("enable_diag"); %>' == "2"));
 })();
 var tencent_qmacc_support = isSupport("tencent_qmacc");
+var tencent_game_acc_support = isSupport("tc_game_acc");
 var outfox_support = isSupport("outfox");
+var wtfast_v2_support = isSupport("wtfast_v2");
 
 var amazon_wss_support = isSupport("amazon_wss");
 
@@ -740,9 +763,6 @@ if(tmo_support && isMobile()){
 	if(location.pathname != "/MobileQIS_Login.asp")
 		location.href = "MobileQIS_Login.asp";
 }
-	
-if(isMobile() && (based_modelid == "RT-AC88U" || based_modelid == "RT-AX88U" || based_modelid == "RT-AC86U" || based_modelid == "GT-AC2900" || based_modelid == "RT-AC3100" || based_modelid == "RT-AC5300" || based_modelid == "GT-AC5300" || based_modelid == "GT-AC9600" || based_modelid == "GT-AX11000" || based_modelid == "GT-AXE11000" || based_modelid == "GT-AX6000" || based_modelid == "GT-AX11000_PRO" || based_modelid == "GT-AXE16000"))
-	QISWIZARD = "QIS_wizard_m.htm";	
 
 var stopFlag = 0;
 
@@ -763,11 +783,13 @@ if(based_modelid != "BRT-AC828"){
 }
 
 //notification value
-var notice_pw_is_default = '<% check_pw(); %>';
-if(notice_pw_is_default == 1 && window.location.pathname.toUpperCase().search("QIS_") < 0)	//force to change http_passwd / http_username & except QIS settings
+if(navigator.userAgent.search("asusrouter") == -1){
+	var notice_pw_is_default = '<% check_pw(); %>';
+	if(notice_pw_is_default == 1 && window.location.pathname.toUpperCase().search("QIS_") < 0) //force to change http_passwd / http_username & except QIS settings
 		location.href = 'Main_Password.asp?nextPage=' + window.location.pathname.substring(1 ,window.location.pathname.length);
-else if('<% nvram_get("w_Setting"); %>' == '0' && sw_mode != 2 && window.location.pathname.toUpperCase().search("QIS_") < 0)
-	location.href = '/QIS_wizard.htm?flag=wireless';
+	else if('<% nvram_get("w_Setting"); %>' == '0' && sw_mode != 2 && window.location.pathname.toUpperCase().search("QIS_") < 0)
+		location.href = '/QIS_wizard.htm?flag=wireless';
+}
 
 var allUsbStatus = "";
 var allUsbStatusTmp = "";
@@ -792,6 +814,7 @@ if(wan_bonding_support){
 	var wan_bonding_p1_status = [<% wan_bonding_p1_status(); %>][0];
 	var wan_bonding_p2_status = [<% wan_bonding_p2_status(); %>][0];
 	var orig_bond_wan = '<% nvram_get("bond_wan"); %>';
+	var lacp_wan = '<% nvram_get("lacp_wan"); %>';
 }
 
 function change_wl_unit_status(_unit){
@@ -835,17 +858,32 @@ var external_ip = 0;
 var link_internet = '<% nvram_get("link_internet"); %>';
 var le_restart_httpd_chk = "";
 
-var ui_lang = '<% nvram_get("preferred_lang"); %>';
-
-if(lyra_hide_support){
-	var Android_app_link = "https://play.google.com/store/apps/details?id=com.asus.hive";
-	var IOS_app_link = "https://itunes.apple.com/us/app/asus-lyra/id1171291475";
-}else{
-	var Android_app_link = "https://play.google.com/store/apps/details?id=com.asus.aihome";
-	var IOS_app_link = "https://itunes.apple.com/tw/app/asus-router/id1033794044";
-}
-
 var wifison_ready = '<% nvram_get("wifison_ready"); %>';
+var ui_lang = '<% nvram_get("preferred_lang"); %>';
+if(is_CN || ui_lang == "CN"){
+	var Android_app_link = "https://dlcdnets.asus.com/pub/ASUS/LiveUpdate/Release/Wireless/ASUSRouter_Android_Release.apk";
+	var Android_QR = "images/New_ui/asus_router_android_qr_cn.png";
+}
+else{
+	var Android_app_link = "https://play.google.com/store/apps/details?id=com.asus.aihome";
+	var Android_QR = "images/New_ui/asus_router_android_qr.png";
+}
+var IOS_app_link = "https://itunes.apple.com/tw/app/asus-router/id1033794044";
+var IOS_QR = "images/New_ui/asus_router_ios_qr.png";
+
+var aimesh_location_arr = [
+	{value:"Home",text:"<#AiMesh_NodeLocation01#>"}, {value:"Living Room",text:"<#AiMesh_NodeLocation02#>"}, {value:"Dining Room",text:"<#AiMesh_NodeLocation03#>"},
+	{value:"Bedroom",text:"<#AiMesh_NodeLocation04#>"}, {value:"Office",text:"<#AiMesh_NodeLocation05#>"}, {value:"Stairwell",text:"<#AiMesh_NodeLocation06#>"},
+	{value:"Hall",text:"<#AiMesh_NodeLocation07#>"}, {value:"Kitchen",text:"<#AiMesh_NodeLocation08#>"}, {value:"Attic",text:"<#AiMesh_NodeLocation09#>"},
+	{value:"Basement",text:"<#AiMesh_NodeLocation10#>"}, {value:"Yard",text:"<#AiMesh_NodeLocation11#>"}, {value:"Master Bedroom",text:"<#AiMesh_NodeLocation12#>"},
+	{value:"Guest Room",text:"<#AiMesh_NodeLocation13#>"}, {value:"Kids Room",text:"<#AiMesh_NodeLocation14#>"}, {value:"Study Room",text:"<#AiMesh_NodeLocation15#>"},
+	{value:"Hallway",text:"<#AiMesh_NodeLocation16#>"}, {value:"Walk-in Closet",text:"<#AiMesh_NodeLocation17#>"}, {value:"Bathroom",text:"<#AiMesh_NodeLocation18#>"},
+	{value:"First Floor",text:"<#AiMesh_NodeLocation26#>"}, {value:"Second Floor",text:"<#AiMesh_NodeLocation19#>"}, {value:"Third Floor",text:"<#AiMesh_NodeLocation20#>"},
+	{value:"Storage",text:"<#AiMesh_NodeLocation21#>"}, {value:"Balcony",text:"<#AiMesh_NodeLocation22#>"}, {value:"Meeting Room",text:"<#AiMesh_NodeLocation23#>"},
+	{value:"Garage",text:"<#AiMesh_NodeLocation25#>"}, {value:"Gaming Room",text:"<#AiMesh_NodeLocation27#>"}, {value:"Gym",text:"<#AiMesh_NodeLocation28#>"},
+	{value:"Custom",text:"<#AiMesh_NodeLocation24#>"}
+];
+
 var radioHintIgnored = false;
 var blockAllDeviceHintIgnored = false;
 (function(){
@@ -1001,10 +1039,13 @@ function show_banner(L3){// L3 = The third Level of Menu
 		}
 	}
 	else if(tuf_support){
-		banner_code +='<div class="banner1" align="center"><img src="images/New_ui/logo_TUF.png" align="left" style="width:450px;height:96px;margin-left:45px;">\n';
+		if(CoBrand == "8")
+			banner_code +='<div class="banner1" align="center"><img src="images/New_ui/logo_TX.png" align="left" style="width:450px;height:96px;margin-left:45px;">\n';
+		else
+			banner_code +='<div class="banner1" align="center"><img src="images/New_ui/logo_TUF.png" align="left" style="width:450px;height:96px;margin-left:45px;">\n';
 		banner_code +='<div style="margin-top:0px;margin-left:-90px;*margin-top:0px;*margin-left:0px;" align="center"><span id="modelName_top" onclick="this.focus();" class="modelName_top"><#Web_Title2#></span></div>';
 			// logout
-			banner_code +='<a href="javascript:logout();"><div style="margin:20px 0 0 15px;*width:136px;background:url(\'images/New_ui/btn_logout.png\') no-repeat;background-size:cover;width:132px;height:34px;float:left;" align="center"><div style="margin:8px 0 0 15px;"><#t1Logout#></div></div></a>\n';
+		banner_code +='<div style="position: absolute;margin-left: 720px;"><a href="javascript:logout();"><div style="margin:20px 0 0 0;*width:136px;background:url(\'images/New_ui/btn_logout.png\') no-repeat;background-size:cover;width:132px;height:34px;float:left;" align="center"><div style="margin:8px 0 0 0;"><#t1Logout#></div></div></a></div>\n';
 	}
 	else if(spirit_logo_support){
 		banner_code +='<div class="banner1" align="center"><img src="images/New_ui/asus_spirit_title.png" width="214" height="31" align="left" style="margin-top:13px;margin-left:30px;">\n';
@@ -1061,15 +1102,18 @@ function show_banner(L3){// L3 = The third Level of Menu
 
 	// dsl does not support operation mode, except DSL-AX82U
 	if ((!dsl_support || support_site_modelid=="DSL-AX82U") && !lyra_hide_support) {
-		banner_code +='<span style="font-family:Verdana, Arial, Helvetica, sans-serif;"><#menu5_6_1_title#>:</sapn><span class="title_link" style="text-decoration: none;" id="op_link"><a href="/Advanced_OperationMode_Content.asp" style="color:white"><span id="sw_mode_span" style="text-decoration: underline;"></span></a></span>\n';
+		banner_code +='<span style="font-family:Verdana, Arial, Helvetica, sans-serif;"><#menu5_6_1_title#>:</span><span class="title_link" style="text-decoration: none;" id="op_link"><a href="/Advanced_OperationMode_Content.asp" style="color:white"><span id="sw_mode_span" style="text-decoration: underline;"></span></a></span>\n';
 	}
-	banner_code +='<span style="font-family:Verdana, Arial, Helvetica, sans-serif;"><#General_x_FirmwareVersion_itemname#></sapn><a href="/Advanced_FirmwareUpgrade_Content.asp" style="color:white;"><span id="firmver" class="title_link"></span></a>\n';
+	banner_code +='<span style="font-family:Verdana, Arial, Helvetica, sans-serif;"><#General_x_FirmwareVersion_itemname#></span><a href="/Advanced_FirmwareUpgrade_Content.asp" style="color:white;"><span id="firmver" class="title_link"></span></a>\n';
 	banner_code +='<span style="font-family:Verdana, Arial, Helvetica, sans-serif;" id="ssidTitle">SSID:';
 
 	banner_code +='<span onclick="change_wl_unit_status(0)" id="elliptic_ssid_2g" class="title_link"></span>';
 	banner_code +='<span onclick="change_wl_unit_status(1)" id="elliptic_ssid_5g" class="title_link"></span>\n';
 	if(wl_info.band5g_2_support || wl_info.band6g_support)
 		banner_code +='<span onclick="change_wl_unit_status(2)" id="elliptic_ssid_5g_2" class="title_link"></span>\n';
+	if(based_modelid === 'GT-AXE16000'){
+		banner_code +='<span onclick="change_wl_unit_status(3)" id="elliptic_ssid_6g" class="title_link"></span>\n';
+	}	
 	banner_code +='</span></td>\n';
 
 	if(dblog_support)
@@ -1105,17 +1149,10 @@ function show_banner(L3){// L3 = The third Level of Menu
 		//Play Store
 		banner_code +='<div style="padding:20px 10px;">';
 		banner_code +='<div style="display:table-cell;vertical-align:middle;padding-left:10px;">';
-		if(is_CN || ui_lang == "CN"){
-			banner_code +='<div><img src="images/New_ui/asus_router_android_qr_cn.png" style="width:75px;height:75px;"></div>';
-		}
-		else{
-			banner_code +='<div><img src="images/New_ui/asus_router_android_qr.png" style="width:75px;height:75px;"></div>';
-		}
-
+		banner_code +='<div><img src="'+Android_QR+'" style="width:75px;height:75px;"></div>';
 		banner_code +='</div>';
 		banner_code +='<div style="display:table-cell;vertical-align:middle;width:100%;text-align:center">';
 		if(is_CN || ui_lang == "CN"){
-			Android_app_link = "https://dlcdnets.asus.com/pub/ASUS/LiveUpdate/Release/Wireless/ASUSRouter_Android_Release.apk";
 			banner_code +='<div style="padding-left: 30px;"><a href="'+Android_app_link+'" target="_blank"><div style="width:160px;font-size:24px;border:1px solid #BDBDBD;padding: 10px 4px;border-radius: 6px;margin: auto;">Android App</div></a></div>';
 		}
 		else{
@@ -1127,7 +1164,7 @@ function show_banner(L3){// L3 = The third Level of Menu
 		//AppStore
 		banner_code +='<div style="padding:20px 10px;">';
 		banner_code +='<div style="display:table-cell;vertical-align:middle;padding-left:10px;">';
-		banner_code +='<div><img src="images/New_ui/asus_router_ios_qr.png" style="width:75px;height:75px;"></div>';
+		banner_code +='<div><img src="'+IOS_QR+'" style="width:75px;height:75px;"></div>';
 		banner_code +='</div>';
 		banner_code +='<div style="display:table-cell;vertical-align:middle;width:100%;text-align:center">';
 		banner_code +='<div style="padding-left: 30px;"><a href="'+IOS_app_link+'" target="_blank"><div style="width:160px;height:46px;background:url(\'images/AppStore.png\') no-repeat;background-size:100%;margin:auto;"></div></a></div>';
@@ -1237,6 +1274,21 @@ function show_banner(L3){// L3 = The third Level of Menu
 		document.getElementById("elliptic_ssid_5g").style.display = "none";
 		if(wl_info.band5g_2_support || wl_info.band6g_support)
 			document.getElementById('elliptic_ssid_5g_2').style.display = "none";
+	}
+
+	if(tuf_support && ui_lang == "CN"){
+		var CN_STRING = ""; // need to maintain this table refer to ej
+		if(based_modelid == "TUF-AX3000_V2")	//MODELDEP
+			CN_STRING = $("#modelName_top").html().replace("TUF GAMING ", "");
+		else if(based_modelid == "TUF-AX4200Q" || odmpid == "TUF-AX4200Q")
+			CN_STRING = $("#modelName_top").html().replace("TUF GAMING ", "").replace(" Pro", "");
+
+		if(CN_STRING.length > 0){
+			if($("#modelName_top").html().indexOf(CN_STRING) != -1){ //Fine tune font-size til improve of ROG font 
+				var Name_temp = $("#modelName_top").html().replace(CN_STRING, "<span class='tuf_CN'>" + CN_STRING + "</span>");
+				$("#modelName_top").html(Name_temp);
+			}
+		}
 	}
 
 }
@@ -1461,6 +1513,7 @@ function show_menu(){
 		Session.set("menuList", menuList);
 		Session.set("menuExclude", menuExclude);
 		showMenuTree(menuList, menuExclude);
+		
 	});
 
 	if(nt_center_support){
@@ -1640,9 +1693,9 @@ function showMenuTree(menuList, menuExclude){
 				tab_code += curTab.url;
 				tab_code += '" id="';
 				tab_code += curTab.url.split(".")[0];
-				tab_code += '_tab"><span>';
+				tab_code += '_tab"><div>';
 				tab_code += curTab.tabName; 
-				tab_code += '</span></div></td>';
+				tab_code += '</div></div></td>';
 				tabCounter ++;
 			}
 
@@ -1865,12 +1918,82 @@ function show_footer(){
 	}
 	
 	footer_code += '</td>';
-	footer_code += '<td width="270" id="bottom_help_FAQ" align="right" style="font-family:Arial, Helvetica, sans-serif;">FAQ&nbsp&nbsp<input type="text" id="FAQ_input" class="input_FAQ_table" maxlength="40" onKeyPress="submitenter(this,event);" autocorrect="off" autocapitalize="off"></td>';
+	footer_code += '<td width="270" id="bottom_help_FAQ" align="right" style="font-family:Arial, Helvetica, sans-serif;">FAQ&nbsp&nbsp<input type="text" id="FAQ_input" class="input_FAQ_table" maxlength="40" onKeyPress="submitenter(this,event);" autocorrect="off" autocapitalize="off" onkeyup="filterFAQ();"></td>';
+	footer_code += '<div id="faq-block" class="faq-filter-block" style="display:none"></div>';
+	footer_code += '</td>';
 	footer_code += '<td width="30" align="left"><div id="bottom_help_FAQ_icon" class="bottom_help_FAQ_icon" style="cursor:pointer;margin-left:3px;" target="_blank" onClick="search_supportsite();"></div></td>';
 	footer_code += '</tr></table></div>\n';
 	//}
 
 	document.getElementById("footer").innerHTML = footer_code;
+}
+function filterFAQ(){
+	var string = $("#FAQ_input").val().trim().toUpperCase();
+	if(string != "" && string != " "){
+		$('#faq-block').show();
+		genFAQList(string)
+	}
+	else{
+		$('#faq-block').hide();
+	}
+}
+
+function genFAQList(_str){
+	var code = '';
+	$.ajax({
+		url: '/js/faq.js',
+		dataType: 'script',
+		error: function(xhr) {
+			setTimeout(function(){
+				genFAQList();
+			}, 2000);
+		},
+		success: function(response){
+			var current_mode = (function(){
+				if(isSwMode('rt')){
+					return 'RT';
+				}
+				else if(isSwMode('ap')){
+					return 'AP';
+				}
+				else if(isSwMode('mb')){
+					return 'MB';
+				}
+				else if(isSwMode('re')){
+					return 'RE';
+				}
+
+				return '';
+			})();
+
+			for(var i=0; i< Object.values(faq_data).length; i++){
+				var _idx = Object.values(faq_data)[i].index.toUpperCase();
+				var name = Object.values(faq_data)[i].name;
+				var _name = Object.values(faq_data)[i].name.toUpperCase();
+				var link = Object.values(faq_data)[i].link;
+				var menu = Object.values(faq_data)[i].menu;
+				var support = (function(){
+					var _mode = Object.values(faq_data)[i].mode;
+					var rc = Object.values(faq_data)[i].support;
+					for(var j=0; j<_mode.length; j++){
+						if((_mode[j] == current_mode) && rc){
+							return true;
+						}					
+					}
+
+					return false;
+				})();
+
+				if( (_idx.indexOf(_str) != -1 || _name.indexOf(_str) != -1) && support){
+					code += '<div>';
+					code += '<a href="'+ link +'">'+ name + ' - ' + menu +'</a>';
+					code += '</div>';
+				}
+			}
+		
+			$('#faq-block').html(code);
+		}
+	});
 }
 
 function get_supportsite_lang(obj){
@@ -1998,6 +2121,15 @@ function show_top_status(){
 		var ssid_status_5g_2 =  htmlEnDeCode.htmlEncode(decodeURIComponent('<% nvram_char_to_ascii("WLANConfig11b", "wl2_ssid"); %>'));
 	}
 
+	if(based_modelid === 'GT-AXE16000'){
+		var ssid_status_6g =  htmlEnDeCode.htmlEncode(decodeURIComponent('<% nvram_char_to_ascii("WLANConfig11b", "wl3_ssid"); %>'));
+		var _t = ssid_status_6g;
+		ssid_status_6g = ssid_status_5g_2;
+		ssid_status_5g_2 = ssid_status_5g;
+		ssid_status_5g = ssid_status_2g;
+		ssid_status_2g = _t;
+	}
+
 	if(!band2g_support)
 		ssid_status_2g = "";
 
@@ -2026,6 +2158,13 @@ function show_top_status(){
 			document.getElementById('elliptic_ssid_5g_2').style.cursor="auto";
 			document.getElementById('elliptic_ssid_5g_2').onclick = null;
 		}
+
+		if(based_modelid === 'GT-AXE16000'){
+			document.getElementById("elliptic_ssid_6g").style.display = "none";
+			document.getElementById('elliptic_ssid_6g').style.textDecoration="none";
+			document.getElementById('elliptic_ssid_6g').style.cursor="auto";
+			document.getElementById('elliptic_ssid_6g').onclick = null;
+		}
 	}
 	else if(sw_mode == 2){
 		if(concurrep_support){
@@ -2043,6 +2182,10 @@ function show_top_status(){
 			else if(wlc_express == '3'){
 				if(wl_info.band5g_2_support || wl_info.band6g_support)
 					document.getElementById('elliptic_ssid_5g_2').style.display = "none";
+				
+				if(based_modelid === 'GT-AXE16000'){
+					document.getElementById('elliptic_ssid_6g').style.display = "none";
+				}
 			}
 		}	
 		else if(wlc_band == '0')
@@ -2068,35 +2211,72 @@ function show_top_status(){
 			document.getElementById('elliptic_ssid_5g_2').style.cursor="auto";	
 			document.getElementById('elliptic_ssid_5g_2').onclick = null;
 		}
+
+		if(based_modelid === 'GT-AXE16000'){
+			document.getElementById('elliptic_ssid_6g').style.textDecoration="none";
+			document.getElementById('elliptic_ssid_6g').style.cursor="auto";	
+			document.getElementById('elliptic_ssid_6g').onclick = null;
+		}
 	}
 
-	if(htmlEnDeCode.htmlDecode(ssid_status_2g).length >18){
-		document.getElementById('elliptic_ssid_2g').innerHTML = htmlEnDeCode.htmlEncode((htmlEnDeCode.htmlDecode(ssid_status_2g)).substring(0,15)) + "...";
+	if(based_modelid === 'GT-AXE16000'){
+		if(htmlEnDeCode.htmlDecode(ssid_status_2g).length >13){
+			document.getElementById('elliptic_ssid_2g').innerHTML = htmlEnDeCode.htmlEncode((htmlEnDeCode.htmlDecode(ssid_status_2g)).substring(0,10)) + "...";
+		}
+		else{
+			document.getElementById('elliptic_ssid_2g').innerHTML = ssid_status_2g;
+		}
 	}
 	else{
-		document.getElementById('elliptic_ssid_2g').innerHTML = ssid_status_2g;
+		if(htmlEnDeCode.htmlDecode(ssid_status_2g).length >18){
+			document.getElementById('elliptic_ssid_2g').innerHTML = htmlEnDeCode.htmlEncode((htmlEnDeCode.htmlDecode(ssid_status_2g)).substring(0,15)) + "...";
+		}
+		else{
+			document.getElementById('elliptic_ssid_2g').innerHTML = ssid_status_2g;
+		}
 	}
+	
 
 	if(wifison_ready != "1")
 		document.getElementById('elliptic_ssid_2g').title = "2.4 GHz: \n"+ htmlEnDeCode.htmlDecode(ssid_status_2g);
 
-	if(htmlEnDeCode.htmlDecode(ssid_status_5g).length >18){
-		document.getElementById('elliptic_ssid_5g').innerHTML = htmlEnDeCode.htmlEncode((htmlEnDeCode.htmlDecode(ssid_status_5g)).substring(0,15)) + "...";
+	if(based_modelid === 'GT-AXE16000'){
+		if(htmlEnDeCode.htmlDecode(ssid_status_5g).length >13){
+			document.getElementById('elliptic_ssid_5g').innerHTML = htmlEnDeCode.htmlEncode((htmlEnDeCode.htmlDecode(ssid_status_5g)).substring(0,10)) + "...";
+		}
+		else{
+			document.getElementById('elliptic_ssid_5g').innerHTML = ssid_status_5g;
+		}
 	}
 	else{
-		document.getElementById('elliptic_ssid_5g').innerHTML = ssid_status_5g;
-	}
+		if(htmlEnDeCode.htmlDecode(ssid_status_5g).length >18){
+			document.getElementById('elliptic_ssid_5g').innerHTML = htmlEnDeCode.htmlEncode((htmlEnDeCode.htmlDecode(ssid_status_5g)).substring(0,15)) + "...";
+		}
+		else{
+			document.getElementById('elliptic_ssid_5g').innerHTML = ssid_status_5g;
+		}
+	}	
 
 	document.getElementById('elliptic_ssid_5g').title = "5 GHz: \n"+ htmlEnDeCode.htmlDecode(ssid_status_5g);
 
 	if(wl_info.band5g_2_support || wl_info.band6g_support){
-		if(htmlEnDeCode.htmlDecode(ssid_status_5g_2).length >18){
-			document.getElementById('elliptic_ssid_5g_2').innerHTML = htmlEnDeCode.htmlEncode((htmlEnDeCode.htmlDecode(ssid_status_5g_2)).substring(0,15)) + "...";
+		if(based_modelid === 'GT-AXE16000'){
+			if(htmlEnDeCode.htmlDecode(ssid_status_5g_2).length >13){
+				document.getElementById('elliptic_ssid_5g_2').innerHTML = htmlEnDeCode.htmlEncode((htmlEnDeCode.htmlDecode(ssid_status_5g_2)).substring(0,10)) + "...";
+			}
+			else{
+				document.getElementById('elliptic_ssid_5g_2').innerHTML = ssid_status_5g_2;
+			}
 		}
 		else{
-			document.getElementById('elliptic_ssid_5g_2').innerHTML = ssid_status_5g_2;
+			if(htmlEnDeCode.htmlDecode(ssid_status_5g_2).length >18){
+				document.getElementById('elliptic_ssid_5g_2').innerHTML = htmlEnDeCode.htmlEncode((htmlEnDeCode.htmlDecode(ssid_status_5g_2)).substring(0,15)) + "...";
+			}
+			else{
+				document.getElementById('elliptic_ssid_5g_2').innerHTML = ssid_status_5g_2;
+			}
 		}
-
+	
 		if(band6g_support){
 			document.getElementById('elliptic_ssid_5g_2').title = "6 GHz: \n"+ htmlEnDeCode.htmlDecode(ssid_status_5g_2);
 		}
@@ -2105,32 +2285,129 @@ function show_top_status(){
 		}		
 	}
 
-	if(smart_connect_support){
-		if('<% nvram_get("smart_connect_x"); %>' == '1'){
-			document.getElementById('elliptic_ssid_2g').title = "Smart Connect: \n"+ htmlEnDeCode.htmlDecode(ssid_status_2g);
-			document.getElementById('elliptic_ssid_5g').style.display = "none";
-			if(wl_info.band5g_2_support || wl_info.band6g_support) {
-				if(isSupport("triband") && dwb_info.mode)
-					document.getElementById('elliptic_ssid_5g_2').style.display = "";
-				else
-					document.getElementById('elliptic_ssid_5g_2').style.display = "none";
-			}
-		}else if('<% nvram_get("smart_connect_x"); %>' == '2'){
-			document.getElementById('elliptic_ssid_2g').title = "2.4 GHz: \n"+ htmlEnDeCode.htmlDecode(ssid_status_2g);
-			document.getElementById('elliptic_ssid_5g').title = "5 GHz Smart Connect: \n"+ htmlEnDeCode.htmlDecode(ssid_status_5g);
-			document.getElementById('elliptic_ssid_5g').style.display = "";
-			if(wl_info.band5g_2_support || wl_info.band6g_support)
-				document.getElementById('elliptic_ssid_5g_2').style.display = "none";
-		}else if('<% nvram_get("smart_connect_x"); %>' == '3'){
-			document.getElementById('elliptic_ssid_2g').title = "2.4 GHz & 5 GHz Smart Connect: \n"+ htmlEnDeCode.htmlDecode(ssid_status_2g);
-			document.getElementById('elliptic_ssid_5g').style.display = "none";
-			document.getElementById('elliptic_ssid_5g_2').style.display = "";
-		}else{
-			document.getElementById('elliptic_ssid_2g').title = "2.4 GHz: \n"+ htmlEnDeCode.htmlDecode(ssid_status_2g);
-			document.getElementById('elliptic_ssid_5g').style.display = "";
-			if(wl_info.band5g_2_support || wl_info.band6g_support)
-				document.getElementById('elliptic_ssid_5g_2').style.display = "";
+	if(based_modelid === 'GT-AXE16000'){
+		if(htmlEnDeCode.htmlDecode(ssid_status_6g).length >13){
+			document.getElementById('elliptic_ssid_6g').innerHTML = htmlEnDeCode.htmlEncode((htmlEnDeCode.htmlDecode(ssid_status_6g)).substring(0,10)) + "...";
 		}
+		else{
+			document.getElementById('elliptic_ssid_6g').innerHTML = ssid_status_6g;
+		}
+
+		document.getElementById('elliptic_ssid_6g').title = "6 GHz: \n"+ htmlEnDeCode.htmlDecode(ssid_status_6g);
+	
+	}
+
+	if(smart_connect_support){
+		if(based_modelid == 'GT-AXE16000'){
+			var smart_connect_enable = ('<% nvram_get("smart_connect_x"); %>' != '0' ? '1' : '0');
+			var smart_connect_selif_x = '<% nvram_get("smart_connect_selif_x"); %>';
+			if(smart_connect_enable !== '0'){
+				if(smart_connect_selif_x == '15'){
+					document.getElementById('elliptic_ssid_2g').title = "Smart Connect: \n"+ htmlEnDeCode.htmlDecode(ssid_status_2g);
+					document.getElementById('elliptic_ssid_5g').style.display = "none";
+					document.getElementById('elliptic_ssid_5g_2').style.display = "none";
+					document.getElementById('elliptic_ssid_6g').style.display = "none";
+				}
+				else if(smart_connect_selif_x == '14'){
+					document.getElementById('elliptic_ssid_2g').title = "Smart Connect: \n"+ htmlEnDeCode.htmlDecode(ssid_status_5g);	
+					document.getElementById('elliptic_ssid_5g').title = "2.4 GHz: \n"+ htmlEnDeCode.htmlDecode(ssid_status_2g);			
+					document.getElementById('elliptic_ssid_5g_2').style.display = "none";
+					document.getElementById('elliptic_ssid_6g').style.display = "none";
+				}
+				else if(smart_connect_selif_x == '13'){
+					document.getElementById('elliptic_ssid_2g').title = "Smart Connect: \n"+ htmlEnDeCode.htmlDecode(ssid_status_2g);		
+					document.getElementById('elliptic_ssid_5g').style.display = "5 GHz-1: \n"+ htmlEnDeCode.htmlDecode(ssid_status_5g);
+					document.getElementById('elliptic_ssid_5g_2').style.display = "none";
+					document.getElementById('elliptic_ssid_6g').style.display = "none";
+				}
+				else if(smart_connect_selif_x == '11'){
+					document.getElementById('elliptic_ssid_2g').title = "Smart Connect: \n"+ htmlEnDeCode.htmlDecode(ssid_status_2g);
+					document.getElementById('elliptic_ssid_5g').style.display = "none";	
+					document.getElementById('elliptic_ssid_5g_2').style.display = "5 GHz-2: \n"+ htmlEnDeCode.htmlDecode(ssid_status_5g_2);
+					document.getElementById('elliptic_ssid_6g').style.display = "none";
+				}
+				else if(smart_connect_selif_x == '7'){
+					document.getElementById('elliptic_ssid_2g').title = "Smart Connect: \n"+ htmlEnDeCode.htmlDecode(ssid_status_2g);
+					document.getElementById('elliptic_ssid_5g').style.display = "none";	
+					document.getElementById('elliptic_ssid_5g_2').style.display = "none";
+					document.getElementById('elliptic_ssid_6g').style.display = "6 GHz: \n"+ htmlEnDeCode.htmlDecode(ssid_status_5g_2);
+				}
+				else if(smart_connect_selif_x == '12'){
+					document.getElementById('elliptic_ssid_2g').title = "Smart Connect: \n"+ htmlEnDeCode.htmlDecode(ssid_status_5g_2);
+					document.getElementById('elliptic_ssid_5g').title = "2.4 GHz: \n"+ htmlEnDeCode.htmlDecode(ssid_status_2g);
+					document.getElementById('elliptic_ssid_5g_2').title = "5 GHz-1: \n"+ htmlEnDeCode.htmlDecode(ssid_status_5g);
+					document.getElementById('elliptic_ssid_6g').style.display = "none";	
+				}
+				else if(smart_connect_selif_x == '10'){
+					document.getElementById('elliptic_ssid_2g').title = "Smart Connect: \n"+ htmlEnDeCode.htmlDecode(ssid_status_5g);
+					document.getElementById('elliptic_ssid_5g').title = "2.4 GHz: \n"+ htmlEnDeCode.htmlDecode(ssid_status_2g);
+					document.getElementById('elliptic_ssid_5g_2').title = "5 GHz-2: \n"+ htmlEnDeCode.htmlDecode(ssid_status_5g_2);
+					document.getElementById('elliptic_ssid_6g').style.display = "none";
+				}
+				else if(smart_connect_selif_x == '9'){
+					document.getElementById('elliptic_ssid_2g').title = "Smart Connect: \n"+ htmlEnDeCode.htmlDecode(ssid_status_2g);
+					document.getElementById('elliptic_ssid_5g').title = "5 GHz-1: \n"+ htmlEnDeCode.htmlDecode(ssid_status_5g);
+					document.getElementById('elliptic_ssid_5g_2').title = "5 GHz-2: \n"+ htmlEnDeCode.htmlDecode(ssid_status_5g_2);
+					document.getElementById('elliptic_ssid_6g').style.display = "none";
+				}
+				else if(smart_connect_selif_x == '6'){
+					document.getElementById('elliptic_ssid_2g').title = "Smart Connect: \n"+ htmlEnDeCode.htmlDecode(ssid_status_5g);	
+					document.getElementById('elliptic_ssid_5g').title = "2.4 GHz: \n"+ htmlEnDeCode.htmlDecode(ssid_status_2g);					
+					document.getElementById('elliptic_ssid_5g_2').style.display = "none";
+					document.getElementById('elliptic_ssid_6g').style.display = "6 GHz: \n"+ htmlEnDeCode.htmlDecode(ssid_status_6g);
+				}
+				else if(smart_connect_selif_x == '5'){
+					document.getElementById('elliptic_ssid_2g').title = "Smart Connect: \n"+ htmlEnDeCode.htmlDecode(ssid_status_2g);
+					document.getElementById('elliptic_ssid_5g').title = "5 GHz-1: \n"+ htmlEnDeCode.htmlDecode(ssid_status_5g);					
+					document.getElementById('elliptic_ssid_5g_2').style.display = "none";
+					document.getElementById('elliptic_ssid_6g').style.display = "6 GHz: \n"+ htmlEnDeCode.htmlDecode(ssid_status_6g);
+				}
+				else if(smart_connect_selif_x == '3'){
+					document.getElementById('elliptic_ssid_2g').title = "Smart Connect: \n"+ htmlEnDeCode.htmlDecode(ssid_status_2g);			
+					document.getElementById('elliptic_ssid_5g').style.display = "none";
+					document.getElementById('elliptic_ssid_5g_2').style.display = "5 GHz-2: \n"+ htmlEnDeCode.htmlDecode(ssid_status_5g_2);
+					document.getElementById('elliptic_ssid_6g').style.display = "6 GHz: \n"+ htmlEnDeCode.htmlDecode(ssid_status_6g);
+				}
+			}
+			else{
+				document.getElementById('elliptic_ssid_2g').title = "2.4 GHz: \n"+ htmlEnDeCode.htmlDecode(ssid_status_2g);
+				document.getElementById('elliptic_ssid_5g').title = "5 GHz-1: \n"+ htmlEnDeCode.htmlDecode(ssid_status_5g);
+				document.getElementById('elliptic_ssid_5g_2').title = "5 GHz-2: \n"+ htmlEnDeCode.htmlDecode(ssid_status_5g_2);
+				document.getElementById('elliptic_ssid_6g').title = "6 GHz: \n"+ htmlEnDeCode.htmlDecode(ssid_status_6g);
+				document.getElementById('elliptic_ssid_5g').style.display = "";
+				if(wl_info.band5g_2_support || wl_info.band6g_support)
+					document.getElementById('elliptic_ssid_5g_2').style.display = "";
+				
+				document.getElementById('elliptic_ssid_6g').style.display = "";
+			}
+		}
+		else{
+			if('<% nvram_get("smart_connect_x"); %>' == '1'){
+				document.getElementById('elliptic_ssid_2g').title = "Smart Connect: \n"+ htmlEnDeCode.htmlDecode(ssid_status_2g);
+				document.getElementById('elliptic_ssid_5g').style.display = "none";
+				if(wl_info.band5g_2_support || wl_info.band6g_support) {
+					if(isSupport("triband") && dwb_info.mode)
+						document.getElementById('elliptic_ssid_5g_2').style.display = "";
+					else
+						document.getElementById('elliptic_ssid_5g_2').style.display = "none";
+				}
+			}else if('<% nvram_get("smart_connect_x"); %>' == '2'){
+				document.getElementById('elliptic_ssid_2g').title = "2.4 GHz: \n"+ htmlEnDeCode.htmlDecode(ssid_status_2g);
+				document.getElementById('elliptic_ssid_5g').title = "5 GHz Smart Connect: \n"+ htmlEnDeCode.htmlDecode(ssid_status_5g);
+				document.getElementById('elliptic_ssid_5g').style.display = "";
+				if(wl_info.band5g_2_support || wl_info.band6g_support)
+					document.getElementById('elliptic_ssid_5g_2').style.display = "none";
+			}else if('<% nvram_get("smart_connect_x"); %>' == '3'){
+				document.getElementById('elliptic_ssid_2g').title = "2.4 GHz & 5 GHz Smart Connect: \n"+ htmlEnDeCode.htmlDecode(ssid_status_2g);
+				document.getElementById('elliptic_ssid_5g').style.display = "none";
+				document.getElementById('elliptic_ssid_5g_2').style.display = "";
+			}else{
+				document.getElementById('elliptic_ssid_2g').title = "2.4 GHz: \n"+ htmlEnDeCode.htmlDecode(ssid_status_2g);
+				document.getElementById('elliptic_ssid_5g').style.display = "";
+				if(wl_info.band5g_2_support || wl_info.band6g_support)
+					document.getElementById('elliptic_ssid_5g_2').style.display = "";
+			}
+		}		
 	}
 	if(isSupport("triband") && dwb_info.mode) {
 		if(dwb_info.guest != "1"){
@@ -2444,7 +2721,7 @@ function refreshpage(seconds){
 	if(typeof(seconds) == "number")
 		setTimeout("refreshpage()", seconds*1000);
 	else
-		location.href = location.href;
+		location.reload();
 }
 
 function hideLinkTag(){
@@ -2588,7 +2865,7 @@ function hadPlugged(deviceType){
 var AUTOLOGOUT_MAX_MINUTE = parseInt('<% nvram_get("http_autologout"); %>') * 20;
 var error_num = 5;
 function updateStatus(){
-	if(stopFlag == 1) return false;
+	if(stopFlag == 1 || navigator.userAgent.search("asusrouter") != -1) return false;
 	if(AUTOLOGOUT_MAX_MINUTE == 1) location = "Logout.asp"; // 0:disable auto logout, 1:trigger auto logout. 
 
 	require(['/require/modules/makeRequest.js'], function(makeRequest){
@@ -2623,8 +2900,8 @@ var qtn_state_t = '';
 var sim_signal = '<% nvram_get("usb_modem_act_signal"); %>';
 var sim_operation = '<% nvram_get("usb_modem_act_operation"); %>';
 var sim_state = '<% nvram_get("usb_modem_act_sim"); %>';
-var sim_isp = '<% nvram_get("modem_isp"); %>';
-var modem_act_provider = '<% nvram_get("usb_modem_act_provider"); %>';
+var sim_isp = '<% nvram_char_to_ascii("", "modem_isp"); %>';
+var modem_act_provider = get_final_modem_act_provider('<% nvram_char_to_ascii("", "usb_modem_act_provider"); %>');
 var roaming = '<% nvram_get("modem_roaming"); %>';
 var roaming_imsi = '<% nvram_get("modem_roaming_imsi"); %>';
 var sim_imsi = '<% nvram_get("usb_modem_act_imsi"); %>';
@@ -2651,7 +2928,7 @@ var date_year = date.getFullYear();
 var date_month = date.getMonth();
 var modem_enable = '';
 var modem_sim_order = '';
-var wanConnectStatus = true;
+var wanConnectStatus = false;
 var wlc0_ssid = htmlEnDeCode.htmlEncode(decodeURIComponent('<% nvram_char_to_ascii("WLANConfig11b", "wlc0_ssid"); %>'));
 var wlc1_ssid = htmlEnDeCode.htmlEncode(decodeURIComponent('<% nvram_char_to_ascii("WLANConfig11b", "wlc1_ssid"); %>'));
 var concurrent_pap = false;
@@ -2750,10 +3027,10 @@ function refreshStatus(xhr){
 	sim_imsi = simState[6].firstChild.nodeValue.replace("sim_imsi=", "");			
 	g3err_pin = simState[7].firstChild.nodeValue.replace("g3err_pin=", "");		
 	pin_remaining_count = simState[8].firstChild.nodeValue.replace("pin_remaining_count=", "");		
-	modem_act_provider = simState[9].firstChild.nodeValue.replace("modem_act_provider=", "");
+	modem_act_provider = get_final_modem_act_provider(simState[9].firstChild.nodeValue.replace("modem_act_provider=", ""));
 	rx_bytes = parseFloat(simState[10].firstChild.nodeValue.replace("rx_bytes=", ""));
 	tx_bytes = parseFloat(simState[11].firstChild.nodeValue.replace("tx_bytes=", ""));
-	modem_sim_order = parseFloat(simState[12].firstChild.nodeValue.replace("modem_sim_order=", ""));	
+	modem_sim_order = parseFloat(simState[12].firstChild.nodeValue.replace("modem_sim_order=", ""));
 
 	var dhcpState = devicemapXML[0].getElementsByTagName("dhcp");
 	dnsqmode = dhcpState[0].firstChild.nodeValue.replace("dnsqmode=", "");
@@ -2786,6 +3063,7 @@ function refreshStatus(xhr){
 		wan_bonding_speed = wan_bonding_status[0].firstChild.nodeValue.replace("wan_bonding_speed=", "");
 		wan_bonding_p1_status = wan_bonding_status[1].firstChild.nodeValue.replace("wan_bonding_p1_status=", "");
 		wan_bonding_p2_status = wan_bonding_status[2].firstChild.nodeValue.replace("wan_bonding_p2_status=", "");
+		lacp_wan = wan_bonding_status[3].firstChild.nodeValue.replace("lacp_wan=", "");
 	}
 
 	if(realip_support){
@@ -2813,8 +3091,10 @@ function refreshStatus(xhr){
 
 	if(location.pathname == "/"+ QISWIZARD)
 		return false;
-	else if(location.pathname == "/Advanced_VPNClient_Content.asp" && !vpn_fusion_support)
-		show_vpnc_rulelist();
+	else if(location.pathname == "/Advanced_VPNClient_Content.asp" && !vpn_fusion_support){
+		if(typeof show_vpnc_rulelist == "function")
+			show_vpnc_rulelist();
+	}
 	else if(location.pathname == "/Advanced_Feedback.asp") {
 		updateUSBStatus();
 		if(dblog_support)
@@ -2907,7 +3187,11 @@ function refreshStatus(xhr){
 
 				this.hasInternet = false;
 
-				if(_link_auxstatus == "1"){
+				if(wans_dualwan_array[unit] == "usb" && sim_state == "-1"){
+					this.hint = "<#Mobile_sim_miss#>";
+					this.className = "_disconnected";
+				}
+				else if(_link_auxstatus == "1"){
 					this.hint = "<#web_redirect_reason1#>";
 					this.link = "/error_page.htm?flag=1";
 					this.className = "_disconnected";
@@ -3059,7 +3343,7 @@ function refreshStatus(xhr){
 
 		if(wan_bonding_support && document.getElementById("wanAggr_div") && $("#wanAggr_div").css("display") == "block"){
 			var speed = parseInt(wan_bonding_speed);
-			if(speed == 2000 || speed == 3500){
+			if(lacp_wan == "1" || speed == 2000 || speed == 3500){
 				document.getElementById("wan_bonding_status").innerHTML = speed/1000 + "&nbsp;Gbps";
 				$("#wan_bonding_status").removeClass("notificationon");
 				document.getElementById("wan_bonding_status").onclick = function(){};
@@ -3251,7 +3535,7 @@ function refreshStatus(xhr){
 	// usb.storage
 	if(usb_support){
 		if(allUsbStatus != allUsbStatusTmp && allUsbStatusTmp != ""){
-			if(document.getElementById("usb_td")) location.href = location.href;
+			if(document.getElementById("usb_td")) location.reload();
 		}
 
 	 	require(['/require/modules/diskList.js'], function(diskList){
@@ -3455,6 +3739,7 @@ function refreshStatus(xhr){
 						document.getElementById("signalsys").innerHTML = '<img src="/images/mobile/H+.png">';	
 						break;		
 					case 'LTE':
+					case 'FDD LTE':
 						document.getElementById("signalsys").innerHTML = '<img src="/images/mobile/LTE.png">';	
 						break;		
 					case 'GSM':	
@@ -3572,7 +3857,8 @@ function isMobile(){
 		//(navigator.userAgent.match(/Android/i) && navigator.userAgent.match(/Mobile/i))||			//Android phone
 		(navigator.userAgent.match(/Opera/i) && (navigator.userAgent.match(/Mobi/i) || navigator.userAgent.match(/Mini/i))) ||		// Opera mobile or Opera Mini
 		navigator.userAgent.match(/IEMobile/i)	||		// IE Mobile
-		navigator.userAgent.match(/BlackBerry/i)		//BlackBerry
+		navigator.userAgent.match(/BlackBerry/i) ||		//BlackBerry
+		navigator.userAgent.match(/WebView/i)	//WebView
 	 ){
 		return true;
 	}
@@ -3637,23 +3923,23 @@ function isPortConflict(_val, service){
 		str = str + "HTTP LAN port.";
 		return str;
 	}
-	else if(_val == '<% nvram_get("dm_http_port"); %>'){
+	else if(!nodm_support && _val == '<% nvram_get("dm_http_port"); %>'){
 		str = str + "<#DM_title#>.";
 		return str;
 	}
-	else if(_val == '<% nvram_get("webdav_http_port"); %>'){
+	else if(WebDav_support && _val == '<% nvram_get("webdav_http_port"); %>'){
 		str = str + "Cloud Disk.";
 		return str;
 	}
-	else if(_val == '<% nvram_get("webdav_https_port"); %>'){
+	else if(WebDav_support && _val == '<% nvram_get("webdav_https_port"); %>'){
 		str = str + "Cloud Disk.";
 		return str;
 	}
-	else if(service != "ssh" && _val == '<% nvram_get("sshd_port"); %>'){
+	else if(ssh_support && service != "ssh" && _val == '<% nvram_get("sshd_port"); %>'){
 		str = str + "SSH.";
 		return str;
 	}
-	else if(service != "openvpn" && _val == '<% nvram_get("vpn_server_port"); %>'){
+	else if(openvpnd_support && service != "openvpn" && _val == '<% nvram_get("vpn_server_port"); %>'){
 		str = str + "OpenVPN.";
 		return str;
 	}
@@ -4179,7 +4465,6 @@ function check_ddns_status(){
 	return ddns_flag;
 }
 
-
 function radio_hint(){
 	$("#Loading").css({"visibility": "visible"});
 	$("#loadingBlock").css({"visibility": "hidden"});
@@ -4206,7 +4491,7 @@ function radio_disagree(){
 	}
 
 	$('.banner1').html('');
-	location.href = location.href;
+	location.reload();
 }
 
 function radio_set_cookie(){
@@ -4237,7 +4522,7 @@ function radio_agree(){
 	}
 	httpApi.nvramSet(postObj, function(){		
 		setTimeout(function(){
-			location.href = location.href;
+			location.reload();
 		}, rc_time*1000);
 	});
 }
@@ -4268,7 +4553,7 @@ function block_all_device_hint(_flag){
 		if(obj.find("#radio_hint_checkbox").prop("checked"))
 			radio_set_cookie();
 		$('.banner1').html('');
-		location.href = location.href;
+		location.reload();
 	});
 	obj.find("#applyBtn").unbind("click").click(function(e){
 		e = e || event;
@@ -4286,7 +4571,7 @@ function block_all_device_hint(_flag){
 			"MULTIFILTER_BLOCK_ALL": "0"
 		}, function(){
 			setTimeout(function(){
-				location.href = location.href;
+				location.reload();
 			}, rc_time*1000);
 		});
 	});
@@ -4333,3 +4618,6 @@ function Get_Component_PWD_Strength_Meter(id){
 	return $pwd_strength_container;
 }
 
+function plainPasswordSwitch(obj, event){
+	(event === 'focus') ? (obj.type = 'text') : (obj.type = 'password');						
+}

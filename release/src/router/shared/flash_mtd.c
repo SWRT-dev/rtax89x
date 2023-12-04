@@ -20,7 +20,9 @@
 #include <mtd/mtd-user.h>
 #include <mtd/mtd-abi.h>
 #elif defined(LINUX26)
+#if !defined (MUSL_LIBC) && !defined(RT4GAC86U)
 #include <linux/compiler.h>
+#endif	// !MUSL_LIBC
 #include <mtd/mtd-user.h>
 #else
 #include <linux/mtd/mtd.h>
@@ -108,7 +110,7 @@ static int get_mtd_info(const char *mtd_name, struct mtd_info *mi)
 			continue;
 		}
 
-		sprintf(mi->dev, "mtd%d", i);
+		snprintf(mi->dev, sizeof(mi->dev), "mtd%d", i);
 		mi->size = sz;
 		mi->erasesize = esz;
 		snprintf(mi->name, sizeof(mi->name), "%s", mtd_name);
@@ -138,11 +140,11 @@ int flash_mtd_init_info(void)
 				if (i >= NUM_INFO)
 					printf("please enlarge 'NUM_INFO'\n");
 				else {
-					sprintf(info[i].dev, "mtd%d", i);
+					snprintf(info[i].dev, sizeof(info[i].dev), "mtd%d", i);
 					info[i].size = sz;
 					info[i].erasesize = esz;
 					nm[strlen((char *)nm)-1] = '\0'; //FIXME: sscanf
-					sprintf(info[i].name, "%s", nm);
+					snprintf(info[i].name, sizeof(info[i].name), "%s", nm);
 				}
 			}
 		}
@@ -305,7 +307,7 @@ int VVPartitionRead(const char *mtd_name, const unsigned char *buf, int offset, 
 		return -2;
 	}
 
-	sprintf(cmd,"cat /dev/%s > %s", mi->dev, tmpfile);
+	snprintf(cmd,sizeof(cmd), "cat /dev/%s > %s", mi->dev, tmpfile);
 	system(cmd);
 	if ((fd = open(tmpfile, O_RDONLY)) < 0) {
 		fprintf(stderr, "failed to open %s. (errno %d (%s))\n",
@@ -603,10 +605,16 @@ int MTDPartitionWrite(const char *mtd_name, const unsigned char *buf, int offset
 		return -3;
 	}
 
-	tmp = malloc(mi->erasesize);
+#ifdef RTCONFIG_MTK_NAND_BLOCK2
+	int read_len = 2*(mi->erasesize);
+#else
+	int read_len = mi->erasesize;
+#endif
+
+	tmp = malloc(read_len);
 	if (!tmp) {
 		fprintf(stderr, "%s: failed to alloc memory for %d bytes\n",
-			__func__, mi->erasesize);
+			__func__, read_len);
 		if (tmp_buf)
 			free(tmp_buf);
 		return -4;
@@ -614,17 +622,22 @@ int MTDPartitionWrite(const char *mtd_name, const unsigned char *buf, int offset
 	off = offset;
 	cnt = count;
 	while (cnt > 0) {
+
+#ifdef RTCONFIG_MTK_NAND_BLOCK2
+		o = 0;
+#else
 		o = ROUNDDOWN(off, mi->erasesize);	/* aligned to erase boundary */
-		len = mi->erasesize - (off - o);
+#endif
+		len = read_len - (off - o);
 		if (cnt < len)
 			len = cnt;
 		lseek(fd, o, SEEK_SET);
 		debug("  backup %s, o %x(off %x), len %x\n",
-			mi->dev, o, off, mi->erasesize);
+			mi->dev, o, off, read_len);
 		//backup
-		if (read(fd, tmp, mi->erasesize) != mi->erasesize) {
+		if (read(fd, tmp, read_len) != read_len) {
 			fprintf(stderr, "%s: failed to read %d bytes from %s\n",
-				__func__, mi->erasesize, mi->dev);
+				__func__, read_len, mi->dev);
 			ret = -5;
 			break;
 		}
@@ -662,7 +675,7 @@ int MTDPartitionWrite(const char *mtd_name, const unsigned char *buf, int offset
 		}
 #endif
 		memcpy(tmp + (off - o), p, len);
-		if (write(fd, tmp, mi->erasesize) != mi->erasesize) {
+		if (write(fd, tmp, read_len) != read_len) {
 			fprintf(stderr, "%s: failed to write %s\n",
 				__func__, mi->dev);
 			ret = -7;
