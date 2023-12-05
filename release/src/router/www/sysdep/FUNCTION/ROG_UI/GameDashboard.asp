@@ -1107,7 +1107,7 @@ function applyRule() {
 	postdata["action_mode"] = "apply";
 	postdata["rc_service"] = "restart_uuacc;";
 	httpApi.nvramSet(postdata);
-	showLoading();
+	showLoading(5);
 }
 </script>
 </head>
