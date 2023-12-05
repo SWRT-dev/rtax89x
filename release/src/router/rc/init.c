@@ -3924,6 +3924,14 @@ int init_nvram(void)
 #if defined(RTCONFIG_SWRT)
 	swrt_init_pre();
 #endif
+//fix do_ping_detect & do_backup_ping_detect
+	if(!nvram_get("wandog_target") || nvram_match("wandog_target", "")){
+		//first boot, preferred_lang is null
+		if(nvram_match("territory_code", "CN")/* || nvram_match("preferred_lang", "CN")*/)
+			nvram_set("wandog_target", "www.baidu.com");
+		else
+			nvram_set("wandog_target", "www.google.com");
+	}
 
 	switch (model) {
 #ifdef RTCONFIG_RALINK
