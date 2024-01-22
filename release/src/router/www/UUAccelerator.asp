@@ -17,7 +17,6 @@
 <script type="text/javascript" src="/help.js"></script>
 <script type="text/javascript" src="/js/jquery.js"></script>
 <script type="text/javascript" src="/switcherplugin/jquery.iphone-switch.js"></script>
-<script language="JavaScript" type="text/javascript" src="/js/httpApi.js"></script>
 <script>
 var label_mac = <% get_label_mac(); %>;
 var modelname = "<% nvram_get("modelname"); %>";
@@ -39,7 +38,7 @@ function applyRule() {
 	postdata["action_mode"] = "apply";
 	postdata["rc_service"] = "restart_uuacc;";
 	httpApi.nvramSet(postdata);
-	showLoading();
+	showLoading(5);
 }
 </script>
 </head>
