@@ -705,7 +705,6 @@ function wanAggr_p2_num(wanports_bond){
 // wanports_bond = "P1 P2"; Px follow enum bs_port_id definition on QCA platform.
 function wanAggr_p2_name(wanports_bond){
 	var p2_port_str = "LAN 4";
-	var modelname = "<% nvram_get("modelname"); %>";
 	var p2_port = wanAggr_p2_num(wanports_bond);
 
 	if (wbmenu_support || based_modelid == "XT12" || based_modelid == "ET12"){
@@ -721,10 +720,7 @@ function wanAggr_p2_name(wanports_bond){
 					p2_port_str = "2.5G LAN";
 			}
 		} else if (p2_port == "30"){
-			if(modelname == "RAX120")
-				p2_port_str = "5G base-T";
-			else
-				p2_port_str = "10G base-T";
+			p2_port_str = "10G base-T";
 		} else if (p2_port == "31"){
 			p2_port_str = "10G SFP+";
 		}
@@ -792,7 +788,8 @@ if(based_modelid != "BRT-AC828"){
 //notification value
 if(navigator.userAgent.search("asusrouter") == -1){
 	var notice_pw_is_default = '<% check_pw(); %>';
-	if(notice_pw_is_default == 1 && window.location.pathname.toUpperCase().search("QIS_") < 0) //force to change http_passwd / http_username & except QIS settings
+	var force_chgpass = `<% nvram_get("force_chgpass"); %>`;
+	if((notice_pw_is_default == 1 || force_chgpass == 1) && window.location.pathname.toUpperCase().search("QIS_") < 0) //force to change http_passwd / http_username & except QIS settings
 		location.href = 'Main_Password.asp?nextPage=' + window.location.pathname.substring(1 ,window.location.pathname.length);
 	else if('<% nvram_get("w_Setting"); %>' == '0' && sw_mode != 2 && window.location.pathname.toUpperCase().search("QIS_") < 0)
 		location.href = '/QIS_wizard.htm?flag=wireless';
@@ -4715,4 +4712,39 @@ if (
         }
     }, 1500);
 }
+
+document.addEventListener('DOMContentLoaded', function() {
+	setTimeout(function(){
+		const styleSheets = document.styleSheets;
+		const retryLimit = 3;
+		const retriedStylesheets = new Map();
+		for (let i = 0; i < styleSheets.length; i++) {
+			const stylesheet = styleSheets[i];
+			if (stylesheet.href) {
+				try {
+					if (!stylesheet.cssRules) {
+						throw new Error('CSS rules not accessible');
+					}
+				} catch (e) {
+					const { pathname } = new URL(stylesheet.href);
+					const retries = retriedStylesheets.get(stylesheet.href) || 0;
+					if (retries < retryLimit) {
+						retriedStylesheets.set(stylesheet.href, retries + 1);
+						const link = document.createElement('link');
+						link.rel = 'stylesheet';
+						link.type = 'text/css';
+						link.href = pathname;
+						document.head.appendChild(link);
+						if(typeof httpApi === "object")
+							httpApi.log("CSS ERR_TOO_MANY_RETRIES", `[Append CSS again] Request: ${pathname}, Page: ${window.location.pathname}`);
+					}
+					else {
+						if(typeof httpApi === "object")
+							httpApi.log("CSS ERR_TOO_MANY_RETRIES", `[Retries fail: ${retryLimit}] Request: ${pathname}, Page: ${window.location.pathname}`);
+					}
+				}
+			}
+		}
+	}, (parent.webWrapper ? 1000 : 300));
+});
 

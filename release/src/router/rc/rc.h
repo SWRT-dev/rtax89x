@@ -2716,7 +2716,7 @@ extern int getPid_fromFile(char *file_name);
 extern int firmware_check_update_main(int argc, char *argv[]);
 #endif
 #ifdef RTCONFIG_FRS_FEEDBACK
-extern void start_sendfeedback(void);
+extern void start_sendfeedback(int argc, char *argv[]);
 #ifdef RTCONFIG_DBLOG
 extern void start_senddblog(char *path);
 extern void start_dblog(int option);

@@ -1074,8 +1074,6 @@ static struct param_mapping_s param_mapping_list[] __attribute__ ((unused)) = {
 	{ "fb_Subscribed_Info", 	FT_FEEDBACK,		SUBFT_FEEDBACK,		""},
 	{ "fb_attach_iptables", 		FT_FEEDBACK,		SUBFT_FEEDBACK,		""},
 #endif
-	{ "oauth_google_refresh_token", FT_FEEDBACK, SUBFT_FEEDBACK,		""},
-	{ "oauth_google_user_email", FT_FEEDBACK, SUBFT_FEEDBACK,		""},
 	{ "fb_email_provider", FT_FEEDBACK, SUBFT_FEEDBACK,		""},
 	/* diagnostic */
 	{ "dblog_enable", 		FT_FEEDBACK,		SUBFT_FEEDBACK,		"0"},

@@ -684,6 +684,7 @@ endif
 	@echo 'EXTENDNO=$(EXTENDNO)' > router/extendno.conf
 	@echo '#define RT_FWVER "$(SWRT_VER_MINOR)"' >> router/shared/version.h
 	@echo '#define RT_FWEXTENDNO "$(SWRTEXTENDNO)"' >> router/shared/version.h
+	@echo '#define RT_FWSWRTNAME "$(SWRT_NAME)"' >> router/shared/version.h
 	@-$(MAKE) -f model-desc.mak
 
 rt_ver_ntools:
@@ -4422,6 +4423,10 @@ define RouterOptions
 	if [ "$(PASS_V2)" = "y" ]; then \
 		sed -i "/RTCONFIG_PASS_V2/d" $(1); \
 		echo "RTCONFIG_PASS_V2=y" >>$(1); \
+	fi;
+	if [ "$(SECURE_BY_DEFAULT)" = "y" ]; then \
+		sed -i "/RTCONFIG_SECURE_BY_DEFAULT\>/d" $(1); \
+		echo "RTCONFIG_SECURE_BY_DEFAULT=y" >>$(1); \
 	fi;
 	if [ "$(VHT160)" = "y" ]; then \
 		sed -i "/RTCONFIG_VHT160/d" $(1); \

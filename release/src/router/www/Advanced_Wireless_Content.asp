@@ -259,17 +259,6 @@ function initial(){
 		}
 
 		document.getElementById("wl_gmode_checkbox").style.display = "";
-
-		if(disable11b_support){
-			if(document.form.wl_rateset.value == "ofdm"){
-				document.form.wl_rateset_check.checked = true;
-			}
-			else{
-				document.form.wl_rateset_check.checked = false;
-			}
-
-			wl_mode_change(document.form.wl_nmode_x.value);
-		}
 	}
 
 	if(!band5g_support)	
@@ -1260,14 +1249,8 @@ function regen_5G_mode(obj,flag){	//please sync to initial() : //Change wireless
 
 function wl_mode_change(mode){
 	if(is_unit_24g(wl_unit_value)){
-		if(mode == '0'){
-			document.form.wl_rateset.disabled = false;
-			document.getElementById("wl_rateset_checkbox").style.display = "";
-		}
-		else{
-			document.form.wl_rateset.disabled = true;
-			document.getElementById("wl_rateset_checkbox").style.display = "none";
-		}
+		document.form.wl_rateset.disabled = true;
+		document.getElementById("wl_rateset_checkbox").style.display = "none";
 	}
 }
 

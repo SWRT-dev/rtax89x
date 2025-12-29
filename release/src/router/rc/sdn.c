@@ -314,7 +314,7 @@ static int _gen_sdn_dnsmasq_conf(const MTLAN_T *pmtl, char *config_file, const s
 		/* limit number of outstanding requests */
 		{
 			int max_queries = nvram_get_int("max_dns_queries");
-#if defined(RTCONFIG_SOC_IPQ8064)
+#if defined(RTCONFIG_QCA) || defined(RTCONFIG_RALINK)
 			if (max_queries == 0)
 				max_queries = 1500;
 #endif

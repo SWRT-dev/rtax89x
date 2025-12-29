@@ -476,19 +476,19 @@ extern asus_token_t* search_timeout_in_list(asus_token_t **prev, int fromapp_fla
 extern asus_token_t* create_list(char *token);
 extern int delete_logout_from_list(char *cookies);
 extern void set_referer_host(void);
-extern int check_xss_blacklist(char* para, int check_www);
 extern int check_cmd_whitelist(char* para);
 extern int useful_redirect_page(char *next_page);
 extern char* reverse_str( char *str );
+#ifdef RTCONFIG_HTTPS
+extern int prn_cert_info(const char *fn);
+#endif
 #ifdef RTCONFIG_AMAS
 extern int check_AiMesh_whitelist(char *page);
 #endif
-extern int check_cmd_injection_blacklist(char *para);
 extern void __validate_apply_set_wl_var(char *nv, char *val) __attribute__((weak));
 #ifdef RTCONFIG_BWDPI
 extern int check_bwdpi_status_app_name(char *name);
 #endif
-extern int validate_apply_input_value(char *name, char *value);
 
 /* web-*.c */
 extern int ej_wl_status(int eid, webs_t wp, int argc, char_t **argv, int unit);

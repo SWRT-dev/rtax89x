@@ -463,6 +463,7 @@ void get_related_nvram(){
 		for(unit = WAN_UNIT_FIRST; unit < WAN_UNIT_MAX; ++unit)
 			max_disconn_count[unit] = nvram_get_int("wandog_maxfail");
 		wandog_delay = nvram_get_int("wandog_delay");
+		wandog_delay_rpt = nvram_get_int("wandog_delay_rpt");
 
 		if(!strcmp(dualwan_mode, "fb")){
 			max_fb_count = nvram_get_int("wandog_fb_count");
@@ -476,6 +477,7 @@ void get_related_nvram(){
 		for(unit = WAN_UNIT_FIRST; unit < WAN_UNIT_MAX; ++unit)
 			max_disconn_count[unit] = DEFAULT_MAX_DISCONN_COUNT;
 		wandog_delay = -1;
+		wandog_delay_rpt = -1;
 	}
 #else
 	wandog_enable = 0;
@@ -933,8 +935,8 @@ int do_dns_detect(int wan_unit)
 			}
 
 			foreach(word, content, next) {
-				if ((strcmp(word, "*") == 0) ||
-				    (inet_pton(ai->ai_family, word, &target) > 0 && memcmp(addr, &target, size) == 0)) {
+				if ((strcmp(word, "*") == 0 && inet_pton(ai->ai_family, "10.0.0.1", &target) > 0 && memcmp(addr, &target, size) != 0) ||
+					(inet_pton(ai->ai_family, word, &target) > 0 && memcmp(addr, &target, size) == 0)) {
 					status = 1;
 					break;
 				}
@@ -1256,7 +1258,6 @@ int chk_proto(int wan_unit){
 		disconn_case[wan_unit] = CASE_DATALIMIT;
 		return DISCONN;
 	}
-	else
 #endif
 #ifdef RTCONFIG_WIRELESSREPEATER
 	if(sw_mode == SW_MODE_HOTSPOT){
@@ -1279,7 +1280,6 @@ int chk_proto(int wan_unit){
 			return DISCONN;
 		}
 	}
-	else
 #endif
 	// Start chk_proto() in SW_MODE_ROUTER.
 #ifdef RTCONFIG_USB_MODEM
@@ -1872,8 +1872,14 @@ _dprintf("# wanduck(%d): if_wan_phyconnected: x_Setting=%d, link_modem=%d, sim_s
 
 		link_wan_nvname(wan_unit, wired_link_nvram, sizeof(wired_link_nvram));
 		if((ptr = nvram_get(wired_link_nvram)) == NULL || strlen(ptr) <= 0 || link_wan[wan_unit] != atoi(ptr)){
+			if(link_wan[wan_unit] == 1 && get_wan_state(wan_unit) == 2 && get_wan_auxstate(wan_unit) != 1){
+				link_changed[wan_unit] = 0;
+				link_setup[wan_unit] = 0;
+			}
+			else
+				link_changed[wan_unit] = 1;
+
 			if(link_wan[wan_unit]){
-//_dprintf("# wanduck(%d): set %s=%d.\n", wan_unit, wired_link_nvram, CONNED);
 				nvram_set_int(wired_link_nvram, CONNED);
 
 				record_wan_state_nvram(wan_unit, -1, -1, WAN_AUXSTATE_NONE);
@@ -1882,18 +1888,10 @@ _dprintf("# wanduck(%d): if_wan_phyconnected: x_Setting=%d, link_modem=%d, sim_s
 					add_multi_routes(0, -1);
 			}
 			else{
-//_dprintf("# wanduck(%d): set %s=%d.\n", wan_unit, wired_link_nvram, DISCONN);
 				nvram_set_int(wired_link_nvram, DISCONN);
 
 				record_wan_state_nvram(wan_unit, WAN_STATE_DISCONNECTED, -1, WAN_AUXSTATE_NOPHY);
 			}
-
-			if(link_wan[wan_unit] == 1 && get_wan_state(wan_unit) == 2){
-				link_changed[wan_unit] = 0;
-				link_setup[wan_unit] = 0;
-			}
-			else
-				link_changed[wan_unit] = 1;
 		}
 		else
 			link_changed[wan_unit] = 0;
@@ -3406,6 +3404,12 @@ int wanduck_main(int argc, char *argv[]){
 	else
 #endif
 	if(sw_mode == SW_MODE_ROUTER && !strcmp(dualwan_mode, "lb")){
+		if(wandog_delay > 0){
+			_dprintf("wanduck: 1st delay %d seconds...\n", wandog_delay);
+			sleep(wandog_delay);
+			_dprintf("wanduck: end of delay.\n");
+		}
+
 		cross_state = DISCONN;
 		for(wan_unit = WAN_UNIT_FIRST; wan_unit < WAN_UNIT_MAX; ++wan_unit){
 			if(get_dualwan_by_unit(wan_unit) == WANS_DUALWAN_IF_NONE)
@@ -3443,9 +3447,10 @@ int wanduck_main(int argc, char *argv[]){
 			&& (!strcmp(dualwan_mode, "fo") || !strcmp(dualwan_mode, "fb"))
 			){
 		if(wandog_delay > 0){
-			_dprintf("wanduck: delay %d seconds...\n", wandog_delay);
+			_dprintf("wanduck: 1st delay %d seconds...\n", wandog_delay);
 			sleep(wandog_delay);
 			delay_detect = 0;
+			_dprintf("wanduck: end of delay.\n");
 		}
 
 		// To check the phy connection of the standby line.
@@ -3877,6 +3882,10 @@ _dprintf("wanduck(%d): decide start_wan_if or stop_wan_if...\n", wan_unit);
 					if(get_disconn_count(wan_unit) >= max_disconn_count[wan_unit]){
 						set_disconn_count(wan_unit, S_IDLE);
 
+						char nv_link_wan[16];
+						link_wan_nvname(wan_unit, nv_link_wan, sizeof(nv_link_wan));
+_dprintf("\n# wanduck(%d): state=(%d %d %d), %s=%d, var link_wan=%d.\n", wan_unit, get_wan_state(wan_unit), get_wan_sbstate(wan_unit), get_wan_auxstate(wan_unit), nv_link_wan, nvram_get_int(nv_link_wan), link_wan[wan_unit]);
+
 #ifdef RTCONFIG_USB_MODEM
 						if(dualwan_unit__usbif(wan_unit)){
 							if((modem_unit = get_modemunit_by_type(get_dualwan_by_unit(wan_unit))) == MODEM_UNIT_NONE){
@@ -3921,10 +3930,11 @@ _dprintf("wanduck(%d)(lb change): state %d, state_old %d, changed %d, cross_stat
 		, current_wan_unit, conn_state[current_wan_unit], conn_state_old[current_wan_unit], conn_changed_state[current_wan_unit], cross_state, current_state[current_wan_unit]);
 		}
 		else if(sw_mode == SW_MODE_ROUTER && !strcmp(dualwan_mode, "fo")){
-			if(delay_detect == 1 && wandog_delay > 0){
-				_dprintf("wanduck: delay %d seconds...\n", wandog_delay);
-				sleep(wandog_delay);
+			if(delay_detect == 1 && wandog_delay_rpt > 0){
+				_dprintf("wanduck: FO: delay %d seconds...\n", wandog_delay_rpt);
+				sleep(wandog_delay_rpt);
 				delay_detect = 0;
+				_dprintf("wanduck: end of delay.\n");
 			}
 
 			// To check the phy connection of the standby line.
@@ -4045,6 +4055,7 @@ _dprintf("wanduck(%d)(fo   conn): state %d, state_old %d, changed %d, wan_state 
 				else
 					conn_changed_state[current_wan_unit] = CONNED;
 
+				if(test_log) _dprintf("# wanduck: set S_IDLE: %s.\n", (conn_changed_state[current_wan_unit] == D2C)?"D2C":"CONNED");
 				conn_state_old[current_wan_unit] = conn_state[current_wan_unit];
 				set_disconn_count(current_wan_unit, S_IDLE);
 			}
@@ -4057,22 +4068,25 @@ _dprintf("wanduck(%d)(fo   conn): state %d, state_old %d, changed %d, wan_state 
 				conn_state_old[current_wan_unit] = conn_state[current_wan_unit];
 
 				if(disconn_case[current_wan_unit] == CASE_THESAMESUBNET){
-					_dprintf("# wanduck: set S_IDLE: CASE_THESAMESUBNET.\n");
+					if(test_log) _dprintf("# wanduck: set S_IDLE: CASE_THESAMESUBNET.\n");
 					set_disconn_count(current_wan_unit, S_IDLE);
 				}
-#ifdef RTCONFIG_USB_MODEM
-				// when the other line is modem and not plugged, the current disconnected line would not count.
-				else if(!link_wan[other_wan_unit] && dualwan_unit__usbif(other_wan_unit))
+				// when the other line is not plugged, the current disconnected line would not count.
+				else if(!link_wan[other_wan_unit]){
+					if(test_log) _dprintf("# wanduck: set S_IDLE: link_wan[other_wan_unit] is down.\n");
 					set_disconn_count(current_wan_unit, S_IDLE);
-#endif
+				}
 				else if(current_state[current_wan_unit] != WAN_STATE_DISABLED
-						&& get_dualwan_by_unit(other_wan_unit) != WANS_DUALWAN_IF_NONE) {
+						&& get_dualwan_by_unit(other_wan_unit) != WANS_DUALWAN_IF_NONE){
+					if(test_log) _dprintf("# wanduck: set S_COUNT: other_wan_unit != WANS_DUALWAN_IF_NONE.\n");
 					if (get_disconn_count(current_wan_unit) == S_IDLE)
 						set_disconn_count(current_wan_unit, S_COUNT);
 				}
 				// when auth failed, the single disconnected line would not count.
-				else if(disconn_case[current_wan_unit] == CASE_PPPFAIL && wan_sbstate == WAN_STOPPED_REASON_PPP_AUTH_FAIL)
+				else if(disconn_case[current_wan_unit] == CASE_PPPFAIL && wan_sbstate == WAN_STOPPED_REASON_PPP_AUTH_FAIL){
+					if(test_log) _dprintf("# wanduck: set S_IDLE: CASE_PPPFAIL.\n");
 					set_disconn_count(current_wan_unit, S_IDLE);
+				}
 			}
 
 			if(get_disconn_count(current_wan_unit) != S_IDLE){
@@ -4091,10 +4105,11 @@ _dprintf("wanduck(%d)(fo change): state %d, state_old %d, changed %d, wan_state 
 		, current_wan_unit, conn_state[current_wan_unit], conn_state_old[current_wan_unit], conn_changed_state[current_wan_unit], current_state[current_wan_unit]);
 		}
 		else if(sw_mode == SW_MODE_ROUTER && !strcmp(dualwan_mode, "fb")){
-			if(delay_detect == 1 && wandog_delay > 0){
-				_dprintf("wanduck: delay %d seconds...\n", wandog_delay);
-				sleep(wandog_delay);
+			if(delay_detect == 1 && wandog_delay_rpt > 0){
+				_dprintf("wanduck: FB: delay %d seconds...\n", wandog_delay_rpt);
+				sleep(wandog_delay_rpt);
 				delay_detect = 0;
+				_dprintf("wanduck: end of delay.\n");
 			}
 
 			// To check the phy connection of the standby line.
@@ -4220,6 +4235,7 @@ _dprintf("wanduck(%d) fail-back: state %d, state_old %d, changed %d, wan_state %
 				else
 					conn_changed_state[current_wan_unit] = CONNED;
 
+				if(test_log) _dprintf("# wanduck: set S_IDLE: %s.\n", (conn_changed_state[current_wan_unit] == D2C)?"D2C":"CONNED");
 				conn_state_old[current_wan_unit] = conn_state[current_wan_unit];
 				set_disconn_count(current_wan_unit, S_IDLE);
 			}
@@ -4232,22 +4248,25 @@ _dprintf("wanduck(%d) fail-back: state %d, state_old %d, changed %d, wan_state %
 				conn_state_old[current_wan_unit] = conn_state[current_wan_unit];
 
 				if(disconn_case[current_wan_unit] == CASE_THESAMESUBNET){
-					_dprintf("# wanduck: set S_IDLE: CASE_THESAMESUBNET.\n");
+					if(test_log) _dprintf("# wanduck: set S_IDLE: CASE_THESAMESUBNET.\n");
 					set_disconn_count(current_wan_unit, S_IDLE);
 				}
-#ifdef RTCONFIG_USB_MODEM
-				// when the other line is modem and not plugged, the current disconnected line would not count.
-				else if(!link_wan[other_wan_unit] && dualwan_unit__usbif(other_wan_unit))
+				// when the other line is not plugged, the current disconnected line would not count.
+				else if(!link_wan[other_wan_unit]){
+					if(test_log) _dprintf("# wanduck: set S_IDLE: link_wan[other_wan_unit] is down.\n");
 					set_disconn_count(current_wan_unit, S_IDLE);
-#endif
+				}
 				else if(current_state[current_wan_unit] != WAN_STATE_DISABLED
 						&& get_dualwan_by_unit(other_wan_unit) != WANS_DUALWAN_IF_NONE){
+					if(test_log) _dprintf("# wanduck: set S_COUNT: other_wan_unit != WANS_DUALWAN_IF_NONE.\n");
 					if (get_disconn_count(current_wan_unit) == S_IDLE)
 						set_disconn_count(current_wan_unit, S_COUNT);
 				}
 				// when auth failed, the single disconnected line would not count.
-				else if(disconn_case[current_wan_unit] == CASE_PPPFAIL && wan_sbstate == WAN_STOPPED_REASON_PPP_AUTH_FAIL)
+				else if(disconn_case[current_wan_unit] == CASE_PPPFAIL && wan_sbstate == WAN_STOPPED_REASON_PPP_AUTH_FAIL){
+					if(test_log) _dprintf("# wanduck: set S_IDLE: CASE_PPPFAIL.\n");
 					set_disconn_count(current_wan_unit, S_IDLE);
+				}
 			}
 
 			if(other_wan_unit == WAN_FB_UNIT){
@@ -4445,19 +4464,25 @@ _dprintf("wanduck(%d)(conn): state %d, state_old %d, changed %d, wan_state %d.\n
 				conn_state_old[current_wan_unit] = conn_state[current_wan_unit];
 
 				if(disconn_case[current_wan_unit] == CASE_THESAMESUBNET){
-					_dprintf("# wanduck: set S_IDLE: CASE_THESAMESUBNET.\n");
+					if(test_log) _dprintf("# wanduck: set S_IDLE: CASE_THESAMESUBNET.\n");
 					set_disconn_count(current_wan_unit, S_IDLE);
 				}
 #ifdef RTCONFIG_USB_MODEM
 				// when the other line is modem and not plugged, the current disconnected line would not count.
-				else if(!link_wan[other_wan_unit] && dualwan_unit__usbif(other_wan_unit))
+				else if(!link_wan[other_wan_unit] && dualwan_unit__usbif(other_wan_unit)){
+					if(test_log) _dprintf("# wanduck: set S_IDLE: link_wan[other_wan_unit] is down.\n");
 					set_disconn_count(current_wan_unit, S_IDLE);
-				else if(get_disconn_count(current_wan_unit) == S_IDLE && current_state[current_wan_unit] != WAN_STATE_DISABLED)
+				}
+				else if(get_disconn_count(current_wan_unit) == S_IDLE && current_state[current_wan_unit] != WAN_STATE_DISABLED){
+					if(test_log) _dprintf("# wanduck: set S_COUNT: current_state[current_wan_unit] != WAN_STATE_DISABLED.\n");
 					set_disconn_count(current_wan_unit, S_COUNT);
+				}
 #else
 				// when auth failed, the single disconnected line would not count.
-				else if(disconn_case[current_wan_unit] == CASE_PPPFAIL && wan_sbstate == WAN_STOPPED_REASON_PPP_AUTH_FAIL)
+				else if(disconn_case[current_wan_unit] == CASE_PPPFAIL && wan_sbstate == WAN_STOPPED_REASON_PPP_AUTH_FAIL){
+					if(test_log) _dprintf("# wanduck: set S_IDLE: CASE_PPPFAIL.\n");
 					set_disconn_count(current_wan_unit, S_IDLE);
+				}
 #endif
 			}
 
@@ -5078,3 +5103,5 @@ WANDUCK_SELECT:
 	_dprintf("# wanduck exit error\n");
 	exit(1);
 }
+
+

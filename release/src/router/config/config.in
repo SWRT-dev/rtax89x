@@ -2989,6 +2989,10 @@ config RTCONFIG_PASS_V2
 	depends on RTCONFIG_RALINK
 	default n
 
+config RTCONFIG_SECURE_BY_DEFAULT
+	bool "secure setting in default"
+	default y
+
 config RTCONFIG_SOFTCENTER
 	bool "softcenter"
 	default n

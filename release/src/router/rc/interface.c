@@ -722,8 +722,7 @@ int start_vlan(void)
 #if (defined(RTCONFIG_QCA) || defined(RTCONFIG_RALINK))
 	if (!nvram_match("switch_wantag", "none")
 	 && !nvram_match("switch_wantag", "")
-	 && !nvram_match("switch_wantag", "hinet")
-	 && !nvram_match("switch_wantag", "nowtv")) {
+	 && !nvram_match("switch_wantag", "hinet")) {
 		char wan_base_if[IFNAMSIZ] = "";
 
 		strlcpy(wan_base_if, get_wan_base_if(), sizeof(wan_base_if));

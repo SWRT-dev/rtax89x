@@ -3358,6 +3358,10 @@ wan_up(const char *pwan_ifname)
 	strlcpy(wan_ifname, pwan_ifname, sizeof(wan_ifname));
 	wan_unit = wan_ifunit(wan_ifname);
 
+	char nv_link_wan[16];
+	link_wan_nvname(wan_unit, nv_link_wan, sizeof(nv_link_wan));
+_dprintf("\n# wan_up(%d): state=(%d %d %d), %s=%d.\n", wan_unit, get_wan_state(wan_unit), get_wan_sbstate(wan_unit), get_wan_auxstate(wan_unit), nv_link_wan, nvram_get_int(nv_link_wan));
+
 	/* Figure out nvram variable name prefix for this i/f */
 	if (wan_unit  < 0
 #ifdef RTCONFIG_SOFTWIRE46

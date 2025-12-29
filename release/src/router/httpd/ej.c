@@ -89,6 +89,7 @@ struct REPLACE_MODELNAME_S replace_modelname_t[] = {
 	{ "RGMA3062" },
 	{ "RAX80" },
 	{ "JDCBE6500" },
+	{ "RAX120" },
 	{ NULL },
 };
 

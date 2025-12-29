@@ -300,24 +300,6 @@ function initial(){
 
 		document.getElementById("wl_gmode_checkbox").style.display = "";
 	}
-	if(disable11b_support){
-		if(document.form.band0_rateset_check.value == "ofdm"){
-			document.form.band0_rateset_check.checked = true;
-		}
-		else{
-			document.form.band0_rateset_check.checked = false;
-		}
-		document.getElementById("band0_rateset_checkbox").style.display = "";
-
-		if(document.form.band01_rateset_check.value == "ofdm"){
-			document.form.band01_rateset_check.checked = true;
-		}
-		else{
-			document.form.band01_rateset_check.checked = false;
-		}
-
-		band01_mode_change(document.form.band01_nmode_x.value);
-	}
 
 	// if(!band5g_support)	
 	// 	document.getElementById("wl_unit_field").style.display = "none";

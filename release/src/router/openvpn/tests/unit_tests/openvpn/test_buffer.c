@@ -197,6 +197,28 @@ test_buffer_list_aggregate_separator_emptybuffers(void **state)
     assert_int_equal(BLEN(buf), 0);
 }
 
+static void
+test_character_string_mod_buf(void **state)
+{
+    struct gc_arena gc = gc_new();
+
+    struct buffer buf = alloc_buf_gc(1024, &gc);
+
+    const char test1[] =  "There is a nice 1234\x00 year old tree!";
+    buf_write(&buf, test1, sizeof(test1));
+
+    /* allow the null bytes and string but not the ! */
+    assert_false(string_check_buf(&buf, CC_ALNUM | CC_SPACE | CC_NULL, 0));
+
+    /* remove final ! and null byte to pass */
+    buf_inc_len(&buf, -2);
+    assert_true(string_check_buf(&buf, CC_ALNUM | CC_SPACE | CC_NULL, 0));
+
+    /* Check excluding digits works */
+    assert_false(string_check_buf(&buf, CC_ALNUM | CC_SPACE | CC_NULL, CC_DIGIT));
+    gc_free(&gc);
+}
+
 int
 main(void)
 {
@@ -226,6 +248,7 @@ main(void)
         cmocka_unit_test_setup_teardown(test_buffer_list_aggregate_separator_emptybuffers,
                                         test_buffer_list_setup,
                                         test_buffer_list_teardown),
+        cmocka_unit_test(test_character_string_mod_buf),
     };
 
     return cmocka_run_group_tests_name("buffer", tests, NULL, NULL);

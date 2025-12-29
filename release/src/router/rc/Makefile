@@ -240,6 +240,9 @@ ifeq ($(RTCONFIG_BT_CONN),y)
 CFLAGS  += -I$(TOP)/bluez-5.56/lib
 endif
 
+CFLAGS += -I$(TOP)/libwebapi
+LDFLAGS += -L$(TOP)/libwebapi -lwebapi
+
 #CFLAGS += -DRC_BUILDTIME=$(shell date -d "now" +"%s")
 
 ifneq ($(findstring NET_CLS_POLICE=, $(shell cat $(LINUXDIR)/.config)),)

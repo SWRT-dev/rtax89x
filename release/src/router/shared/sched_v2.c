@@ -1213,7 +1213,7 @@ void convert_pc_sched_v1_to_sched_v2() {
 		if (strlen(str_sched_v1) == 0 && 
 			strlen(nvram_safe_get("MULTIFILTER_MAC")) == 0 && 
 			strlen(nvram_safe_get("MULTIFILTER_ENABLE")) == 0) { //all rules are empty, we also write empty rule.
-			snprintf(str_sched_v2, sizeof(str_sched_v2), "");
+			snprintf(str_sched_v2, sizeof(str_sched_v2), "%s", "");
 			changed = 1;
 		} else {
 		//if (!nvram_get("MULTIFILTER_MACFILTER_DAYTIME_V2")) {

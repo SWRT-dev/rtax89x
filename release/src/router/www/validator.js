@@ -1855,7 +1855,6 @@ var validator = {
 			if(flag != "noalert")
 				alert('<#JS_validstr1#> ["]');
 
-			string_obj.value = "";
 			string_obj.focus();
 
 			return false;
@@ -1865,7 +1864,6 @@ var validator = {
 				alert('<#JS_validstr3#> ["]');
 			}
 			
-			string_obj.value = "";
 			string_obj.focus();
 
 			return false;
@@ -1882,7 +1880,6 @@ var validator = {
 				if(flag != "noalert")
 					alert("<#JS_validstr2#> '"+invalid_char+"' !");
 
-				string_obj.value = "";
 				string_obj.focus();
 
 				return false;
@@ -1902,7 +1899,6 @@ var validator = {
 		){
 				
 				alert("<#JS_validLoginPWD#>");
-				string_obj.value = "";
 				string_obj.focus();
 				return false;
 		}
@@ -1911,7 +1907,6 @@ var validator = {
 			if(flag != "noalert")
 				alert('<#JS_validstr1#> ["]');
 
-			string_obj.value = "";
 			string_obj.focus();
 
 			return false;
@@ -1921,7 +1916,6 @@ var validator = {
 				alert('<#JS_validstr3#> ["]');
 			}
 
-			string_obj.value = "";
 			string_obj.focus();
 
 			return false;
@@ -1939,7 +1933,6 @@ var validator = {
 				alert("<#JS_validstr2#> '"+invalid_char+"' !");
 			}
 
-			string_obj.value = "";
 			string_obj.focus();
 			return false;
 		}

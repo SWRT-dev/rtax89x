@@ -174,6 +174,16 @@ int is_internet_connect(int unit){
 
 int is_wan_connect(int unit){
 	int wan_state, wan_sbstate, wan_auxstate;
+#ifdef RTCONFIG_BCMARM
+	char prefix[] = "wanXXXXXXXXXX_";
+	int wan_proto = 0;
+
+	snprintf(prefix, sizeof(prefix), "wan%d_", unit);
+	wan_proto = get_wan_proto(prefix);
+
+	if(wan_proto == WAN_STATIC)
+		return is_phy_connect2(unit);
+#endif
 
 	if(!is_phy_connect(unit))
 		return 0;
@@ -195,6 +205,15 @@ int is_wan_connect(int unit){
 int is_phy_connect(int unit){
 	char prefix[sizeof("link_wanXXXXXX")], *ptr;
 	int link_wan;
+#ifdef RTCONFIG_BCMARM
+	int wan_proto = 0;
+
+	snprintf(prefix, sizeof(prefix), "wan%d_", unit);
+	wan_proto = get_wan_proto(prefix);
+
+	if(wan_proto == WAN_STATIC)
+		return is_phy_connect2(unit);
+#endif
 
 	link_wan_nvname(unit, prefix, sizeof(prefix));
 
@@ -1021,10 +1040,11 @@ int get_nr_guest_network(int band)
 
 int get_gate_num(void)
 {
-	char prefix[] = "wanXXXXXXXXXX_", link_wan[sizeof("link_wanXXXXXX")];
+	char prefix[] = "wanXXXXXXXXXX_";
 	char wan_ip[32], wan_gate[32];
 	int unit;
 	int gate_num = 0;
+
 	for (unit = WAN_UNIT_FIRST; unit < WAN_UNIT_MAX; ++unit){ // Multipath
 		snprintf(prefix, sizeof(prefix), "wan%d_", unit);
 		strncpy(wan_ip, nvram_pf_safe_get(prefix, "ipaddr"), 32);
@@ -1034,16 +1054,17 @@ int get_gate_num(void)
 		if(!is_wan_connect(unit))
 			continue;
 
+#ifndef RTCONFIG_BCMARM
 		/* We need to check link_wanX instead of wanX_state_t if this WAN unit is static IP. */
+		char link_wan[sizeof("link_wanXXXXXX")];
+
 		if (nvram_pf_match(prefix, "proto", "static") && dualwan_unit__nonusbif(unit)) {
-			if (unit == WAN_UNIT_FIRST)
-				strlcpy(link_wan, "link_wan", sizeof(link_wan));
-			else
-				snprintf(link_wan, sizeof(link_wan), "link_wan%d", unit);
+			link_wan_nvname(unit, link_wan, sizeof(link_wan));
 
 			if (!nvram_match(link_wan, "1"))
 				continue;
 		}
+#endif
 
 		if(strlen(wan_gate) <= 0 || !strcmp(wan_gate, "0.0.0.0"))
 			continue;

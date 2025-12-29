@@ -1648,8 +1648,7 @@ void config_switch(void)
 				/* Vodafone:	untag: P1;   port: P0, P1, P4 */
 				__setup_vlan(105, 1, 0x00020013);
 			}
-			else if (!strcmp(nvram_safe_get("switch_wantag"), "hinet")
-			      || !strcmp(nvram_safe_get("switch_wantag"), "nowtv")) {
+			else if (!strcmp(nvram_safe_get("switch_wantag"), "hinet")) {
 				if (sw_bridge_iptv_different_switches()) {
 					/* Bridge:	untag: P0, P4, P9;	port: P0, P4, P9
 					 * WAN:		no VLAN (hacked in API for SW based IPTV)

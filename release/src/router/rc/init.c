@@ -120,6 +120,8 @@
 #include <openvpn_config.h>
 #endif
 
+#include <webapi.h>
+
 #ifdef RTCONFIG_TCODE
 extern int noasusddns(void);
 #endif
@@ -3271,15 +3273,13 @@ static int set_basic_ifname_vars(char *wan_ifaces[MAX_WAN_IFACE_ID], char *lan, 
 					if (nvram_match("switch_wantag", "")
 					 || (!switch_wan0tagid
 					  && !nvram_match("switch_wantag", "none")
-					  && !nvram_match("switch_wantag", "hinet")
-					  && !nvram_match("switch_wantag", "nowtv"))
+					  && !nvram_match("switch_wantag", "hinet"))
 					 || (nvram_match("switch_wantag", "none") && stb_x <= 0))
 						break;
 
 					if (sw_based_iptv()) {
 						if ((nvram_match("switch_wantag", "none") && stb_x > 0)
-						 || nvram_match("switch_wantag", "hinet")
-						 || nvram_match("switch_wantag", "nowtv")) {
+						 || nvram_match("switch_wantag", "hinet")) {
 							snprintf(buf, sizeof(buf), "brv%d", get_sw_bridge_iptv_vid());
 							wphy = buf;
 						}
@@ -3294,8 +3294,7 @@ static int set_basic_ifname_vars(char *wan_ifaces[MAX_WAN_IFACE_ID], char *lan, 
 						}
 					} else {
 						if (!nvram_match("switch_wantag", "none")
-						 && !nvram_match("switch_wantag", "hinet")
-						 && !nvram_match("switch_wantag", "nowtv")) {
+						 && !nvram_match("switch_wantag", "hinet")) {
 							snprintf(buf, sizeof(buf), "vlan%d", switch_wan0tagid);
 							wphy = buf;
 						}
@@ -3962,7 +3961,7 @@ int init_nvram(void)
 //fix do_ping_detect & do_backup_ping_detect
 	if(!nvram_get("wandog_target") || nvram_match("wandog_target", "")){
 		//first boot, preferred_lang is null
-		if(nvram_match("territory_code", "CN")/* || nvram_match("preferred_lang", "CN")*/)
+		if(!strncmp(nvram_safe_get("territory_code"), "CN", 2)/* || nvram_match("preferred_lang", "CN")*/)
 			nvram_set("wandog_target", "www.baidu.com");
 		else
 			nvram_set("wandog_target", "www.google.com");
@@ -19111,6 +19110,10 @@ NO_USB_CAP:
 	if(!nvram_match("forget_it", ""))
 		add_rc_support("defpass");
 
+#ifdef RTCONFIG_SECURE_BY_DEFAULT
+	add_rc_support("secure_default");
+#endif
+
 #if defined(RTCONFIG_SWRT_FULLCONE)
 	add_rc_support("swrt_fullcone");
 #endif
@@ -19490,6 +19493,7 @@ int init_nvram2(void)
 //	}
 	if(nvram_match("ddns_server_x", "WWW.ASUS.COM.CN"))
 		nvram_set("ddns_server_x", "WWW.ASUS.COM");
+	detect_vul_scan();
 	return 0;
 }
 
@@ -22559,3 +22563,4 @@ void reconfig_manual_wan_ifnames(void) {
 			break;
 	}
 }
+

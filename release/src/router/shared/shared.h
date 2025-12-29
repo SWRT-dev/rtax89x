@@ -5105,6 +5105,10 @@ extern char *get_ddns_macaddr(void);
 
 #define IP_RULE_PREF_VPNS							90
 
+#ifdef RTCONFIG_UUPLUGIN
+extern int uu_model_check();
+#endif
+
 #ifdef RTCONFIG_GEARUPPLUGIN
 /* DEBUG DEFINE */
 #define GU_DEBUG             "/tmp/GU_DEBUG"

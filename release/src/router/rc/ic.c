@@ -445,8 +445,6 @@ static void clean_invalid_config(ic_s *ic_list)
 	_dprintf("INTERNETCTRL : DAYTIME=%s\n", daytime_buf);
 
 	if (rule_count != clean_count) {
-		pid_t pid;
-		char *commit[] = { "nvram", "commit", NULL };
 		nvram_set("ICFILTER_MAC", mac_buf);
 		nvram_set("ICFILTER_MACFILTER_DAYTIME", daytime_buf);
 	}

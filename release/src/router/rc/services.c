@@ -1695,7 +1695,7 @@ void start_dnsmasq(void)
 	/* limit number of outstanding requests */
 	{
 		int max_queries = nvram_get_int("max_dns_queries");
-#if defined(RTCONFIG_SOC_IPQ8064)
+#if defined(RTCONFIG_QCA) || defined(RTCONFIG_RALINK)
 		if (max_queries == 0)
 			max_queries = 1500;
 #endif
@@ -2308,7 +2308,7 @@ void start_stubby(void)
 
 	/* Limit number of outstanding requests */
 	max_queries = nvram_get_int("max_dns_queries");
-#if defined(RTCONFIG_SOC_IPQ8064)
+#if defined(RTCONFIG_QCA) || defined(RTCONFIG_RALINK)
 	if (max_queries == 0)
 		max_queries = 1500;
 #endif
@@ -6555,7 +6555,7 @@ void stop_telnetd6(void)
 {
 	pid_t *pid, *list = NULL;
 	int l;
-	char *q, *buf, path[sizeof("/proc/XXX/cmdline") + 10];
+	char *q, buf[256] = "", path[sizeof("/proc/XXX/cmdline") + 10];
 
 	if (getpid() != 1) {
 		notify_rc("stop_telnetd6");
@@ -6574,7 +6574,6 @@ void stop_telnetd6(void)
 		*q = '\0';
 		if ((q = strchr(buf, ':')) != NULL && strchr(q + 1, ':'))
 			kill_pid_tk(*pid);
-		free(buf);
 	}
 	if (list)
 		free(list);
@@ -8079,7 +8078,7 @@ void start_uam_srv()
 		eval("cp", UAM_JS, UAM_WEB_DIR);
 		eval("cp", BYPASS_PAGE, UAM_WEB_DIR);
 
-		if (gen_uam_srv_conf()) return;
+		// if (gen_uam_srv_conf()) return;
 		//_dprintf("%s %d\n", __FUNCTION__, __LINE__);	// tmp test;
 		if (!pids("uamsrv"))
 			_eval(lighttpd_argv, NULL, 0, &pid);
@@ -14328,7 +14327,16 @@ again:
 						char header_size[20];
 						snprintf(header_size, sizeof(header_size)-1, "%d", get_imageheader_size());
 						_dprintf("mtd-write and skip header_size(%s)\n", header_size);
+#if defined(RAX120)
+//						system("dd if=/tmp/linux.trx of=/tmp/linux.bin skip=1 bs=64 > /dev/null 2>&1");
+//						system("nandwrite -p -m -q /dev/mtd4 /tmp/linux.bin");
+						system("nandwrite --input-skip 64 -p -m -q /dev/mtd4 /tmp/linux.trx");
+//						eval("mtd-write", "-i", upgrade_file, "-d", "firmware", "-s", header_size);
+#elif defined(SWRT360V6)
+						eval("mtd-write", "-i", upgrade_file, "-d", "firmware", "-s", header_size);
+#else
 						eval("mtd-write", "-i", upgrade_file, "-d", "linux", "-s", header_size);
+#endif
 					}
 #else
 #ifdef RTCONFIG_MULTIFW
@@ -17139,54 +17147,6 @@ check_ddr_done:
 	else if (strcmp(script, "update_nc_setting_conf") == 0)
 	{
 		update_nc_setting_conf();
-	}
-	else if (strcmp(script, "oauth_google_gen_token_email") == 0)
-	{
-		oauth_google_gen_token_email();
-#ifdef RTCONFIG_CFGSYNC
-		// trigger cfg_server do sync
-		const char config[] =
-		{
-			"{"\
-			"\"oauth_google_refresh_token\":\"\","\
-			"\"oauth_google_user_email\":\"\","\
-			"\"fb_email_provider\":\"\""\
-			"}\0"
-		};
-		char event_msg[133] = {0};
-		memset(event_msg, 0, sizeof(event_msg));
-		snprintf(event_msg, sizeof(event_msg)-1, RC_CONFIG_CHANGED_MSG, EID_RC_CONFIG_CHANGED, config);
-		(void)send_cfgmnt_event(event_msg);
-		//  WEVENT_GENERIC_MSG	 "{\""WEVENT_PREFIX"\":{\""EVENT_ID"\":\"%d\"}}"
-#endif	// RTCONFIG_CFGSYNC
-	}
-	else if (strcmp(script, "oauth_google_drive_gen_token") == 0)
-	{
-		oauth_google_drive_gen_token();
-#ifdef RTCONFIG_CFGSYNC
-		// trigger cfg_server do sync
-		const char config[] =
-		{
-			"{"\
-			"\"oauth_google_drive_refresh_token\":\"\","\
-			"\"oauth_google_user_email\":\"\","\
-			"\"fb_email_provider\":\"\""\
-			"}\0"
-		};
-		char event_msg[133] = {0};
-		memset(event_msg, 0, sizeof(event_msg));
-		snprintf(event_msg, sizeof(event_msg)-1, RC_CONFIG_CHANGED_MSG, EID_RC_CONFIG_CHANGED, config);
-		(void)send_cfgmnt_event(event_msg);
-		//  WEVENT_GENERIC_MSG	 "{\""WEVENT_PREFIX"\":{\""EVENT_ID"\":\"%d\"}}"
-#endif	// RTCONFIG_CFGSYNC
-	}
-	else if (strcmp(script, "oauth_google_drive_check_token_status") == 0)
-	{
-		oauth_google_drive_check_token_status();
-	}
-	else if (strcmp(script, "oauth_google_check_token_status") == 0)
-	{
-		oauth_google_check_token_status();
 	}
 #endif
 	else if (strcmp(script, "logger") == 0)

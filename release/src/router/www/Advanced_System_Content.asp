@@ -182,6 +182,8 @@ var max_pwd_length = isSupport("MaxLen_http_passwd");
 var faq_href1 = "https://nw-dlcdnet.asus.com/support/forward.html?model=&type=Faq&lang="+ui_lang+"&kw=&num=105";
 var faq_href2 = "https://nw-dlcdnet.asus.com/support/forward.html?model=&type=Faq&lang="+ui_lang+"&kw=&num=111";
 
+var secure_default = isSupport("secure_default");
+
 function initial(){	
 	//parse nvram to array
 	var parseNvramToArray = function(oriNvram) {
@@ -1866,6 +1868,13 @@ function change_username(){
 
 		$("#http_username_new").val($("#http_username_new").val().trim());
 
+		if($("#http_username_new").val() == $("#http_passwd_cur").val()){
+			showtext(document.getElementById("alert_msg"),"* <#JS_validLoginPWD_same#>");
+			$("#http_username_new").focus();
+			$("#http_username_new").select();
+			return false;
+		}
+
 		if($("#http_username_new").val() == "root"
 				|| $("#http_username_new").val() == "guest"
 				|| $("#http_username_new").val() == "anonymous"
@@ -1930,8 +1939,15 @@ function change_passwd(){
 		return false;
 	}
 
+	var str_valid_max_password = `<#JS_max_password_var#>`;
+	if(is_KR_sku || is_SG_sku || is_AA_sku || secure_default){  /* MODELDEP by Territory Code */
+		str_valid_max_password = `* `+str_valid_max_password.replace("%1$@", "10");
+	}
+	else{
+		str_valid_max_password = `* `+str_valid_max_password.replace("%1$@", "5");
+	}
 	if($("#http_passwd_new").val().length > max_pwd_length){
-		showtext(document.getElementById("new_pwd_msg"),"* <#JS_max_password#>");
+		showtext(document.getElementById("new_pwd_msg"), str_valid_max_password);
 		$("#http_passwd_new").focus();
 		$("#http_passwd_new").select();
 		return false;
@@ -1949,7 +1965,14 @@ function change_passwd(){
 		return false;
 	}
 
-	if(is_KR_sku || is_SG_sku || is_AA_sku){	/* MODELDEP by Territory Code */
+	if($("#http_passwd_new").val() == httpApi.nvramGet(["http_username"]).http_username){
+        showtext(document.getElementById("alert_msg"),"* <#JS_validLoginPWD_same#>");
+        $("#http_passwd_new").focus();
+        $("#http_passwd_new").select();
+        return false;
+	}
+
+	if(is_KR_sku || is_SG_sku || is_AA_sku || secure_default){	/* MODELDEP by Territory Code */
 		if($("#http_passwd_new").val().length > 0){
 			if(!validator.string_KR(document.getElementById("http_passwd_new"))){
 				$("#http_passwd_new").focus();
@@ -2022,7 +2045,7 @@ function change_passwd(){
 
 function check_password_length(obj){
 
-	if(is_KR_sku || is_SG_sku || is_AA_sku){     /* MODELDEP by Territory Code */
+	if(is_KR_sku || is_SG_sku || is_AA_sku || secure_default){     /* MODELDEP by Territory Code */
 		showtext(document.getElementById("new_pwd_msg"),"<#JS_validLoginPWD#>");
 		return;
 	}

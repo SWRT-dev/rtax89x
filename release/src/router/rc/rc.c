@@ -482,7 +482,7 @@ static int rctest_main(int argc, char *argv[])
 #endif
 #if defined(RTCONFIG_FRS_FEEDBACK)
 	else if (strcmp(argv[1], "sendfeedback")==0) {
-		start_sendfeedback();
+		start_sendfeedback(0, NULL);
 	}
 #endif
 #ifdef RTCONFIG_BCM_7114
@@ -973,7 +973,7 @@ static int rctest_main(int argc, char *argv[])
 		char out[AAE_MAX_IPC_PACKET_SIZE];
 		snprintf(event, sizeof(event), AAE_HTTPD_ACCOUNT_REG_MSG, AAE_EID_HTTPD_ACCOUNT_REG, "{\"oauth_type\":\"GOOGLE\", \"username\":\"gemini.plus0668@gmail.com\", \"password\":\"eyJhbGciOiJSUzI1NiIsImtpZCI6IjM4ZjM4ODM0NjhmYzY1OWFiYjQ0NzVmMzYzMTNkMjI1ODVjMmQ3Y2EiLCJ0eXAiOiJKV1QifQ.eyJpc3MiOiJodHRwczovL2FjY291bnRzLmdvb2dsZS5jb20iLCJhenAiOiI1Mjg3NTcxMzYzNC1wY245ODRwN3QwMmJjaGlkZGNhdWw4cjFiZ3YwcGkzZy5hcHBzLmdvb2dsZXVzZXJjb250ZW50LmNvbSIsImF1ZCI6IjUyODc1NzEzNjM0LXA3bGs5OWViaTM5aWNta2FhMDdrdjdmcjhyMnU0MzZnLmFwcHMuZ29vZ2xldXNlcmNvbnRlbnQuY29tIiwic3ViIjoiMTEzNjUxMjYyNzk3MjIyNzc1NzY3IiwiZW1haWwiOiJnZW1pbmkucGx1czA2NjhAZ21haWwuY29tIiwiZW1haWxfdmVyaWZpZWQiOnRydWUsIm5hbWUiOiJKZXJyeSBMaW4iLCJwaWN0dXJlIjoiaHR0cHM6Ly9saDMuZ29vZ2xldXNlcmNvbnRlbnQuY29tL2EvQUFUWEFKeS1tMUNCTi1QS3N1YS00Q0EzWXJiQWgtbmdSM0s3YTlfNXBPMG89czk2LWMiLCJnaXZlbl9uYW1lIjoiSmVycnkiLCJmYW1pbHlfbmFtZSI6IkxpbiIsImxvY2FsZSI6InpoLVRXIiwiaWF0IjoxNjUzOTc5NDIxLCJleHAiOjE2NTM5ODMwMjF9.D-ttK5G9PcdEjTR1-7C-TaUEaIeXHM3kyQBjpFNAjRD67dQrDA_Slu13ZEGsADQ_F7NARIbCGvxVj6Ko0giHZBLPalssIDmn4mebegIsppt53X9ZJczVpzDth9_zrzkAMjfiHnl6_lTH2WBktQYG_VDosUh-YPI51_TUeVojB7pVYBdre5dHZ9uW6Mt5CFwPQhesnziTQBIoaT8_8n07ehClcT8SOfkN8ZYDbgHSJYLPAnSG8cLrRH-MhyS8EECyGUEGhQWQ45saFTtdhfSZ3GoeEl6dpaRAacLd8XIJ6o855mP2eOD8ZnZtDi8JeX8lQXxU0rl_XbPrmF5AsmbC0Q\"}");
 		aae_sendIpcMsgAndWaitResp(MASTIFF_IPC_SOCKET_PATH, event, strlen(event), out, sizeof(out), 10);
-		printf("out=%s, out len=%lu\n", out, sizeof(out));
+		printf("out=%s, out len=%zu\n", out, sizeof(out));
 		json_object *root = NULL;
 		json_object *httpdObj = NULL;
 		json_object *eidObj = NULL;
