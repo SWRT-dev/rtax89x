@@ -1332,6 +1332,7 @@ function switch_control(_status){
                                                                         switch_control(0);
                                                                     }
 																);
+                              }
 															</script>
 														</td>
 													</tr>
