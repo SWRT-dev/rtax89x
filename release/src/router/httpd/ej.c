@@ -191,9 +191,23 @@ process_asp (char *s, char *e, FILE *f)
 	return end;
 }
 
+extern int replace_modelname(char *GET_PID_STR, char *RP_PID_STR, int len){
+
+	struct REPLACE_MODELNAME_S *p;
+
+	for(p = &replace_modelname_t[0]; p->modelname; p++){
+		if(!strcmp(GET_PID_STR, p->modelname)){
+			strlcpy(RP_PID_STR, p->modelname, len);
+			return 1;
+		}
+	}
+	return 0;
+}
+
 extern void replace_productid(char *GET_PID_STR, char *RP_PID_STR, int len){
 
 	struct REPLACE_PRODUCTID_S *p;
+	struct REPLACE_MODELNAME_S *p2;
 	char *p_temp;
 
 	for(p = &replace_productid_t[0]; p->org_name; p++){
@@ -203,6 +217,11 @@ extern void replace_productid(char *GET_PID_STR, char *RP_PID_STR, int len){
 
 			if(!strcmp("global", p->p_lang) && !strlen(RP_PID_STR))
 				strlcpy(RP_PID_STR, p->replace_name, len);
+		}
+	}
+	for(p2 = &replace_modelname_t[0]; p2->modelname; p2++){
+		if(!strcmp(GET_PID_STR, p2->modelname)){
+			strlcpy(RP_PID_STR, p2->modelname, len);
 		}
 	}
 
@@ -229,19 +248,6 @@ extern void replace_productid(char *GET_PID_STR, char *RP_PID_STR, int len){
 		if (*RP_PID_STR == '_')
 			*RP_PID_STR = ' ';
 	}
-}
-
-extern int replace_modelname(char *GET_PID_STR, char *RP_PID_STR, int len){
-
-	struct REPLACE_MODELNAME_S *p;
-
-	for(p = &replace_modelname_t[0]; p->modelname; p++){
-		if(!strcmp(GET_PID_STR, p->modelname)){
-			strlcpy(RP_PID_STR, p->modelname, len);
-			return 1;
-		}
-	}
-	return 0;
 }
 
 struct REPLACE_TAG_S replace_tag_string_t[] =
