@@ -17,7 +17,7 @@ jobs:
           SDK: ${{ matrix.cfg.sdk }}
           SKIP_BUILD: ${{ matrix.cfg.skip }}
           GIT_REPO: "https://github.com/SWRT-dev/rtax89x.git"
-          PROJECT_DIR: "/project/swrt-gpl"
+          PROJECT_DIR: "/project/rtax89x"
           PROJECTBASEDIR: "/project" # REMOVE_ME: Fixes https://github.com/SonarSource/sonarcloud-github-action/pull/58
         options: --user docker 
         volumes:
